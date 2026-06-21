@@ -425,6 +425,7 @@
     // ============================================================
 
     let allData = [];
+    let isSubmittingRegistration = false; // กันการกดสมัครซ้ำซ้อนระหว่างที่ยังบันทึกไม่เสร็จ
     let currentUser = null;
     let importedClasses = [];
     let importedSubjects = [];
@@ -716,6 +717,7 @@
     }
     function handleRegister(event) {
       event.preventDefault();
+      if (isSubmittingRegistration) return; // ⛔ กำลังบันทึกอยู่แล้ว ไม่ให้กดซ้ำ
       const studentId = document.getElementById('reg-student-id').value.trim();
       const prefix = document.getElementById('reg-prefix').value;
       const firstName = document.getElementById('reg-first-name').value.trim();
@@ -738,10 +740,11 @@
         return;
       }
       errorDiv.classList.add('hidden');
+      isSubmittingRegistration = true;
       const submitBtn = event.target.querySelector('button[type="submit"]');
       const originalText = submitBtn.textContent;
       submitBtn.disabled = true;
-      submitBtn.textContent = '⏳ กำลังบันทึก...';
+      submitBtn.textContent = '⏳ กำลังบันทึก... กรุณารอสักครู่';
       const newStudent = {
         type: 'student',
         student_id: studentId,
@@ -786,6 +789,7 @@
           `;
           document.body.appendChild(successMsg);
           
+          isSubmittingRegistration = false;
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
           
@@ -809,12 +813,14 @@
           const errorMsg = result.error?.message || 'Unknown error';
           errorDiv.textContent = '❌ เกิดข้อผิดพลาด: ' + errorMsg;
           errorDiv.classList.remove('hidden');
+          isSubmittingRegistration = false;
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
         }
       }).catch(err => {
         errorDiv.textContent = '❌ เกิดข้อผิดพลาด: ' + (err.message || 'Unknown error');
         errorDiv.classList.remove('hidden');
+        isSubmittingRegistration = false;
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
       });
@@ -1665,7 +1671,8 @@
       }
     }
     function goToLoginAfterRegister() {
-      document.querySelector('.fixed')?.remove();
+      // ลบ popup ที่ลอยอยู่ทั้งหมด (เผื่อมีหลายอันซ้อนกัน) ไม่ใช่ลบแค่อันแรกที่เจอ
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       document.getElementById('page-register').classList.add('hidden');
       document.getElementById('page-login').classList.remove('hidden');
       document.getElementById('app-main').classList.add('hidden');
