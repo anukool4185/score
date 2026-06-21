@@ -124,16 +124,18 @@
       <p class="text-indigo-100 text-sm mt-1">สำหรับบุคคลทั่วไป ไม่ต้องเข้าสู่ระบบ</p>
      </div>
      <div class="flex-1 p-4 md:p-6 pb-12">
-      <div class="max-w-2xl mx-auto w-full">
+      <div class="max-w-5xl mx-auto w-full">
+       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="md:col-span-2 bg-white rounded-xl p-6 shadow">
+         <h3 class="text-lg font-bold text-gray-800 mb-4">📝 หัวข้อการประเมิน</h3>
+         <div id="public-eval-form"></div>
+        </div>
+        <div class="md:col-span-1 bg-white rounded-xl p-6 shadow">
+         <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">📊 สรุปผลการประเมินรวม</h3>
+         <div id="public-eval-summary"></div>
+        </div>
+       </div>
        <div class="bg-white rounded-xl p-6 shadow">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">📝 หัวข้อการประเมิน</h3>
-        <div id="public-eval-form"></div>
-       </div>
-       <div class="bg-white rounded-xl p-6 shadow mt-6">
-        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">📊 สรุปผลการประเมินรวม</h3>
-        <div id="public-eval-summary"></div>
-       </div>
-       <div class="bg-white rounded-xl p-6 shadow mt-6">
         <h3 class="text-lg font-bold text-gray-800 mb-4">✍️ ลงชื่อผู้ประเมินการสอน</h3>
         <p class="text-gray-500 text-sm mb-4">กรุณากรอกคำนำหน้า ชื่อ และนามสกุล ก่อนบันทึกการประเมิน</p>
         <div class="grid md:grid-cols-3 gap-3 mb-6">
@@ -1565,6 +1567,39 @@
       const publicCount = submissions.filter(s => s.evaluator_type === 'public').length;
       return { topicResults, overallAvg, committeeCount, studentCount, publicCount };
     }
+    function getLevelLabelForPercent(percent) {
+      const levels = allData.filter(d => d.type === 'evaluation_level').sort((a, b) => (b.percent_value || 0) - (a.percent_value || 0));
+      if (levels.length === 0 || percent === null) return null;
+      // หาระดับที่ตรงที่สุด: เรียงจากร้อยละสูงไปต่ำ เลือกระดับแรกที่ร้อยละที่ได้ >= ค่าร้อยละของระดับนั้น
+      for (const level of levels) {
+        if (percent >= (level.percent_value || 0)) {
+          return level.level_label;
+        }
+      }
+      return levels[levels.length - 1].level_label; // ถ้าต่ำกว่าทุกระดับ ใช้ระดับต่ำสุด
+    }
+    function renderQualitativeSummaryHtml() {
+      const { topicResults, overallAvg } = computeEvaluationResults();
+      if (topicResults.length === 0) return '';
+      const topicSentences = topicResults.map(tr => {
+        if (tr.avg === null) return `${tr.topic.topic_text}: ยังไม่มีข้อมูลการประเมิน`;
+        const levelLabel = getLevelLabelForPercent(tr.avg);
+        return `${tr.topic.topic_text} อยู่ในระดับ${levelLabel || '-'} (ร้อยละ ${tr.avg.toFixed(1)})`;
+      });
+      const overallLevelLabel = overallAvg !== null ? getLevelLabelForPercent(overallAvg) : null;
+      const overallSentence = overallAvg !== null
+        ? `โดยรวมแล้ว การสอนอยู่ในระดับ${overallLevelLabel || '-'} (ร้อยละ ${overallAvg.toFixed(1)})`
+        : 'ยังไม่มีข้อมูลการประเมินเพียงพอสำหรับสรุปภาพรวม';
+      return `
+        <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mt-4">
+          <p class="font-semibold text-blue-800 mb-2">📝 สรุปเชิงคุณภาพ</p>
+          <ul class="text-sm text-gray-700 space-y-1 mb-3 list-disc list-inside">
+            ${topicSentences.map(s => `<li>${s}</li>`).join('')}
+          </ul>
+          <p class="text-sm font-medium text-blue-700">${overallSentence}</p>
+        </div>
+      `;
+    }
     function renderEvalSummaryHtml(gaugeSize) {
       gaugeSize = gaugeSize || 130;
       const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
@@ -2135,7 +2170,7 @@
       if (firstEl) firstEl.value = '';
       if (lastEl) lastEl.value = '';
       const summaryContainer = document.getElementById('public-eval-summary');
-      if (summaryContainer) summaryContainer.innerHTML = renderEvalSummaryHtml(120);
+      if (summaryContainer) summaryContainer.innerHTML = renderEvalSummaryHtml(120) + renderQualitativeSummaryHtml();
     }
     async function handlePublicEvaluationSubmit() {
       const prefix = document.getElementById('public-eval-prefix').value;
@@ -4830,8 +4865,34 @@
     function showDirectorMainPage() {
       const container = document.getElementById('director-content');
       if (!container) return;
-      container.innerHTML = `<div id="director-tab-content"></div>`;
-      showDirectorDashboard();
+      container.innerHTML = `
+        <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+          <button onclick="showDirectorTab('score')" id="director-tab-btn-score" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📊 ตารางผลการเรียน/เวลาเรียน</button>
+          <button onclick="showDirectorTab('evaluate')" id="director-tab-btn-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินผู้สอน</button>
+        </div>
+        <div id="director-tab-content"></div>
+      `;
+      showDirectorTab('score');
+    }
+    function showDirectorTab(tabName) {
+      currentDirectorTab = tabName;
+      ['score', 'evaluate'].forEach(name => {
+        const btn = document.getElementById('director-tab-btn-' + name);
+        if (btn) {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-300', 'text-gray-700');
+        }
+      });
+      const activeBtn = document.getElementById('director-tab-btn-' + tabName);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        activeBtn.classList.add('bg-blue-500', 'text-white');
+      }
+      if (tabName === 'score') {
+        showDirectorDashboard();
+      } else if (tabName === 'evaluate') {
+        showDirectorEvaluationPage();
+      }
     }
     function buildEvaluatorsListHtml() {
       const levels = allData.filter(d => d.type === 'evaluation_level');
@@ -5124,7 +5185,7 @@
     function updateDirectorEvalSummary() {
       const container = document.getElementById('director-eval-summary');
       if (!container) return;
-      container.innerHTML = renderEvalSummaryHtml(120);
+      container.innerHTML = renderEvalSummaryHtml(120) + renderQualitativeSummaryHtml();
     }
     async function handleDirectorEvaluationSubmit() {
       const prefix = document.getElementById('director-eval-prefix').value;
