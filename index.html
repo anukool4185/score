@@ -326,6 +326,39 @@
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     const POLL_INTERVAL_MS = 4000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time
 
+    // ============================================================
+    // 🔒 ระบบป้องกันการกดซ้ำซ้อนแบบรวมศูนย์ (ใช้ได้กับทุกปุ่ม บันทึก/แก้ไข/ลบ ทั้งแอป)
+    // ตอนระบบกำลังบันทึก/แก้ไข/ลบข้อมูลอยู่ จะมี overlay คลุมทั้งหน้าจอ
+    // กันไม่ให้กดปุ่มอะไรซ้ำได้เลยจนกว่าจะเสร็จ แล้วจะปิดให้ทันทีอัตโนมัติ
+    // ============================================================
+    let pendingRequestCount = 0;
+    function showBusyOverlay() {
+      if (document.getElementById('global-busy-overlay')) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'global-busy-overlay';
+      overlay.className = 'fixed inset-0 flex items-center justify-center p-4';
+      overlay.style.background = 'rgba(0,0,0,0.25)';
+      overlay.style.zIndex = '99999';
+      overlay.innerHTML = `
+        <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-4">
+          <div class="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+          <p class="text-gray-700 font-medium">⏳ ระบบกำลังดำเนินการ กรุณารอสักครู่...</p>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    function hideBusyOverlay() {
+      document.getElementById('global-busy-overlay')?.remove();
+    }
+    function beginRequest() {
+      pendingRequestCount++;
+      showBusyOverlay();
+    }
+    function endRequest() {
+      pendingRequestCount = Math.max(0, pendingRequestCount - 1);
+      if (pendingRequestCount === 0) hideBusyOverlay();
+    }
+
     const sheetsDataSdk = {
       _handler: null,
       _cache: [],
@@ -367,6 +400,7 @@
       },
 
       async create(record) {
+        beginRequest();
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -380,10 +414,13 @@
         } catch (err) {
           console.error('❌ sheetsDataSdk.create error:', err);
           return { isOk: false, error: { message: err.message } };
+        } finally {
+          endRequest();
         }
       },
 
       async update(record) {
+        beginRequest();
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -398,10 +435,13 @@
         } catch (err) {
           console.error('❌ sheetsDataSdk.update error:', err);
           return { isOk: false, error: { message: err.message } };
+        } finally {
+          endRequest();
         }
       },
 
       async delete(record) {
+        beginRequest();
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -415,6 +455,8 @@
         } catch (err) {
           console.error('❌ sheetsDataSdk.delete error:', err);
           return { isOk: false, error: { message: err.message } };
+        } finally {
+          endRequest();
         }
       }
     };
@@ -426,6 +468,7 @@
 
     let allData = [];
     let isSubmittingRegistration = false; // กันการกดสมัครซ้ำซ้อนระหว่างที่ยังบันทึกไม่เสร็จ
+    let currentStudentTab = null; // ติดตามแท็บที่นักเรียนกำลังดูอยู่ ('profile' หรือ 'register') เพื่อรีเฟรชอัตโนมัติเมื่อข้อมูลเปลี่ยน
     let currentUser = null;
     let importedClasses = [];
     let importedSubjects = [];
@@ -471,6 +514,14 @@
           updateLoginPageRegistrations();
         }
         
+        // อัปเดตหน้านักเรียนแบบสด ถ้านักเรียนกำลังดูแท็บ "ลงทะเบียนเรียน" อยู่ตอนนั้น
+        // (เช่น แอดมินแก้ไขชั้น/ห้องของนักเรียนคนนี้ ระบบจะตรวจสอบสิทธิ์ใหม่ทันที ไม่ต้องออกจากแท็บ)
+        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'register') {
+          if (document.getElementById('student-content')) {
+            showStudentRegister();
+          }
+        }
+
         // อัปเดตแอดมิน
         if (currentUser && currentUser.user_type === 'admin') {
           if (document.getElementById('admin-list')) {
@@ -885,6 +936,7 @@
       
       // ลบข้อมูล user หลังจากซ่อน UI
       currentUser = null;
+      currentStudentTab = null;
       localStorage.removeItem('currentUser'); // ลบเฉพาะ currentUser
       
       // รีเซ็ตฟอร์ม login
@@ -3771,6 +3823,7 @@
       `;
     }
     function showStudentTab(tabName) {
+      currentStudentTab = tabName;
       document.getElementById('tab-profile').classList.remove('bg-blue-500', 'text-white');
       document.getElementById('tab-register').classList.remove('bg-blue-500', 'text-white');
       document.getElementById('tab-profile').classList.add('bg-gray-300', 'text-gray-700');
@@ -3878,6 +3931,9 @@
       const prefix = document.getElementById('profile-prefix').value;
       const firstName = document.getElementById('profile-first-name').value.trim();
       const lastName = document.getElementById('profile-last-name').value.trim();
+      const className = document.getElementById('profile-class').value;
+      const roomNumber = document.getElementById('profile-room').value.trim();
+      const studentNumber = document.getElementById('profile-number').value.trim();
       const phone = document.getElementById('profile-phone').value.trim();
       const username = document.getElementById('profile-username').value.trim();
       const password = document.getElementById('profile-password').value;
@@ -3886,6 +3942,9 @@
         prefix,
         first_name: firstName,
         last_name: lastName,
+        class_name: className,
+        room_number: roomNumber,
+        student_number: studentNumber,
         phone_number: phone,
         username,
         password
@@ -3894,6 +3953,9 @@
         currentUser.prefix = prefix;
         currentUser.first_name = firstName;
         currentUser.last_name = lastName;
+        currentUser.class_name = className;
+        currentUser.room_number = roomNumber;
+        currentUser.student_number = studentNumber;
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         document.getElementById('user-display').textContent = `${prefix} ${firstName} ${lastName}`;
         
