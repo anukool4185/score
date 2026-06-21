@@ -301,6 +301,13 @@
       <div id="admin-tab-students" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">👨‍🎓 จัดการข้อมูลนักเรียน</h3>
+        <div id="students-bulk-toolbar" class="flex items-center justify-between mb-4 gap-3 flex-wrap bg-gray-50 rounded-lg p-3">
+         <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+          <input type="checkbox" id="select-all-students" onchange="toggleSelectAllStudents()" class="w-4 h-4">
+          เลือกทั้งหมด
+         </label>
+         <button id="bulk-delete-students-btn" onclick="bulkDeleteStudents()" disabled class="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-medium cursor-not-allowed transition">🗑️ ลบที่เลือก (0)</button>
+        </div>
         <div id="students-list" class="space-y-3">
          <p class="text-gray-400 text-center py-4">ยังไม่มีนักเรียนลงทะเบียน</p>
         </div>
@@ -1499,30 +1506,119 @@
       }
       container.innerHTML = students.map(s => `
         <div class="bg-white rounded-lg border-2 border-gray-200 p-4">
-          <div class="grid md:grid-cols-2 gap-3 mb-3">
-            <div>
-              <p class="text-sm font-semibold text-gray-600">ชื่อ-นามสกุล</p>
-              <p class="text-gray-800 font-medium">${s.prefix} ${s.first_name} ${s.last_name}</p>
+          <div class="flex items-start gap-3">
+            <input type="checkbox" class="student-select-checkbox mt-1 w-4 h-4 flex-shrink-0" data-id="${s.__backendId}" onchange="updateBulkDeleteButton()">
+            <div class="flex-1 min-w-0">
+              <div class="grid md:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">ชื่อ-นามสกุล</p>
+                  <p class="text-gray-800 font-medium">${s.prefix} ${s.first_name} ${s.last_name}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">รหัสนักเรียน</p>
+                  <p class="text-gray-800 font-medium">${s.student_id}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">ชั้น/ห้อง/เลขที่</p>
+                  <p class="text-gray-800 font-medium">${s.class_name} / ${s.room_number} / ${s.student_number || '-'}</p>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-gray-600">เบอร์โทร</p>
+                  <p class="text-gray-800 font-medium">${s.phone_number}</p>
+                </div>
+              </div>
+              <div class="flex gap-2 pt-3 border-t border-gray-200">
+                <button onclick="editStudent('${s.__backendId}')" class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️ แก้ไข</button>
+                <button onclick="deleteStudent('${s.__backendId}')" class="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️ ลบ</button>
+              </div>
             </div>
-            <div>
-              <p class="text-sm font-semibold text-gray-600">รหัสนักเรียน</p>
-              <p class="text-gray-800 font-medium">${s.student_id}</p>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-gray-600">ชั้น/ห้อง/เลขที่</p>
-              <p class="text-gray-800 font-medium">${s.class_name} / ${s.room_number} / ${s.student_number || '-'}</p>
-            </div>
-            <div>
-              <p class="text-sm font-semibold text-gray-600">เบอร์โทร</p>
-              <p class="text-gray-800 font-medium">${s.phone_number}</p>
-            </div>
-          </div>
-          <div class="flex gap-2 pt-3 border-t border-gray-200">
-            <button onclick="editStudent('${s.__backendId}')" class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️ แก้ไข</button>
-            <button onclick="deleteStudent('${s.__backendId}')" class="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️ ลบ</button>
           </div>
         </div>
       `).join('');
+      updateBulkDeleteButton();
+    }
+    function toggleSelectAllStudents() {
+      const selectAll = document.getElementById('select-all-students').checked;
+      document.querySelectorAll('.student-select-checkbox').forEach(cb => cb.checked = selectAll);
+      updateBulkDeleteButton();
+    }
+    function updateBulkDeleteButton() {
+      const allCheckboxes = document.querySelectorAll('.student-select-checkbox');
+      const checked = document.querySelectorAll('.student-select-checkbox:checked');
+      const btn = document.getElementById('bulk-delete-students-btn');
+      if (btn) {
+        const count = checked.length;
+        btn.textContent = `🗑️ ลบที่เลือก (${count})`;
+        if (count > 0) {
+          btn.disabled = false;
+          btn.classList.remove('bg-red-300', 'cursor-not-allowed');
+          btn.classList.add('bg-red-500', 'hover:bg-red-600');
+        } else {
+          btn.disabled = true;
+          btn.classList.add('bg-red-300', 'cursor-not-allowed');
+          btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+        }
+      }
+      const selectAllCb = document.getElementById('select-all-students');
+      if (selectAllCb) {
+        selectAllCb.checked = allCheckboxes.length > 0 && checked.length === allCheckboxes.length;
+      }
+    }
+    function bulkDeleteStudents() {
+      const checked = Array.from(document.querySelectorAll('.student-select-checkbox:checked'));
+      if (checked.length === 0) return;
+      const ids = checked.map(cb => cb.dataset.id);
+      const confirmDiv = document.createElement('div');
+      confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      confirmDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
+          <p class="text-lg font-semibold text-gray-800 mb-2">ลบนักเรียนที่เลือก ${ids.length} คน ใช่หรือไม่?</p>
+          <p class="text-sm text-gray-500 mb-4">การลงทะเบียนเรียนและการลงเวลาเรียนของนักเรียนเหล่านี้จะถูกลบไปด้วยทั้งหมด</p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick='confirmBulkDeleteStudents(${JSON.stringify(ids)})' class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmDiv);
+    }
+    async function confirmBulkDeleteStudents(ids) {
+      document.querySelector('.fixed')?.remove();
+      showToast(`⏳ กำลังลบ ${ids.length} คน...`);
+      let successCount = 0;
+      let failCount = 0;
+      for (const id of ids) {
+        const student = allData.find(s => s.__backendId === id);
+        if (!student) continue;
+        const result = await deleteStudentWithRelatedData(student);
+        if (result.isOk) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+      updateStudentsList();
+      if (failCount === 0) {
+        showToast(`✅ ลบนักเรียนสำเร็จ ${successCount} คน`);
+      } else {
+        showToast(`⚠️ ลบสำเร็จ ${successCount} คน, ล้มเหลว ${failCount} คน`, 'error');
+      }
+    }
+    // ลบนักเรียน 1 คน พร้อมข้อมูลที่เกี่ยวข้องทั้งหมด (การลงทะเบียนเรียน + การลงเวลาเรียน)
+    async function deleteStudentWithRelatedData(student) {
+      const registrations = allData.filter(d =>
+        d.type === 'student_registration' && d.student_id === student.student_id
+      );
+      for (const reg of registrations) {
+        const attendanceRecords = allData.filter(a =>
+          a.type === 'attendance' && a.registration_id === reg.__backendId
+        );
+        for (const att of attendanceRecords) {
+          await window.dataSdk.delete(att);
+        }
+        await window.dataSdk.delete(reg);
+      }
+      return await window.dataSdk.delete(student);
     }
     async function deleteStudent(studentId) {
       const student = allData.find(a => a.__backendId === studentId);
@@ -1559,10 +1655,10 @@
     async function confirmDeleteStudentConfirm(studentId) {
       const student = allData.find(a => a.__backendId === studentId);
       if (!student) return;
-      const result = await window.dataSdk.delete(student);
+      const result = await deleteStudentWithRelatedData(student);
       if (result.isOk) {
         document.querySelector('.fixed')?.remove();
-        showToast('ลบนักเรียนสำเร็จ ✅');
+        showToast('ลบนักเรียนและข้อมูลที่เกี่ยวข้องสำเร็จ ✅');
         updateStudentsList();
       } else {
         showToast('ไม่สามารถลบนักเรียน', 'error');
