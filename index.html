@@ -38,7 +38,11 @@
        </div>
        <p id="login-error" class="text-red-500 text-sm mb-4 hidden"></p><button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ เข้าสู่ระบบ</button>
       </form><button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-3">📋 ลงทะเบียนสมาชิก</button>
-      <hr class="my-6"><button onclick="handleDirectorLogin()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-medium transition">👨‍💼 กรรมการนิเทศประเมินผู้สอน</button>
+      <hr class="my-6">
+      <div class="grid grid-cols-2 gap-3">
+       <button onclick="handleDirectorLogin()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 นิเทศ</button>
+       <button onclick="handleEvaluationLogin()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินการสอน</button>
+      </div>
      </div>
     </div>
    </div>
@@ -125,7 +129,7 @@
     <div id="page-home" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap hidden">
-       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button>
+       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
       </div>
       <div id="student-content" class="flex-1 overflow-auto">
        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -133,12 +137,13 @@
         <p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p>
        </div>
       </div>
+      <div id="director-content" class="flex-1 overflow-auto hidden"></div>
      </div>
     </div>
     <div id="page-admin" class="h-full overflow-auto flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
-      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button>
+      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -340,6 +345,40 @@
         </div>
         <div id="students-list" class="space-y-3 max-h-[600px] overflow-y-auto pr-1">
          <p class="text-gray-400 text-center py-4">ยังไม่มีนักเรียนลงทะเบียน</p>
+        </div>
+       </div>
+      </div>
+      <div id="admin-tab-evaltopics" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">📋 หัวข้อประเมินการสอน</h3>
+        <p class="text-gray-500 text-sm mb-6">ตั้งค่าหัวข้อและระดับการประเมิน สำหรับให้กรรมการนิเทศและนักเรียนใช้ประเมินการสอน</p>
+
+        <!-- จัดการหัวข้อการประเมิน -->
+        <div class="mb-8">
+         <h4 class="font-semibold text-gray-700 mb-3">📝 หัวข้อการประเมิน</h4>
+         <div class="flex gap-2 mb-3">
+          <input type="text" id="new-eval-topic" placeholder="พิมพ์หัวข้อการประเมิน เช่น ความชัดเจนในการอธิบาย" class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+          <button onclick="addEvalTopic()" class="px-4 py-2 btn-primary text-white rounded-lg whitespace-nowrap">➕ เพิ่มหัวข้อ</button>
+         </div>
+         <div id="eval-topics-list" class="space-y-2"></div>
+        </div>
+
+        <!-- จัดการระดับการประเมิน -->
+        <div class="mb-8 pt-6 border-t-2 border-gray-200">
+         <h4 class="font-semibold text-gray-700 mb-3">🎯 ระดับการประเมิน (สเกล)</h4>
+         <p class="text-gray-500 text-xs mb-3">กำหนดระดับ พร้อมค่าร้อยละของแต่ละระดับ (ใช้คำนวณสรุปผลอัตโนมัติ)</p>
+         <div class="flex gap-2 mb-3 flex-wrap">
+          <input type="text" id="new-eval-level-label" placeholder="ชื่อระดับ เช่น ดีมาก" class="flex-1 min-w-[140px] px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+          <input type="number" id="new-eval-level-percent" placeholder="ร้อยละ เช่น 100" min="0" max="100" class="w-32 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+          <button onclick="addEvalLevel()" class="px-4 py-2 btn-primary text-white rounded-lg whitespace-nowrap">➕ เพิ่มระดับ</button>
+         </div>
+         <div id="eval-levels-list" class="space-y-2"></div>
+        </div>
+
+        <!-- สรุปผลการประเมิน -->
+        <div class="pt-6 border-t-2 border-gray-200">
+         <h4 class="font-semibold text-gray-700 mb-4">📊 สรุปผลการประเมิน</h4>
+         <div id="eval-results-summary"></div>
         </div>
        </div>
       </div>
@@ -573,6 +612,9 @@
           if (document.getElementById('filter-class-mf')) {
             loadMFFilters();
             updateMFDisplayList();
+          }
+          if (document.getElementById('eval-results-summary')) {
+            updateEvalResultsSummary();
           }
         }
       }
@@ -1019,13 +1061,25 @@
       // แสดงแท็บนักเรียน ถ้าเป็น student
       if (currentUser.user_type === 'student') {
         document.getElementById('student-tabs').classList.remove('hidden');
+        document.getElementById('student-content').classList.remove('hidden');
+        document.getElementById('director-content').classList.add('hidden');
         document.getElementById('user-display').textContent = `${currentUser.prefix} ${currentUser.first_name} ${currentUser.last_name}`;
         showStudentTab('profile');
       } else if (isDirector) {
         document.getElementById('student-tabs').classList.add('hidden');
-        document.getElementById('user-display').textContent = `กรรมการนิเทศ: ${currentUser.username}`;
+        document.getElementById('student-content').classList.add('hidden');
+        document.getElementById('director-content').classList.remove('hidden');
+        const modeLabel = currentUser.director_mode === 'evaluate' ? 'ประเมินการสอน' : 'นิเทศ';
+        document.getElementById('user-display').textContent = `กรรมการ${modeLabel}: ${currentUser.username}`;
+        if (currentUser.director_mode === 'evaluate') {
+          showDirectorEvaluationPage();
+        } else {
+          showDirectorDashboard();
+        }
       } else if (isAdmin) {
         document.getElementById('student-tabs').classList.add('hidden');
+        document.getElementById('student-content').classList.remove('hidden');
+        document.getElementById('director-content').classList.add('hidden');
         document.getElementById('user-display').textContent = `Admin: ${currentUser.username}`;
       }
       document.getElementById('user-display').classList.remove('hidden');
@@ -1095,58 +1149,220 @@
       showAdminTab('import');
     }
     let isShowingAllTabs = false;
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'grading', 'admins', 'students', 'evaltopics'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
       if (isShowingAllTabs) {
         // แสดงทั้งหมด
-        document.getElementById('admin-tab-import').classList.remove('hidden');
-        document.getElementById('admin-tab-settings').classList.remove('hidden');
-        document.getElementById('admin-tab-hours').classList.remove('hidden');
-        document.getElementById('admin-tab-scores').classList.remove('hidden');
-        document.getElementById('admin-tab-schedule').classList.remove('hidden');
-        document.getElementById('admin-tab-attendance').classList.remove('hidden');
-        document.getElementById('admin-tab-grading').classList.remove('hidden');
-        document.getElementById('admin-tab-admins').classList.remove('hidden');
-        document.getElementById('admin-tab-students').classList.remove('hidden');
-        showToast('แสดงแท็บทั้งหมด 9 แท็บ ✅');
+        ADMIN_TAB_NAMES.forEach(name => {
+          document.getElementById('admin-tab-' + name)?.classList.remove('hidden');
+        });
+        showToast(`แสดงแท็บทั้งหมด ${ADMIN_TAB_NAMES.length} แท็บ ✅`);
       } else {
         // ซ่อนทั้งหมด แล้วแสดงแท็บแรก
         showAdminTab('import');
       }
+    }
+    // ============================================================
+    // 📋 ระบบประเมินการสอน (Teaching Evaluation System)
+    // ============================================================
+    function renderCircularGauge(percent, sizePx) {
+      sizePx = sizePx || 120;
+      const radius = 50;
+      const circumference = 2 * Math.PI * radius;
+      const safePercent = Math.max(0, Math.min(100, percent || 0));
+      const offset = circumference - (safePercent / 100) * circumference;
+      const color = safePercent >= 80 ? '#22c55e' : safePercent >= 50 ? '#eab308' : '#ef4444';
+      return `
+        <svg width="${sizePx}" height="${sizePx}" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="${radius}" fill="none" stroke="#e5e7eb" stroke-width="12"/>
+          <circle cx="60" cy="60" r="${radius}" fill="none" stroke="${color}" stroke-width="12"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+            stroke-linecap="round" transform="rotate(-90 60 60)"/>
+          <text x="60" y="67" text-anchor="middle" font-size="24" font-weight="bold" fill="#1f2937">${safePercent.toFixed(0)}%</text>
+        </svg>
+      `;
+    }
+    function loadEvalTopicsTab() {
+      updateEvalTopicsList();
+      updateEvalLevelsList();
+      updateEvalResultsSummary();
+    }
+    async function addEvalTopic() {
+      const input = document.getElementById('new-eval-topic');
+      const topicText = input.value.trim();
+      if (!topicText) {
+        showToast('กรุณากรอกหัวข้อการประเมิน', 'error');
+        return;
+      }
+      const existingTopics = allData.filter(d => d.type === 'evaluation_topic');
+      const result = await window.dataSdk.create({
+        type: 'evaluation_topic',
+        topic_text: topicText,
+        order: existingTopics.length,
+        created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        input.value = '';
+        showToast('✅ เพิ่มหัวข้อสำเร็จ');
+        updateEvalTopicsList();
+      } else {
+        showToast('ไม่สามารถเพิ่มหัวข้อได้', 'error');
+      }
+    }
+    async function deleteEvalTopic(topicId) {
+      const topic = allData.find(d => d.__backendId === topicId);
+      if (!topic) return;
+      const result = await window.dataSdk.delete(topic);
+      if (result.isOk) {
+        showToast('🗑️ ลบหัวข้อสำเร็จ');
+        updateEvalTopicsList();
+        updateEvalResultsSummary();
+      } else {
+        showToast('ไม่สามารถลบหัวข้อได้', 'error');
+      }
+    }
+    function updateEvalTopicsList() {
+      const container = document.getElementById('eval-topics-list');
+      if (!container) return;
+      const topics = allData.filter(d => d.type === 'evaluation_topic').sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (topics.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-3">ยังไม่มีหัวข้อการประเมิน</p>';
+        return;
+      }
+      container.innerHTML = topics.map((t, idx) => `
+        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <p class="text-gray-800">${idx + 1}. ${t.topic_text}</p>
+          <button onclick="deleteEvalTopic('${t.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+        </div>
+      `).join('');
+    }
+    async function addEvalLevel() {
+      const labelInput = document.getElementById('new-eval-level-label');
+      const percentInput = document.getElementById('new-eval-level-percent');
+      const levelLabel = labelInput.value.trim();
+      const percentValue = parseFloat(percentInput.value);
+      if (!levelLabel || isNaN(percentValue)) {
+        showToast('กรุณากรอกชื่อระดับและร้อยละให้ครบ', 'error');
+        return;
+      }
+      const existingLevels = allData.filter(d => d.type === 'evaluation_level');
+      const result = await window.dataSdk.create({
+        type: 'evaluation_level',
+        level_label: levelLabel,
+        percent_value: percentValue,
+        order: existingLevels.length,
+        created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        labelInput.value = '';
+        percentInput.value = '';
+        showToast('✅ เพิ่มระดับสำเร็จ');
+        updateEvalLevelsList();
+      } else {
+        showToast('ไม่สามารถเพิ่มระดับได้', 'error');
+      }
+    }
+    async function deleteEvalLevel(levelId) {
+      const level = allData.find(d => d.__backendId === levelId);
+      if (!level) return;
+      const result = await window.dataSdk.delete(level);
+      if (result.isOk) {
+        showToast('🗑️ ลบระดับสำเร็จ');
+        updateEvalLevelsList();
+        updateEvalResultsSummary();
+      } else {
+        showToast('ไม่สามารถลบระดับได้', 'error');
+      }
+    }
+    function updateEvalLevelsList() {
+      const container = document.getElementById('eval-levels-list');
+      if (!container) return;
+      const levels = allData.filter(d => d.type === 'evaluation_level').sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (levels.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-3">ยังไม่มีระดับการประเมิน</p>';
+        return;
+      }
+      container.innerHTML = levels.map(l => `
+        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <p class="text-gray-800">${l.level_label} <span class="text-gray-500 text-sm">(${l.percent_value}%)</span></p>
+          <button onclick="deleteEvalLevel('${l.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+        </div>
+      `).join('');
+    }
+    function computeEvaluationResults() {
+      const topics = allData.filter(d => d.type === 'evaluation_topic').sort((a, b) => (a.order || 0) - (b.order || 0));
+      const levels = allData.filter(d => d.type === 'evaluation_level');
+      const submissions = allData.filter(d => d.type === 'evaluation_submission');
+      const levelPercentMap = {};
+      levels.forEach(l => { levelPercentMap[l.__backendId] = l.percent_value; });
+      const topicResults = topics.map(topic => {
+        const ratingsForTopic = [];
+        submissions.forEach(sub => {
+          try {
+            const ratings = JSON.parse(sub.ratings_json || '[]');
+            const r = ratings.find(x => x.topic_id === topic.__backendId);
+            if (r && levelPercentMap[r.level_id] !== undefined) {
+              ratingsForTopic.push(levelPercentMap[r.level_id]);
+            }
+          } catch (e) { /* ข้อมูลเสีย ข้ามไป */ }
+        });
+        const avg = ratingsForTopic.length > 0 ? ratingsForTopic.reduce((a, b) => a + b, 0) / ratingsForTopic.length : null;
+        return { topic, avg, count: ratingsForTopic.length };
+      });
+      const validAverages = topicResults.filter(t => t.avg !== null).map(t => t.avg);
+      const overallAvg = validAverages.length > 0 ? validAverages.reduce((a, b) => a + b, 0) / validAverages.length : null;
+      const committeeCount = submissions.filter(s => s.evaluator_type === 'committee').length;
+      const studentCount = submissions.filter(s => s.evaluator_type === 'student').length;
+      return { topicResults, overallAvg, committeeCount, studentCount };
+    }
+    function updateEvalResultsSummary() {
+      const container = document.getElementById('eval-results-summary');
+      if (!container) return;
+      const { topicResults, overallAvg, committeeCount, studentCount } = computeEvaluationResults();
+      if (topicResults.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีหัวข้อการประเมิน</p>';
+        return;
+      }
+      container.innerHTML = `
+        <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
+          <div class="flex flex-col items-center flex-shrink-0">
+            ${renderCircularGauge(overallAvg || 0, 140)}
+            <p class="text-sm text-gray-600 mt-2 font-medium">คะแนนรวมเฉลี่ย</p>
+            <p class="text-xs text-gray-500 mt-1">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน</p>
+          </div>
+          <div class="flex-1 w-full space-y-3">
+            ${topicResults.map(tr => `
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-sm text-gray-700">${tr.topic.topic_text}</p>
+                  <p class="text-sm font-semibold text-gray-800">${tr.avg !== null ? tr.avg.toFixed(1) + '%' : '-'}</p>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                  <div class="h-2.5 rounded-full ${tr.avg === null ? 'bg-gray-300' : tr.avg >= 80 ? 'bg-green-500' : tr.avg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${tr.avg || 0}%"></div>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">${tr.count} การประเมิน</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
     }
     function showAdminTab(tabName) {
       // ถ้ากำลังแสดงทั้งหมด ให้ปิดโหมดนั้นก่อน
       if (isShowingAllTabs) {
         isShowingAllTabs = false;
       }
-      document.getElementById('admin-tab-import').classList.add('hidden');
-      document.getElementById('admin-tab-settings').classList.add('hidden');
-      document.getElementById('admin-tab-hours').classList.add('hidden');
-      document.getElementById('admin-tab-scores').classList.add('hidden');
-      document.getElementById('admin-tab-schedule').classList.add('hidden');
-      document.getElementById('admin-tab-timekeeping').classList.add('hidden');
-      document.getElementById('admin-tab-grading').classList.add('hidden');
-      document.getElementById('admin-tab-admins').classList.add('hidden');
-      document.getElementById('admin-tab-students').classList.add('hidden');
-      document.getElementById('tab-import').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-settings').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-hours').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-scores').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-schedule').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-timekeeping').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-grading').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-admins').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-students').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-import').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-settings').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-hours').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-scores').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-schedule').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-timekeeping').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-grading').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-admins').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-students').classList.add('bg-gray-300', 'text-gray-700');
+      ADMIN_TAB_NAMES.forEach(name => {
+        const panel = document.getElementById('admin-tab-' + name);
+        const btn = document.getElementById('tab-' + name);
+        if (panel) panel.classList.add('hidden');
+        if (btn) {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-300', 'text-gray-700');
+        }
+      });
       document.getElementById('admin-tab-' + tabName).classList.remove('hidden');
       document.getElementById('tab-' + tabName).classList.remove('bg-gray-300', 'text-gray-700');
       document.getElementById('tab-' + tabName).classList.add('bg-blue-500', 'text-white');
@@ -1172,6 +1388,8 @@
         loadGradingFilters();
       } else if (tabName === 'import') {
         updateImportedData();
+      } else if (tabName === 'evaltopics') {
+        loadEvalTopicsTab();
       }
     }
     function showToast(message, type = 'success') {
@@ -1629,7 +1847,8 @@
         console.log('✅ Director login success');
         currentUser = { 
           user_type: 'director',
-          username: username
+          username: username,
+          director_mode: 'inspect'
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         errorDiv.classList.add('hidden');
@@ -1638,11 +1857,37 @@
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
         showPage('home');
-        showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
+        showToast('เข้าสู่ระบบนิเทศสำเร็จ ✅');
         return;
       }
       
       errorDiv.textContent = '❌ ไม่สามารถเข้าสู่ระบบกรรมการนิเทศได้';
+      errorDiv.classList.remove('hidden');
+    }
+    function handleEvaluationLogin() {
+      const username = 'director';
+      const password = 'director123';
+      const errorDiv = document.getElementById('login-error');
+      
+      if (DEFAULT_DIRECTOR[username] && DEFAULT_DIRECTOR[username] === password) {
+        console.log('✅ Evaluation login success');
+        currentUser = { 
+          user_type: 'director',
+          username: username,
+          director_mode: 'evaluate'
+        };
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        errorDiv.classList.add('hidden');
+        document.getElementById('page-login').classList.add('hidden');
+        document.getElementById('page-register').classList.add('hidden');
+        document.getElementById('app-main').classList.remove('hidden');
+        showLoggedInUI();
+        showPage('home');
+        showToast('เข้าสู่ระบบประเมินการสอนสำเร็จ ✅');
+        return;
+      }
+      
+      errorDiv.textContent = '❌ ไม่สามารถเข้าสู่ระบบประเมินการสอนได้';
       errorDiv.classList.remove('hidden');
     }
     function handleShowRegisterPage() {
@@ -4029,7 +4274,7 @@
     }
     function showStudentTab(tabName) {
       currentStudentTab = tabName;
-      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance'];
+      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-evaluate'];
       allTabIds.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -4051,6 +4296,8 @@
         showStudentGrades();
       } else if (tabName === 'attendance') {
         showStudentAttendance();
+      } else if (tabName === 'evaluate') {
+        showStudentEvaluation();
       }
     }
     function showStudentProfile() {
@@ -4309,6 +4556,269 @@
           ${cardsHtml}
         </div>
       `;
+    }
+    function sumScoresStr(scoresStr) {
+      if (!scoresStr) return 0;
+      return scoresStr.split(',').filter(s => s.trim()).reduce((sum, s) => sum + (parseFloat(s) || 0), 0);
+    }
+    function showDirectorDashboard() {
+      const container = document.getElementById('director-content');
+      if (!container) return;
+      const subjects = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.subject_name).filter(Boolean))].sort();
+      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.room_number).filter(Boolean))].sort();
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍🏫 ข้อมูลวิชาที่สอน และรายชื่อนักเรียน</h2>
+          <p class="text-gray-500 text-sm mb-6">มุมมองสำหรับกรรมการนิเทศ — ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไขได้</p>
+          <div class="flex items-center gap-3 flex-wrap mb-4">
+            <select id="director-filter-subject" onchange="updateDirectorTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกวิชา</option>
+              ${subjects.map(s => `<option value="${s}">${s}</option>`).join('')}
+            </select>
+            <select id="director-filter-class" onchange="updateDirectorTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกชั้น</option>
+              ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <select id="director-filter-room" onchange="updateDirectorTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกห้อง</option>
+              ${rooms.map(r => `<option value="${r}">${r}</option>`).join('')}
+            </select>
+            <span id="director-filter-count" class="text-sm text-gray-500"></span>
+          </div>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง/เลขที่</th>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
+                  <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">คะแนนรวม</th>
+                  <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เวลาเรียน ส่วนที่ 1</th>
+                  <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เวลาเรียน ส่วนที่ 2</th>
+                </tr>
+              </thead>
+              <tbody id="director-table-body" class="divide-y divide-gray-200 max-h-[600px] overflow-y-auto"></tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      updateDirectorTable();
+    }
+    function updateDirectorTable() {
+      const tbody = document.getElementById('director-table-body');
+      const countLabel = document.getElementById('director-filter-count');
+      if (!tbody) return;
+      const subjectFilter = document.getElementById('director-filter-subject')?.value || '';
+      const classFilter = document.getElementById('director-filter-class')?.value || '';
+      const roomFilter = document.getElementById('director-filter-room')?.value || '';
+      let registrations = allData.filter(d => d.type === 'student_registration');
+      const totalCount = registrations.length;
+      if (subjectFilter) registrations = registrations.filter(r => r.subject_name === subjectFilter);
+      if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
+      if (roomFilter) registrations = registrations.filter(r => r.room_number === roomFilter);
+      if (countLabel) countLabel.textContent = `แสดง ${registrations.length} จาก ${totalCount} รายการ`;
+      if (registrations.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-400 py-8">ไม่พบข้อมูลตามที่กรอง</td></tr>`;
+        return;
+      }
+      const statusBadge = (absent, canAbsent, hasData) => {
+        if (!hasData) return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">⏳ ไม่มีข้อมูล</span>';
+        if (absent > canAbsent) return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">❌ ไม่ผ่าน</span>';
+        return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">✅ ผ่าน</span>';
+      };
+      tbody.innerHTML = registrations.map(reg => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        const studentName = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+        const studentNumber = student?.student_number || '-';
+
+        // คะแนนรวม
+        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        const totalFull = (scoresConfig?.k_full_score || 0) + (scoresConfig?.p_full_score || 0) + (scoresConfig?.a_full_score || 0) +
+                           (scoresConfig?.c_full_score || 0) + (scoresConfig?.m_full_score || 0) + (scoresConfig?.f_full_score || 0);
+        const totalSum = grade ? (sumScoresStr(grade.k_scores) + sumScoresStr(grade.p_scores) + sumScoresStr(grade.a_scores) +
+                          sumScoresStr(grade.c_scores) + sumScoresStr(grade.m_scores) + sumScoresStr(grade.f_scores)) : 0;
+        const scoreText = grade ? `${totalSum.toFixed(1)} / ${totalFull || '-'}` : '<span class="text-gray-400">ยังไม่มีคะแนน</span>';
+
+        // เวลาเรียน
+        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        let part1Html = '<span class="text-gray-400">-</span>';
+        let part2Html = '<span class="text-gray-400">-</span>';
+        if (hoursData) {
+          const part1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
+          const part2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
+          const totalHours = hoursData.total_hours || 0;
+          const hoursCanAbsent = hoursData.hours_can_absent || 0;
+          const attendedHours = part1?.attended_hours ?? null;
+          const absentHours = attendedHours !== null ? totalHours - attendedHours : null;
+          const actualHoursTaught = hoursData.actual_hours_taught || 0;
+          const actualHoursCanAbsent = hoursData.actual_hours_can_absent || 0;
+          const attendedHoursReal = part2?.attended_hours_real ?? null;
+          const absentHoursReal = attendedHoursReal !== null ? actualHoursTaught - attendedHoursReal : null;
+          part1Html = `${attendedHours !== null ? attendedHours.toFixed(1) : '-'}/${totalHours} ชม. ${statusBadge(absentHours, hoursCanAbsent, attendedHours !== null)}`;
+          part2Html = `${attendedHoursReal !== null ? attendedHoursReal.toFixed(1) : '-'}/${actualHoursTaught} ชม. ${statusBadge(absentHoursReal, actualHoursCanAbsent, attendedHoursReal !== null)}`;
+        }
+
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-3 py-3 whitespace-nowrap">${studentName}</td>
+            <td class="px-3 py-3 whitespace-nowrap">${reg.class_name}/${reg.room_number}/${studentNumber}</td>
+            <td class="px-3 py-3 whitespace-nowrap">${reg.subject_name}</td>
+            <td class="px-3 py-3 text-center whitespace-nowrap">${scoreText}</td>
+            <td class="px-3 py-3 text-center whitespace-nowrap">${part1Html}</td>
+            <td class="px-3 py-3 text-center whitespace-nowrap">${part2Html}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    // ============================================================
+    // 📝 ฟอร์มประเมินการสอน (ใช้ร่วมกันระหว่างกรรมการนิเทศและนักเรียน)
+    // ============================================================
+    function renderEvaluationFormHtml(existingSubmission) {
+      const topics = allData.filter(d => d.type === 'evaluation_topic').sort((a, b) => (a.order || 0) - (b.order || 0));
+      const levels = allData.filter(d => d.type === 'evaluation_level').sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (topics.length === 0 || levels.length === 0) {
+        return '<p class="text-gray-400 text-center py-8">แอดมินยังไม่ได้ตั้งค่าหัวข้อหรือระดับการประเมิน กรุณารอก่อน</p>';
+      }
+      let existingRatings = [];
+      if (existingSubmission) {
+        try { existingRatings = JSON.parse(existingSubmission.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
+      }
+      const getExistingLevel = (topicId) => {
+        const r = existingRatings.find(x => x.topic_id === topicId);
+        return r ? r.level_id : null;
+      };
+      return topics.map((topic, idx) => `
+        <div class="bg-gray-50 rounded-lg p-4 mb-4 border-2 border-gray-200">
+          <p class="font-medium text-gray-800 mb-3">${idx + 1}. ${topic.topic_text}</p>
+          <div class="flex gap-2 flex-wrap">
+            ${levels.map(level => `
+              <label class="flex items-center gap-2 px-3 py-2 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 transition">
+                <input type="radio" name="eval-topic-${topic.__backendId}" value="${level.__backendId}" ${getExistingLevel(topic.__backendId) === level.__backendId ? 'checked' : ''}>
+                <span class="text-sm">${level.level_label}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+    async function submitEvaluationForm(evaluatorType, evaluatorKey, evaluatorName, afterSuccessFn) {
+      const topics = allData.filter(d => d.type === 'evaluation_topic');
+      if (topics.length === 0) {
+        showToast('ยังไม่มีหัวข้อการประเมิน', 'error');
+        return;
+      }
+      const ratings = [];
+      for (const topic of topics) {
+        const selected = document.querySelector(`input[name="eval-topic-${topic.__backendId}"]:checked`);
+        if (!selected) {
+          showToast('กรุณาประเมินให้ครบทุกหัวข้อ', 'error');
+          return;
+        }
+        ratings.push({ topic_id: topic.__backendId, level_id: selected.value });
+      }
+      const existing = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === evaluatorType && d.evaluator_key === evaluatorKey);
+      const record = existing ? {
+        ...existing,
+        ratings_json: JSON.stringify(ratings),
+        evaluator_name: evaluatorName,
+        updated_at: new Date().toISOString()
+      } : {
+        type: 'evaluation_submission',
+        evaluator_type: evaluatorType,
+        evaluator_key: evaluatorKey,
+        evaluator_name: evaluatorName,
+        ratings_json: JSON.stringify(ratings),
+        created_at: new Date().toISOString()
+      };
+      const result = existing ? await window.dataSdk.update(record) : await window.dataSdk.create(record);
+      if (result.isOk) {
+        showToast('✅ บันทึกการประเมินสำเร็จ');
+        if (afterSuccessFn) afterSuccessFn();
+      } else {
+        showToast('ไม่สามารถบันทึกได้', 'error');
+      }
+    }
+    // ----- มุมมองกรรมการนิเทศ (ประเมินการสอน) -----
+    function showDirectorEvaluationPage() {
+      const container = document.getElementById('director-content');
+      if (!container) return;
+      const existingSubmission = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === 'committee' && d.evaluator_key === 'director');
+      container.innerHTML = `
+        <div class="grid md:grid-cols-3 gap-6">
+          <div class="md:col-span-2">
+            <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+              <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินการสอน</h2>
+              <p class="text-gray-500 text-sm mb-6">โดยกรรมการนิเทศ ${existingSubmission ? '— คุณได้ประเมินไปแล้ว แก้ไขแล้วกดบันทึกใหม่ได้' : ''}</p>
+              <div id="director-eval-form">${renderEvaluationFormHtml(existingSubmission)}</div>
+              <button onclick="handleDirectorEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2">✅ บันทึกการประเมิน</button>
+            </div>
+          </div>
+          <div class="md:col-span-1">
+            <div class="bg-white rounded-2xl card-shadow p-6 fade-in">
+              <h3 class="text-lg font-bold text-gray-800 mb-4">📊 สรุปผลรวม</h3>
+              <div id="director-eval-summary"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      updateDirectorEvalSummary();
+    }
+    function updateDirectorEvalSummary() {
+      const container = document.getElementById('director-eval-summary');
+      if (!container) return;
+      const { topicResults, overallAvg, committeeCount, studentCount } = computeEvaluationResults();
+      if (topicResults.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">ยังไม่มีข้อมูล</p>';
+        return;
+      }
+      container.innerHTML = `
+        <div class="flex flex-col items-center mb-4">
+          ${renderCircularGauge(overallAvg || 0, 120)}
+          <p class="text-xs text-gray-500 mt-2">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน</p>
+        </div>
+        <div class="space-y-2">
+          ${topicResults.map(tr => `
+            <div>
+              <p class="text-xs text-gray-600 mb-1">${tr.topic.topic_text}</p>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full ${tr.avg === null ? 'bg-gray-300' : tr.avg >= 80 ? 'bg-green-500' : tr.avg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${tr.avg || 0}%"></div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    async function handleDirectorEvaluationSubmit() {
+      await submitEvaluationForm('committee', 'director', 'กรรมการนิเทศ', () => {
+        showDirectorEvaluationPage();
+      });
+    }
+    // ----- มุมมองนักเรียน (ประเมินการสอน) -----
+    function showStudentEvaluation() {
+      const content = document.getElementById('student-content');
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) {
+        content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
+        return;
+      }
+      const existingSubmission = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === 'student' && d.evaluator_key === student.student_id);
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินการสอน</h2>
+          <p class="text-gray-500 text-sm mb-6">${existingSubmission ? 'คุณได้ประเมินไปแล้ว สามารถแก้ไขแล้วบันทึกใหม่ได้' : 'กรุณาประเมินการสอนให้ครบทุกหัวข้อ'}</p>
+          <div id="student-eval-form">${renderEvaluationFormHtml(existingSubmission)}</div>
+          <button onclick="handleStudentEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2">✅ บันทึกการประเมิน</button>
+        </div>
+      `;
+    }
+    async function handleStudentEvaluationSubmit() {
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) return;
+      await submitEvaluationForm('student', student.student_id, `${student.prefix} ${student.first_name} ${student.last_name}`, () => {
+        showStudentEvaluation();
+      });
     }
     async function handleStudentProfileUpdate(event) {
       event.preventDefault();
