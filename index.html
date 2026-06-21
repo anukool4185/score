@@ -125,7 +125,7 @@
     <div id="page-home" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap hidden">
-       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button>
+       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button>
       </div>
       <div id="student-content" class="flex-1 overflow-auto">
        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -556,6 +556,17 @@
               lastRegisterEligibilitySignature = newSignature;
               showStudentRegister();
             }
+          }
+        }
+        // แท็บผลการเรียน/เวลาเรียน เป็นแค่หน้าแสดงผล ไม่มีฟอร์มให้กรอก จึงรีเฟรชแบบสดได้เลยไม่มีผลเสีย
+        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'grades') {
+          if (document.getElementById('student-content')) {
+            showStudentGrades();
+          }
+        }
+        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'attendance') {
+          if (document.getElementById('student-content')) {
+            showStudentAttendance();
           }
         }
 
@@ -3957,19 +3968,28 @@
     }
     function showStudentTab(tabName) {
       currentStudentTab = tabName;
-      document.getElementById('tab-profile').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-register').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-profile').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-register').classList.add('bg-gray-300', 'text-gray-700');
+      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance'];
+      allTabIds.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-300', 'text-gray-700');
+        }
+      });
+      const activeBtn = document.getElementById('tab-' + tabName);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        activeBtn.classList.add('bg-blue-500', 'text-white');
+      }
       if (tabName === 'profile') {
-        document.getElementById('tab-profile').classList.remove('bg-gray-300', 'text-gray-700');
-        document.getElementById('tab-profile').classList.add('bg-blue-500', 'text-white');
         showStudentProfile();
       } else if (tabName === 'register') {
-        document.getElementById('tab-register').classList.remove('bg-gray-300', 'text-gray-700');
-        document.getElementById('tab-register').classList.add('bg-blue-500', 'text-white');
         showStudentRegister();
         lastRegisterEligibilitySignature = getStudentEligibilitySignature();
+      } else if (tabName === 'grades') {
+        showStudentGrades();
+      } else if (tabName === 'attendance') {
+        showStudentAttendance();
       }
     }
     function showStudentProfile() {
@@ -3986,18 +4006,26 @@
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
+      const isOpen = isRegistrationOpen();
+      const disabledAttr = isOpen ? '' : 'disabled';
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-6">📝 แก้ไขข้อมูลส่วนตัว</h2>
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">📝 ${isOpen ? 'แก้ไขข้อมูลส่วนตัว' : 'ข้อมูลส่วนตัว'}</h2>
+          ${!isOpen ? `
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-6">
+              <p class="text-orange-700 font-semibold">🔒 ไม่อยู่ในช่วงเวลาลงทะเบียน</p>
+              <p class="text-orange-600 text-sm">ขณะนี้ไม่สามารถแก้ไขข้อมูลส่วนตัวได้ คุณสามารถดูข้อมูลได้เท่านั้น</p>
+            </div>
+          ` : ''}
           <form onsubmit="handleStudentProfileUpdate(event)">
             <div class="grid md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">🆔 รหัสนักเรียน</label>
-                <input type="text" id="profile-student-id" value="${student.student_id}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="text" id="profile-student-id" value="${student.student_id}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">📛 คำนำหน้า</label>
-                <select id="profile-prefix" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <select id="profile-prefix" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
                   <option value="เด็กชาย" ${student.prefix === 'เด็กชาย' ? 'selected' : ''}>เด็กชาย</option>
                   <option value="เด็กหญิง" ${student.prefix === 'เด็กหญิง' ? 'selected' : ''}>เด็กหญิง</option>
                   <option value="นาย" ${student.prefix === 'นาย' ? 'selected' : ''}>นาย</option>
@@ -4006,15 +4034,15 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">✍️ ชื่อ</label>
-                <input type="text" id="profile-first-name" value="${student.first_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="text" id="profile-first-name" value="${student.first_name}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">📌 นามสกุล</label>
-                <input type="text" id="profile-last-name" value="${student.last_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="text" id="profile-last-name" value="${student.last_name}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">🏫 ชั้นเรียน</label>
-                <select id="profile-class" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <select id="profile-class" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
                   <option value="">-- เลือก --</option>
                   <option value="อ.1" ${student.class_name === 'อ.1' ? 'selected' : ''}>อ.1</option>
                   <option value="อ.2" ${student.class_name === 'อ.2' ? 'selected' : ''}>อ.2</option>
@@ -4032,34 +4060,170 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">🏠 ห้องเรียน</label>
-                <input type="text" id="profile-room" value="${student.room_number}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="text" id="profile-room" value="${student.room_number}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">#️⃣ เลขที่</label>
-                <input type="number" id="profile-number" value="${student.student_number}" min="1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="number" id="profile-number" value="${student.student_number}" min="1" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">📱 เบอร์โทรศัพท์</label>
-                <input type="tel" id="profile-phone" value="${student.phone_number}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="tel" id="profile-phone" value="${student.phone_number}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">👤 Username</label>
-                <input type="text" id="profile-username" value="${student.username}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="text" id="profile-username" value="${student.username}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">🔐 Password</label>
-                <input type="password" id="profile-password" value="${student.password}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+                <input type="password" id="profile-password" value="${student.password}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
             </div>
-            <button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition">✅ บันทึกการเปลี่ยนแปลง</button>
+            ${isOpen ? `<button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition">✅ บันทึกการเปลี่ยนแปลง</button>` : ''}
           </form>
           <p id="profile-update-message" class="text-green-500 text-sm mt-4 hidden text-center">✅ อัปเดตข้อมูลสำเร็จ</p>
         </div>
       `;
     }
+    function showStudentGrades() {
+      const content = document.getElementById('student-content');
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) {
+        content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
+        return;
+      }
+      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      if (registrations.length === 0) {
+        content.innerHTML = `
+          <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">📊 ผลการเรียน</h2>
+            <p class="text-gray-400 text-center py-8">คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ</p>
+          </div>
+        `;
+        return;
+      }
+      const sumScores = (scoresStr) => {
+        if (!scoresStr) return 0;
+        return scoresStr.split(',').filter(s => s.trim()).reduce((sum, s) => sum + (parseFloat(s) || 0), 0);
+      };
+      const scoreBox = (label, sum, full) => `
+        <div class="bg-gray-50 rounded-lg p-3 text-center">
+          <p class="text-xs text-gray-500 mb-1">${label}</p>
+          <p class="font-bold text-gray-800">${sum.toFixed(1)} <span class="text-gray-400 text-sm">/ ${full || '-'}</span></p>
+        </div>
+      `;
+      const cardsHtml = registrations.map(reg => {
+        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        const kFull = scoresConfig?.k_full_score || 0;
+        const pFull = scoresConfig?.p_full_score || 0;
+        const aFull = scoresConfig?.a_full_score || 0;
+        const cFull = scoresConfig?.c_full_score || 0;
+        const mFull = scoresConfig?.m_full_score || 0;
+        const fFull = scoresConfig?.f_full_score || 0;
+        const kSum = sumScores(grade?.k_scores);
+        const pSum = sumScores(grade?.p_scores);
+        const aSum = sumScores(grade?.a_scores);
+        const cSum = sumScores(grade?.c_scores);
+        const mSum = sumScores(grade?.m_scores);
+        const fSum = sumScores(grade?.f_scores);
+        const totalFull = kFull + pFull + aFull + cFull + mFull + fFull;
+        const totalSum = kSum + pSum + aSum + cSum + mSum + fSum;
+        return `
+          <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-4">
+            <p class="font-semibold text-gray-800 text-lg mb-3">📖 ${reg.subject_name} <span class="text-sm text-gray-500">(${reg.class_name}/${reg.room_number})</span></p>
+            ${!grade ? `<p class="text-gray-400 text-sm mb-3">ยังไม่มีการบันทึกคะแนน</p>` : ''}
+            <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
+              ${scoreBox('K (เก็บคะแนน)', kSum, kFull)}
+              ${scoreBox('P (ทักษะ)', pSum, pFull)}
+              ${scoreBox('A (คุณลักษณะ)', aSum, aFull)}
+              ${scoreBox('C (สมรรถนะ)', cSum, cFull)}
+              ${scoreBox('M (กลางภาค)', mSum, mFull)}
+              ${scoreBox('F (ปลายภาค)', fSum, fFull)}
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3 text-center border-2 border-blue-200">
+              <p class="text-sm text-blue-700 font-semibold">รวมทั้งหมด: ${totalSum.toFixed(1)} / ${totalFull || '-'}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">📊 ผลการเรียน</h2>
+          ${cardsHtml}
+        </div>
+      `;
+    }
+    function showStudentAttendance() {
+      const content = document.getElementById('student-content');
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) {
+        content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
+        return;
+      }
+      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      if (registrations.length === 0) {
+        content.innerHTML = `
+          <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">⏱️ เวลาเรียน</h2>
+            <p class="text-gray-400 text-center py-8">คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ</p>
+          </div>
+        `;
+        return;
+      }
+      const cardsHtml = registrations.map(reg => {
+        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        if (!hoursData) {
+          return `
+            <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-4">
+              <p class="font-semibold text-gray-800 text-lg mb-2">📖 ${reg.subject_name} <span class="text-sm text-gray-500">(${reg.class_name}/${reg.room_number})</span></p>
+              <p class="text-gray-400 text-sm">ยังไม่มีการตั้งค่าเวลาเรียนสำหรับวิชานี้</p>
+            </div>
+          `;
+        }
+        const part1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
+        const part2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
+        const totalHours = hoursData.total_hours || 0;
+        const hoursCanAbsent = hoursData.hours_can_absent || 0;
+        const attendedHours = part1?.attended_hours ?? null;
+        const absentHours = attendedHours !== null ? totalHours - attendedHours : null;
+        const actualHoursTaught = hoursData.actual_hours_taught || 0;
+        const actualHoursCanAbsent = hoursData.actual_hours_can_absent || 0;
+        const attendedHoursReal = part2?.attended_hours_real ?? null;
+        const absentHoursReal = attendedHoursReal !== null ? actualHoursTaught - attendedHoursReal : null;
+        return `
+          <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-4">
+            <p class="font-semibold text-gray-800 text-lg mb-4">📖 ${reg.subject_name} <span class="text-sm text-gray-500">(${reg.class_name}/${reg.room_number})</span></p>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                <p class="text-sm font-semibold text-blue-800 mb-2">📋 ส่วนที่ 1: เวลาตั้งแต่ต้นภาค</p>
+                <p class="text-sm text-gray-700">เรียนแล้ว: <strong>${attendedHours !== null ? attendedHours.toFixed(1) : '-'}</strong> / ${totalHours} ชม.</p>
+                <p class="text-sm text-gray-700">ขาด: <strong class="${absentHours !== null && absentHours > hoursCanAbsent ? 'text-red-600' : ''}">${absentHours !== null ? absentHours.toFixed(1) : '-'}</strong> (ขาดได้ไม่เกิน ${hoursCanAbsent} ชม.)</p>
+                ${attendedHours === null ? '<p class="text-gray-400 text-xs mt-1">ยังไม่มีการลงเวลา</p>' : ''}
+              </div>
+              <div class="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
+                <p class="text-sm font-semibold text-purple-800 mb-2">🎓 ส่วนที่ 2: เวลาเรียนจริง</p>
+                <p class="text-sm text-gray-700">เรียนแล้ว: <strong>${attendedHoursReal !== null ? attendedHoursReal.toFixed(1) : '-'}</strong> / ${actualHoursTaught} ชม.</p>
+                <p class="text-sm text-gray-700">ขาด: <strong class="${absentHoursReal !== null && absentHoursReal > actualHoursCanAbsent ? 'text-red-600' : ''}">${absentHoursReal !== null ? absentHoursReal.toFixed(1) : '-'}</strong> (ขาดได้ไม่เกิน ${actualHoursCanAbsent} ชม.)</p>
+                ${attendedHoursReal === null ? '<p class="text-gray-400 text-xs mt-1">ยังไม่มีการลงเวลา</p>' : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">⏱️ เวลาเรียน</h2>
+          ${cardsHtml}
+        </div>
+      `;
+    }
     async function handleStudentProfileUpdate(event) {
       event.preventDefault();
-      
+      if (!isRegistrationOpen()) {
+        showToast('🔒 ไม่อยู่ในช่วงเวลาที่แก้ไขข้อมูลได้', 'error');
+        return;
+      }
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
       if (!student) return;
       const prefix = document.getElementById('profile-prefix').value;
