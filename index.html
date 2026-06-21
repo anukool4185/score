@@ -558,17 +558,6 @@
             }
           }
         }
-        // แท็บผลการเรียน/เวลาเรียน เป็นแค่หน้าแสดงผล ไม่มีฟอร์มให้กรอก จึงรีเฟรชแบบสดได้เลยไม่มีผลเสีย
-        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'grades') {
-          if (document.getElementById('student-content')) {
-            showStudentGrades();
-          }
-        }
-        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'attendance') {
-          if (document.getElementById('student-content')) {
-            showStudentAttendance();
-          }
-        }
 
         // อัปเดตแอดมิน
         if (currentUser && currentUser.user_type === 'admin') {
