@@ -469,6 +469,7 @@
     let allData = [];
     let isSubmittingRegistration = false; // กันการกดสมัครซ้ำซ้อนระหว่างที่ยังบันทึกไม่เสร็จ
     let currentStudentTab = null; // ติดตามแท็บที่นักเรียนกำลังดูอยู่ ('profile' หรือ 'register') เพื่อรีเฟรชอัตโนมัติเมื่อข้อมูลเปลี่ยน
+    let lastRegisterEligibilitySignature = null; // เก็บสถานะล่าสุดของสิทธิ์ลงทะเบียน เพื่อเทียบว่าเปลี่ยนจริงหรือไม่ก่อนรีเฟรชแท็บ
     let currentUser = null;
     let importedClasses = [];
     let importedSubjects = [];
@@ -516,9 +517,15 @@
         
         // อัปเดตหน้านักเรียนแบบสด ถ้านักเรียนกำลังดูแท็บ "ลงทะเบียนเรียน" อยู่ตอนนั้น
         // (เช่น แอดมินแก้ไขชั้น/ห้องของนักเรียนคนนี้ ระบบจะตรวจสอบสิทธิ์ใหม่ทันที ไม่ต้องออกจากแท็บ)
+        // เช็คก่อนว่าข้อมูลที่เกี่ยวกับสิทธิ์เปลี่ยนจริงหรือไม่ ถ้าไม่เปลี่ยนจะไม่ re-render
+        // (กันไม่ให้ดรอปดาวน์ที่กำลังเลือกอยู่รีเซ็ตทุกครั้งที่ poll ข้อมูลทุก 4 วินาที)
         if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'register') {
           if (document.getElementById('student-content')) {
-            showStudentRegister();
+            const newSignature = getStudentEligibilitySignature();
+            if (newSignature !== lastRegisterEligibilitySignature) {
+              lastRegisterEligibilitySignature = newSignature;
+              showStudentRegister();
+            }
           }
         }
 
@@ -3822,6 +3829,25 @@
         </div>
       `;
     }
+    function getStudentEligibilitySignature() {
+      if (!currentUser) return '';
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) return '';
+      const relevantClassSubjects = allData.filter(d =>
+        d.type === 'class_subject' &&
+        d.class_name === student.class_name &&
+        d.room_number === student.room_number
+      );
+      return JSON.stringify({
+        class_name: student.class_name,
+        room_number: student.room_number,
+        subjects: relevantClassSubjects.map(cs => ({
+          subject_name: cs.subject_name,
+          mid_percent: cs.mid_percent,
+          final_percent: cs.final_percent
+        }))
+      });
+    }
     function showStudentTab(tabName) {
       currentStudentTab = tabName;
       document.getElementById('tab-profile').classList.remove('bg-blue-500', 'text-white');
@@ -3836,6 +3862,7 @@
         document.getElementById('tab-register').classList.remove('bg-gray-300', 'text-gray-700');
         document.getElementById('tab-register').classList.add('bg-blue-500', 'text-white');
         showStudentRegister();
+        lastRegisterEligibilitySignature = getStudentEligibilitySignature();
       }
     }
     function showStudentProfile() {
