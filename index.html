@@ -316,7 +316,7 @@
     // แทนที่ window.dataSdk เดิมของแพลตฟอร์มต้นฉบับ
     // ตั้งค่า URL ที่ได้จากการ Deploy Apps Script (ดูไฟล์ google_apps_script_backend.gs)
     // ============================================================
-    const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec'; // เช่น https://script.google.com/macros/s/AKfycb.../exec
+    const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     const POLL_INTERVAL_MS = 4000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time
 
     const sheetsDataSdk = {
@@ -3863,8 +3863,8 @@
         );
         return hasClassSubject;
       });
-      // ถ้าไม่มี class_subject ให้แสดงวิชาทั้งหมดที่นำเข้ามา
-      const availableSubjectsToShow = availableSubjects.length > 0 ? availableSubjects : allSubjects;
+      // แสดงเฉพาะวิชาที่ตรงกับชั้นเรียนและห้องของผู้สมัครเท่านั้น (ไม่ fallback ไปแสดงทุกวิชา)
+      const availableSubjectsToShow = availableSubjects;
       // แสดงวิชาทั้งหมด (ทั้งลงทะเบียนแล้วและยังไม่ลงทะเบียน)
       const registrations = allData.filter(d => 
         d.type === 'student_registration' && 
@@ -3890,8 +3890,8 @@
           
           ${availableSubjectsToShow.length === 0 ? `
             <div class="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
-              <p class="text-red-700 font-semibold">❌ ไม่มีวิชาในระบบ</p>
-              <p class="text-red-600 text-sm">กรุณารอการตั้งค่าจากแอดมิน</p>
+              <p class="text-red-700 font-semibold">❌ ยังไม่มีวิชาสำหรับชั้น ${student.class_name} ห้อง ${student.room_number}</p>
+              <p class="text-red-600 text-sm">กรุณารอแอดมินตั้งค่าวิชาให้ตรงกับชั้นเรียนและห้องของคุณ</p>
             </div>
           ` : `
             <div class="mb-6 flex gap-2 flex-wrap">
