@@ -40,7 +40,7 @@
       </form><button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-3">📋 ลงทะเบียนสมาชิก</button>
       <hr class="my-6">
       <div class="grid grid-cols-2 gap-3">
-       <button onclick="handleDirectorLogin()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 นิเทศ</button>
+       <button onclick="handleDirectorLogin()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 ผู้นิเทศผู้สอน</button>
        <button onclick="handleEvaluationLogin()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินการสอน</button>
       </div>
      </div>
@@ -1069,12 +1069,12 @@
         document.getElementById('student-tabs').classList.add('hidden');
         document.getElementById('student-content').classList.add('hidden');
         document.getElementById('director-content').classList.remove('hidden');
-        const modeLabel = currentUser.director_mode === 'evaluate' ? 'ประเมินการสอน' : 'นิเทศ';
-        document.getElementById('user-display').textContent = `กรรมการ${modeLabel}: ${currentUser.username}`;
+        const modeLabel = currentUser.director_mode === 'evaluate' ? 'กรรมการประเมินการสอน' : 'ผู้นิเทศผู้สอน';
+        document.getElementById('user-display').textContent = `${modeLabel}: ${currentUser.username}`;
         if (currentUser.director_mode === 'evaluate') {
           showDirectorEvaluationPage();
         } else {
-          showDirectorDashboard();
+          showEvaluatorsListPage();
         }
       } else if (isAdmin) {
         document.getElementById('student-tabs').classList.add('hidden');
@@ -1223,6 +1223,41 @@
         showToast('ไม่สามารถลบหัวข้อได้', 'error');
       }
     }
+    function editEvalTopicPopup(topicId) {
+      const topic = allData.find(d => d.__backendId === topicId);
+      if (!topic) return;
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขหัวข้อการประเมิน</h3>
+          <input type="text" id="edit-eval-topic-text" value="${topic.topic_text}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-4">
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditEvalTopic('${topicId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditEvalTopic(topicId) {
+      const topic = allData.find(d => d.__backendId === topicId);
+      if (!topic) return;
+      const newText = document.getElementById('edit-eval-topic-text').value.trim();
+      if (!newText) {
+        showToast('กรุณากรอกหัวข้อ', 'error');
+        return;
+      }
+      const result = await window.dataSdk.update({ ...topic, topic_text: newText });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ แก้ไขหัวข้อสำเร็จ');
+        updateEvalTopicsList();
+        updateEvalResultsSummary();
+      } else {
+        showToast('ไม่สามารถแก้ไขได้', 'error');
+      }
+    }
     function updateEvalTopicsList() {
       const container = document.getElementById('eval-topics-list');
       if (!container) return;
@@ -1234,7 +1269,10 @@
       container.innerHTML = topics.map((t, idx) => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
           <p class="text-gray-800">${idx + 1}. ${t.topic_text}</p>
-          <button onclick="deleteEvalTopic('${t.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="editEvalTopicPopup('${t.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+            <button onclick="deleteEvalTopic('${t.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          </div>
         </div>
       `).join('');
     }
@@ -1276,6 +1314,45 @@
         showToast('ไม่สามารถลบระดับได้', 'error');
       }
     }
+    function editEvalLevelPopup(levelId) {
+      const level = allData.find(d => d.__backendId === levelId);
+      if (!level) return;
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขระดับการประเมิน</h3>
+          <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อระดับ</label>
+          <input type="text" id="edit-eval-level-label" value="${level.level_label}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">ร้อยละ</label>
+          <input type="number" id="edit-eval-level-percent" value="${level.percent_value}" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-4">
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditEvalLevel('${levelId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditEvalLevel(levelId) {
+      const level = allData.find(d => d.__backendId === levelId);
+      if (!level) return;
+      const newLabel = document.getElementById('edit-eval-level-label').value.trim();
+      const newPercent = parseFloat(document.getElementById('edit-eval-level-percent').value);
+      if (!newLabel || isNaN(newPercent)) {
+        showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
+        return;
+      }
+      const result = await window.dataSdk.update({ ...level, level_label: newLabel, percent_value: newPercent });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ แก้ไขระดับสำเร็จ');
+        updateEvalLevelsList();
+        updateEvalResultsSummary();
+      } else {
+        showToast('ไม่สามารถแก้ไขได้', 'error');
+      }
+    }
     function updateEvalLevelsList() {
       const container = document.getElementById('eval-levels-list');
       if (!container) return;
@@ -1287,7 +1364,10 @@
       container.innerHTML = levels.map(l => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
           <p class="text-gray-800">${l.level_label} <span class="text-gray-500 text-sm">(${l.percent_value}%)</span></p>
-          <button onclick="deleteEvalLevel('${l.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="editEvalLevelPopup('${l.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+            <button onclick="deleteEvalLevel('${l.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          </div>
         </div>
       `).join('');
     }
@@ -1857,7 +1937,7 @@
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
         showPage('home');
-        showToast('เข้าสู่ระบบนิเทศสำเร็จ ✅');
+        showToast('เข้าสู่ระบบผู้นิเทศผู้สอนสำเร็จ ✅');
         return;
       }
       
@@ -4561,6 +4641,52 @@
       if (!scoresStr) return 0;
       return scoresStr.split(',').filter(s => s.trim()).reduce((sum, s) => sum + (parseFloat(s) || 0), 0);
     }
+    function showEvaluatorsListPage() {
+      const container = document.getElementById('director-content');
+      if (!container) return;
+      const levels = allData.filter(d => d.type === 'evaluation_level');
+      const levelPercentMap = {};
+      levels.forEach(l => { levelPercentMap[l.__backendId] = l.percent_value; });
+      const submissions = allData.filter(d => d.type === 'evaluation_submission' && d.evaluator_type === 'committee')
+        .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+      const rowsHtml = submissions.length === 0 ? `
+        <tr><td colspan="4" class="text-center text-gray-400 py-8">ยังไม่มีกรรมการประเมินการสอน</td></tr>
+      ` : submissions.map((sub, idx) => {
+        let ratings = [];
+        try { ratings = JSON.parse(sub.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
+        const percents = ratings.map(r => levelPercentMap[r.level_id]).filter(v => v !== undefined);
+        const avgPercent = percents.length > 0 ? percents.reduce((a, b) => a + b, 0) / percents.length : null;
+        const dateStr = sub.updated_at || sub.created_at;
+        const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-3 py-3 whitespace-nowrap">${idx + 1}</td>
+            <td class="px-3 py-3 whitespace-nowrap">${sub.evaluator_name || '-'}</td>
+            <td class="px-3 py-3 whitespace-nowrap">${dateDisplay}</td>
+            <td class="px-3 py-3 text-center whitespace-nowrap">${avgPercent !== null ? avgPercent.toFixed(1) + '%' : '-'}</td>
+          </tr>
+        `;
+      }).join('');
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍💼 ผู้นิเทศผู้สอน</h2>
+          <p class="text-gray-500 text-sm mb-6">รายชื่อผู้ที่ประเมินการสอนไปแล้ว (กรรมการนิเทศ) — ดูได้อย่างเดียว</p>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ลำดับ</th>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อผู้ประเมิน</th>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วันที่ประเมิน</th>
+                  <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">คะแนนเฉลี่ย</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">${rowsHtml}</tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
     function showDirectorDashboard() {
       const container = document.getElementById('director-content');
       if (!container) return;
@@ -4744,14 +4870,24 @@
     function showDirectorEvaluationPage() {
       const container = document.getElementById('director-content');
       if (!container) return;
-      const existingSubmission = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === 'committee' && d.evaluator_key === 'director');
       container.innerHTML = `
         <div class="grid md:grid-cols-3 gap-6">
           <div class="md:col-span-2">
             <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
               <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินการสอน</h2>
-              <p class="text-gray-500 text-sm mb-6">โดยกรรมการนิเทศ ${existingSubmission ? '— คุณได้ประเมินไปแล้ว แก้ไขแล้วกดบันทึกใหม่ได้' : ''}</p>
-              <div id="director-eval-form">${renderEvaluationFormHtml(existingSubmission)}</div>
+              <p class="text-gray-500 text-sm mb-6">กรุณากรอกชื่อผู้ประเมิน แล้วทำการประเมินให้ครบทุกหัวข้อ</p>
+              <div class="grid md:grid-cols-3 gap-3 mb-6">
+                <select id="director-eval-prefix" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+                  <option value="">-- คำนำหน้า --</option>
+                  <option value="นาย">นาย</option>
+                  <option value="นาง">นาง</option>
+                  <option value="นางสาว">นางสาว</option>
+                  <option value="ดร.">ดร.</option>
+                </select>
+                <input type="text" id="director-eval-firstname" placeholder="ชื่อผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+                <input type="text" id="director-eval-lastname" placeholder="นามสกุลผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+              </div>
+              <div id="director-eval-form">${renderEvaluationFormHtml(null)}</div>
               <button onclick="handleDirectorEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2">✅ บันทึกการประเมิน</button>
             </div>
           </div>
@@ -4791,8 +4927,17 @@
       `;
     }
     async function handleDirectorEvaluationSubmit() {
-      await submitEvaluationForm('committee', 'director', 'กรรมการนิเทศ', () => {
-        showDirectorEvaluationPage();
+      const prefix = document.getElementById('director-eval-prefix').value;
+      const firstName = document.getElementById('director-eval-firstname').value.trim();
+      const lastName = document.getElementById('director-eval-lastname').value.trim();
+      if (!prefix || !firstName || !lastName) {
+        showToast('กรุณากรอกคำนำหน้า ชื่อ และนามสกุลผู้ประเมิน', 'error');
+        return;
+      }
+      const evaluatorKey = `committee_${prefix}_${firstName}_${lastName}`;
+      const evaluatorName = `${prefix}${firstName} ${lastName}`;
+      await submitEvaluationForm('committee', evaluatorKey, evaluatorName, () => {
+        showDirectorEvaluationPage(); // เคลียร์ฟอร์มให้คนต่อไปกรอกใหม่
       });
     }
     // ----- มุมมองนักเรียน (ประเมินการสอน) -----
