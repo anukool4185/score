@@ -167,6 +167,10 @@
          <button onclick="handlePublicEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2 mb-3">✅ บันทึกการประเมิน</button>
          <button onclick="goBackToLoginFromPublicEval()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition">🔐 กลับไปหน้า Login</button>
         </div>
+        <div class="bg-white rounded-xl p-6 shadow mt-6">
+         <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">📊 สรุปผลการประเมินรวม</h3>
+         <div id="public-eval-summary"></div>
+        </div>
        </div>
       </div>
      </div>
@@ -1424,37 +1428,38 @@
       const publicCount = submissions.filter(s => s.evaluator_type === 'public').length;
       return { topicResults, overallAvg, committeeCount, studentCount, publicCount };
     }
+    function renderEvalSummaryHtml(gaugeSize) {
+      gaugeSize = gaugeSize || 130;
+      const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
+      if (topicResults.length === 0) {
+        return '<p class="text-gray-400 text-center py-4 text-sm">ยังไม่มีข้อมูลการประเมิน</p>';
+      }
+      return `
+        <div class="flex flex-col items-center mb-4">
+          ${renderCircularGauge(overallAvg || 0, gaugeSize)}
+          <p class="text-sm text-gray-600 mt-2 font-medium">คะแนนรวมเฉลี่ย</p>
+          <p class="text-xs text-gray-500 mt-1">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน | บุคคลทั่วไป ${publicCount} คน</p>
+        </div>
+        <div class="space-y-3">
+          ${topicResults.map(tr => `
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <p class="text-xs text-gray-600">${tr.topic.topic_text}</p>
+                <p class="text-xs font-semibold text-gray-800">${tr.avg !== null ? tr.avg.toFixed(1) + '%' : '-'}</p>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="h-2 rounded-full ${tr.avg === null ? 'bg-gray-300' : tr.avg >= 80 ? 'bg-green-500' : tr.avg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${tr.avg || 0}%"></div>
+              </div>
+              <p class="text-xs text-gray-400 mt-0.5">${tr.count} การประเมิน</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
     function updateEvalResultsSummary() {
       const container = document.getElementById('eval-results-summary');
       if (!container) return;
-      const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
-      if (topicResults.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีหัวข้อการประเมิน</p>';
-        return;
-      }
-      container.innerHTML = `
-        <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
-          <div class="flex flex-col items-center flex-shrink-0">
-            ${renderCircularGauge(overallAvg || 0, 140)}
-            <p class="text-sm text-gray-600 mt-2 font-medium">คะแนนรวมเฉลี่ย</p>
-            <p class="text-xs text-gray-500 mt-1">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน | บุคคลทั่วไป ${publicCount} คน</p>
-          </div>
-          <div class="flex-1 w-full space-y-3">
-            ${topicResults.map(tr => `
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <p class="text-sm text-gray-700">${tr.topic.topic_text}</p>
-                  <p class="text-sm font-semibold text-gray-800">${tr.avg !== null ? tr.avg.toFixed(1) + '%' : '-'}</p>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                  <div class="h-2.5 rounded-full ${tr.avg === null ? 'bg-gray-300' : tr.avg >= 80 ? 'bg-green-500' : tr.avg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${tr.avg || 0}%"></div>
-                </div>
-                <p class="text-xs text-gray-400 mt-0.5">${tr.count} การประเมิน</p>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
+      container.innerHTML = renderEvalSummaryHtml(140);
     }
     function showAdminTab(tabName) {
       // ถ้ากำลังแสดงทั้งหมด ให้ปิดโหมดนั้นก่อน
@@ -1986,6 +1991,8 @@
       if (prefixEl) prefixEl.value = '';
       if (firstEl) firstEl.value = '';
       if (lastEl) lastEl.value = '';
+      const summaryContainer = document.getElementById('public-eval-summary');
+      if (summaryContainer) summaryContainer.innerHTML = renderEvalSummaryHtml(120);
     }
     async function handlePublicEvaluationSubmit() {
       const prefix = document.getElementById('public-eval-prefix').value;
@@ -4718,10 +4725,15 @@
       const levels = allData.filter(d => d.type === 'evaluation_level');
       const levelPercentMap = {};
       levels.forEach(l => { levelPercentMap[l.__backendId] = l.percent_value; });
-      const submissions = allData.filter(d => d.type === 'evaluation_submission' && d.evaluator_type === 'committee')
+      const submissions = allData.filter(d => d.type === 'evaluation_submission')
         .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+      const typeBadge = (evaluatorType) => {
+        if (evaluatorType === 'committee') return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">กรรมการนิเทศ</span>';
+        if (evaluatorType === 'student') return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">นักเรียน</span>';
+        return '<span class="inline-block px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">บุคคลทั่วไป</span>';
+      };
       const rowsHtml = submissions.length === 0 ? `
-        <tr><td colspan="4" class="text-center text-gray-400 py-8">ยังไม่มีกรรมการประเมินการสอน</td></tr>
+        <tr><td colspan="5" class="text-center text-gray-400 py-8">ยังไม่มีผู้ประเมินการสอน</td></tr>
       ` : submissions.map((sub, idx) => {
         let ratings = [];
         try { ratings = JSON.parse(sub.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
@@ -4733,6 +4745,7 @@
           <tr class="hover:bg-gray-50">
             <td class="px-3 py-3 whitespace-nowrap">${idx + 1}</td>
             <td class="px-3 py-3 whitespace-nowrap">${sub.evaluator_name || '-'}</td>
+            <td class="px-3 py-3 whitespace-nowrap">${typeBadge(sub.evaluator_type)}</td>
             <td class="px-3 py-3 whitespace-nowrap">${dateDisplay}</td>
             <td class="px-3 py-3 text-center whitespace-nowrap">${avgPercent !== null ? avgPercent.toFixed(1) + '%' : '-'}</td>
           </tr>
@@ -4741,13 +4754,14 @@
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍💼 รายชื่อผู้ประเมิน</h2>
-          <p class="text-gray-500 text-sm mb-6">รายชื่อกรรมการนิเทศที่ประเมินการสอนไปแล้ว — ดูได้อย่างเดียว</p>
+          <p class="text-gray-500 text-sm mb-6">รายชื่อผู้ที่ประเมินการสอนไปแล้วทั้งหมด (กรรมการนิเทศ, นักเรียน, บุคคลทั่วไป) — ดูได้อย่างเดียว</p>
           <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
             <table class="w-full text-sm">
               <thead class="bg-gray-100">
                 <tr>
                   <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ลำดับ</th>
                   <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อผู้ประเมิน</th>
+                  <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ประเภท</th>
                   <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วันที่ประเมิน</th>
                   <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">คะแนนเฉลี่ย</th>
                 </tr>
@@ -4975,27 +4989,7 @@
     function updateDirectorEvalSummary() {
       const container = document.getElementById('director-eval-summary');
       if (!container) return;
-      const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
-      if (topicResults.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">ยังไม่มีข้อมูล</p>';
-        return;
-      }
-      container.innerHTML = `
-        <div class="flex flex-col items-center mb-4">
-          ${renderCircularGauge(overallAvg || 0, 120)}
-          <p class="text-xs text-gray-500 mt-2">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน | บุคคลทั่วไป ${publicCount} คน</p>
-        </div>
-        <div class="space-y-2">
-          ${topicResults.map(tr => `
-            <div>
-              <p class="text-xs text-gray-600 mb-1">${tr.topic.topic_text}</p>
-              <div class="w-full bg-gray-200 rounded-full h-2">
-                <div class="h-2 rounded-full ${tr.avg === null ? 'bg-gray-300' : tr.avg >= 80 ? 'bg-green-500' : tr.avg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${tr.avg || 0}%"></div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      `;
+      container.innerHTML = renderEvalSummaryHtml(120);
     }
     async function handleDirectorEvaluationSubmit() {
       const prefix = document.getElementById('director-eval-prefix').value;
