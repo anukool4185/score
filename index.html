@@ -41,7 +41,7 @@
       <hr class="my-6">
       <div class="grid grid-cols-2 gap-3">
        <button onclick="handleDirectorLogin()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 ผู้นิเทศผู้สอน</button>
-       <button onclick="handleEvaluationLogin()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินการสอน</button>
+       <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินการสอน</button>
       </div>
      </div>
     </div>
@@ -138,6 +138,37 @@
        </div>
       </div>
       <div id="director-content" class="flex-1 overflow-auto hidden"></div>
+     </div>
+    </div>
+    <div id="page-public-evaluation" class="h-full overflow-y-auto hidden">
+     <div class="w-full min-h-full flex flex-col bg-gray-50">
+      <div class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-6 sticky top-0 z-40 shadow-lg">
+       <h2 class="text-3xl font-bold">📝 ประเมินการสอน</h2>
+       <p class="text-indigo-100 text-sm mt-1">สำหรับบุคคลทั่วไป ไม่ต้องเข้าสู่ระบบ</p>
+      </div>
+      <div class="flex-1 p-4 md:p-6 pb-12">
+       <div class="max-w-2xl mx-auto w-full">
+        <div class="bg-white rounded-xl p-6 shadow">
+         <p class="text-gray-500 text-sm mb-4">กรุณากรอกชื่อผู้ประเมิน แล้วทำการประเมินให้ครบทุกหัวข้อ</p>
+         <div class="grid md:grid-cols-3 gap-3 mb-6">
+          <select id="public-eval-prefix" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+           <option value="">-- คำนำหน้า --</option>
+           <option value="นาย">นาย</option>
+           <option value="นาง">นาง</option>
+           <option value="นางสาว">นางสาว</option>
+           <option value="เด็กชาย">เด็กชาย</option>
+           <option value="เด็กหญิง">เด็กหญิง</option>
+           <option value="ดร.">ดร.</option>
+          </select>
+          <input type="text" id="public-eval-firstname" placeholder="ชื่อผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+          <input type="text" id="public-eval-lastname" placeholder="นามสกุลผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+         </div>
+         <div id="public-eval-form"></div>
+         <button onclick="handlePublicEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2 mb-3">✅ บันทึกการประเมิน</button>
+         <button onclick="goBackToLoginFromPublicEval()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition">🔐 กลับไปหน้า Login</button>
+        </div>
+       </div>
+      </div>
      </div>
     </div>
     <div id="page-admin" class="h-full overflow-auto flex-col hidden">
@@ -1069,13 +1100,8 @@
         document.getElementById('student-tabs').classList.add('hidden');
         document.getElementById('student-content').classList.add('hidden');
         document.getElementById('director-content').classList.remove('hidden');
-        const modeLabel = currentUser.director_mode === 'evaluate' ? 'กรรมการประเมินการสอน' : 'ผู้นิเทศผู้สอน';
-        document.getElementById('user-display').textContent = `${modeLabel}: ${currentUser.username}`;
-        if (currentUser.director_mode === 'evaluate') {
-          showDirectorEvaluationPage();
-        } else {
-          showEvaluatorsListPage();
-        }
+        document.getElementById('user-display').textContent = `กรรมการนิเทศ: ${currentUser.username}`;
+        showDirectorMainPage();
       } else if (isAdmin) {
         document.getElementById('student-tabs').classList.add('hidden');
         document.getElementById('student-content').classList.remove('hidden');
@@ -1395,12 +1421,13 @@
       const overallAvg = validAverages.length > 0 ? validAverages.reduce((a, b) => a + b, 0) / validAverages.length : null;
       const committeeCount = submissions.filter(s => s.evaluator_type === 'committee').length;
       const studentCount = submissions.filter(s => s.evaluator_type === 'student').length;
-      return { topicResults, overallAvg, committeeCount, studentCount };
+      const publicCount = submissions.filter(s => s.evaluator_type === 'public').length;
+      return { topicResults, overallAvg, committeeCount, studentCount, publicCount };
     }
     function updateEvalResultsSummary() {
       const container = document.getElementById('eval-results-summary');
       if (!container) return;
-      const { topicResults, overallAvg, committeeCount, studentCount } = computeEvaluationResults();
+      const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
       if (topicResults.length === 0) {
         container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีหัวข้อการประเมิน</p>';
         return;
@@ -1410,7 +1437,7 @@
           <div class="flex flex-col items-center flex-shrink-0">
             ${renderCircularGauge(overallAvg || 0, 140)}
             <p class="text-sm text-gray-600 mt-2 font-medium">คะแนนรวมเฉลี่ย</p>
-            <p class="text-xs text-gray-500 mt-1">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน</p>
+            <p class="text-xs text-gray-500 mt-1">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน | บุคคลทั่วไป ${publicCount} คน</p>
           </div>
           <div class="flex-1 w-full space-y-3">
             ${topicResults.map(tr => `
@@ -1927,8 +1954,7 @@
         console.log('✅ Director login success');
         currentUser = { 
           user_type: 'director',
-          username: username,
-          director_mode: 'inspect'
+          username: username
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         errorDiv.classList.add('hidden');
@@ -1944,31 +1970,40 @@
       errorDiv.textContent = '❌ ไม่สามารถเข้าสู่ระบบกรรมการนิเทศได้';
       errorDiv.classList.remove('hidden');
     }
-    function handleEvaluationLogin() {
-      const username = 'director';
-      const password = 'director123';
-      const errorDiv = document.getElementById('login-error');
-      
-      if (DEFAULT_DIRECTOR[username] && DEFAULT_DIRECTOR[username] === password) {
-        console.log('✅ Evaluation login success');
-        currentUser = { 
-          user_type: 'director',
-          username: username,
-          director_mode: 'evaluate'
-        };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        errorDiv.classList.add('hidden');
-        document.getElementById('page-login').classList.add('hidden');
-        document.getElementById('page-register').classList.add('hidden');
-        document.getElementById('app-main').classList.remove('hidden');
-        showLoggedInUI();
-        showPage('home');
-        showToast('เข้าสู่ระบบประเมินการสอนสำเร็จ ✅');
+    function goToPublicEvaluationPage() {
+      document.getElementById('page-login').classList.add('hidden');
+      document.getElementById('page-register').classList.add('hidden');
+      document.getElementById('page-public-evaluation').classList.remove('hidden');
+      document.getElementById('app-main').classList.add('hidden');
+      renderPublicEvaluationForm();
+    }
+    function renderPublicEvaluationForm() {
+      const container = document.getElementById('public-eval-form');
+      if (container) container.innerHTML = renderEvaluationFormHtml(null);
+      const prefixEl = document.getElementById('public-eval-prefix');
+      const firstEl = document.getElementById('public-eval-firstname');
+      const lastEl = document.getElementById('public-eval-lastname');
+      if (prefixEl) prefixEl.value = '';
+      if (firstEl) firstEl.value = '';
+      if (lastEl) lastEl.value = '';
+    }
+    async function handlePublicEvaluationSubmit() {
+      const prefix = document.getElementById('public-eval-prefix').value;
+      const firstName = document.getElementById('public-eval-firstname').value.trim();
+      const lastName = document.getElementById('public-eval-lastname').value.trim();
+      if (!prefix || !firstName || !lastName) {
+        showToast('กรุณากรอกคำนำหน้า ชื่อ และนามสกุลผู้ประเมิน', 'error');
         return;
       }
-      
-      errorDiv.textContent = '❌ ไม่สามารถเข้าสู่ระบบประเมินการสอนได้';
-      errorDiv.classList.remove('hidden');
+      const evaluatorKey = `public_${prefix}_${firstName}_${lastName}`;
+      const evaluatorName = `${prefix}${firstName} ${lastName}`;
+      await submitEvaluationForm('public', evaluatorKey, evaluatorName, () => {
+        renderPublicEvaluationForm(); // เคลียร์ฟอร์มให้คนต่อไปกรอกใหม่
+      });
+    }
+    function goBackToLoginFromPublicEval() {
+      document.getElementById('page-public-evaluation').classList.add('hidden');
+      document.getElementById('page-login').classList.remove('hidden');
     }
     function handleShowRegisterPage() {
       showRegisterPage();
@@ -4641,8 +4676,44 @@
       if (!scoresStr) return 0;
       return scoresStr.split(',').filter(s => s.trim()).reduce((sum, s) => sum + (parseFloat(s) || 0), 0);
     }
-    function showEvaluatorsListPage() {
+    let currentDirectorTab = 'score';
+    function showDirectorMainPage() {
       const container = document.getElementById('director-content');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+          <button onclick="showDirectorTab('score')" id="director-tab-btn-score" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📊 ตารางผลการเรียน/เวลาเรียน</button>
+          <button onclick="showDirectorTab('evaluate')" id="director-tab-btn-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินครูผู้สอน</button>
+          <button onclick="showDirectorTab('evaluators')" id="director-tab-btn-evaluators" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">👨‍💼 รายชื่อผู้ประเมิน</button>
+        </div>
+        <div id="director-tab-content"></div>
+      `;
+      showDirectorTab('score');
+    }
+    function showDirectorTab(tabName) {
+      currentDirectorTab = tabName;
+      ['score', 'evaluate', 'evaluators'].forEach(name => {
+        const btn = document.getElementById('director-tab-btn-' + name);
+        if (btn) {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-300', 'text-gray-700');
+        }
+      });
+      const activeBtn = document.getElementById('director-tab-btn-' + tabName);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        activeBtn.classList.add('bg-blue-500', 'text-white');
+      }
+      if (tabName === 'score') {
+        showDirectorDashboard();
+      } else if (tabName === 'evaluate') {
+        showDirectorEvaluationPage();
+      } else if (tabName === 'evaluators') {
+        showEvaluatorsListPage();
+      }
+    }
+    function showEvaluatorsListPage() {
+      const container = document.getElementById('director-tab-content');
       if (!container) return;
       const levels = allData.filter(d => d.type === 'evaluation_level');
       const levelPercentMap = {};
@@ -4669,8 +4740,8 @@
       }).join('');
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍💼 ผู้นิเทศผู้สอน</h2>
-          <p class="text-gray-500 text-sm mb-6">รายชื่อผู้ที่ประเมินการสอนไปแล้ว (กรรมการนิเทศ) — ดูได้อย่างเดียว</p>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍💼 รายชื่อผู้ประเมิน</h2>
+          <p class="text-gray-500 text-sm mb-6">รายชื่อกรรมการนิเทศที่ประเมินการสอนไปแล้ว — ดูได้อย่างเดียว</p>
           <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
             <table class="w-full text-sm">
               <thead class="bg-gray-100">
@@ -4688,15 +4759,15 @@
       `;
     }
     function showDirectorDashboard() {
-      const container = document.getElementById('director-content');
+      const container = document.getElementById('director-tab-content');
       if (!container) return;
       const subjects = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.subject_name).filter(Boolean))].sort();
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
       const rooms = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.room_number).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">👨‍🏫 ข้อมูลวิชาที่สอน และรายชื่อนักเรียน</h2>
-          <p class="text-gray-500 text-sm mb-6">มุมมองสำหรับกรรมการนิเทศ — ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไขได้</p>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📊 ตารางผลการเรียน/เวลาเรียน</h2>
+          <p class="text-gray-500 text-sm mb-6">ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไขได้</p>
           <div class="flex items-center gap-3 flex-wrap mb-4">
             <select id="director-filter-subject" onchange="updateDirectorTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
               <option value="">ทุกวิชา</option>
@@ -4868,13 +4939,13 @@
     }
     // ----- มุมมองกรรมการนิเทศ (ประเมินการสอน) -----
     function showDirectorEvaluationPage() {
-      const container = document.getElementById('director-content');
+      const container = document.getElementById('director-tab-content');
       if (!container) return;
       container.innerHTML = `
         <div class="grid md:grid-cols-3 gap-6">
           <div class="md:col-span-2">
             <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-              <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินการสอน</h2>
+              <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินครูผู้สอน</h2>
               <p class="text-gray-500 text-sm mb-6">กรุณากรอกชื่อผู้ประเมิน แล้วทำการประเมินให้ครบทุกหัวข้อ</p>
               <div class="grid md:grid-cols-3 gap-3 mb-6">
                 <select id="director-eval-prefix" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
@@ -4904,7 +4975,7 @@
     function updateDirectorEvalSummary() {
       const container = document.getElementById('director-eval-summary');
       if (!container) return;
-      const { topicResults, overallAvg, committeeCount, studentCount } = computeEvaluationResults();
+      const { topicResults, overallAvg, committeeCount, studentCount, publicCount } = computeEvaluationResults();
       if (topicResults.length === 0) {
         container.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">ยังไม่มีข้อมูล</p>';
         return;
@@ -4912,7 +4983,7 @@
       container.innerHTML = `
         <div class="flex flex-col items-center mb-4">
           ${renderCircularGauge(overallAvg || 0, 120)}
-          <p class="text-xs text-gray-500 mt-2">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน</p>
+          <p class="text-xs text-gray-500 mt-2">กรรมการ ${committeeCount} คน | นักเรียน ${studentCount} คน | บุคคลทั่วไป ${publicCount} คน</p>
         </div>
         <div class="space-y-2">
           ${topicResults.map(tr => `
