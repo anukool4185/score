@@ -432,6 +432,17 @@
          <div id="eval-levels-list" class="space-y-2"></div>
         </div>
 
+        <!-- จัดการรายชื่อผู้ประเมิน (สำหรับกรรมการนิเทศเลือกในแท็บ ประเมินผู้สอน) -->
+        <div class="mb-8 pt-6 border-t-2 border-gray-200">
+         <h4 class="font-semibold text-gray-700 mb-3">👥 รายชื่อผู้ประเมิน (สำหรับกรรมการนิเทศเลือก)</h4>
+         <p class="text-gray-500 text-xs mb-3">รายชื่อนี้ใช้เฉพาะในแท็บ "📝 ประเมินผู้สอน" หลัง login ด้วยกรรมการนิเทศเท่านั้น ไม่เกี่ยวกับการประเมินของบุคคลทั่วไป</p>
+         <div class="flex gap-2 mb-3">
+          <input type="text" id="new-evaluator-option" placeholder="ชื่อผู้ประเมิน เช่น นาย สมชาย ใจดี" class="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+          <button onclick="addEvaluatorOption()" class="px-4 py-2 btn-primary text-white rounded-lg whitespace-nowrap">➕ เพิ่มชื่อ</button>
+         </div>
+         <div id="evaluator-options-list" class="space-y-2"></div>
+        </div>
+
         <!-- สรุปผลการประเมิน -->
         <div class="pt-6 border-t-2 border-gray-200">
          <h4 class="font-semibold text-gray-700 mb-4">📊 สรุปผลการประเมิน</h4>
@@ -725,6 +736,9 @@
           }
           if (document.getElementById('admin-evaluators-list')) {
             updateAdminEvaluatorsList();
+          }
+          if (document.getElementById('evaluator-options-list')) {
+            updateEvaluatorOptionsList();
           }
         }
       }
@@ -1292,6 +1306,7 @@
     function loadEvalTopicsTab() {
       updateEvalTopicsList();
       updateEvalLevelsList();
+      updateEvaluatorOptionsList();
       updateEvalResultsSummary();
       updateAdminEvaluatorsList();
     }
@@ -1547,6 +1562,91 @@
           <div class="flex gap-2 flex-shrink-0">
             <button onclick="editEvalLevelPopup('${l.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
             <button onclick="deleteEvalLevel('${l.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    async function addEvaluatorOption() {
+      const input = document.getElementById('new-evaluator-option');
+      const name = input.value.trim();
+      if (!name) {
+        showToast('กรุณากรอกชื่อผู้ประเมิน', 'error');
+        return;
+      }
+      const existing = allData.filter(d => d.type === 'evaluator_option');
+      const result = await window.dataSdk.create({
+        type: 'evaluator_option',
+        name: name,
+        order: existing.length,
+        created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        input.value = '';
+        showToast('✅ เพิ่มชื่อผู้ประเมินสำเร็จ');
+        updateEvaluatorOptionsList();
+      } else {
+        showToast('ไม่สามารถเพิ่มชื่อได้', 'error');
+      }
+    }
+    async function deleteEvaluatorOption(optionId) {
+      const option = allData.find(d => d.__backendId === optionId);
+      if (!option) return;
+      const result = await window.dataSdk.delete(option);
+      if (result.isOk) {
+        showToast('🗑️ ลบชื่อผู้ประเมินสำเร็จ');
+        updateEvaluatorOptionsList();
+      } else {
+        showToast('ไม่สามารถลบได้', 'error');
+      }
+    }
+    function editEvaluatorOptionPopup(optionId) {
+      const option = allData.find(d => d.__backendId === optionId);
+      if (!option) return;
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขชื่อผู้ประเมิน</h3>
+          <input type="text" id="edit-evaluator-option-name" value="${option.name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-4">
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditEvaluatorOption('${optionId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditEvaluatorOption(optionId) {
+      const option = allData.find(d => d.__backendId === optionId);
+      if (!option) return;
+      const newName = document.getElementById('edit-evaluator-option-name').value.trim();
+      if (!newName) {
+        showToast('กรุณากรอกชื่อ', 'error');
+        return;
+      }
+      const result = await window.dataSdk.update({ ...option, name: newName });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ แก้ไขสำเร็จ');
+        updateEvaluatorOptionsList();
+      } else {
+        showToast('ไม่สามารถแก้ไขได้', 'error');
+      }
+    }
+    function updateEvaluatorOptionsList() {
+      const container = document.getElementById('evaluator-options-list');
+      if (!container) return;
+      const options = allData.filter(d => d.type === 'evaluator_option').sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (options.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-3">ยังไม่มีรายชื่อผู้ประเมิน</p>';
+        return;
+      }
+      container.innerHTML = options.map(o => `
+        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
+          <p class="text-gray-800">${o.name}</p>
+          <div class="flex gap-2 flex-shrink-0">
+            <button onclick="editEvaluatorOptionPopup('${o.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+            <button onclick="deleteEvaluatorOption('${o.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
           </div>
         </div>
       `).join('');
@@ -5200,22 +5300,20 @@
     function showDirectorEvaluationPage() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
+      const evaluatorOptions = allData.filter(d => d.type === 'evaluator_option').sort((a, b) => (a.order || 0) - (b.order || 0));
       container.innerHTML = `
         <div class="grid md:grid-cols-3 gap-6">
           <div class="md:col-span-2">
             <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
               <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินครูผู้สอน</h2>
-              <p class="text-gray-500 text-sm mb-6">กรุณากรอกชื่อผู้ประเมิน แล้วทำการประเมินให้ครบทุกหัวข้อ</p>
-              <div class="grid md:grid-cols-3 gap-3 mb-6">
-                <select id="director-eval-prefix" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-                  <option value="">-- คำนำหน้า --</option>
-                  <option value="นาย">นาย</option>
-                  <option value="นาง">นาง</option>
-                  <option value="นางสาว">นางสาว</option>
-                  <option value="ดร.">ดร.</option>
+              <p class="text-gray-500 text-sm mb-6">กรุณาเลือกชื่อผู้ประเมิน แล้วทำการประเมินให้ครบทุกหัวข้อ</p>
+              <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">👤 ชื่อผู้ประเมิน</label>
+                <select id="director-eval-name" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+                  <option value="">-- เลือกชื่อผู้ประเมิน --</option>
+                  ${evaluatorOptions.map(o => `<option value="${o.__backendId}">${o.name}</option>`).join('')}
                 </select>
-                <input type="text" id="director-eval-firstname" placeholder="ชื่อผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-                <input type="text" id="director-eval-lastname" placeholder="นามสกุลผู้ประเมิน" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+                ${evaluatorOptions.length === 0 ? '<p class="text-orange-500 text-xs mt-2">⚠️ แอดมินยังไม่ได้เพิ่มรายชื่อผู้ประเมิน ไปเพิ่มได้ที่แท็บ "หัวข้อประเมินการสอน"</p>' : ''}
               </div>
               <div id="director-eval-form">${renderEvaluationFormHtml(null)}</div>
               <button onclick="handleDirectorEvaluationSubmit()" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mt-2">✅ บันทึกการประเมิน</button>
@@ -5237,15 +5335,19 @@
       container.innerHTML = renderEvalSummaryHtml(120) + renderQualitativeSummaryHtml();
     }
     async function handleDirectorEvaluationSubmit() {
-      const prefix = document.getElementById('director-eval-prefix').value;
-      const firstName = document.getElementById('director-eval-firstname').value.trim();
-      const lastName = document.getElementById('director-eval-lastname').value.trim();
-      if (!prefix || !firstName || !lastName) {
-        showToast('กรุณากรอกคำนำหน้า ชื่อ และนามสกุลผู้ประเมิน', 'error');
+      const nameSelect = document.getElementById('director-eval-name');
+      const evaluatorOptionId = nameSelect.value;
+      if (!evaluatorOptionId) {
+        showToast('กรุณาเลือกชื่อผู้ประเมิน', 'error');
         return;
       }
-      const evaluatorKey = `committee_${prefix}_${firstName}_${lastName}`;
-      const evaluatorName = `${prefix}${firstName} ${lastName}`;
+      const evaluatorOption = allData.find(d => d.__backendId === evaluatorOptionId);
+      if (!evaluatorOption) {
+        showToast('ไม่พบชื่อผู้ประเมินที่เลือก', 'error');
+        return;
+      }
+      const evaluatorKey = `committee_${evaluatorOptionId}`;
+      const evaluatorName = evaluatorOption.name;
       await submitEvaluationForm('committee', evaluatorKey, evaluatorName, () => {
         showDirectorEvaluationPage(); // เคลียร์ฟอร์มให้คนต่อไปกรอกใหม่
       });
