@@ -690,16 +690,9 @@
         showLoggedInUI();
         console.log('📋 Step 6: UI updated to show student info');
         
-        // 📋 ขั้นที่ 7: แสดงแท็บ "ลงทะเบียนเรียน" ให้นักเรียนดู
-        // ⚙️ ในส่วนนี้นักเรียนจะเห็น:
-        //    - ชั้นเรียนของตัวเอง (เช่น ม.4)
-        //    - ห้องเรียนของตัวเอง (เช่น ห้อง 1)
-        //    - รายชื่อวิชาที่สามารถลงทะเบียนได้
-        //    - ตาราง M/F ของแต่ละวิชา (กลางภาค/ปลายภาค %)
-        //    - ช่องกรอกเปอร์เซ็นต์ KPAC (K+P+A+C)
-        //    - รายการที่ลงทะเบียนแล้ว
-        showStudentTab('register');
-        console.log('📋 Step 7: Showing student registration tab');
+        // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (แท็บ 📝 แก้ไขข้อมูลส่วนตัว)
+        // ซึ่งถูกตั้งไว้แล้วโดย showLoggedInUI() ด้านบน ไม่ต้อง override เป็นแท็บลงทะเบียนเรียนอีก
+        console.log('📋 Step 7: Staying on default home/profile tab');
         
         showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
         console.log('✅ Student login COMPLETE');
