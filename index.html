@@ -39,10 +39,7 @@
        <p id="login-error" class="text-red-500 text-sm mb-4 hidden"></p><button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ เข้าสู่ระบบ</button>
       </form><button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-3">📋 ลงทะเบียนสมาชิก</button>
       <hr class="my-6">
-      <div class="grid grid-cols-2 gap-3 mb-3">
-       <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 รายชื่อผู้ประเมิน/นิเทศ</button>
-       <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินการสอน</button>
-      </div>
+      <button onclick="goToPublicEvaluationPage()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
      </div>
     </div>
    </div>
@@ -649,6 +646,16 @@
     const dataHandler = {
       onDataChanged(data) {
         allData = data;
+        // ถ้าหน้าประเมินครูผู้สอน (แบบไม่ login) เปิดอยู่ ให้รีเฟรชเนื้อหาด้วย
+        // กันปัญหา: ถ้าคนกดปุ่มเร็วก่อนข้อมูลโหลดเสร็จ หน้าจะค้างที่ข้อความ "ยังไม่ได้ตั้งค่า" ตลอดไป
+        const publicEvalPage = document.getElementById('page-public-evaluation');
+        if (publicEvalPage && !publicEvalPage.classList.contains('hidden') && !publicEvalFormIsReady) {
+          renderPublicEvaluationForm();
+        }
+        const evaluatorsListPage = document.getElementById('page-evaluators-list');
+        if (evaluatorsListPage && !evaluatorsListPage.classList.contains('hidden')) {
+          renderEvaluatorsListContent();
+        }
         const settingsRecord = data.find(d => d.type === 'settings');
         if (settingsRecord) {
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
@@ -2111,8 +2118,12 @@
       document.getElementById('app-main').classList.add('hidden');
       renderPublicEvaluationForm();
     }
+    let publicEvalFormIsReady = false;
     function renderPublicEvaluationForm() {
       const container = document.getElementById('public-eval-form');
+      const topicsExist = allData.some(d => d.type === 'evaluation_topic');
+      const levelsExist = allData.some(d => d.type === 'evaluation_level');
+      publicEvalFormIsReady = topicsExist && levelsExist;
       if (container) container.innerHTML = renderEvaluationFormHtml(null);
       const prefixEl = document.getElementById('public-eval-prefix');
       const firstEl = document.getElementById('public-eval-firstname');
