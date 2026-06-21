@@ -37,67 +37,76 @@
         <label class="block text-sm font-medium text-gray-700 mb-2">🔐 Password *</label> <input type="password" id="login-password" placeholder="กรอก password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
        </div>
        <p id="login-error" class="text-red-500 text-sm mb-4 hidden"></p><button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ เข้าสู่ระบบ</button>
-      </form><button type="button" onclick="document.getElementById('page-login').classList.add('hidden'); document.getElementById('page-register').classList.remove('hidden');" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-3">📋 ลงทะเบียนสมาชิก</button>
+      </form><button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-3">📋 ลงทะเบียนสมาชิก</button>
       <hr class="my-6"><button onclick="handleDirectorLogin()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-medium transition">👨‍💼 กรรมการนิเทศประเมินผู้สอน</button>
      </div>
     </div>
    </div>
-   <div id="page-register" class="h-full overflow-auto hidden">
-    <div class="w-full h-full flex flex-col bg-gray-50">
+   <div id="page-register" class="h-full overflow-y-auto hidden">
+    <div class="w-full min-h-full flex flex-col bg-gray-50">
      <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-6 sticky top-0 z-40 shadow-lg">
       <h2 class="text-3xl font-bold">📋 สมัครเรียน</h2>
       <p class="text-blue-100 text-sm mt-1">กรอกข้อมูลและกดบันทึก ข้อมูลจะแสดงรายชื่อทันที</p>
      </div>
-     <div class="flex-1 flex gap-6 p-4 md:p-6 overflow-y-auto">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-       <!-- ส่วนด้านซ้าย: ฟอร์มลงทะเบียน (50%) -->
-       <div class="bg-white rounded-xl p-6 shadow">
-        <h3 class="text-lg font-bold text-gray-800 mb-4">📝 กรอกข้อมูลของคุณ</h3>
-        <form onsubmit="handleRegister(event)">
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">🆔 รหัสนักเรียน *</label> <input type="text" id="reg-student-id" placeholder="เช่น 001" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">📛 คำนำหน้า *</label> <select id="reg-prefix" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required> <option value="">-- เลือก --</option> <option value="เด็กชาย">เด็กชาย</option> <option value="เด็กหญิง">เด็กหญิง</option> <option value="นาย">นาย</option> <option value="นางสาว">นางสาว</option> </select>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">✍️ ชื่อ *</label> <input type="text" id="reg-first-name" placeholder="กรอกชื่อ" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">📌 นามสกุล *</label> <input type="text" id="reg-last-name" placeholder="กรอกนามสกุล" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">🏫 ชั้นเรียน *</label> <select id="reg-class" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required> <option value="">-- เลือก --</option> <option value="อ.1">อ.1</option> <option value="อ.2">อ.2</option> <option value="อ.3">อ.3</option> <option value="อ.4">อ.4</option> <option value="อ.5">อ.5</option> <option value="อ.6">อ.6</option> <option value="ม.1">ม.1</option> <option value="ม.2">ม.2</option> <option value="ม.3">ม.3</option> <option value="ม.4">ม.4</option> <option value="ม.5">ม.5</option> <option value="ม.6">ม.6</option> </select>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">🏠 ห้องเรียน *</label> <input type="text" id="reg-room" placeholder="เช่น 1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">#️⃣ เลขที่ *</label> <input type="number" id="reg-number" placeholder="เช่น 1" min="1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">📱 เบอร์โทรศัพท์ *</label> <input type="tel" id="reg-phone" placeholder="เช่น 0812345678" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">👤 Username *</label> <input type="text" id="reg-username" placeholder="สร้าง username" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <div class="mb-4">
-          <label class="block text-sm font-medium text-gray-700 mb-2">🔐 Password *</label> <input type="password" id="reg-password" placeholder="สร้าง password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
-         </div>
-         <p id="reg-error" class="text-red-500 text-sm mb-4 hidden"></p><button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ สมัครเรียน</button>
-        </form><button onclick="goBackToLogin()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition">🔐 กลับไปหน้า Login</button>
-       </div><!-- ส่วนด้านขวา: รายชื่อผู้สมัครแบบสดตรง -->
-       <div class="bg-white rounded-xl p-6 shadow flex flex-col border-2 border-blue-200">
-        <h3 class="text-lg font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-200">📋 รายชื่อผู้สมัครเรียน</h3>
-        <div class="flex items-center gap-2 flex-wrap mb-3">
-         <select id="reg-list-filter-class" onchange="filterRegisteredStudents()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-          <option value="">ทุกชั้น</option>
-         </select>
-         <select id="reg-list-filter-room" onchange="filterRegisteredStudents()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-          <option value="">ทุกห้อง</option>
-         </select>
+     <div class="flex-1 gap-6 p-4 md:p-6 pb-12">
+      <div class="max-w-2xl mx-auto w-full">
+       <div class="flex gap-2 mb-6">
+        <button id="reg-page-tab-form-btn" onclick="showRegisterPageTab('form')" class="flex-1 px-4 py-3 rounded-lg font-medium transition bg-blue-500 text-white">📝 กรอกข้อมูลของคุณ</button>
+        <button id="reg-page-tab-list-btn" onclick="showRegisterPageTab('list')" class="flex-1 px-4 py-3 rounded-lg font-medium transition bg-gray-300 text-gray-700">📋 รายชื่อผู้สมัครเรียน</button>
+       </div>
+       <!-- แท็บที่ 1 (แท็บแรก): ฟอร์มลงทะเบียน -->
+       <div id="register-tab-form-panel">
+        <div class="bg-white rounded-xl p-6 shadow">
+         <h3 class="text-lg font-bold text-gray-800 mb-4">📝 กรอกข้อมูลของคุณ</h3>
+         <form onsubmit="handleRegister(event)">
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">🆔 รหัสนักเรียน *</label> <input type="text" id="reg-student-id" placeholder="เช่น 001" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">📛 คำนำหน้า *</label> <select id="reg-prefix" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required> <option value="">-- เลือก --</option> <option value="เด็กชาย">เด็กชาย</option> <option value="เด็กหญิง">เด็กหญิง</option> <option value="นาย">นาย</option> <option value="นางสาว">นางสาว</option> </select>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">✍️ ชื่อ *</label> <input type="text" id="reg-first-name" placeholder="กรอกชื่อ" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">📌 นามสกุล *</label> <input type="text" id="reg-last-name" placeholder="กรอกนามสกุล" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">🏫 ชั้นเรียน *</label> <select id="reg-class" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required> <option value="">-- เลือก --</option> <option value="อ.1">อ.1</option> <option value="อ.2">อ.2</option> <option value="อ.3">อ.3</option> <option value="อ.4">อ.4</option> <option value="อ.5">อ.5</option> <option value="อ.6">อ.6</option> <option value="ม.1">ม.1</option> <option value="ม.2">ม.2</option> <option value="ม.3">ม.3</option> <option value="ม.4">ม.4</option> <option value="ม.5">ม.5</option> <option value="ม.6">ม.6</option> </select>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">🏠 ห้องเรียน *</label> <input type="text" id="reg-room" placeholder="เช่น 1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">#️⃣ เลขที่ *</label> <input type="number" id="reg-number" placeholder="เช่น 1" min="1" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">📱 เบอร์โทรศัพท์ *</label> <input type="tel" id="reg-phone" placeholder="เช่น 0812345678" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">👤 Username *</label> <input type="text" id="reg-username" placeholder="สร้าง username" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <div class="mb-4">
+           <label class="block text-sm font-medium text-gray-700 mb-2">🔐 Password *</label> <input type="password" id="reg-password" placeholder="สร้าง password" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+          </div>
+          <p id="reg-error" class="text-red-500 text-sm mb-4 hidden"></p><button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ สมัครเรียน</button>
+         </form><button onclick="goBackToLogin()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition">🔐 กลับไปหน้า Login</button>
         </div>
-        <div id="registered-students" class="space-y-2 max-h-[400px] overflow-y-auto">
+       </div>
+       <!-- แท็บที่ 2: รายชื่อผู้สมัครแบบสด -->
+       <div id="register-tab-list-panel" class="hidden">
+        <div class="bg-white rounded-xl p-6 shadow flex flex-col border-2 border-blue-200">
+         <h3 class="text-lg font-bold text-gray-800 mb-4 pb-3 border-b-2 border-blue-200">📋 รายชื่อผู้สมัครเรียน</h3>
+         <div class="flex items-center gap-2 flex-wrap mb-3">
+          <select id="reg-list-filter-class" onchange="filterRegisteredStudents()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <option value="">ทุกชั้น</option>
+          </select>
+          <select id="reg-list-filter-room" onchange="filterRegisteredStudents()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <option value="">ทุกห้อง</option>
+          </select>
+         </div>
+         <div id="registered-students" class="space-y-2 max-h-[400px] overflow-y-auto">
+         </div>
         </div>
        </div>
       </div>
@@ -1510,10 +1519,33 @@
         </div>
       `).join('');
     }
+    function showRegisterPageTab(tabName) {
+      const formBtn = document.getElementById('reg-page-tab-form-btn');
+      const listBtn = document.getElementById('reg-page-tab-list-btn');
+      const formPanel = document.getElementById('register-tab-form-panel');
+      const listPanel = document.getElementById('register-tab-list-panel');
+      if (!formBtn || !listBtn || !formPanel || !listPanel) return;
+      if (tabName === 'form') {
+        formBtn.classList.add('bg-blue-500', 'text-white');
+        formBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        listBtn.classList.add('bg-gray-300', 'text-gray-700');
+        listBtn.classList.remove('bg-blue-500', 'text-white');
+        formPanel.classList.remove('hidden');
+        listPanel.classList.add('hidden');
+      } else {
+        listBtn.classList.add('bg-blue-500', 'text-white');
+        listBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        formBtn.classList.add('bg-gray-300', 'text-gray-700');
+        formBtn.classList.remove('bg-blue-500', 'text-white');
+        listPanel.classList.remove('hidden');
+        formPanel.classList.add('hidden');
+      }
+    }
     function showRegisterPage() {
       document.getElementById('page-login').classList.add('hidden');
       document.getElementById('page-register').classList.remove('hidden');
       document.getElementById('app-main').classList.add('hidden');
+      showRegisterPageTab('form'); // เปิดมาแล้วให้แท็บฟอร์มเป็นแท็บแรกที่เห็นเสมอ
     }
     function handleDirectorLogin() {
       const username = 'director';
