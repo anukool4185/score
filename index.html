@@ -1341,6 +1341,14 @@
       if (subjectFilter) registrations = registrations.filter(r => r.subject_name === subjectFilter);
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
       if (roomFilter) registrations = registrations.filter(r => r.room_number === roomFilter);
+      // เรียงรายชื่อจากเลขที่น้อยไปมาก
+      registrations = registrations.slice().sort((a, b) => {
+        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const numA = parseFloat(studentA?.student_number) || 0;
+        const numB = parseFloat(studentB?.student_number) || 0;
+        return numA - numB;
+      });
       if (countLabel) countLabel.textContent = `แสดง ${registrations.length} จาก ${totalCount} รายการ`;
       if (registrations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-400 py-8">ไม่พบข้อมูลตามที่กรอง</td></tr>`;
@@ -2403,6 +2411,8 @@
       if (studentsListFilter.roomNumber) {
         students = students.filter(s => s.room_number === studentsListFilter.roomNumber);
       }
+      // เรียงรายชื่อจากเลขที่น้อยไปมาก
+      students = students.slice().sort((a, b) => (parseFloat(a.student_number) || 0) - (parseFloat(b.student_number) || 0));
       const countLabel = document.getElementById('students-filter-count');
       if (countLabel) {
         countLabel.textContent = `แสดง ${students.length} จาก ${allStudents.length} คน`;
@@ -3845,12 +3855,20 @@
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       
       // ค้นหา registrations ที่ตรงกับ class_name, room_number และ subject_name เท่านั้น
-      const registrations = allData.filter(d => 
+      let registrations = allData.filter(d => 
         d.type === 'student_registration' && 
         d.class_name === className &&
         d.room_number === roomNumber &&
         d.subject_name === subjectName
       );
+      // เรียงรายชื่อจากเลขที่น้อยไปมาก
+      registrations = registrations.slice().sort((a, b) => {
+        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const numA = parseFloat(studentA?.student_number) || 0;
+        const numB = parseFloat(studentB?.student_number) || 0;
+        return numA - numB;
+      });
       if (registrations.length === 0) {
         container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่มีนักเรียนลงทะเบียนวิชานี้</p>';
         return;
@@ -5248,6 +5266,14 @@
       if (subjectFilter) registrations = registrations.filter(r => r.subject_name === subjectFilter);
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
       if (roomFilter) registrations = registrations.filter(r => r.room_number === roomFilter);
+      // เรียงรายชื่อจากเลขที่น้อยไปมาก
+      registrations = registrations.slice().sort((a, b) => {
+        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const numA = parseFloat(studentA?.student_number) || 0;
+        const numB = parseFloat(studentB?.student_number) || 0;
+        return numA - numB;
+      });
       if (countLabel) countLabel.textContent = `แสดง ${registrations.length} จาก ${totalCount} รายการ`;
       if (registrations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-400 py-8">ไม่พบข้อมูลตามที่กรอง</td></tr>`;
