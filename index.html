@@ -3512,6 +3512,18 @@
       }
     }
     // ======= SCORES MANAGEMENT FUNCTIONS =======
+    function parseFullScoresArray(str, times) {
+      // คืนค่า array ความยาว times แต่ละช่องเป็น '' (ยังไม่ตั้งคะแนนเต็ม) หรือ string ตัวเลข
+      const parts = (str || '').split(',');
+      const arr = [];
+      for (let i = 0; i < times; i++) {
+        arr.push(parts[i] !== undefined ? parts[i].trim() : '');
+      }
+      return arr;
+    }
+    function sumFullScoresArray(arr) {
+      return arr.reduce((sum, v) => sum + (v === '' || v === undefined ? 0 : (parseFloat(v) || 0)), 0);
+    }
     function loadScoresFilters() {
       const classRecords = allData.filter(d => d.type === 'class');
       const roomRecords = allData.filter(d => d.type === 'room');
@@ -3542,64 +3554,64 @@
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
       const existing = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
-      const kFullScore = existing?.k_full_score || 0;
-      const pFullScore = existing?.p_full_score || 0;
-      const aFullScore = existing?.a_full_score || 0;
-      const cFullScore = existing?.c_full_score || 0;
-      const mFullScore = existing?.m_full_score || 0;
-      const fFullScore = existing?.f_full_score || 0;
+      const categories = [
+        { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10, color: 'amber' },
+        { type: 'p', label: '🎯 P (ทักษะ)', times: 3, color: 'green' },
+        { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3, color: 'purple' },
+        { type: 'c', label: '💪 C (สมรรถนะ)', times: 3, color: 'red' },
+        { type: 'm', label: '📋 M (กลางภาค)', times: 2, color: 'cyan' },
+        { type: 'f', label: '🏆 F (ปลายภาค)', times: 2, color: 'orange' }
+      ];
       container.innerHTML = `
         <div class="bg-white rounded-lg border-2 border-gray-200 p-6">
           <div class="mb-4">
             <p class="font-semibold text-gray-800">📚 ${className} | 📖 ${subjectName}</p>
+            <p class="text-xs text-gray-500 mt-1">ตั้งคะแนนเต็ม "รายครั้ง" ของแต่ละหมวด — คะแนนเต็มรวมจะคำนวณรวมจากรายครั้งให้อัตโนมัติ ช่องที่ไม่ตั้งไว้จะปล่อยว่าง</p>
           </div>
-          <div class="grid md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">📝 K (เก็บคะแนน) - คะแนนเต็ม</label>
-              <input type="number" id="scores-k-full" step="0.5" min="0" value="${kFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 P (ทักษะ) - คะแนนเต็ม</label>
-              <input type="number" id="scores-p-full" step="0.5" min="0" value="${pFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">⭐ A (คุณลักษณะ) - คะแนนเต็ม</label>
-              <input type="number" id="scores-a-full" step="0.5" min="0" value="${aFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">💪 C (สมรรถนะ) - คะแนนเต็ม</label>
-              <input type="number" id="scores-c-full" step="0.5" min="0" value="${cFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">📋 M (กลางภาค) - คะแนนเต็ม</label>
-              <input type="number" id="scores-m-full" step="0.5" min="0" value="${mFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🏆 F (ปลายภาค) - คะแนนเต็ม</label>
-              <input type="number" id="scores-f-full" step="0.5" min="0" value="${fFullScore}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
+          <div class="space-y-5 mb-6">
+            ${categories.map(cat => {
+              const arr = parseFullScoresArray(existing?.[`${cat.type}_full_scores`], cat.times);
+              const inputs = arr.map((v, idx) => `<input type="number" step="0.5" min="0" id="setting-${cat.type}-full-${idx + 1}" value="${v}" placeholder="${idx + 1}" oninput="updateSettingFullScoreTotal('${cat.type}', ${cat.times})" class="w-14 px-1 py-2 border-2 border-gray-300 rounded text-center text-sm focus:border-blue-500 focus:outline-none">`).join('');
+              return `
+                <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p class="text-sm font-semibold text-gray-700 mb-2">${cat.label} (${cat.times} ครั้ง)</p>
+                  <div class="flex flex-wrap gap-2 mb-2">${inputs}</div>
+                  <p class="text-xs font-semibold text-gray-600" id="setting-${cat.type}-total">รวม: ${sumFullScoresArray(arr)}</p>
+                </div>
+              `;
+            }).join('')}
           </div>
           <button onclick="saveScoresSettings('${classSubjectId}', '${className}', '${roomNumber}', '${subjectName}')" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition">💾 บันทึก</button>
         </div>
       `;
     }
+    function updateSettingFullScoreTotal(type, times) {
+      const arr = [];
+      for (let i = 1; i <= times; i++) {
+        arr.push(document.getElementById(`setting-${type}-full-${i}`)?.value || '');
+      }
+      const totalEl = document.getElementById(`setting-${type}-total`);
+      if (totalEl) totalEl.textContent = `รวม: ${sumFullScoresArray(arr)}`;
+    }
     async function saveScoresSettings(classSubjectId, className, roomNumber, subjectName) {
-      const kFullScore = parseFloat(document.getElementById('scores-k-full')?.value) || 0;
-      const pFullScore = parseFloat(document.getElementById('scores-p-full')?.value) || 0;
-      const aFullScore = parseFloat(document.getElementById('scores-a-full')?.value) || 0;
-      const cFullScore = parseFloat(document.getElementById('scores-c-full')?.value) || 0;
-      const mFullScore = parseFloat(document.getElementById('scores-m-full')?.value) || 0;
-      const fFullScore = parseFloat(document.getElementById('scores-f-full')?.value) || 0;
+      const categories = [
+        { type: 'k', times: 10 }, { type: 'p', times: 3 }, { type: 'a', times: 3 },
+        { type: 'c', times: 3 }, { type: 'm', times: 2 }, { type: 'f', times: 2 }
+      ];
+      const fullScoresData = {};
+      categories.forEach(cat => {
+        const arr = [];
+        for (let i = 1; i <= cat.times; i++) {
+          arr.push(document.getElementById(`setting-${cat.type}-full-${i}`)?.value || '');
+        }
+        fullScoresData[`${cat.type}_full_scores`] = arr.join(',');
+        fullScoresData[`${cat.type}_full_score`] = sumFullScoresArray(arr);
+      });
       const existing = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const result = existing 
         ? await window.dataSdk.update({
             ...existing,
-            k_full_score: kFullScore,
-            p_full_score: pFullScore,
-            a_full_score: aFullScore,
-            c_full_score: cFullScore,
-            m_full_score: mFullScore,
-            f_full_score: fFullScore
+            ...fullScoresData
           })
         : await window.dataSdk.create({
             type: 'class_subject_scores',
@@ -3607,12 +3619,7 @@
             class_name: className,
             room_number: roomNumber,
             subject_name: subjectName,
-            k_full_score: kFullScore,
-            p_full_score: pFullScore,
-            a_full_score: aFullScore,
-            c_full_score: cFullScore,
-            m_full_score: mFullScore,
-            f_full_score: fFullScore
+            ...fullScoresData
           });
       if (result.isOk) {
         // แสดงข้อความสำเร็จสั้นๆ
@@ -3689,37 +3696,32 @@
     function editScoresPopup(scoresId) {
       const scores = allData.find(d => d.__backendId === scoresId);
       if (!scores) return;
+      const categories = [
+        { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10 },
+        { type: 'p', label: '🎯 P (ทักษะ)', times: 3 },
+        { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3 },
+        { type: 'c', label: '💪 C (สมรรถนะ)', times: 3 },
+        { type: 'm', label: '📋 M (กลางภาค)', times: 2 },
+        { type: 'f', label: '🏆 F (ปลายภาค)', times: 2 }
+      ];
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
       editDiv.innerHTML = `
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8">
-          <h3 class="text-xl font-bold text-gray-800 mb-2">✏️ แก้ไขคะแนนเต็ม</h3>
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">✏️ แก้ไขคะแนนเต็ม (รายครั้ง)</h3>
           <p class="text-gray-600 mb-4 text-sm">📚 ${scores.class_name} | 📖 ${scores.subject_name}</p>
           <div class="space-y-4 mb-6 max-h-96 overflow-y-auto">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">📝 K (เก็บคะแนน)</label>
-              <input type="number" id="popup-k-full" step="0.5" min="0" value="${scores.k_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 P (ทักษะ)</label>
-              <input type="number" id="popup-p-full" step="0.5" min="0" value="${scores.p_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">⭐ A (คุณลักษณะ)</label>
-              <input type="number" id="popup-a-full" step="0.5" min="0" value="${scores.a_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">💪 C (สมรรถนะ)</label>
-              <input type="number" id="popup-c-full" step="0.5" min="0" value="${scores.c_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">📋 M (กลางภาค)</label>
-              <input type="number" id="popup-m-full" step="0.5" min="0" value="${scores.m_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🏆 F (ปลายภาค)</label>
-              <input type="number" id="popup-f-full" step="0.5" min="0" value="${scores.f_full_score}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            </div>
+            ${categories.map(cat => {
+              const arr = parseFullScoresArray(scores[`${cat.type}_full_scores`], cat.times);
+              const inputs = arr.map((v, idx) => `<input type="number" step="0.5" min="0" id="setting-popup-${cat.type}-full-${idx + 1}" value="${v}" placeholder="${idx + 1}" oninput="updateSettingFullScoreTotal('popup-${cat.type}', ${cat.times})" class="w-12 px-1 py-2 border-2 border-gray-300 rounded text-center text-xs focus:border-blue-500 focus:outline-none">`).join('');
+              return `
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <p class="text-sm font-semibold text-gray-700 mb-2">${cat.label} (${cat.times} ครั้ง)</p>
+                  <div class="flex flex-wrap gap-1 mb-1">${inputs}</div>
+                  <p class="text-xs font-semibold text-gray-600" id="setting-popup-${cat.type}-total">รวม: ${sumFullScoresArray(arr)}</p>
+                </div>
+              `;
+            }).join('')}
           </div>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
@@ -3732,20 +3734,22 @@
     async function confirmEditScoresPopup(scoresId) {
       const scores = allData.find(d => d.__backendId === scoresId);
       if (!scores) return;
-      const kFullScore = parseFloat(document.getElementById('popup-k-full')?.value) || 0;
-      const pFullScore = parseFloat(document.getElementById('popup-p-full')?.value) || 0;
-      const aFullScore = parseFloat(document.getElementById('popup-a-full')?.value) || 0;
-      const cFullScore = parseFloat(document.getElementById('popup-c-full')?.value) || 0;
-      const mFullScore = parseFloat(document.getElementById('popup-m-full')?.value) || 0;
-      const fFullScore = parseFloat(document.getElementById('popup-f-full')?.value) || 0;
+      const categories = [
+        { type: 'k', times: 10 }, { type: 'p', times: 3 }, { type: 'a', times: 3 },
+        { type: 'c', times: 3 }, { type: 'm', times: 2 }, { type: 'f', times: 2 }
+      ];
+      const fullScoresData = {};
+      categories.forEach(cat => {
+        const arr = [];
+        for (let i = 1; i <= cat.times; i++) {
+          arr.push(document.getElementById(`setting-popup-${cat.type}-full-${i}`)?.value || '');
+        }
+        fullScoresData[`${cat.type}_full_scores`] = arr.join(',');
+        fullScoresData[`${cat.type}_full_score`] = sumFullScoresArray(arr);
+      });
       const result = await window.dataSdk.update({
         ...scores,
-        k_full_score: kFullScore,
-        p_full_score: pFullScore,
-        a_full_score: aFullScore,
-        c_full_score: cFullScore,
-        m_full_score: mFullScore,
-        f_full_score: fFullScore
+        ...fullScoresData
       });
       if (result.isOk) {
         document.querySelector('.fixed')?.remove();
@@ -3876,6 +3880,12 @@
         const cFullScore = scoresData?.c_full_score || 100;
         const mFullScore = scoresData?.m_full_score || 100;
         const fFullScore = scoresData?.f_full_score || 100;
+        const kFullScoresArr = parseFullScoresArray(scoresData?.k_full_scores, 10);
+        const pFullScoresArr = parseFullScoresArray(scoresData?.p_full_scores, 3);
+        const aFullScoresArr = parseFullScoresArray(scoresData?.a_full_scores, 3);
+        const cFullScoresArr = parseFullScoresArray(scoresData?.c_full_scores, 3);
+        const mFullScoresArr = parseFullScoresArray(scoresData?.m_full_scores, 2);
+        const fFullScoresArr = parseFullScoresArray(scoresData?.f_full_scores, 2);
         return `
           <div class="bg-white rounded-lg border-2 border-blue-200 p-6 hover:shadow-lg transition">
             <div class="mb-4 pb-4 border-b-2 border-gray-200">
@@ -3894,7 +3904,7 @@
                 <p class="text-sm font-semibold text-gray-700 mb-1">📝 K (10 ครั้ง)</p>
                 <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="k-${reg.__backendId}">
-                  ${generateScoreInputs('k', reg.__backendId, scores.k_scores, 10, kFullScore)}
+                  ${generateScoreInputs('k', reg.__backendId, scores.k_scores, 10, kFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="k-total-${reg.__backendId}">รวม: 0/${kFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="k-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -3903,7 +3913,7 @@
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="p-${reg.__backendId}">
-                  ${generateScoreInputs('p', reg.__backendId, scores.p_scores, 3, pFullScore)}
+                  ${generateScoreInputs('p', reg.__backendId, scores.p_scores, 3, pFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="p-total-${reg.__backendId}">รวม: 0/${pFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="p-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -3912,16 +3922,17 @@
                 <p class="text-sm font-semibold text-gray-700 mb-1">⭐ A (3 ครั้ง)</p>
                 <p class="text-xs text-purple-700 font-semibold mb-2">คะแนนดิบ: ${aFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="a-${reg.__backendId}">
-                  ${generateScoreInputs('a', reg.__backendId, scores.a_scores, 3, aFullScore)}
+                  ${generateScoreInputs('a', reg.__backendId, scores.a_scores, 3, aFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="a-total-${reg.__backendId}">รวม: 0/${aFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="a-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
+                <p class="" id="a-overall-${reg.__backendId}"></p>
               </div>
               <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">💪 C (3 ครั้ง)</p>
                 <p class="text-xs text-red-700 font-semibold mb-2">คะแนนดิบ: ${cFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="c-${reg.__backendId}">
-                  ${generateScoreInputs('c', reg.__backendId, scores.c_scores, 3, cFullScore)}
+                  ${generateScoreInputs('c', reg.__backendId, scores.c_scores, 3, cFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="c-total-${reg.__backendId}">รวม: 0/${cFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="c-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -3930,7 +3941,7 @@
                 <p class="text-sm font-semibold text-gray-700 mb-1">📋 M (2 ครั้ง)</p>
                 <p class="text-xs text-cyan-700 font-semibold mb-2">คะแนนดิบ: ${mFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="m-${reg.__backendId}">
-                  ${generateScoreInputs('m', reg.__backendId, scores.m_scores, 2, mFullScore)}
+                  ${generateScoreInputs('m', reg.__backendId, scores.m_scores, 2, mFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="m-total-${reg.__backendId}">รวม: 0/${mFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="m-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -3939,7 +3950,7 @@
                 <p class="text-sm font-semibold text-gray-700 mb-1">🏆 F (2 ครั้ง)</p>
                 <p class="text-xs text-orange-700 font-semibold mb-2">คะแนนดิบ: ${fFullScore}</p>
                 <div class="flex flex-wrap gap-1" id="f-${reg.__backendId}">
-                  ${generateScoreInputs('f', reg.__backendId, scores.f_scores, 2, fFullScore)}
+                  ${generateScoreInputs('f', reg.__backendId, scores.f_scores, 2, fFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="f-total-${reg.__backendId}">รวม: 0/${fFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="f-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -3962,20 +3973,83 @@
           if (value < 0) this.value = 0;
           if (value > 100) this.value = 100;
           validateScores(this);
+          if (this.id.startsWith('a-')) {
+            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
+            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
+          }
         });
         input.addEventListener('input', function() {
           validateScores(this);
+          if (this.id.startsWith('a-')) {
+            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
+            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
+          }
         });
       });
+      // คำนวณ "รวม" และสถานะ A ให้ตรงกับคะแนนที่บันทึกไว้แล้ว (ไม่ต้องรอพิมพ์ก่อน)
+      registrations.forEach(reg => {
+        ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
+          const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
+          if (firstInput) validateScores(firstInput);
+        });
+        updateAPassFailStatus(reg.__backendId);
+      });
     }
-    function generateScoreInputs(type, regId, existingScores, times, fullScore) {
-      const scores = existingScores ? existingScores.split(',').filter(s => s.trim()) : [];
+    function generateScoreInputs(type, regId, existingScores, times, fullScoresArr) {
+      const scores = existingScores ? existingScores.split(',') : [];
       let html = '';
       for (let i = 1; i <= times; i++) {
-        const value = scores[i - 1] || '';
-        html += `<input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" placeholder="${i}" class="score-input w-10 px-1 py-1 border-2 border-gray-300 rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">`;
+        const value = scores[i - 1] ? scores[i - 1].trim() : '';
+        const fullScoreForThis = fullScoresArr ? fullScoresArr[i - 1] : '';
+        const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
+        const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
+        const disabledAttr = isConfigured ? '' : 'disabled';
+        html += `<input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" placeholder="${i}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">`;
+        if (type === 'a') {
+          html += `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>`;
+        }
       }
       return html;
+    }
+    // ตรวจสอบคะแนน A รายครั้งเทียบกับคะแนนเต็มรายครั้ง: เท่ากัน = ผ่าน, ไม่เท่ากัน = ติด ร.
+    // แล้วสรุปภาพรวม: ถ้ามีครั้งใดติด ร. ภาพรวม = ร. ทันที
+    function updateAPassFailStatus(regId) {
+      let anyFail = false;
+      let anyChecked = false;
+      for (let i = 1; i <= 3; i++) {
+        const input = document.getElementById(`a-${regId}-${i}`);
+        const statusEl = document.getElementById(`a-status-${regId}-${i}`);
+        if (!input || !statusEl) continue;
+        const fullScoreStr = input.getAttribute('data-full');
+        const hasFullScore = fullScoreStr !== '' && fullScoreStr !== null;
+        if (!hasFullScore || input.value === '') {
+          statusEl.textContent = '';
+          continue;
+        }
+        anyChecked = true;
+        const entered = parseFloat(input.value) || 0;
+        const fullScoreForThis = parseFloat(fullScoreStr) || 0;
+        if (entered === fullScoreForThis) {
+          statusEl.textContent = '✅ ผ่าน';
+          statusEl.className = 'text-[10px] block text-center text-green-600 font-semibold';
+        } else {
+          statusEl.textContent = '❌ติด ร.';
+          statusEl.className = 'text-[10px] block text-center text-red-600 font-semibold';
+          anyFail = true;
+        }
+      }
+      const overallEl = document.getElementById(`a-overall-${regId}`);
+      if (overallEl) {
+        if (!anyChecked) {
+          overallEl.textContent = '';
+        } else if (anyFail) {
+          overallEl.textContent = '⚠️ ภาพรวม A: ร.';
+          overallEl.className = 'text-xs font-bold mt-2 text-red-600';
+        } else {
+          overallEl.textContent = '✅ ภาพรวม A: ผ่าน';
+          overallEl.className = 'text-xs font-bold mt-2 text-green-600';
+        }
+      }
     }
     function validateScores(inputElement) {
       const regId = inputElement.id.match(/-(.+)-\d+$/)[1];
