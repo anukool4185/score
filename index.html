@@ -4242,12 +4242,13 @@
                   <p class="text-xs font-semibold text-gray-600 mb-2">❌ ขาด</p>
                   <p class="text-2xl font-bold text-red-600">${isFilledPart1 ? absentHoursPart1.toFixed(1) : '-'}</p>
                   <p class="text-xs text-gray-500 mt-1">ชั่วโมง (ได้ ${hoursCanAbsent.toFixed(1)})</p>
+                  ${isFilledPart1 ? (absentHoursPart1 > hoursCanAbsent ? '<span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">❌ เกินกำหนด</span>' : '<span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">✅ ปกติ</span>') : ''}
                 </div>
               </div>
               <form onsubmit="saveAttendancePart1(event, '${reg.__backendId}', ${hoursCanAbsent})">
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-blue-900 mb-2">📝 ลงเวลาร่วมเรียน (ชั่วโมง)</label>
-                  <input type="number" id="part1-hours-${reg.__backendId}" step="0.5" min="0" max="${totalHoursPlanned}" value="${isFilledPart1 ? attendedHours : ''}" class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 focus:outline-none" onchange="validateAttendanceInput(this, ${totalHoursPlanned})" required>
+                  <input type="number" id="part1-hours-${reg.__backendId}" step="0.5" min="0" max="${totalHoursPlanned}" value="${isFilledPart1 ? attendedHours : ''}" class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 focus:outline-none" onchange="validateAttendanceInput(this, ${totalHoursPlanned})" onfocus="this.select()" required>
                   <p class="text-xs text-blue-800 mt-1">* กรอกชั่วโมงที่นักเรียนร่วมเรียน (0 - ${totalHoursPlanned})</p>
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium transition">💾 บันทึกส่วนที่ 1</button>
@@ -4272,12 +4273,13 @@
                   <p class="text-xs font-semibold text-gray-600 mb-2">❌ ขาด</p>
                   <p class="text-2xl font-bold text-red-600">${isFilledPart2 ? absentHoursPart2.toFixed(1) : '-'}</p>
                   <p class="text-xs text-gray-500 mt-1">ชั่วโมง (ได้ ${actualHoursCanAbsent.toFixed(1)})</p>
+                  ${isFilledPart2 ? (absentHoursPart2 > actualHoursCanAbsent ? '<span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">❌ เกินกำหนด</span>' : '<span class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">✅ ปกติ</span>') : ''}
                 </div>
               </div>
               <form onsubmit="saveAttendancePart2(event, '${reg.__backendId}', ${actualHoursCanAbsent})">
                 <div class="mb-4">
                   <label class="block text-sm font-medium text-purple-900 mb-2">📝 ลงเวลาเรียนจริง (ชั่วโมง)</label>
-                  <input type="number" id="part2-hours-${reg.__backendId}" step="0.5" min="0" max="${actualHoursTaught}" value="${isFilledPart2 ? attendedHoursReal : ''}" class="w-full px-4 py-3 border-2 border-purple-300 rounded-xl focus:border-purple-600 focus:outline-none" onchange="validateAttendanceInput(this, ${actualHoursTaught})" required>
+                  <input type="number" id="part2-hours-${reg.__backendId}" step="0.5" min="0" max="${actualHoursTaught}" value="${isFilledPart2 ? attendedHoursReal : ''}" class="w-full px-4 py-3 border-2 border-purple-300 rounded-xl focus:border-purple-600 focus:outline-none" onchange="validateAttendanceInput(this, ${actualHoursTaught})" onfocus="this.select()" required>
                   <p class="text-xs text-purple-800 mt-1">* กรอกชั่วโมงที่นักเรียนร่วมเรียนจริง (0 - ${actualHoursTaught})</p>
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition">💾 บันทึกส่วนที่ 2</button>
@@ -4513,10 +4515,9 @@
       }
       // 📌 ขั้นที่ 4: คำนวณชั่วโมงขาด
       const absentHours = totalHours - attendedHours;  // เช่น 80 - 70 = 10 ชม.
-      // 📌 ขั้นที่ 5: ตรวจสอบว่าขาดไม่เกินค่าที่อนุญาต (ได้ 8 ชม.)
+      // 📌 ขั้นที่ 5: ถ้าขาดเกินที่อนุญาต แค่เตือนสถานะ ไม่บล็อกการบันทึก
       if (absentHours > hoursCanAbsent) {
-        showToast(`❌ เกินจำนวนชั่วโมงที่ขาดเรียนได้ (ขาดได้ ${hoursCanAbsent.toFixed(1)} ชั่วโมง แต่คุณขาด ${absentHours.toFixed(1)} ชั่วโมง)`, 'error');
-        return;
+        showToast(`⚠️ บันทึกแล้ว แต่ขาดเกินที่กำหนด (ขาดได้ ${hoursCanAbsent.toFixed(1)} ชั่วโมง แต่ขาด ${absentHours.toFixed(1)} ชั่วโมง)`, 'error');
       }
       // 📌 ขั้นที่ 6: ตรวจสอบว่า record นี้บันทึกไปแล้วหรือยัง
       // - ถ้ามี: ให้อัปเดตค่า attended_hours
@@ -4562,10 +4563,9 @@
       }
       // 📌 ขั้นที่ 4: คำนวณชั่วโมงขาดในส่วนที่ 2
       const absentHoursReal = actualHoursTaught - attendedHoursReal;  // เช่น 50 - 45 = 5 ชม.
-      // 📌 ขั้นที่ 5: ตรวจสอบว่าขาดไม่เกินค่าที่อนุญาต
+      // 📌 ขั้นที่ 5: ถ้าขาดเกินที่อนุญาต แค่เตือนสถานะ ไม่บล็อกการบันทึก
       if (absentHoursReal > actualHoursCanAbsent) {
-        showToast(`❌ เกินจำนวนชั่วโมงที่ขาดเรียนได้ (ขาดได้ ${actualHoursCanAbsent.toFixed(1)} ชั่วโมง แต่คุณขาด ${absentHoursReal.toFixed(1)} ชั่วโมง)`, 'error');
-        return;
+        showToast(`⚠️ บันทึกแล้ว แต่ขาดเกินที่กำหนด (ขาดได้ ${actualHoursCanAbsent.toFixed(1)} ชั่วโมง แต่ขาด ${absentHoursReal.toFixed(1)} ชั่วโมง)`, 'error');
       }
       // 📌 ขั้นที่ 6: ตรวจสอบว่า record นี้บันทึกไปแล้วหรือยัง
       // - ถ้ามี: ให้อัปเดตค่า attended_hours_real
