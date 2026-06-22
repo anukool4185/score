@@ -8,6 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบบันทึก KPAC นักเรียน</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Prompt', sans-serif; }
@@ -26,6 +27,16 @@
     .fullscore-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .fullscore-input[type="number"] { -moz-appearance: textfield; }
     .score-input[type="number"] { -moz-appearance: textfield; }
+    @media print {
+      body.printing-gradereport #gradereport-print-area,
+      body.printing-gradereport #gradereport-print-area * { visibility: visible; }
+      body.printing-gradereport * { visibility: hidden; }
+      body.printing-gradereport #gradereport-print-area {
+        visibility: visible;
+        position: absolute; left: 0; top: 0; width: 100%;
+      }
+      body.printing-gradereport #gradereport-print-header { display: block !important; }
+    }
   </style>
   <style>body { box-sizing: border-box; }</style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
@@ -207,7 +218,7 @@
     <div id="page-admin" class="h-full overflow-auto flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
-      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button>
+      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -494,6 +505,55 @@
           </thead>
           <tbody id="admindata-table-body" class="divide-y divide-gray-200 max-h-[600px] overflow-y-auto"></tbody>
          </table>
+        </div>
+       </div>
+      </div>
+      <div id="admin-tab-gradereport" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">📑 สรุปเกรด</h3>
+        <p class="text-gray-500 text-sm mb-6">คำนวณจากคะแนนที่แปลงเป็นน้ำหนัก% แล้ว (รวมเต็ม 100) เรียงตามเลขที่ — เลือกชั้น/ห้อง/วิชา ก่อนดูผล</p>
+        <div class="flex items-center gap-3 flex-wrap mb-4">
+         <select id="gradereport-filter-class" onchange="updateGradeReportClassSubjects(); updateGradeReportTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">-- เลือกชั้นเรียน --</option>
+         </select>
+         <select id="gradereport-filter-room" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">-- เลือกห้องเรียน --</option>
+         </select>
+         <select id="gradereport-filter-subject" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">-- เลือกวิชา --</option>
+         </select>
+         <button onclick="exportGradeReportExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">📥 Export Excel</button>
+         <button onclick="printGradeReport()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">🖨️ พิมพ์</button>
+        </div>
+        <div id="gradereport-print-area">
+         <div id="gradereport-print-header" class="hidden mb-4 text-center">
+          <h2 class="text-xl font-bold">รายงานสรุปผลการเรียน</h2>
+          <p id="gradereport-print-subtitle" class="text-sm"></p>
+         </div>
+         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+          <table class="w-full text-sm" id="gradereport-table">
+           <thead class="bg-gray-100">
+            <tr>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เลขที่</th>
+             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 bg-amber-50 whitespace-nowrap">รวม KPAC</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">F</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 bg-amber-50 whitespace-nowrap">รวม KPACMF</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรด</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(1)</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(2)</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(3)</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">ขาดอีกถึง 2.5</th>
+            </tr>
+           </thead>
+           <tbody id="gradereport-table-body" class="divide-y divide-gray-200"></tbody>
+          </table>
+         </div>
         </div>
        </div>
       </div>
@@ -1320,7 +1380,7 @@
       showAdminTab('import');
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'grading', 'admins', 'students', 'evaltopics', 'studentdata'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'grading', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -1443,6 +1503,214 @@
           </tr>
         `;
       }).join('');
+    }
+    // ============================================================
+    // 📑 ระบบสรุปเกรด (Grade Report) — คำนวณจากคะแนนที่แปลงเป็นน้ำหนัก% แล้ว
+    // ============================================================
+    const GRADE_CUTOFFS = [
+      { min: 80, max: 100, grade: 4.0 },
+      { min: 75, max: 79.999, grade: 3.5 },
+      { min: 70, max: 74.999, grade: 3.0 },
+      { min: 65, max: 69.999, grade: 2.5 },
+      { min: 60, max: 64.999, grade: 2.0 },
+      { min: 55, max: 59.999, grade: 1.5 },
+      { min: 50, max: 54.999, grade: 1.0 },
+      { min: 0, max: 49.999, grade: 0 }
+    ];
+    function scoreToGrade(score) {
+      for (const c of GRADE_CUTOFFS) {
+        if (score >= c.min && score <= c.max) return c.grade;
+      }
+      return 0;
+    }
+    function loadGradeReportTab() {
+      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classSelect = document.getElementById('gradereport-filter-class');
+      if (classSelect) classSelect.innerHTML = '<option value="">-- เลือกชั้นเรียน --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      updateGradeReportClassSubjects();
+      updateGradeReportTable();
+    }
+    function updateGradeReportClassSubjects() {
+      const className = document.getElementById('gradereport-filter-class')?.value || '';
+      const roomSelect = document.getElementById('gradereport-filter-room');
+      const subjectSelect = document.getElementById('gradereport-filter-subject');
+      if (!roomSelect || !subjectSelect) return;
+      let regs = allData.filter(d => d.type === 'student_registration');
+      if (className) regs = regs.filter(r => r.class_name === className);
+      const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    // คำนวณรายงานเกรดของนักเรียนทุกคนตามชั้น/ห้อง/วิชาที่เลือก เรียงตามเลขที่
+    function computeGradeReportRows(className, roomNumber, subjectName) {
+      if (!className || !roomNumber || !subjectName) return [];
+      const registrations = allData.filter(d =>
+        d.type === 'student_registration' &&
+        d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName
+      );
+      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+      const midPercentWeight = classSubjectRecord?.mid_percent || 0;
+      const finalPercentWeight = classSubjectRecord?.final_percent || 0;
+      const sumScoresStrLocal = (str) => {
+        if (!str) return 0;
+        return str.split(',').filter(s => s.trim()).reduce((sum, s) => sum + (parseFloat(s) || 0), 0);
+      };
+      const rows = registrations.map(reg => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        // น้ำหนัก% ของ K/P/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
+        const kWeight = reg.k_percent || 0;
+        const pWeight = reg.p_percent || 0;
+        const aWeight = reg.a_percent || 0;
+        const cWeight = reg.c_percent || 0;
+        const weightedScore = (achievedStr, fullScore, weight) => {
+          const achieved = sumScoresStrLocal(achievedStr);
+          if (!fullScore || fullScore <= 0) return 0;
+          return (achieved / fullScore) * weight;
+        };
+        const kScore = weightedScore(grade?.k_scores, scoresConfig?.k_full_score, kWeight);
+        const pScore = weightedScore(grade?.p_scores, scoresConfig?.p_full_score, pWeight);
+        const aScore = weightedScore(grade?.a_scores, scoresConfig?.a_full_score, aWeight);
+        const cScore = weightedScore(grade?.c_scores, scoresConfig?.c_full_score, cWeight);
+        const mScore = weightedScore(grade?.m_scores, scoresConfig?.m_full_score, midPercentWeight);
+        const fScore = weightedScore(grade?.f_scores, scoresConfig?.f_full_score, finalPercentWeight);
+        const totalKPAC = kScore + pScore + aScore + cScore;
+        const totalAll = totalKPAC + mScore + fScore;
+        const gradeValue = scoreToGrade(totalAll);
+
+        // เกรดพิเศษ(1): มส. จากขาดเรียนเกินกำหนด เวลาส่วนที่ 1
+        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const part1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
+        let special1 = '-';
+        if (hoursData && part1 && part1.attended_hours !== undefined) {
+          const absent1 = (hoursData.total_hours || 0) - (part1.attended_hours || 0);
+          if (absent1 > (hoursData.hours_can_absent || 0)) special1 = 'มส.';
+        }
+        // เกรดพิเศษ(2): มส. จากขาดเรียนเกินกำหนด เวลาส่วนที่ 2
+        const part2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
+        let special2 = '-';
+        if (hoursData && part2 && part2.attended_hours_real !== undefined) {
+          const absent2 = (hoursData.actual_hours_taught || 0) - (part2.attended_hours_real || 0);
+          if (absent2 > (hoursData.actual_hours_can_absent || 0)) special2 = 'มส.';
+        }
+        // เกรดพิเศษ(3): ร. จากภาพรวมคะแนน A (รายครั้งต้องเท่ากับคะแนนเต็มรายครั้งของ A ทุกครั้งที่มีข้อมูล)
+        let special3 = '-';
+        if (grade && scoresConfig) {
+          const aScoresArr = (grade.a_scores || '').split(',');
+          const aFullArr = parseFullScoresArray(scoresConfig.a_full_scores, 3);
+          let anyChecked = false, anyFail = false;
+          for (let i = 0; i < 3; i++) {
+            const enteredStr = aScoresArr[i] ? aScoresArr[i].trim() : '';
+            const fullStr = aFullArr[i];
+            if (enteredStr === '' || fullStr === '') continue;
+            anyChecked = true;
+            if ((parseFloat(enteredStr) || 0) !== (parseFloat(fullStr) || 0)) anyFail = true;
+          }
+          if (anyChecked) special3 = anyFail ? 'ร.' : '-';
+        }
+        // คะแนนที่ขาดอีกถึงเกรด 2.5 (เกณฑ์ขั้นต่ำ 65 คะแนน)
+        const pointsNeededFor25 = totalAll < 65 ? (65 - totalAll) : null;
+
+        return {
+          studentNumber: parseFloat(student?.student_number) || 0,
+          studentName: student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id,
+          kScore, pScore, aScore, cScore, totalKPAC, mScore, fScore, totalAll, gradeValue,
+          special1, special2, special3, pointsNeededFor25
+        };
+      });
+      rows.sort((a, b) => a.studentNumber - b.studentNumber);
+      return rows;
+    }
+    function updateGradeReportTable() {
+      const className = document.getElementById('gradereport-filter-class')?.value || '';
+      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
+      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
+      const tbody = document.getElementById('gradereport-table-body');
+      if (!tbody) return;
+      if (!className || !roomNumber || !subjectName) {
+        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงผล</td></tr>';
+        return;
+      }
+      const rows = computeGradeReportRows(className, roomNumber, subjectName);
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">ไม่มีนักเรียนลงทะเบียนวิชานี้</td></tr>';
+        return;
+      }
+      const fmt = (n) => n.toFixed(2);
+      tbody.innerHTML = rows.map((r, idx) => `
+        <tr class="hover:bg-gray-50">
+          <td class="px-2 py-2 text-center whitespace-nowrap">${r.studentNumber || (idx + 1)}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${r.studentName}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.kScore)}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.pScore)}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.aScore)}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.cScore)}</td>
+          <td class="px-2 py-2 text-center font-semibold bg-amber-50 whitespace-nowrap">${fmt(r.totalKPAC)}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.mScore)}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.fScore)}</td>
+          <td class="px-2 py-2 text-center font-bold bg-amber-50 whitespace-nowrap">${fmt(r.totalAll)}</td>
+          <td class="px-2 py-2 text-center font-bold whitespace-nowrap">${r.gradeValue}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special1 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special1}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special2 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special2}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special3 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special3}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap ${r.pointsNeededFor25 !== null ? 'text-orange-600 font-semibold' : ''}">${r.pointsNeededFor25 !== null ? fmt(r.pointsNeededFor25) : '-'}</td>
+        </tr>
+      `).join('');
+    }
+    function exportGradeReportExcel() {
+      const className = document.getElementById('gradereport-filter-class')?.value || '';
+      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
+      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
+      if (!className || !roomNumber || !subjectName) {
+        showToast('กรุณาเลือกชั้นเรียน ห้องเรียน และวิชาก่อน', 'error');
+        return;
+      }
+      const rows = computeGradeReportRows(className, roomNumber, subjectName);
+      if (rows.length === 0) {
+        showToast('ไม่มีข้อมูลให้ export', 'error');
+        return;
+      }
+      const fmt = (n) => Math.round(n * 100) / 100;
+      const data = rows.map(r => ({
+        'เลขที่': r.studentNumber,
+        'ชื่อ-นามสกุล': r.studentName,
+        'K': fmt(r.kScore), 'P': fmt(r.pScore), 'A': fmt(r.aScore), 'C': fmt(r.cScore),
+        'รวม KPAC': fmt(r.totalKPAC),
+        'M': fmt(r.mScore), 'F': fmt(r.fScore),
+        'รวม KPACMF': fmt(r.totalAll),
+        'เกรด': r.gradeValue,
+        'เกรดพิเศษ(1)': r.special1,
+        'เกรดพิเศษ(2)': r.special2,
+        'เกรดพิเศษ(3)': r.special3,
+        'ขาดอีกถึง 2.5': r.pointsNeededFor25 !== null ? fmt(r.pointsNeededFor25) : '-'
+      }));
+      const header = [[`รายงานสรุปผลการเรียน`], [`ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName}`], []];
+      const ws = XLSX.utils.aoa_to_sheet(header);
+      XLSX.utils.sheet_add_json(ws, data, { origin: 'A4' });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'สรุปเกรด');
+      XLSX.writeFile(wb, `สรุปเกรด_${className}_${roomNumber}_${subjectName}.xlsx`);
+    }
+    function printGradeReport() {
+      const className = document.getElementById('gradereport-filter-class')?.value || '';
+      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
+      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
+      if (!className || !roomNumber || !subjectName) {
+        showToast('กรุณาเลือกชั้นเรียน ห้องเรียน และวิชาก่อน', 'error');
+        return;
+      }
+      const headerEl = document.getElementById('gradereport-print-header');
+      const subtitleEl = document.getElementById('gradereport-print-subtitle');
+      if (subtitleEl) subtitleEl.textContent = `ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName} (เรียงตามเลขที่)`;
+      if (headerEl) headerEl.classList.remove('hidden');
+      document.body.classList.add('printing-gradereport');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-gradereport');
+        if (headerEl) headerEl.classList.add('hidden');
+      }, 500);
     }
     async function addEvalTopic() {
       const input = document.getElementById('new-eval-topic');
@@ -1852,6 +2120,8 @@
         loadEvalTopicsTab();
       } else if (tabName === 'studentdata') {
         loadStudentDataTab();
+      } else if (tabName === 'gradereport') {
+        loadGradeReportTab();
       }
     }
     function showToast(message, type = 'success') {
