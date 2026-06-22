@@ -430,10 +430,10 @@
         <!-- จัดการระดับการประเมิน -->
         <div class="mb-8 pt-6 border-t-2 border-gray-200">
          <h4 class="font-semibold text-gray-700 mb-3">🎯 ระดับการประเมิน (สเกล)</h4>
-         <p class="text-gray-500 text-xs mb-3">กำหนดระดับ พร้อมค่าร้อยละของแต่ละระดับ (ใช้คำนวณสรุปผลอัตโนมัติ)</p>
+         <p class="text-gray-500 text-xs mb-3">กำหนดระดับ พร้อมค่าระดับ (ตัวเลขธรรมดา ไม่ใช่ร้อยละ) — ระบบจะแปลงเป็นร้อยละให้อัตโนมัติเทียบกับค่าระดับสูงสุดที่ตั้งไว้</p>
          <div class="flex gap-2 mb-3 flex-wrap">
           <input type="text" id="new-eval-level-label" placeholder="ชื่อระดับ เช่น ดีมาก" class="flex-1 min-w-[140px] px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
-          <input type="number" id="new-eval-level-percent" placeholder="ร้อยละ เช่น 100" min="0" max="100" class="w-32 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+          <input type="number" id="new-eval-level-percent" placeholder="ค่าระดับ เช่น 5" min="0" class="w-32 px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
           <button onclick="addEvalLevel()" class="px-4 py-2 btn-primary text-white rounded-lg whitespace-nowrap">➕ เพิ่มระดับ</button>
          </div>
          <div id="eval-levels-list" class="space-y-2"></div>
@@ -1492,7 +1492,7 @@
       const levelLabel = labelInput.value.trim();
       const percentValue = parseFloat(percentInput.value);
       if (!levelLabel || isNaN(percentValue)) {
-        showToast('กรุณากรอกชื่อระดับและร้อยละให้ครบ', 'error');
+        showToast('กรุณากรอกชื่อระดับและค่าระดับให้ครบ', 'error');
         return;
       }
       const existingLevels = allData.filter(d => d.type === 'evaluation_level');
@@ -1534,8 +1534,8 @@
           <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขระดับการประเมิน</h3>
           <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อระดับ</label>
           <input type="text" id="edit-eval-level-label" value="${level.level_label}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-3">
-          <label class="block text-sm font-medium text-gray-700 mb-1">ร้อยละ</label>
-          <input type="number" id="edit-eval-level-percent" value="${level.percent_value}" min="0" max="100" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">ค่าระดับ (ตัวเลขธรรมดา)</label>
+          <input type="number" id="edit-eval-level-percent" value="${level.percent_value}" min="0" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none mb-4">
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="confirmEditEvalLevel('${levelId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
@@ -1573,7 +1573,7 @@
       }
       container.innerHTML = levels.map(l => `
         <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-200">
-          <p class="text-gray-800">${l.level_label} <span class="text-gray-500 text-sm">(${l.percent_value}%)</span></p>
+          <p class="text-gray-800">${l.level_label} <span class="text-gray-500 text-sm">(ค่าระดับ ${l.percent_value})</span></p>
           <div class="flex gap-2 flex-shrink-0">
             <button onclick="editEvalLevelPopup('${l.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
             <button onclick="deleteEvalLevel('${l.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
@@ -1670,49 +1670,54 @@
       const topics = allData.filter(d => d.type === 'evaluation_topic').sort((a, b) => (a.order || 0) - (b.order || 0));
       const levels = allData.filter(d => d.type === 'evaluation_level');
       const submissions = allData.filter(d => d.type === 'evaluation_submission');
-      const levelPercentMap = {};
-      levels.forEach(l => { levelPercentMap[l.__backendId] = l.percent_value; });
+      const levelValueMap = {};
+      levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
+      // ระดับการประเมินเป็นตัวเลขธรรมดาที่แอดมินกำหนด (ไม่ใช่ร้อยละ)
+      // แปลงเป็นร้อยละสำหรับแสดงผล โดยเทียบกับค่าระดับสูงสุดที่มีอยู่ (normalize)
+      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => l.percent_value || 0)) : 0;
       const topicResults = topics.map(topic => {
-        const ratingsForTopic = [];
+        const rawValuesForTopic = [];
         submissions.forEach(sub => {
           try {
             const ratings = JSON.parse(sub.ratings_json || '[]');
             const r = ratings.find(x => x.topic_id === topic.__backendId);
-            if (r && levelPercentMap[r.level_id] !== undefined) {
-              ratingsForTopic.push(levelPercentMap[r.level_id]);
+            if (r && levelValueMap[r.level_id] !== undefined) {
+              rawValuesForTopic.push(levelValueMap[r.level_id]);
             }
           } catch (e) { /* ข้อมูลเสีย ข้ามไป */ }
         });
-        const avg = ratingsForTopic.length > 0 ? ratingsForTopic.reduce((a, b) => a + b, 0) / ratingsForTopic.length : null;
-        return { topic, avg, count: ratingsForTopic.length };
+        const rawAvg = rawValuesForTopic.length > 0 ? rawValuesForTopic.reduce((a, b) => a + b, 0) / rawValuesForTopic.length : null;
+        const avg = (rawAvg !== null && maxLevelValue > 0) ? (rawAvg / maxLevelValue) * 100 : null;
+        return { topic, avg, rawAvg, count: rawValuesForTopic.length };
       });
-      const validAverages = topicResults.filter(t => t.avg !== null).map(t => t.avg);
-      const overallAvg = validAverages.length > 0 ? validAverages.reduce((a, b) => a + b, 0) / validAverages.length : null;
+      const validRawAverages = topicResults.filter(t => t.rawAvg !== null).map(t => t.rawAvg);
+      const overallRawAvg = validRawAverages.length > 0 ? validRawAverages.reduce((a, b) => a + b, 0) / validRawAverages.length : null;
+      const overallAvg = (overallRawAvg !== null && maxLevelValue > 0) ? (overallRawAvg / maxLevelValue) * 100 : null;
       const committeeCount = submissions.filter(s => s.evaluator_type === 'committee').length;
       const studentCount = submissions.filter(s => s.evaluator_type === 'student').length;
       const publicCount = submissions.filter(s => s.evaluator_type === 'public').length;
-      return { topicResults, overallAvg, committeeCount, studentCount, publicCount };
+      return { topicResults, overallAvg, overallRawAvg, committeeCount, studentCount, publicCount };
     }
-    function getLevelLabelForPercent(percent) {
+    function getLevelLabelForRawValue(rawValue) {
       const levels = allData.filter(d => d.type === 'evaluation_level').sort((a, b) => (b.percent_value || 0) - (a.percent_value || 0));
-      if (levels.length === 0 || percent === null) return null;
-      // หาระดับที่ตรงที่สุด: เรียงจากร้อยละสูงไปต่ำ เลือกระดับแรกที่ร้อยละที่ได้ >= ค่าร้อยละของระดับนั้น
+      if (levels.length === 0 || rawValue === null) return null;
+      // หาระดับที่ตรงที่สุด: เรียงจากค่ามากไปน้อย เลือกระดับแรกที่ค่าเฉลี่ยที่ได้ >= ค่าของระดับนั้น
       for (const level of levels) {
-        if (percent >= (level.percent_value || 0)) {
+        if (rawValue >= (level.percent_value || 0)) {
           return level.level_label;
         }
       }
       return levels[levels.length - 1].level_label; // ถ้าต่ำกว่าทุกระดับ ใช้ระดับต่ำสุด
     }
     function renderQualitativeSummaryHtml() {
-      const { topicResults, overallAvg } = computeEvaluationResults();
+      const { topicResults, overallAvg, overallRawAvg } = computeEvaluationResults();
       if (topicResults.length === 0) return '';
       const topicSentences = topicResults.map(tr => {
         if (tr.avg === null) return `${tr.topic.topic_text}: ยังไม่มีข้อมูลการประเมิน`;
-        const levelLabel = getLevelLabelForPercent(tr.avg);
+        const levelLabel = getLevelLabelForRawValue(tr.rawAvg);
         return `${tr.topic.topic_text} อยู่ในระดับ${levelLabel || '-'} (ร้อยละ ${tr.avg.toFixed(1)})`;
       });
-      const overallLevelLabel = overallAvg !== null ? getLevelLabelForPercent(overallAvg) : null;
+      const overallLevelLabel = overallRawAvg !== null ? getLevelLabelForRawValue(overallRawAvg) : null;
       const overallSentence = overallAvg !== null
         ? `โดยรวมแล้ว การสอนอยู่ในระดับ${overallLevelLabel || '-'} (ร้อยละ ${overallAvg.toFixed(1)})`
         : 'ยังไม่มีข้อมูลการประเมินเพียงพอสำหรับสรุปภาพรวม';
@@ -5100,8 +5105,9 @@
     }
     function buildEvaluatorsListHtml(isAdmin) {
       const levels = allData.filter(d => d.type === 'evaluation_level');
-      const levelPercentMap = {};
-      levels.forEach(l => { levelPercentMap[l.__backendId] = l.percent_value; });
+      const levelValueMap = {};
+      levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
+      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => l.percent_value || 0)) : 0;
       const submissions = allData.filter(d => d.type === 'evaluation_submission')
         .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
       const typeBadge = (evaluatorType) => {
@@ -5115,8 +5121,9 @@
       ` : submissions.map((sub, idx) => {
         let ratings = [];
         try { ratings = JSON.parse(sub.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
-        const percents = ratings.map(r => levelPercentMap[r.level_id]).filter(v => v !== undefined);
-        const avgPercent = percents.length > 0 ? percents.reduce((a, b) => a + b, 0) / percents.length : null;
+        const rawValues = ratings.map(r => levelValueMap[r.level_id]).filter(v => v !== undefined);
+        const rawAvg = rawValues.length > 0 ? rawValues.reduce((a, b) => a + b, 0) / rawValues.length : null;
+        const avgPercent = (rawAvg !== null && maxLevelValue > 0) ? (rawAvg / maxLevelValue) * 100 : null;
         const dateStr = sub.updated_at || sub.created_at;
         const dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
         return `
