@@ -9,6 +9,7 @@
   <title>ระบบบันทึก KPAC นักเรียน</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Prompt', sans-serif; }
@@ -36,6 +37,14 @@
         position: absolute; left: 0; top: 0; width: 100%;
       }
       body.printing-gradereport #gradereport-print-header { display: block !important; }
+      body.printing-studentgrades #student-grades-print-area,
+      body.printing-studentgrades #student-grades-print-area * { visibility: visible; }
+      body.printing-studentgrades * { visibility: hidden; }
+      body.printing-studentgrades #student-grades-print-area {
+        visibility: visible;
+        position: absolute; left: 0; top: 0; width: 100%;
+      }
+      body.printing-studentgrades #student-grades-print-header { display: block !important; }
     }
   </style>
   <style>body { box-sizing: border-box; }</style>
@@ -5220,6 +5229,34 @@
         </div>
       `;
     }
+    function generateReadOnlyScoreInputs(type, regId, existingScores, times, fullScoresArr) {
+      const scores = existingScores ? existingScores.split(',') : [];
+      let html = '';
+      for (let i = 1; i <= times; i++) {
+        const value = scores[i - 1] ? scores[i - 1].trim() : '';
+        const fullScoreForThis = fullScoresArr ? fullScoresArr[i - 1] : '';
+        const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
+        const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
+        html += `<input type="number" value="${value}" placeholder="${i}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">`;
+        if (type === 'a') {
+          let statusText = '';
+          let statusClass = 'text-[10px] block text-center';
+          if (isConfigured && value !== '') {
+            const entered = parseFloat(value) || 0;
+            const fullVal = parseFloat(fullScoreForThis) || 0;
+            if (entered === fullVal) {
+              statusText = '✅ ผ่าน';
+              statusClass += ' text-green-600 font-semibold';
+            } else {
+              statusText = '❌ติด ร.';
+              statusClass += ' text-red-600 font-semibold';
+            }
+          }
+          html += `<span class="${statusClass}">${statusText}</span>`;
+        }
+      }
+      return html;
+    }
     function showStudentGrades() {
       const content = document.getElementById('student-content');
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
@@ -5256,6 +5293,12 @@
         const cFull = scoresConfig?.c_full_score || 0;
         const mFull = scoresConfig?.m_full_score || 0;
         const fFull = scoresConfig?.f_full_score || 0;
+        const kFullScoresArr = parseFullScoresArray(scoresConfig?.k_full_scores, 10);
+        const pFullScoresArr = parseFullScoresArray(scoresConfig?.p_full_scores, 3);
+        const aFullScoresArr = parseFullScoresArray(scoresConfig?.a_full_scores, 3);
+        const cFullScoresArr = parseFullScoresArray(scoresConfig?.c_full_scores, 3);
+        const mFullScoresArr = parseFullScoresArray(scoresConfig?.m_full_scores, 2);
+        const fFullScoresArr = parseFullScoresArray(scoresConfig?.f_full_scores, 2);
         const kSum = sumScores(grade?.k_scores);
         const pSum = sumScores(grade?.p_scores);
         const aSum = sumScores(grade?.a_scores);
@@ -5264,10 +5307,71 @@
         const fSum = sumScores(grade?.f_scores);
         const totalFull = kFull + pFull + aFull + cFull + mFull + fFull;
         const totalSum = kSum + pSum + aSum + cSum + mSum + fSum;
+        // คำนวณภาพรวม A แบบนิ่ง (ไม่ต้องมี event listener เพราะดูได้อย่างเดียว)
+        let aOverallText = '';
+        let aOverallClass = 'text-xs font-bold mt-2';
+        const aScoresArr = (grade?.a_scores || '').split(',');
+        let aAnyChecked = false, aAnyFail = false;
+        for (let i = 0; i < 3; i++) {
+          const enteredStr = aScoresArr[i] ? aScoresArr[i].trim() : '';
+          const fullStr = aFullScoresArr[i];
+          if (enteredStr === '' || fullStr === '') continue;
+          aAnyChecked = true;
+          if ((parseFloat(enteredStr) || 0) !== (parseFloat(fullStr) || 0)) aAnyFail = true;
+        }
+        if (aAnyChecked) {
+          if (aAnyFail) { aOverallText = '⚠️ ภาพรวม A: ร.'; aOverallClass += ' text-red-600'; }
+          else { aOverallText = '✅ ภาพรวม A: ผ่าน'; aOverallClass += ' text-green-600'; }
+        }
         return `
-          <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-4">
-            <p class="font-semibold text-gray-800 text-lg mb-3">📖 ${reg.subject_name} <span class="text-sm text-gray-500">(${reg.class_name}/${reg.room_number})</span></p>
+          <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-6">
+            <p class="font-semibold text-gray-800 text-lg mb-4">📖 ${reg.subject_name} <span class="text-sm text-gray-500">(${reg.class_name}/${reg.room_number})</span></p>
             ${!grade ? `<p class="text-gray-400 text-sm mb-3">ยังไม่มีการบันทึกคะแนน</p>` : ''}
+
+            <!-- ส่วนบน: รายละเอียดคะแนนดิบทุกรายการ (ดูได้อย่างเดียว) -->
+            <p class="text-sm font-semibold text-gray-600 mb-2">📝 รายละเอียดคะแนนดิบทุกรายการ</p>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5">
+              <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">📝 K (10 ครั้ง)</p>
+                <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('k', reg.__backendId, grade?.k_scores, 10, kFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${kSum.toFixed(1)}/${kFull}</p>
+              </div>
+              <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
+                <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('p', reg.__backendId, grade?.p_scores, 3, pFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${pSum.toFixed(1)}/${pFull}</p>
+              </div>
+              <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">⭐ A (3 ครั้ง)</p>
+                <p class="text-xs text-purple-700 font-semibold mb-2">คะแนนดิบ: ${aFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('a', reg.__backendId, grade?.a_scores, 3, aFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${aSum.toFixed(1)}/${aFull}</p>
+                ${aOverallText ? `<p class="${aOverallClass}">${aOverallText}</p>` : ''}
+              </div>
+              <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">💪 C (3 ครั้ง)</p>
+                <p class="text-xs text-red-700 font-semibold mb-2">คะแนนดิบ: ${cFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('c', reg.__backendId, grade?.c_scores, 3, cFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${cSum.toFixed(1)}/${cFull}</p>
+              </div>
+              <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">📋 M (2 ครั้ง)</p>
+                <p class="text-xs text-cyan-700 font-semibold mb-2">คะแนนดิบ: ${mFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('m', reg.__backendId, grade?.m_scores, 2, mFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${mSum.toFixed(1)}/${mFull}</p>
+              </div>
+              <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
+                <p class="text-sm font-semibold text-gray-700 mb-1">🏆 F (2 ครั้ง)</p>
+                <p class="text-xs text-orange-700 font-semibold mb-2">คะแนนดิบ: ${fFull}</p>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('f', reg.__backendId, grade?.f_scores, 2, fFullScoresArr)}</div>
+                <p class="text-xs font-semibold mt-2">รวม: ${fSum.toFixed(1)}/${fFull}</p>
+              </div>
+            </div>
+
+            <!-- ส่วนล่าง: สรุปคะแนนรวม (ของเดิม) -->
+            <p class="text-sm font-semibold text-gray-600 mb-2">📊 สรุปคะแนนรวม</p>
             <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
               ${scoreBox('K (เก็บคะแนน)', kSum, kFull)}
               ${scoreBox('P (ทักษะ)', pSum, pFull)}
@@ -5284,10 +5388,49 @@
       }).join('');
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-6">📊 ผลการเรียน</h2>
-          ${cardsHtml}
+          <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">📊 ผลการเรียน</h2>
+            <div class="flex gap-2">
+              <button onclick="printStudentGrades()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">🖨️ พิมพ์</button>
+              <button onclick="downloadStudentGradesPdf()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">📥 ดาวน์โหลด PDF</button>
+            </div>
+          </div>
+          <div id="student-grades-print-area">
+           <div id="student-grades-print-header" class="hidden mb-4 text-center">
+            <h2 class="text-xl font-bold">ผลการเรียน</h2>
+            <p class="text-sm">${student.prefix} ${student.first_name} ${student.last_name} | รหัสนักเรียน ${student.student_id} | ${student.class_name}/${student.room_number}</p>
+           </div>
+           ${cardsHtml}
+          </div>
         </div>
       `;
+    }
+    function printStudentGrades() {
+      const headerEl = document.getElementById('student-grades-print-header');
+      if (headerEl) headerEl.classList.remove('hidden');
+      document.body.classList.add('printing-studentgrades');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-studentgrades');
+        if (headerEl) headerEl.classList.add('hidden');
+      }, 500);
+    }
+    function downloadStudentGradesPdf() {
+      const headerEl = document.getElementById('student-grades-print-header');
+      const area = document.getElementById('student-grades-print-area');
+      if (!area) return;
+      if (headerEl) headerEl.classList.remove('hidden');
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      const filename = `ผลการเรียน_${student?.student_id || 'student'}.pdf`;
+      html2pdf().set({
+        margin: 10,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      }).from(area).save().then(() => {
+        if (headerEl) headerEl.classList.add('hidden');
+      });
     }
     function showStudentAttendance() {
       const content = document.getElementById('student-content');
