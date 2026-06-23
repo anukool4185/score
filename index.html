@@ -61,8 +61,17 @@
  <body class="h-full bg-gray-100 overflow-auto">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
-    <div class="max-w-md mx-auto py-8">
-     <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
+    <div class="max-w-6xl mx-auto py-8 px-4">
+     <div class="grid md:grid-cols-2 gap-6 items-start">
+      <!-- ซ้าย: ประชาสัมพันธ์หน้าแรกของเว็บ -->
+      <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+       <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
+       <div id="landing-announcements">
+        <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
+       </div>
+      </div>
+      <!-- ขวา: ฟอร์ม login -->
+      <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
       <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">🔐 เข้าสู่ระบบ</h2>
       <form onsubmit="handleLogin(event)">
        <div class="mb-4">
@@ -77,6 +86,7 @@
       <div class="grid grid-cols-2 gap-3">
        <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 รายชื่อผู้ประเมิน</button>
        <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินครูผู้สอน</button>
+      </div>
       </div>
      </div>
     </div>
@@ -213,23 +223,32 @@
     <nav class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
-      <div class="flex flex-wrap gap-2"><button onclick="showPage('home')" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button> <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
+      <div class="flex flex-wrap gap-2"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button> <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
       </div>
      </div>
     </nav>
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
-    <div id="page-home" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col">
+    <div id="page-home" class="page p-4 md:p-8 overflow-auto flex-1 flex flex-col">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
-      <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap hidden">
-       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
-      </div>
-      <div id="student-content" class="flex-1 overflow-auto">
+      <div id="home-content" class="flex-1 overflow-auto">
        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
         <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2>
         <p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p>
        </div>
       </div>
-      <div id="director-content" class="flex-1 overflow-auto hidden"></div>
+     </div>
+    </div>
+    <div id="page-student-management" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col hidden">
+     <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
+      <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
+      </div>
+      <div id="student-content" class="flex-1 overflow-auto"></div>
+     </div>
+    </div>
+    <div id="page-director-management" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col hidden">
+     <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
+      <div id="director-content" class="flex-1 overflow-auto"></div>
      </div>
     </div>
     <div id="page-admin" class="h-full overflow-auto flex-col hidden">
@@ -830,6 +849,10 @@
         if (evaluatorsListPage && !evaluatorsListPage.classList.contains('hidden')) {
           renderEvaluatorsListContent();
         }
+        const loginPage = document.getElementById('page-login');
+        if (loginPage && !loginPage.classList.contains('hidden')) {
+          renderLandingAnnouncements();
+        }
         const settingsRecord = data.find(d => d.type === 'settings');
         if (settingsRecord) {
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
@@ -891,6 +914,16 @@
           if (document.getElementById('evaluator-options-list')) {
             updateEvaluatorOptionsList();
           }
+          if (document.getElementById('announcement-tab-content')) {
+            updateAnnouncementList(currentAnnouncementTarget);
+          }
+        }
+        // อัปเดตหน้าประชาสัมพันธ์แบบสด ถ้านักเรียน/ผู้นิเทศกำลังดูหน้าหลักอยู่ (เป็นแค่การแสดงผล ไม่มีฟอร์มให้กรอก จึงรีเฟรชได้ปลอดภัย)
+        if (currentUser && currentUser.user_type === 'student' && document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hidden')) {
+          renderAnnouncementsFeed('student');
+        }
+        if (currentUser && currentUser.user_type === 'director' && document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hidden')) {
+          renderAnnouncementsFeed('director');
         }
       }
     };
@@ -918,7 +951,7 @@
           currentUser = JSON.parse(savedUser);
           console.log('📌 พบ user ที่บันทึกไว้:', currentUser.username);
           showLoggedInUI();
-          showPage('home');
+          goToHomePage();
         } catch (e) {
           console.error('❌ ไม่สามารถอ่าน user ที่บันทึกไว้:', e);
           localStorage.removeItem('currentUser');
@@ -1106,9 +1139,9 @@
         showLoggedInUI();
         console.log('📋 Step 6: UI updated to show student info');
         
-        // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (แท็บ 📝 แก้ไขข้อมูลส่วนตัว)
-        // ซึ่งถูกตั้งไว้แล้วโดย showLoggedInUI() ด้านบน ไม่ต้อง override เป็นแท็บลงทะเบียนเรียนอีก
-        console.log('📋 Step 7: Staying on default home/profile tab');
+        // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (หน้าประชาสัมพันธ์)
+        // ซึ่งถูกตั้งไว้แล้วโดย showLoggedInUI() ด้านบน (เรียก goToHomePage() ให้แล้ว)
+        console.log('📋 Step 7: Showing announcements home page');
         
         showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
         console.log('✅ Student login COMPLETE');
@@ -1377,32 +1410,245 @@
       
       const logoutBtn = document.getElementById('logout-btn');
       if (logoutBtn) logoutBtn.classList.remove('hidden');
-      
-      // แสดงแท็บนักเรียน ถ้าเป็น student
+
+      // แสดง/ซ่อนปุ่มเมนูการจัดการ ตามบทบาท
+      const studentMgmtBtn = document.getElementById('student-mgmt-nav-btn');
+      const directorMgmtBtn = document.getElementById('director-mgmt-nav-btn');
+      if (studentMgmtBtn) studentMgmtBtn.classList.toggle('hidden', currentUser.user_type !== 'student');
+      if (directorMgmtBtn) directorMgmtBtn.classList.toggle('hidden', !isDirector);
+
       if (currentUser.user_type === 'student') {
-        document.getElementById('student-tabs').classList.remove('hidden');
-        document.getElementById('student-content').classList.remove('hidden');
-        document.getElementById('director-content').classList.add('hidden');
         document.getElementById('user-display').textContent = `${currentUser.prefix} ${currentUser.first_name} ${currentUser.last_name}`;
-        showStudentTab('profile');
       } else if (isDirector) {
-        document.getElementById('student-tabs').classList.add('hidden');
-        document.getElementById('student-content').classList.add('hidden');
-        document.getElementById('director-content').classList.remove('hidden');
         document.getElementById('user-display').textContent = `กรรมการนิเทศ: ${currentUser.username}`;
-        showDirectorMainPage();
       } else if (isAdmin) {
-        document.getElementById('student-tabs').classList.add('hidden');
-        document.getElementById('student-content').classList.remove('hidden');
-        document.getElementById('director-content').classList.add('hidden');
         document.getElementById('user-display').textContent = `Admin: ${currentUser.username}`;
       }
       document.getElementById('user-display').classList.remove('hidden');
+
+      // เข้าหน้าหลัก (ประชาสัมพันธ์) เป็นหน้าแรกเสมอหลัง login — เฉพาะนักเรียน/ผู้นิเทศ
+      // (แอดมินมีการจัดการหน้าของตัวเองอยู่แล้วในแต่ละจุดที่ login จึงไม่ override ตรงนี้)
+      if (currentUser.user_type === 'student' || isDirector) {
+        goToHomePage();
+      }
       
       // ตั้งค่า isMainAdmin
       window.isMainAdmin = currentUser.username === 'admin';
       
       console.log('✅ showLoggedInUI completed successfully');
+    }
+    function goToHomePage() {
+      showPage('home');
+      if (!currentUser) return;
+      if (currentUser.user_type === 'student') {
+        renderAnnouncementsFeed('student');
+      } else if (currentUser.user_type === 'director') {
+        renderAnnouncementsFeed('director');
+      } else if (currentUser.user_type === 'admin') {
+        showAnnouncementManagementPage();
+      }
+    }
+    function goToStudentManagementPage() {
+      if (!currentUser || currentUser.user_type !== 'student') return;
+      showPage('student-management');
+      showStudentTab('profile');
+    }
+    function goToDirectorManagementPage() {
+      if (!currentUser || currentUser.user_type !== 'director') return;
+      showPage('director-management');
+      showDirectorMainPage();
+    }
+    // ============================================================
+    // 📢 ระบบประชาสัมพันธ์ (Announcements) — หน้าแรกเว็บ / หน้าหลักนักเรียน / หน้าหลักผู้นิเทศ
+    // ============================================================
+    function renderLandingAnnouncements() {
+      const container = document.getElementById('landing-announcements');
+      if (!container) return;
+      container.innerHTML = buildAnnouncementsFeedHtml('website');
+    }
+    function renderAnnouncementsFeed(target) {
+      const content = document.getElementById('home-content');
+      if (!content) return;
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (announcements.length === 0) {
+        content.innerHTML = `
+          <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
+            <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
+          </div>
+        `;
+        return;
+      }
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
+          <div class="space-y-6">
+            ${announcements.map(a => `
+              <div class="border-2 border-gray-200 rounded-xl p-5">
+                ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-80 object-cover rounded-lg mb-4" onerror="this.style.display='none'">` : ''}
+                <p class="text-gray-700 whitespace-pre-wrap">${a.text}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+    function buildAnnouncementsFeedHtml(target) {
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (announcements.length === 0) {
+        return '<p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>';
+      }
+      return announcements.map(a => `
+        <div class="border-2 border-gray-200 rounded-xl p-4 mb-4">
+          ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-60 object-cover rounded-lg mb-3" onerror="this.style.display='none'">` : ''}
+          <p class="text-gray-700 whitespace-pre-wrap text-sm">${a.text}</p>
+        </div>
+      `).join('');
+    }
+    let currentAnnouncementTarget = 'website';
+    function showAnnouncementManagementPage() {
+      const content = document.getElementById('home-content');
+      if (!content) return;
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📢 จัดการประชาสัมพันธ์</h2>
+          <p class="text-gray-500 text-sm mb-6">เพิ่มข้อความและรูปภาพประกอบ (วางลิงก์รูปภาพ) สำหรับแสดงในแต่ละหน้า</p>
+          <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+            <button onclick="showAnnouncementTab('website')" id="ann-tab-website" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🌐 หน้าแรกของเว็บ</button>
+            <button onclick="showAnnouncementTab('student')" id="ann-tab-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">👨‍🎓 หน้าหลักนักเรียน</button>
+            <button onclick="showAnnouncementTab('director')" id="ann-tab-director" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">👨‍💼 หน้าหลักผู้นิเทศ</button>
+          </div>
+          <div id="announcement-tab-content"></div>
+        </div>
+      `;
+      showAnnouncementTab('website');
+    }
+    function showAnnouncementTab(target) {
+      currentAnnouncementTarget = target;
+      ['website', 'student', 'director'].forEach(t => {
+        const btn = document.getElementById('ann-tab-' + t);
+        if (btn) {
+          btn.classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-gray-300', 'text-gray-700');
+        }
+      });
+      const activeBtn = document.getElementById('ann-tab-' + target);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        activeBtn.classList.add('bg-blue-500', 'text-white');
+      }
+      const container = document.getElementById('announcement-tab-content');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
+          <p class="text-sm font-semibold text-gray-700 mb-2">➕ เพิ่มประกาศใหม่</p>
+          <textarea id="new-announcement-text" placeholder="พิมพ์ข้อความประกาศ..." rows="3" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-2"></textarea>
+          <input type="text" id="new-announcement-image" placeholder="ลิงก์รูปภาพ (ถ้ามี) เช่น https://..." class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-2">
+          <button onclick="addAnnouncement('${target}')" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มประกาศ</button>
+        </div>
+        <div id="announcement-list-${target}" class="space-y-3"></div>
+      `;
+      updateAnnouncementList(target);
+    }
+    function updateAnnouncementList(target) {
+      const container = document.getElementById(`announcement-list-${target}`);
+      if (!container) return;
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (announcements.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีประกาศ</p>';
+        return;
+      }
+      container.innerHTML = announcements.map(a => `
+        <div class="bg-white border-2 border-gray-200 rounded-lg p-4">
+          <div class="flex justify-between items-start gap-3">
+            <div class="flex-1 min-w-0">
+              ${a.image_url ? `<img src="${a.image_url}" alt="" class="max-h-32 rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
+              <p class="text-gray-700 whitespace-pre-wrap text-sm">${a.text}</p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="editAnnouncementPopup('${a.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+              <button onclick="deleteAnnouncement('${a.__backendId}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    async function addAnnouncement(target) {
+      const textInput = document.getElementById('new-announcement-text');
+      const imageInput = document.getElementById('new-announcement-image');
+      const text = textInput.value.trim();
+      const imageUrl = imageInput.value.trim();
+      if (!text) {
+        showToast('กรุณากรอกข้อความประกาศ', 'error');
+        return;
+      }
+      const existing = allData.filter(d => d.type === 'announcement' && d.target === target);
+      const result = await window.dataSdk.create({
+        type: 'announcement',
+        target: target,
+        text: text,
+        image_url: imageUrl,
+        order: existing.length,
+        created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        textInput.value = '';
+        imageInput.value = '';
+        showToast('✅ เพิ่มประกาศสำเร็จ');
+        updateAnnouncementList(target);
+      } else {
+        showToast('ไม่สามารถเพิ่มประกาศได้', 'error');
+      }
+    }
+    async function deleteAnnouncement(id) {
+      const ann = allData.find(d => d.__backendId === id);
+      if (!ann) return;
+      const result = await window.dataSdk.delete(ann);
+      if (result.isOk) {
+        showToast('🗑️ ลบประกาศสำเร็จ');
+        updateAnnouncementList(ann.target);
+      } else {
+        showToast('ไม่สามารถลบประกาศได้', 'error');
+      }
+    }
+    function editAnnouncementPopup(id) {
+      const ann = allData.find(d => d.__backendId === id);
+      if (!ann) return;
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขประกาศ</h3>
+          <textarea id="edit-announcement-text" rows="3" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-2">${ann.text}</textarea>
+          <input type="text" id="edit-announcement-image" value="${ann.image_url || ''}" placeholder="ลิงก์รูปภาพ (ถ้ามี)" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-4">
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditAnnouncement('${id}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditAnnouncement(id) {
+      const ann = allData.find(d => d.__backendId === id);
+      if (!ann) return;
+      const newText = document.getElementById('edit-announcement-text').value.trim();
+      const newImage = document.getElementById('edit-announcement-image').value.trim();
+      if (!newText) {
+        showToast('กรุณากรอกข้อความ', 'error');
+        return;
+      }
+      const result = await window.dataSdk.update({ ...ann, text: newText, image_url: newImage });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ แก้ไขประกาศสำเร็จ');
+        updateAnnouncementList(ann.target);
+      } else {
+        showToast('ไม่สามารถแก้ไขได้', 'error');
+      }
     }
     function handleLogout() {
       // ซ่อน UI หลักก่อน
@@ -1410,6 +1656,8 @@
       document.getElementById('page-login').classList.remove('hidden');
       document.getElementById('page-register').classList.add('hidden');
       document.getElementById('page-home').classList.add('hidden');
+      document.getElementById('page-student-management').classList.add('hidden');
+      document.getElementById('page-director-management').classList.add('hidden');
       document.getElementById('page-admin').classList.add('hidden');
       
       // ลบข้อมูล user หลังจากซ่อน UI
@@ -1421,6 +1669,13 @@
       document.getElementById('login-username').value = '';
       document.getElementById('login-password').value = '';
       document.getElementById('login-error').classList.add('hidden');
+      
+      // รีเซ็ตปุ่มเมนูตามบทบาท (ซ่อนทั้งหมด รอ login รอบถัดไปมาเปิดใหม่)
+      document.getElementById('student-mgmt-nav-btn').classList.add('hidden');
+      document.getElementById('director-mgmt-nav-btn').classList.add('hidden');
+      document.getElementById('admin-nav-btn').classList.add('hidden');
+      document.getElementById('logout-btn').classList.add('hidden');
+      document.getElementById('user-display').classList.add('hidden');
       
       // รีเซ็ตแท็บนักเรียน
       document.getElementById('tab-profile').classList.remove('bg-blue-500', 'text-white');
