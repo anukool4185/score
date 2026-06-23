@@ -238,7 +238,7 @@
       </div>
      </div>
     </div>
-    <div id="page-student-management" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col hidden">
+    <div id="page-student-management" class="page p-4 md:p-8 overflow-auto flex-1 flex flex-col hidden">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
        <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
@@ -246,7 +246,7 @@
       <div id="student-content" class="flex-1 overflow-auto"></div>
      </div>
     </div>
-    <div id="page-director-management" class="page p-4 md:p-8 overflow-hidden flex-1 flex flex-col hidden">
+    <div id="page-director-management" class="page p-4 md:p-8 overflow-auto flex-1 flex flex-col hidden">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="director-content" class="flex-1 overflow-auto"></div>
      </div>
@@ -849,10 +849,6 @@
         if (evaluatorsListPage && !evaluatorsListPage.classList.contains('hidden')) {
           renderEvaluatorsListContent();
         }
-        const loginPage = document.getElementById('page-login');
-        if (loginPage && !loginPage.classList.contains('hidden')) {
-          renderLandingAnnouncements();
-        }
         const settingsRecord = data.find(d => d.type === 'settings');
         if (settingsRecord) {
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
@@ -914,16 +910,6 @@
           if (document.getElementById('evaluator-options-list')) {
             updateEvaluatorOptionsList();
           }
-          if (document.getElementById('announcement-tab-content')) {
-            updateAnnouncementList(currentAnnouncementTarget);
-          }
-        }
-        // อัปเดตหน้าประชาสัมพันธ์แบบสด ถ้านักเรียน/ผู้นิเทศกำลังดูหน้าหลักอยู่ (เป็นแค่การแสดงผล ไม่มีฟอร์มให้กรอก จึงรีเฟรชได้ปลอดภัย)
-        if (currentUser && currentUser.user_type === 'student' && document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hidden')) {
-          renderAnnouncementsFeed('student');
-        }
-        if (currentUser && currentUser.user_type === 'director' && document.getElementById('page-home') && !document.getElementById('page-home').classList.contains('hidden')) {
-          renderAnnouncementsFeed('director');
         }
       }
     };
@@ -939,6 +925,8 @@
           console.log('✅ เชื่อมต่อฐานข้อมูลสำเร็จ');
           // เพิ่มข้อมูลตัวอย่างถ้าไม่มี (เพื่อให้นักเรียนหลังloginสามารถดูวิชา)
           await initializeSampleData();
+          // โหลดประชาสัมพันธ์หน้าแรกของเว็บครั้งแรกตอนเปิดเว็บ (ไม่ต้องรีเฟรชซ้ำตลอดเวลา)
+          renderLandingAnnouncements();
         }
       } else {
         console.warn('⚠️ dataSdk ไม่พร้อม');
