@@ -399,9 +399,17 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">⏱️ ลงเวลาเรียน</h3>
         <div class="grid md:grid-cols-3 gap-4 mb-6"><select id="filter-timekeeping-class" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกชั้นเรียน --</option> </select> <select id="filter-timekeeping-room" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกห้องเรียน --</option> </select> <select id="filter-timekeeping-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกวิชา --</option> </select>
         </div>
-        <div id="timekeeping-students-container" class="space-y-6">
-         <p class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>
+        <div id="timekeeping-students-container" class="hidden">
+         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-1">
+           <div id="timekeeping-student-namelist" class="space-y-1 max-h-[75vh] overflow-y-auto border-2 border-gray-200 rounded-lg p-2"></div>
+          </div>
+          <div class="md:col-span-3">
+           <div id="timekeeping-student-detail"></div>
+          </div>
+         </div>
         </div>
+        <p id="timekeeping-empty-message" class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>
        </div>
       </div>
       <div id="admin-tab-grading" class="hidden">
@@ -409,9 +417,17 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">🎓 บันทึกคะแนน</h3>
         <div class="grid md:grid-cols-3 gap-4 mb-6"><select id="filter-grading-class" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกชั้นเรียน --</option> </select> <select id="filter-grading-room" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกห้องเรียน --</option> </select> <select id="filter-grading-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกวิชา --</option> </select>
         </div>
-        <div id="grading-students-container" class="space-y-6">
-         <p class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน</p>
+        <div id="grading-students-container" class="hidden">
+         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-1">
+           <div id="grading-student-namelist" class="space-y-1 max-h-[75vh] overflow-y-auto border-2 border-gray-200 rounded-lg p-2"></div>
+          </div>
+          <div class="md:col-span-3">
+           <div id="grading-student-detail"></div>
+          </div>
+         </div>
         </div>
+        <p id="grading-empty-message" class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน</p>
        </div>
       </div><!-- 👥 ผู้ช่วยแอดมิน -->
       <div id="admin-tab-admins" class="hidden">
@@ -4732,14 +4748,18 @@
       
       updateGradingStudents();
     }
+    let selectedGradingRegId = null;
     function updateGradingStudents() {
       const className = document.getElementById('filter-grading-class').value;
       const roomNumber = document.getElementById('filter-grading-room').value;
       const subjectName = document.getElementById('filter-grading-subject').value;
       const container = document.getElementById('grading-students-container');
+      const emptyMsg = document.getElementById('grading-empty-message');
       if (!container) return;
       if (!className || !roomNumber || !subjectName) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน</p>';
+        container.classList.add('hidden');
+        emptyMsg.textContent = 'เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน';
+        emptyMsg.classList.remove('hidden');
         return;
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
@@ -4761,10 +4781,87 @@
         return numA - numB;
       });
       if (registrations.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่มีนักเรียนลงทะเบียนวิชานี้</p>';
+        container.classList.add('hidden');
+        emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้';
+        emptyMsg.classList.remove('hidden');
         return;
       }
-      container.innerHTML = registrations.map(reg => {
+      emptyMsg.classList.add('hidden');
+      container.classList.remove('hidden');
+      if (!selectedGradingRegId || !registrations.find(r => r.__backendId === selectedGradingRegId)) {
+        selectedGradingRegId = registrations[0].__backendId;
+      }
+      // รายชื่อด้านซ้าย
+      const namelistEl = document.getElementById('grading-student-namelist');
+      namelistEl.innerHTML = registrations.map(reg => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        const isActive = reg.__backendId === selectedGradingRegId;
+        const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+        return `
+          <button onclick="selectGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
+            #${student?.student_number || '-'} ${name}
+          </button>
+        `;
+      }).join('');
+      // รายละเอียดด้านขวา ของคนที่เลือกไว้
+      renderGradingDetail(selectedGradingRegId, scoresData, className, subjectName);
+    }
+    function selectGradingStudent(regId) {
+      selectedGradingRegId = regId;
+      document.querySelectorAll('#grading-student-namelist button').forEach(btn => {
+        const isActive = btn.getAttribute('onclick') === `selectGradingStudent('${regId}')`;
+        if (isActive) {
+          btn.classList.add('bg-blue-500', 'text-white', 'font-semibold');
+          btn.classList.remove('hover:bg-gray-100', 'text-gray-700');
+        } else {
+          btn.classList.remove('bg-blue-500', 'text-white', 'font-semibold');
+          btn.classList.add('hover:bg-gray-100', 'text-gray-700');
+        }
+      });
+      const className = document.getElementById('filter-grading-class').value;
+      const roomNumber = document.getElementById('filter-grading-room').value;
+      const subjectName = document.getElementById('filter-grading-subject').value;
+      const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
+      const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      renderGradingDetail(regId, scoresData, className, subjectName);
+    }
+    function renderGradingDetail(regId, scoresData, className, subjectName) {
+      const detailEl = document.getElementById('grading-student-detail');
+      if (!detailEl) return;
+      const reg = allData.find(d => d.type === 'student_registration' && d.__backendId === regId);
+      if (!reg) { detailEl.innerHTML = ''; return; }
+      detailEl.innerHTML = buildGradingCardHtml(reg, scoresData, className, subjectName);
+      // เพิ่ม event listeners (มีแค่นักเรียนคนเดียวในหน้าตอนนี้ จึงไม่ต้องกรองเฉพาะ)
+      document.querySelectorAll('input[type="number"].score-input').forEach(input => {
+        input.addEventListener('focus', function() {
+          this.select();
+        });
+        input.addEventListener('change', function() {
+          const value = parseFloat(this.value);
+          if (value < 0) this.value = 0;
+          if (value > 100) this.value = 100;
+          validateScores(this);
+          if (this.id.startsWith('a-')) {
+            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
+            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
+          }
+        });
+        input.addEventListener('input', function() {
+          validateScores(this);
+          if (this.id.startsWith('a-')) {
+            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
+            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
+          }
+        });
+      });
+      // คำนวณ "รวม" และสถานะ A ให้ตรงกับคะแนนที่บันทึกไว้แล้ว
+      ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
+        const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
+        if (firstInput) validateScores(firstInput);
+      });
+      updateAPassFailStatus(reg.__backendId);
+    }
+    function buildGradingCardHtml(reg, scoresData, className, subjectName) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const gradeRecord = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
         
@@ -4865,38 +4962,6 @@
             </div>
           </div>
         `;
-      }).join('');
-      // เพิ่ม event listeners
-      document.querySelectorAll('input[type="number"].score-input').forEach(input => {
-        input.addEventListener('focus', function() {
-          this.select(); // คลิกแล้วคลุมดำตัวเลขเดิมทันที พิมพ์ทับได้เลย
-        });
-        input.addEventListener('change', function() {
-          const value = parseFloat(this.value);
-          if (value < 0) this.value = 0;
-          if (value > 100) this.value = 100;
-          validateScores(this);
-          if (this.id.startsWith('a-')) {
-            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
-            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
-          }
-        });
-        input.addEventListener('input', function() {
-          validateScores(this);
-          if (this.id.startsWith('a-')) {
-            const regIdMatch = this.id.match(/^a-(.+)-\d+$/);
-            if (regIdMatch) updateAPassFailStatus(regIdMatch[1]);
-          }
-        });
-      });
-      // คำนวณ "รวม" และสถานะ A ให้ตรงกับคะแนนที่บันทึกไว้แล้ว (ไม่ต้องรอพิมพ์ก่อน)
-      registrations.forEach(reg => {
-        ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
-          const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
-          if (firstInput) validateScores(firstInput);
-        });
-        updateAPassFailStatus(reg.__backendId);
-      });
     }
     function generateScoreInputs(type, regId, existingScores, times, fullScoresArr) {
       const scores = existingScores ? existingScores.split(',') : [];
@@ -5148,14 +5213,18 @@
       
       updateTimekeepingStudents();
     }
+    let selectedTimekeepingRegId = null;
     function updateTimekeepingStudents() {
       const className = document.getElementById('filter-timekeeping-class').value;
       const roomNumber = document.getElementById('filter-timekeeping-room').value;
       const subjectName = document.getElementById('filter-timekeeping-subject').value;
       const container = document.getElementById('timekeeping-students-container');
+      const emptyMsg = document.getElementById('timekeeping-empty-message');
       if (!container) return;
       if (!className || !roomNumber || !subjectName) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>';
+        container.classList.add('hidden');
+        emptyMsg.textContent = 'เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน';
+        emptyMsg.classList.remove('hidden');
         return;
       }
       // ดึงนักเรียนที่ลงทะเบียนวิชานี้เท่านั้น
@@ -5170,10 +5239,55 @@
         return numA - numB;
       });
       if (registrations.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่มีนักเรียนลงทะเบียนวิชานี้</p>';
+        container.classList.add('hidden');
+        emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้';
+        emptyMsg.classList.remove('hidden');
         return;
       }
-      container.innerHTML = registrations.map((reg, idx) => {
+      emptyMsg.classList.add('hidden');
+      container.classList.remove('hidden');
+      // ถ้ายังไม่ได้เลือกใคร หรือคนที่เลือกไว้ไม่อยู่ในรายชื่อกรองใหม่แล้ว ให้เลือกคนแรกอัตโนมัติ
+      if (!selectedTimekeepingRegId || !registrations.find(r => r.__backendId === selectedTimekeepingRegId)) {
+        selectedTimekeepingRegId = registrations[0].__backendId;
+      }
+      // รายชื่อด้านซ้าย
+      const namelistEl = document.getElementById('timekeeping-student-namelist');
+      namelistEl.innerHTML = registrations.map(reg => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        const isActive = reg.__backendId === selectedTimekeepingRegId;
+        const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+        return `
+          <button onclick="selectTimekeepingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
+            #${student?.student_number || '-'} ${name}
+          </button>
+        `;
+      }).join('');
+      // รายละเอียดด้านขวา ของคนที่เลือกไว้
+      renderTimekeepingDetail(selectedTimekeepingRegId);
+    }
+    function selectTimekeepingStudent(regId) {
+      selectedTimekeepingRegId = regId;
+      // อัปเดตสถานะ active ของรายชื่อ (ไม่ต้อง render ใหม่ทั้งหมด แค่สลับสไตล์)
+      document.querySelectorAll('#timekeeping-student-namelist button').forEach(btn => {
+        const isActive = btn.getAttribute('onclick') === `selectTimekeepingStudent('${regId}')`;
+        if (isActive) {
+          btn.classList.add('bg-blue-500', 'text-white', 'font-semibold');
+          btn.classList.remove('hover:bg-gray-100', 'text-gray-700');
+        } else {
+          btn.classList.remove('bg-blue-500', 'text-white', 'font-semibold');
+          btn.classList.add('hover:bg-gray-100', 'text-gray-700');
+        }
+      });
+      renderTimekeepingDetail(regId);
+    }
+    function renderTimekeepingDetail(regId) {
+      const detailEl = document.getElementById('timekeeping-student-detail');
+      if (!detailEl) return;
+      const reg = allData.find(d => d.type === 'student_registration' && d.__backendId === regId);
+      if (!reg) { detailEl.innerHTML = ''; return; }
+      detailEl.innerHTML = buildTimekeepingCardHtml(reg);
+    }
+    function buildTimekeepingCardHtml(reg) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
         const attendancePart1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
@@ -5195,7 +5309,7 @@
         const absentHoursPart2 = isFilledPart2 ? (actualHoursTaught - attendedHoursReal) : null;
         const isValidPart2 = isFilledPart2 ? (absentHoursPart2 <= actualHoursCanAbsent) : false;
         return `
-          <div class="space-y-4 mb-8 pb-8 border-b-2 border-gray-300">
+          <div class="space-y-4 mb-8 pb-8">
             <div class="mb-4">
               <h3 class="text-lg font-bold text-gray-800">#${student?.student_number || '-'} ${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : 'ไม่ทราบ'}</h3>
               <p class="text-sm text-gray-600">🆔 ${reg.student_id}</p>
@@ -5264,7 +5378,6 @@
             </div>
           </div>
         `;
-      }).join('');
     }
     // ======= ATTENDANCE MANAGEMENT FUNCTIONS =======
     function loadAttendanceFilters() {
