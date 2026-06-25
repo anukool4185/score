@@ -269,7 +269,7 @@
       <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
        <div id="admin-bells-container" class="hidden gap-2">
         <div class="relative">
-         <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
+         <button onclick="toggleBellDropdown('applicants', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
           🔔
           <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
          </button>
@@ -282,7 +282,7 @@
          </div>
         </div>
         <div class="relative">
-         <button onclick="toggleBellDropdown('registrations')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
+         <button onclick="toggleBellDropdown('registrations', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
           🔔
           <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
          </button>
@@ -1485,8 +1485,9 @@
         el.classList.toggle('hidden', registrations.length === 0);
       });
     }
-    function toggleBellDropdown(type) {
-      const dropdown = document.getElementById(`bell-dropdown-${type}`);
+    function toggleBellDropdown(type, context) {
+      const suffix = context === 'admin' ? '-admin' : '';
+      const dropdown = document.getElementById(`bell-dropdown-${type}${suffix}`);
       if (!dropdown) return;
       const isHidden = dropdown.classList.contains('hidden');
       // ปิด dropdown อื่นก่อนเปิดอันใหม่
