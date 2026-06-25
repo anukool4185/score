@@ -105,8 +105,17 @@
        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
        <!-- กล่องบน: รายการแจ้งเตือน + แถบเลื่อนรายชื่อ -->
        <div id="notification-marquee-box" class="border-2 border-gray-200 rounded-xl p-4 mb-6">
-        <div id="notification-marquee-text"></div>
-        <div class="overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;"></div>
+        <div class="flex items-start gap-3">
+         <div class="flex-1 min-w-0">
+          <div id="notification-marquee-text"></div>
+          <div class="overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;"></div>
+         </div>
+         <div class="flex-shrink-0 text-center bg-blue-50 rounded-lg px-3 py-2">
+          <p class="text-[10px] text-gray-500 whitespace-nowrap">เลื่อนไปแล้ว</p>
+          <p class="text-lg font-bold text-blue-600 whitespace-nowrap"><span id="marquee-progress-current">0</span>/<span id="marquee-progress-total">0</span></p>
+          <p class="text-[10px] text-gray-500">คน</p>
+         </div>
+        </div>
        </div>
        <!-- กล่องล่าง: ประกาศหน้าแรกของเว็บ -->
        <div id="landing-announcements">
@@ -1689,6 +1698,9 @@
       updateMarqueeApplicantsList();
     }
     let lastMarqueeApplicantsSignature = '';
+    let marqueeProgressTimer = null;
+    let marqueeStartTime = 0;
+    let marqueeItemCount = 0;
     function updateMarqueeApplicantsList() {
       const viewport = document.getElementById('marquee-viewport');
       if (!viewport) return;
@@ -1699,6 +1711,8 @@
         if (signature !== lastMarqueeApplicantsSignature) {
           viewport.innerHTML = '<p class="text-gray-400 text-xs text-center py-3">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</p>';
           lastMarqueeApplicantsSignature = signature;
+          marqueeItemCount = 0;
+          startMarqueeProgressTimer();
         }
         return;
       }
@@ -1709,11 +1723,41 @@
       const listHtml = applicants.map(rowHtml).join('');
       // ทำซ้ำ 2 ชุดต่อกัน เพื่อให้เลื่อนวนแบบไม่มีรอยต่อ (seamless loop)
       viewport.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation-duration: ${getMarqueeDurationSec()}s;">${listHtml}${listHtml}</div>`;
+      // เริ่มจับเวลาใหม่ เพื่อคำนวณว่าขณะนี้เลื่อนผ่านคนที่เท่าไรแล้ว
+      marqueeStartTime = Date.now();
+      marqueeItemCount = applicants.length;
+      startMarqueeProgressTimer();
+    }
+    function startMarqueeProgressTimer() {
+      if (marqueeProgressTimer) clearInterval(marqueeProgressTimer);
+      if (!document.getElementById('marquee-progress-current')) return; // ไม่ได้อยู่หน้า login ไม่ต้องตั้ง timer
+      if (marqueeItemCount === 0) {
+        updateMarqueeProgressDisplay(0, 0);
+        return;
+      }
+      const tick = () => {
+        const durationSec = getMarqueeDurationSec();
+        const elapsed = (Date.now() - marqueeStartTime) / 1000;
+        const progressFraction = (elapsed % durationSec) / durationSec;
+        const currentIndex = Math.min(marqueeItemCount, Math.floor(progressFraction * marqueeItemCount) + 1);
+        updateMarqueeProgressDisplay(currentIndex, marqueeItemCount);
+      };
+      tick();
+      marqueeProgressTimer = setInterval(tick, 1000);
+    }
+    function updateMarqueeProgressDisplay(current, total) {
+      const curEl = document.getElementById('marquee-progress-current');
+      const totEl = document.getElementById('marquee-progress-total');
+      if (curEl) curEl.textContent = current;
+      if (totEl) totEl.textContent = total;
     }
     async function adjustMarqueeSpeed(delta) {
       marqueeSpeedLevel = Math.max(1, Math.min(10, marqueeSpeedLevel + delta));
       const track = document.getElementById('marquee-track');
       if (track) track.style.animationDuration = `${getMarqueeDurationSec()}s`;
+      // รีเซ็ตจับเวลาใหม่ ให้สอดคล้องกับความเร็วใหม่ (กันตัวเลขกระโดดผิด)
+      marqueeStartTime = Date.now();
+      startMarqueeProgressTimer();
       const display = document.getElementById('marquee-speed-display');
       if (display) display.textContent = marqueeSpeedLevel;
       await saveMarqueeSettings();
@@ -1750,7 +1794,7 @@
           warningHtml = `
             <div class="bg-white rounded-2xl card-shadow p-6 fade-in mb-6 text-center">
               <span class="text-4xl animate-bell-shake">🔔</span>
-              <p class="text-red-600 font-bold mt-2">กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน</p>
+              <p class="text-red-600 font-bold mt-2">กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)</p>
             </div>
           `;
         }
