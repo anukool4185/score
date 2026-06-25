@@ -702,7 +702,21 @@
       <div id="admin-tab-gradereport" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">📑 สรุปเกรด</h3>
-        <p class="text-gray-500 text-sm mb-6">คำนวณจากคะแนนที่แปลงเป็นน้ำหนัก% แล้ว (รวมเต็ม 100) เรียงตามเลขที่ — เลือกชั้น/ห้อง/วิชา ก่อนดูผล</p>
+        <p class="text-gray-500 text-sm mb-4">คำนวณจากคะแนนที่แปลงเป็นน้ำหนัก% แล้ว (รวมเต็ม 100) เรียงตามเลขที่ — เลือกชั้น/ห้อง/วิชา ก่อนดูผล</p>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-amber-800 mb-2">🔢 วิธีปัดทศนิยมของคะแนน (มีผลกับทุกช่องคะแนนและการตัดเกรด)</p>
+         <div class="flex items-center gap-4 flex-wrap text-sm">
+          <label class="flex items-center gap-1 cursor-pointer">
+           <input type="radio" name="grade-rounding-method" value="up" onchange="changeGradeRoundingMethod('up')"> ปัดขึ้นทั้งหมด (2.3→3, 2.5→3, 2.8→3)
+          </label>
+          <label class="flex items-center gap-1 cursor-pointer">
+           <input type="radio" name="grade-rounding-method" value="down" onchange="changeGradeRoundingMethod('down')"> ปัดลงทั้งหมด (2.3→2, 2.5→2, 2.8→2)
+          </label>
+          <label class="flex items-center gap-1 cursor-pointer">
+           <input type="radio" name="grade-rounding-method" value="standard" onchange="changeGradeRoundingMethod('standard')"> ปัดตามหลักทศนิยม (2.3→2, 2.5→3, 2.8→3)
+          </label>
+         </div>
+        </div>
         <div class="flex items-center gap-3 flex-wrap mb-4">
          <select id="gradereport-filter-class" onchange="updateGradeReportClassSubjects(); updateGradeReportTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           <option value="">-- เลือกชั้นเรียน --</option>
@@ -908,7 +922,7 @@
     let currentUser = null;
     let importedClasses = [];
     let importedSubjects = [];
-    let adminSettings = { mid_percent: 25, final_percent: 25, lock_date: '' };
+    let adminSettings = { mid_percent: 25, final_percent: 25, lock_date: '', grade_rounding_method: 'standard' };
     let allAdmins = [];
     let editingMFId = null;
     const defaultConfig = { app_title: 'ระบบจัดเก็บคะแนน KPAC MF' };
@@ -946,6 +960,7 @@
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
           adminSettings.final_percent = settingsRecord.final_percent || 25;
           adminSettings.lock_date = settingsRecord.lock_date || '';
+          adminSettings.grade_rounding_method = settingsRecord.grade_rounding_method || 'standard';
           if (settingsRecord.marquee_speed_level) marqueeSpeedLevel = settingsRecord.marquee_speed_level;
           if (settingsRecord.marquee_rows) marqueeRows = settingsRecord.marquee_rows;
         }
@@ -1470,8 +1485,19 @@
       const students = allData.filter(d => d.type === 'student');
       return students.filter(s => !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
     }
+    function hasAnyScoreEntered(regId) {
+      const grade = allData.find(g => g.type === 'grade' && g.registration_id === regId);
+      if (!grade) return false;
+      const fields = ['pretest_scores', 'k_scores', 'p_scores', 'a_scores', 'c_scores', 'm_scores', 'f_scores'];
+      return fields.some(f => {
+        const val = grade[f];
+        if (!val) return false;
+        return val.split(',').some(s => s.trim() !== '');
+      });
+    }
     function computeNewRegistrations() {
-      return allData.filter(d => d.type === 'student_registration' && !d.notification_acknowledged);
+      // หลุดออกจากแจ้งเตือนได้ 2 ทาง: (1) แอดมินกดรับทราบ หรือ (2) มีการกรอกคะแนนแล้วอย่างน้อย 1 ครั้ง
+      return allData.filter(d => d.type === 'student_registration' && !d.notification_acknowledged && !hasAnyScoreEntered(d.__backendId));
     }
     function renderNotificationBells() {
       const applicants = computeNewApplicants();
@@ -2136,10 +2162,33 @@
       }
       return 0;
     }
+    function roundGradeValue(value) {
+      const method = adminSettings.grade_rounding_method || 'standard';
+      if (method === 'up') return Math.ceil(value);
+      if (method === 'down') return Math.floor(value);
+      return Math.round(value);
+    }
+    async function changeGradeRoundingMethod(method) {
+      adminSettings.grade_rounding_method = method;
+      const existing = allData.find(d => d.type === 'settings');
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, grade_rounding_method: method })
+        : await window.dataSdk.create({ type: 'settings', grade_rounding_method: method });
+      if (result.isOk) {
+        showToast('✅ เปลี่ยนวิธีปัดทศนิยมสำเร็จ');
+        updateGradeReportTable();
+      } else {
+        showToast('ไม่สามารถบันทึกได้', 'error');
+      }
+    }
     function loadGradeReportTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('gradereport-filter-class');
       if (classSelect) classSelect.innerHTML = '<option value="">-- เลือกชั้นเรียน --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      // ตั้งค่า radio ให้ตรงกับการตั้งค่าที่บันทึกไว้
+      const currentMethod = adminSettings.grade_rounding_method || 'standard';
+      const radio = document.querySelector(`input[name="grade-rounding-method"][value="${currentMethod}"]`);
+      if (radio) radio.checked = true;
       updateGradeReportClassSubjects();
       updateGradeReportTable();
     }
@@ -2183,12 +2232,12 @@
           if (!fullScore || fullScore <= 0) return 0;
           return (achieved / fullScore) * weight;
         };
-        const kScore = weightedScore(grade?.k_scores, scoresConfig?.k_full_score, kWeight);
-        const pScore = weightedScore(grade?.p_scores, scoresConfig?.p_full_score, pWeight);
-        const aScore = weightedScore(grade?.a_scores, scoresConfig?.a_full_score, aWeight);
-        const cScore = weightedScore(grade?.c_scores, scoresConfig?.c_full_score, cWeight);
-        const mScore = weightedScore(grade?.m_scores, scoresConfig?.m_full_score, midPercentWeight);
-        const fScore = weightedScore(grade?.f_scores, scoresConfig?.f_full_score, finalPercentWeight);
+        const kScore = roundGradeValue(weightedScore(grade?.k_scores, scoresConfig?.k_full_score, kWeight));
+        const pScore = roundGradeValue(weightedScore(grade?.p_scores, scoresConfig?.p_full_score, pWeight));
+        const aScore = roundGradeValue(weightedScore(grade?.a_scores, scoresConfig?.a_full_score, aWeight));
+        const cScore = roundGradeValue(weightedScore(grade?.c_scores, scoresConfig?.c_full_score, cWeight));
+        const mScore = roundGradeValue(weightedScore(grade?.m_scores, scoresConfig?.m_full_score, midPercentWeight));
+        const fScore = roundGradeValue(weightedScore(grade?.f_scores, scoresConfig?.f_full_score, finalPercentWeight));
         const totalKPAC = kScore + pScore + aScore + cScore;
         const totalAll = totalKPAC + mScore + fScore;
         const gradeValue = scoreToGrade(totalAll);
@@ -2251,7 +2300,7 @@
         tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">ไม่มีนักเรียนลงทะเบียนวิชานี้</td></tr>';
         return;
       }
-      const fmt = (n) => n.toFixed(2);
+      const fmt = (n) => String(n);
       tbody.innerHTML = rows.map((r, idx) => `
         <tr class="hover:bg-gray-50">
           <td class="px-2 py-2 text-center whitespace-nowrap">${r.studentNumber || (idx + 1)}</td>
@@ -2285,7 +2334,7 @@
         showToast('ไม่มีข้อมูลให้ export', 'error');
         return;
       }
-      const fmt = (n) => Math.round(n * 100) / 100;
+      const fmt = (n) => n;
       const data = rows.map(r => ({
         'เลขที่': r.studentNumber,
         'ชื่อ-นามสกุล': r.studentName,
