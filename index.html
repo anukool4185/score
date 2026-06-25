@@ -1492,7 +1492,15 @@
     // ============================================================
     function computeNewApplicants() {
       const students = allData.filter(d => d.type === 'student');
-      return students.filter(s => !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
+      const newOnes = students.filter(s => !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
+      // เรียงตามชั้น -> ห้อง -> เลขที่
+      return newOnes.sort((a, b) => {
+        const classCompare = (a.class_name || '').localeCompare(b.class_name || '', 'th');
+        if (classCompare !== 0) return classCompare;
+        const roomCompare = (parseFloat(a.room_number) || 0) - (parseFloat(b.room_number) || 0);
+        if (roomCompare !== 0) return roomCompare;
+        return (parseFloat(a.student_number) || 0) - (parseFloat(b.student_number) || 0);
+      });
     }
     function hasAnyScoreEntered(regId) {
       const grade = allData.find(g => g.type === 'grade' && g.registration_id === regId);
