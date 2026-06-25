@@ -1746,12 +1746,17 @@
       const tick = () => {
         const durationSec = getMarqueeDurationSec();
         const elapsed = (Date.now() - marqueeStartTime) / 1000;
-        const progressFraction = (elapsed % durationSec) / durationSec;
-        const currentIndex = Math.min(marqueeItemCount, Math.floor(progressFraction * marqueeItemCount) + 1);
-        updateMarqueeProgressDisplay(currentIndex, marqueeItemCount);
+        const N = marqueeItemCount;
+        const visibleRows = Math.min(marqueeRows, N);
+        // ระยะที่เลื่อนไปแล้วในรอบปัจจุบัน (px) — 1 รอบเต็ม = เลื่อนผ่าน N แถว (แถวละ 32px)
+        const scrolledPx = ((elapsed % durationSec) / durationSec) * N * 32;
+        const rowsClearedBottom = Math.floor(scrolledPx / 32); // จำนวนแถวที่พ้นกรอบล่างขึ้นมาเพิ่มจากตอนเริ่ม
+        // เริ่มที่ "จำนวนแถวที่ตั้งไว้" แล้ววนนับต่อตามจำนวนแถวที่พ้นกรอบขึ้นมา ไล่ 1..N ต่อเนื่องไม่มีสิ้นสุด
+        const currentIndex = ((visibleRows - 1 + rowsClearedBottom) % N) + 1;
+        updateMarqueeProgressDisplay(currentIndex, N);
       };
       tick();
-      marqueeProgressTimer = setInterval(tick, 1000);
+      marqueeProgressTimer = setInterval(tick, 500);
     }
     function updateMarqueeProgressDisplay(current, total) {
       const curEl = document.getElementById('marquee-progress-current');
