@@ -1720,7 +1720,7 @@
       const viewportHeight = marqueeRows * 32;
       const bandHeight = 36;
       const centeredTop = (viewportHeight - bandHeight) / 2;
-      band.style.top = `${Math.max(0, centeredTop + 32)}px`; // ขยับลงมาอีก 1 แถว
+      band.style.top = `${Math.max(0, centeredTop)}px`; // ขยับขึ้นมา 1 แถว (กลับมาที่กึ่งกลางพอดี)
     }
     function applyMarqueeKeyframes() {
       const scrollSec = getMarqueeDurationSec();
