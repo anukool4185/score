@@ -972,6 +972,7 @@
           adminSettings.grade_rounding_method = settingsRecord.grade_rounding_method || 'standard';
           if (settingsRecord.marquee_speed_level) marqueeSpeedLevel = settingsRecord.marquee_speed_level;
           if (settingsRecord.marquee_rows) marqueeRows = settingsRecord.marquee_rows;
+          if (settingsRecord.marquee_pause_delay_sec !== undefined) marqueePauseDelaySec = settingsRecord.marquee_pause_delay_sec;
         }
         const classRecords = data.filter(d => d.type === 'class');
         const subjectRecords = data.filter(d => d.type === 'subject');
@@ -1684,6 +1685,7 @@
     // ============================================================
     let marqueeSpeedLevel = 5; // ระดับ 1-10 (สูง = เร็ว)
     let marqueeRows = 3;
+    let marqueePauseDelaySec = 3; // หน่วงเวลานิ่งก่อนเริ่มเลื่อน (วินาที) ให้อ่านคนแรกๆทัน
     function getMarqueeDurationSec() {
       return Math.max(3, 30 - marqueeSpeedLevel * 2.5);
     }
@@ -1730,7 +1732,7 @@
       const rowHtml = (s) => `<div style="height:32px" class="flex items-center px-3 text-sm text-gray-700 border-b border-gray-100">👤 ${s.prefix}${s.first_name} ${s.last_name} — ${s.class_name}/${s.room_number}</div>`;
       const listHtml = applicants.map(rowHtml).join('');
       // ทำซ้ำ 2 ชุดต่อกัน เพื่อให้เลื่อนวนแบบไม่มีรอยต่อ (seamless loop)
-      viewport.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation-duration: ${getMarqueeDurationSec()}s;">${listHtml}${listHtml}</div>`;
+      viewport.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation-duration: ${getMarqueeDurationSec()}s; animation-delay: ${marqueePauseDelaySec}s;">${listHtml}${listHtml}</div>`;
       // เริ่มจับเวลาใหม่ เพื่อคำนวณว่าขณะนี้เลื่อนผ่านคนที่เท่าไรแล้ว
       marqueeStartTime = Date.now();
       marqueeItemCount = applicants.length;
@@ -1745,9 +1747,15 @@
       }
       const tick = () => {
         const durationSec = getMarqueeDurationSec();
-        const elapsed = (Date.now() - marqueeStartTime) / 1000;
+        const elapsedTotal = (Date.now() - marqueeStartTime) / 1000;
         const N = marqueeItemCount;
         const visibleRows = Math.min(marqueeRows, N);
+        if (elapsedTotal < marqueePauseDelaySec) {
+          // ยังอยู่ในช่วงหน่วงเวลานิ่งตอนเริ่ม ยังไม่เลื่อน เลขจึงคงที่อยู่ที่จำนวนแถวเริ่มต้น
+          updateMarqueeProgressDisplay(visibleRows, N);
+          return;
+        }
+        const elapsed = elapsedTotal - marqueePauseDelaySec;
         // ระยะที่เลื่อนไปแล้วในรอบปัจจุบัน (px) — 1 รอบเต็ม = เลื่อนผ่าน N แถว (แถวละ 32px)
         const scrolledPx = ((elapsed % durationSec) / durationSec) * N * 32;
         const rowsClearedBottom = Math.floor(scrolledPx / 32); // จำนวนแถวที่พ้นกรอบล่างขึ้นมาเพิ่มจากตอนเริ่ม
@@ -1783,11 +1791,17 @@
       if (display) display.textContent = marqueeRows;
       await saveMarqueeSettings();
     }
+    async function adjustMarqueeDelay(delta) {
+      marqueePauseDelaySec = Math.max(0, Math.min(15, marqueePauseDelaySec + delta));
+      const display = document.getElementById('marquee-delay-display');
+      if (display) display.textContent = marqueePauseDelaySec;
+      await saveMarqueeSettings();
+    }
     async function saveMarqueeSettings() {
       const existing = allData.find(d => d.type === 'settings');
       const result = existing
-        ? await window.dataSdk.update({ ...existing, marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows })
-        : await window.dataSdk.create({ type: 'settings', marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows });
+        ? await window.dataSdk.update({ ...existing, marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec })
+        : await window.dataSdk.create({ type: 'settings', marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec });
       if (!result.isOk) showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
     }
     function renderLandingAnnouncements() {
@@ -1895,6 +1909,12 @@
             <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">${marqueeRows}</span></span>
             <button onclick="adjustMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
             <button onclick="adjustMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          </div>
+          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap mt-2">
+            <span>หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="marquee-delay-display" class="font-bold">${marqueePauseDelaySec}</span>s</span>
+            <button onclick="adjustMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+            <button onclick="adjustMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+            <span class="text-xs text-gray-500">(หน่วงแค่ตอนเข้าหน้าใหม่/กลับมาที่หน้าเว็บ ไม่หยุดซ้ำทุกรอบที่วน)</span>
           </div>
         </div>
       ` : '';
