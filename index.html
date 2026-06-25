@@ -54,6 +54,15 @@
       }
       body.printing-regtable #reg-table-print-header { display: block !important; }
     }
+    @keyframes marquee-scroll-up { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+    .marquee-track { animation: marquee-scroll-up linear infinite; }
+    @keyframes bell-shake {
+      0%, 100% { transform: rotate(0deg); }
+      10%, 30% { transform: rotate(-15deg); }
+      20%, 40% { transform: rotate(15deg); }
+      50% { transform: rotate(0deg); }
+    }
+    .animate-bell-shake { display: inline-block; animation: bell-shake 1.5s ease-in-out infinite; }
   </style>
   <style>body { box-sizing: border-box; }</style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
@@ -61,11 +70,45 @@
  <body class="h-full bg-gray-100 overflow-auto">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
+    <div class="fixed top-4 right-4 z-40 flex gap-2">
+     <div class="relative">
+      <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
+       🔔
+       <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
+      </button>
+      <div id="bell-dropdown-applicants" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+       <div class="px-3 py-2 border-b border-gray-200 bg-blue-50 rounded-t-xl">
+        <p class="text-sm font-semibold text-blue-800">🔔 ผู้สมัครใหม่</p>
+        <p class="text-xs text-blue-600">นักเรียนที่สมัครแล้ว แต่ยังไม่ลงทะเบียนวิชา</p>
+       </div>
+       <div id="bell-list-applicants" class="max-h-64 overflow-y-auto"></div>
+      </div>
+     </div>
+     <div class="relative">
+      <button onclick="toggleBellDropdown('registrations')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
+       🔔
+       <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
+      </button>
+      <div id="bell-dropdown-registrations" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+       <div class="px-3 py-2 border-b border-gray-200 bg-purple-50 rounded-t-xl">
+        <p class="text-sm font-semibold text-purple-800">🔔 ผู้ลงทะเบียนใหม่</p>
+        <p class="text-xs text-purple-600">ลงทะเบียนวิชาแล้ว รอแอดมินตรวจสอบ</p>
+       </div>
+       <div id="bell-list-registrations" class="max-h-64 overflow-y-auto"></div>
+      </div>
+     </div>
+    </div>
     <div class="max-w-6xl mx-auto py-8 px-4">
      <div class="grid md:grid-cols-2 gap-6 items-start">
-      <!-- ซ้าย: ประชาสัมพันธ์หน้าแรกของเว็บ -->
+      <!-- ซ้าย: ประชาสัมพันธ์ (กล่องแจ้งเตือน+แถบเลื่อน อยู่บน / ประกาศหน้าแรกเว็บ อยู่ล่าง ใต้หัวข้อเดียวกัน) -->
       <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
+       <!-- กล่องบน: รายการแจ้งเตือน + แถบเลื่อนรายชื่อ -->
+       <div id="notification-marquee-box" class="border-2 border-gray-200 rounded-xl p-4 mb-6">
+        <div id="notification-marquee-text"></div>
+        <div class="overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;"></div>
+       </div>
+       <!-- กล่องล่าง: ประกาศหน้าแรกของเว็บ -->
        <div id="landing-announcements">
         <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
        </div>
@@ -223,7 +266,36 @@
     <nav class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
-      <div class="flex flex-wrap gap-2"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button> <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
+      <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
+       <div id="admin-bells-container" class="hidden gap-2">
+        <div class="relative">
+         <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
+          🔔
+          <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+         </button>
+         <div id="bell-dropdown-applicants-admin" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
+          <div class="px-3 py-2 border-b border-gray-200 bg-blue-50 rounded-t-xl">
+           <p class="text-sm font-semibold text-blue-800">🔔 ผู้สมัครใหม่</p>
+           <p class="text-xs text-blue-600">นักเรียนที่สมัครแล้ว แต่ยังไม่ลงทะเบียนวิชา</p>
+          </div>
+          <div id="bell-list-applicants-admin" class="max-h-64 overflow-y-auto"></div>
+         </div>
+        </div>
+        <div class="relative">
+         <button onclick="toggleBellDropdown('registrations')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
+          🔔
+          <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+         </button>
+         <div id="bell-dropdown-registrations-admin" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
+          <div class="px-3 py-2 border-b border-gray-200 bg-purple-50 rounded-t-xl">
+           <p class="text-sm font-semibold text-purple-800">🔔 ผู้ลงทะเบียนใหม่</p>
+           <p class="text-xs text-purple-600">ลงทะเบียนวิชาแล้ว รอแอดมินตรวจสอบ</p>
+          </div>
+          <div id="bell-list-registrations-admin" class="max-h-64 overflow-y-auto"></div>
+         </div>
+        </div>
+       </div>
+       <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
       </div>
      </div>
     </nav>
@@ -855,6 +927,10 @@
     const dataHandler = {
       onDataChanged(data) {
         allData = data;
+        // อัปเดตจำนวนแจ้งเตือนกระดิ่งแบบสด (เป็นแค่ตัวเลข+รายการอ่านอย่างเดียว ไม่มีฟอร์มให้กรอก จึงอัปเดตสดได้ปลอดภัย)
+        renderNotificationBells();
+        // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
+        updateMarqueeApplicantsList();
         // ถ้าหน้าประเมินครูผู้สอน (แบบไม่ login) เปิดอยู่ ให้รีเฟรชเนื้อหาด้วย
         // กันปัญหา: ถ้าคนกดปุ่มเร็วก่อนข้อมูลโหลดเสร็จ หน้าจะค้างที่ข้อความ "ยังไม่ได้ตั้งค่า" ตลอดไป
         const publicEvalPage = document.getElementById('page-public-evaluation');
@@ -870,6 +946,8 @@
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
           adminSettings.final_percent = settingsRecord.final_percent || 25;
           adminSettings.lock_date = settingsRecord.lock_date || '';
+          if (settingsRecord.marquee_speed_level) marqueeSpeedLevel = settingsRecord.marquee_speed_level;
+          if (settingsRecord.marquee_rows) marqueeRows = settingsRecord.marquee_rows;
         }
         const classRecords = data.filter(d => d.type === 'class');
         const subjectRecords = data.filter(d => d.type === 'subject');
@@ -943,6 +1021,7 @@
           await initializeSampleData();
           // โหลดประชาสัมพันธ์หน้าแรกของเว็บครั้งแรกตอนเปิดเว็บ (ไม่ต้องรีเฟรชซ้ำตลอดเวลา)
           renderLandingAnnouncements();
+          renderNotificationMarquee();
         }
       } else {
         console.warn('⚠️ dataSdk ไม่พร้อม');
@@ -1384,6 +1463,90 @@
         submitBtn.textContent = originalText;
       });
     }
+    // ============================================================
+    // 🔔 ระบบแจ้งเตือน: ผู้สมัครใหม่ / ผู้ลงทะเบียนใหม่
+    // ============================================================
+    function computeNewApplicants() {
+      const students = allData.filter(d => d.type === 'student');
+      return students.filter(s => !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
+    }
+    function computeNewRegistrations() {
+      return allData.filter(d => d.type === 'student_registration' && !d.notification_acknowledged);
+    }
+    function renderNotificationBells() {
+      const applicants = computeNewApplicants();
+      const registrations = computeNewRegistrations();
+      document.querySelectorAll('.bell-applicants-count').forEach(el => {
+        el.textContent = applicants.length;
+        el.classList.toggle('hidden', applicants.length === 0);
+      });
+      document.querySelectorAll('.bell-registrations-count').forEach(el => {
+        el.textContent = registrations.length;
+        el.classList.toggle('hidden', registrations.length === 0);
+      });
+    }
+    function toggleBellDropdown(type) {
+      const dropdown = document.getElementById(`bell-dropdown-${type}`);
+      if (!dropdown) return;
+      const isHidden = dropdown.classList.contains('hidden');
+      // ปิด dropdown อื่นก่อนเปิดอันใหม่
+      document.querySelectorAll('[id^="bell-dropdown-"]').forEach(d => d.classList.add('hidden'));
+      if (isHidden) {
+        renderBellDropdownContent(type);
+        dropdown.classList.remove('hidden');
+      }
+    }
+    function renderBellDropdownContent(type) {
+      const isAdminLoggedIn = currentUser && currentUser.user_type === 'admin';
+      ['', '-admin'].forEach(suffix => {
+        const listEl = document.getElementById(`bell-list-${type}${suffix}`);
+        if (!listEl) return;
+        if (type === 'applicants') {
+          const applicants = computeNewApplicants();
+          listEl.innerHTML = applicants.length === 0
+            ? '<p class="text-gray-400 text-sm text-center py-3">ไม่มีผู้สมัครใหม่</p>'
+            : applicants.map(s => `
+                <div class="px-3 py-2 border-b border-gray-100 text-sm">
+                  <p class="font-medium text-gray-800">${s.prefix}${s.first_name} ${s.last_name}</p>
+                  <p class="text-xs text-gray-500">${s.class_name}/${s.room_number}</p>
+                </div>
+              `).join('');
+        } else {
+          const registrations = computeNewRegistrations();
+          listEl.innerHTML = registrations.length === 0
+            ? '<p class="text-gray-400 text-sm text-center py-3">ไม่มีผู้ลงทะเบียนใหม่</p>'
+            : registrations.map(reg => {
+                const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+                const name = student ? `${student.prefix}${student.first_name} ${student.last_name}` : reg.student_id;
+                return `
+                  <div class="px-3 py-2 border-b border-gray-100 text-sm flex items-center justify-between gap-2">
+                    <div>
+                      <p class="font-medium text-gray-800">${name}</p>
+                      <p class="text-xs text-gray-500">${reg.class_name}/${reg.room_number} | ${reg.subject_name}</p>
+                    </div>
+                    ${isAdminLoggedIn ? `<button onclick="acknowledgeRegistration('${reg.__backendId}')" class="flex-shrink-0 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">✓ รับทราบ</button>` : ''}
+                  </div>
+                `;
+              }).join('');
+        }
+      });
+    }
+    async function acknowledgeRegistration(regId) {
+      const reg = allData.find(d => d.__backendId === regId);
+      if (!reg) return;
+      const result = await window.dataSdk.update({ ...reg, notification_acknowledged: true });
+      if (result.isOk) {
+        renderBellDropdownContent('registrations');
+      } else {
+        showToast('ไม่สามารถอัปเดตได้', 'error');
+      }
+    }
+    // ปิด dropdown เมื่อคลิกที่อื่น
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.bell-button') && !e.target.closest('[id^="bell-dropdown-"]')) {
+        document.querySelectorAll('[id^="bell-dropdown-"]').forEach(d => d.classList.add('hidden'));
+      }
+    });
     function showLoggedInUI() {
       console.log('🔍 showLoggedInUI called - currentUser:', currentUser);
       
@@ -1404,11 +1567,21 @@
       
       // แสดงปุ่มแอดมิน
       const adminBtn = document.getElementById('admin-nav-btn');
+      const adminBellsContainer = document.getElementById('admin-bells-container');
       if (isAdmin) {
         adminBtn.classList.remove('hidden');
+        if (adminBellsContainer) {
+          adminBellsContainer.classList.remove('hidden');
+          adminBellsContainer.classList.add('flex');
+        }
+        renderNotificationBells();
         console.log('✅ showing admin nav button');
       } else {
         adminBtn.classList.add('hidden');
+        if (adminBellsContainer) {
+          adminBellsContainer.classList.add('hidden');
+          adminBellsContainer.classList.remove('flex');
+        }
         console.log('❌ hiding admin nav button');
       }
       
@@ -1465,6 +1638,74 @@
     // ============================================================
     // 📢 ระบบประชาสัมพันธ์ (Announcements) — หน้าแรกเว็บ / หน้าหลักนักเรียน / หน้าหลักผู้นิเทศ
     // ============================================================
+    let marqueeSpeedLevel = 5; // ระดับ 1-10 (สูง = เร็ว)
+    let marqueeRows = 3;
+    function getMarqueeDurationSec() {
+      return Math.max(3, 30 - marqueeSpeedLevel * 2.5);
+    }
+    function renderNotificationMarquee() {
+      const box = document.getElementById('notification-marquee-box');
+      if (!box) return;
+      const textEl = document.getElementById('notification-marquee-text');
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === 'notification')
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (textEl) {
+        textEl.innerHTML = announcements.length === 0
+          ? ''
+          : announcements.map(a => `
+              <div class="mb-2">
+                ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-32 object-cover rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
+                <p class="text-gray-700 text-sm whitespace-pre-wrap">${a.text}</p>
+              </div>
+            `).join('');
+      }
+      updateMarqueeApplicantsList();
+    }
+    let lastMarqueeApplicantsSignature = '';
+    function updateMarqueeApplicantsList() {
+      const viewport = document.getElementById('marquee-viewport');
+      if (!viewport) return;
+      const applicants = computeNewApplicants();
+      const signature = applicants.map(s => s.__backendId).join(',');
+      viewport.style.height = `${marqueeRows * 32}px`;
+      if (applicants.length === 0) {
+        if (signature !== lastMarqueeApplicantsSignature) {
+          viewport.innerHTML = '<p class="text-gray-400 text-xs text-center py-3">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</p>';
+          lastMarqueeApplicantsSignature = signature;
+        }
+        return;
+      }
+      // อัปเดตรายการเฉพาะตอนรายชื่อเปลี่ยนจริง กันไม่ให้ภาพเลื่อนสะดุด/รีสตาร์ทบ่อยเกินไป
+      if (signature === lastMarqueeApplicantsSignature) return;
+      lastMarqueeApplicantsSignature = signature;
+      const rowHtml = (s) => `<div style="height:32px" class="flex items-center px-3 text-sm text-gray-700 border-b border-gray-100">👤 ${s.prefix}${s.first_name} ${s.last_name} — ${s.class_name}/${s.room_number}</div>`;
+      const listHtml = applicants.map(rowHtml).join('');
+      // ทำซ้ำ 2 ชุดต่อกัน เพื่อให้เลื่อนวนแบบไม่มีรอยต่อ (seamless loop)
+      viewport.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation-duration: ${getMarqueeDurationSec()}s;">${listHtml}${listHtml}</div>`;
+    }
+    async function adjustMarqueeSpeed(delta) {
+      marqueeSpeedLevel = Math.max(1, Math.min(10, marqueeSpeedLevel + delta));
+      const track = document.getElementById('marquee-track');
+      if (track) track.style.animationDuration = `${getMarqueeDurationSec()}s`;
+      const display = document.getElementById('marquee-speed-display');
+      if (display) display.textContent = marqueeSpeedLevel;
+      await saveMarqueeSettings();
+    }
+    async function adjustMarqueeRows(delta) {
+      marqueeRows = Math.max(1, Math.min(8, marqueeRows + delta));
+      const viewport = document.getElementById('marquee-viewport');
+      if (viewport) viewport.style.height = `${marqueeRows * 32}px`;
+      const display = document.getElementById('marquee-rows-display');
+      if (display) display.textContent = marqueeRows;
+      await saveMarqueeSettings();
+    }
+    async function saveMarqueeSettings() {
+      const existing = allData.find(d => d.type === 'settings');
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows })
+        : await window.dataSdk.create({ type: 'settings', marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows });
+      if (!result.isOk) showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+    }
     function renderLandingAnnouncements() {
       const container = document.getElementById('landing-announcements');
       if (!container) return;
@@ -1473,10 +1714,24 @@
     function renderAnnouncementsFeed(target) {
       const content = document.getElementById('home-content');
       if (!content) return;
+      // เตือนเฉพาะตัวสำหรับนักเรียนที่ยังไม่ลงทะเบียนวิชาเลย (ตำแหน่งบนสุด ก่อนประกาศปกติ)
+      let warningHtml = '';
+      if (target === 'student' && currentUser) {
+        const student = allData.find(s => s.type === 'student' && s.__backendId === currentUser.__backendId);
+        const hasRegistration = student && allData.some(r => r.type === 'student_registration' && r.student_id === student.student_id);
+        if (student && !hasRegistration) {
+          warningHtml = `
+            <div class="bg-white rounded-2xl card-shadow p-6 fade-in mb-6 text-center">
+              <span class="text-4xl animate-bell-shake">🔔</span>
+              <p class="text-red-600 font-bold mt-2">กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน</p>
+            </div>
+          `;
+        }
+      }
       const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
-        content.innerHTML = `
+        content.innerHTML = warningHtml + `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
             <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
             <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
@@ -1484,7 +1739,7 @@
         `;
         return;
       }
-      content.innerHTML = `
+      content.innerHTML = warningHtml + `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
           <div class="space-y-6">
@@ -1520,18 +1775,19 @@
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📢 จัดการประชาสัมพันธ์</h2>
           <p class="text-gray-500 text-sm mb-6">เพิ่มข้อความและรูปภาพประกอบ (วางลิงก์รูปภาพ) สำหรับแสดงในแต่ละหน้า</p>
           <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
-            <button onclick="showAnnouncementTab('website')" id="ann-tab-website" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🌐 หน้าแรกของเว็บ</button>
+            <button onclick="showAnnouncementTab('notification')" id="ann-tab-notification" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🔔 รายการแจ้งเตือน</button>
+            <button onclick="showAnnouncementTab('website')" id="ann-tab-website" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">🌐 หน้าแรกของเว็บ</button>
             <button onclick="showAnnouncementTab('student')" id="ann-tab-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">👨‍🎓 หน้าหลักนักเรียน</button>
             <button onclick="showAnnouncementTab('director')" id="ann-tab-director" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">👨‍💼 หน้าหลักผู้นิเทศ</button>
           </div>
           <div id="announcement-tab-content"></div>
         </div>
       `;
-      showAnnouncementTab('website');
+      showAnnouncementTab('notification');
     }
     function showAnnouncementTab(target) {
       currentAnnouncementTarget = target;
-      ['website', 'student', 'director'].forEach(t => {
+      ['notification', 'website', 'student', 'director'].forEach(t => {
         const btn = document.getElementById('ann-tab-' + t);
         if (btn) {
           btn.classList.remove('bg-blue-500', 'text-white');
@@ -1545,7 +1801,21 @@
       }
       const container = document.getElementById('announcement-tab-content');
       if (!container) return;
+      const marqueeControlsHtml = target === 'notification' ? `
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <p class="text-sm font-semibold text-blue-800 mb-2">⚙️ ปรับแถบเลื่อนรายชื่อ (มีผลกับทุกคนที่เห็นหน้า login)</p>
+          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+            <span>ความเร็ว: <span id="marquee-speed-display" class="font-bold">${marqueeSpeedLevel}</span>/10</span>
+            <button onclick="adjustMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+            <button onclick="adjustMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+            <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">${marqueeRows}</span></span>
+            <button onclick="adjustMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+            <button onclick="adjustMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          </div>
+        </div>
+      ` : '';
       container.innerHTML = `
+        ${marqueeControlsHtml}
         <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
           <p class="text-sm font-semibold text-gray-700 mb-2">➕ เพิ่มประกาศใหม่</p>
           <textarea id="new-announcement-text" placeholder="พิมพ์ข้อความประกาศ..." rows="3" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-2"></textarea>
