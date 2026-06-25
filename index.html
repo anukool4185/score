@@ -5309,6 +5309,65 @@
       });
       updateAPassFailStatus(reg.__backendId);
     }
+    const CATEGORY_TIMES = { k: 10, p: 3, a: 3, c: 3, m: 2, f: 2 };
+    const CATEGORY_LABELS = { k: '📝 K', p: '🎯 P', a: '⭐ A', c: '💪 C', m: '📋 M', f: '🏆 F' };
+    // ปลดล็อคชั่วคราว: เอา disabled ออกจากช่องกรอกของหมวดนั้นเฉพาะที่หน้าจอนี้เท่านั้น
+    // (เป็นการแก้ไขฝั่งหน้าจอชั่วคราว ไม่ได้บันทึกสถานะปลดล็อคไว้ที่ไหน พอเปลี่ยนคนหรือรีเฟรชจะกลับมาล็อคตามปกติทันที)
+    function unlockCategoryTemporarily(regId, type) {
+      const times = CATEGORY_TIMES[type];
+      for (let i = 1; i <= times; i++) {
+        const input = document.getElementById(`${type}-${regId}-${i}`);
+        if (input && input.disabled) {
+          input.disabled = false;
+          input.classList.remove('border-red-400', 'bg-red-50');
+          input.classList.add('border-orange-400', 'bg-orange-50');
+        }
+      }
+      showToast(`🔓 ปลดล็อคชั่วคราวให้กรอกคะแนน ${CATEGORY_LABELS[type]} แล้ว (ชั่วคราวเฉพาะหน้านี้)`);
+    }
+    function editCategoryFullScorePopup(classSubjectId, type) {
+      const times = CATEGORY_TIMES[type];
+      const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      const arr = parseFullScoresArray(scoresData?.[`${type}_full_scores`], times);
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      const inputs = arr.map((v, idx) => `<input type="number" step="0.5" min="0" id="setting-popup-catfull-${type}-full-${idx + 1}" value="${v}" placeholder="${idx + 1}" oninput="updateSettingFullScoreTotal('popup-catfull-${type}', ${times})" onfocus="this.select()" class="fullscore-input w-14 px-1 py-2 border-2 border-gray-300 rounded text-center text-sm focus:border-blue-500 focus:outline-none">`).join('');
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <h3 class="text-lg font-bold text-gray-800 mb-2">✏️ แก้ไขคะแนนเต็ม ${CATEGORY_LABELS[type]} (รายครั้ง)</h3>
+          <p class="text-xs text-orange-600 mb-4">⚠️ การแก้ไขนี้จะย้อนกลับไปแก้คะแนนเต็มต้นฉบับที่ตั้งไว้ในแท็บ "คะแนนเต็ม" ด้วย มีผลกับคะแนนเต็มของนักเรียนทุกคนในวิชานี้</p>
+          <div class="flex flex-wrap gap-2 mb-2">${inputs}</div>
+          <p class="text-sm font-semibold text-gray-600 mb-4" id="setting-popup-catfull-${type}-total">รวม: ${sumFullScoresArray(arr)}</p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditCategoryFullScore('${classSubjectId}', '${type}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditCategoryFullScore(classSubjectId, type) {
+      const times = CATEGORY_TIMES[type];
+      const arr = [];
+      for (let i = 1; i <= times; i++) {
+        arr.push(document.getElementById(`setting-popup-catfull-${type}-full-${i}`)?.value || '');
+      }
+      const fullScoresStr = arr.join(',');
+      const fullScoreSum = sumFullScoresArray(arr);
+      const existing = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      const updateData = { [`${type}_full_scores`]: fullScoresStr, [`${type}_full_score`]: fullScoreSum };
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, ...updateData })
+        : await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, ...updateData });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ แก้ไขคะแนนเต็มสำเร็จ (มีผลกับนักเรียนทุกคนในวิชานี้)');
+        // รีเฟรชการ์ดของนักเรียนที่เลือกอยู่ ให้คะแนนเต็มใหม่มีผลทันที
+        updateGradingStudents();
+      } else {
+        showToast('ไม่สามารถบันทึกได้', 'error');
+      }
+    }
     function buildGradingCardHtml(reg, scoresData, className, subjectName) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const gradeRecord = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
@@ -5349,8 +5408,8 @@
                 </div>
               </div>
               <div class="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">📝 K (10 ครั้ง)</p>
-                <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">📝 K (10 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'k')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'k')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="k-${reg.__backendId}">
                   ${generateScoreInputs('k', reg.__backendId, scores.k_scores, 10, kFullScoresArr)}
                 </div>
@@ -5358,8 +5417,8 @@
                 <p class="text-xs font-semibold text-red-600 hidden" id="k-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
-                <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'p')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'p')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="p-${reg.__backendId}">
                   ${generateScoreInputs('p', reg.__backendId, scores.p_scores, 3, pFullScoresArr)}
                 </div>
@@ -5367,8 +5426,8 @@
                 <p class="text-xs font-semibold text-red-600 hidden" id="p-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">⭐ A (3 ครั้ง)</p>
-                <p class="text-xs text-purple-700 font-semibold mb-2">คะแนนดิบ: ${aFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">⭐ A (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'a')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-purple-700 font-semibold mb-2">คะแนนดิบ: ${aFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'a')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="a-${reg.__backendId}">
                   ${generateScoreInputs('a', reg.__backendId, scores.a_scores, 3, aFullScoresArr)}
                 </div>
@@ -5377,8 +5436,8 @@
                 <p class="" id="a-overall-${reg.__backendId}"></p>
               </div>
               <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">💪 C (3 ครั้ง)</p>
-                <p class="text-xs text-red-700 font-semibold mb-2">คะแนนดิบ: ${cFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">💪 C (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'c')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-red-700 font-semibold mb-2">คะแนนดิบ: ${cFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'c')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="c-${reg.__backendId}">
                   ${generateScoreInputs('c', reg.__backendId, scores.c_scores, 3, cFullScoresArr)}
                 </div>
@@ -5386,8 +5445,8 @@
                 <p class="text-xs font-semibold text-red-600 hidden" id="c-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">📋 M (2 ครั้ง)</p>
-                <p class="text-xs text-cyan-700 font-semibold mb-2">คะแนนดิบ: ${mFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">📋 M (2 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'm')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-cyan-700 font-semibold mb-2">คะแนนดิบ: ${mFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'm')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="m-${reg.__backendId}">
                   ${generateScoreInputs('m', reg.__backendId, scores.m_scores, 2, mFullScoresArr)}
                 </div>
@@ -5395,8 +5454,8 @@
                 <p class="text-xs font-semibold text-red-600 hidden" id="m-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">🏆 F (2 ครั้ง)</p>
-                <p class="text-xs text-orange-700 font-semibold mb-2">คะแนนดิบ: ${fFullScore}</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">🏆 F (2 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'f')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-orange-700 font-semibold mb-2">คะแนนดิบ: ${fFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'f')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="f-${reg.__backendId}">
                   ${generateScoreInputs('f', reg.__backendId, scores.f_scores, 2, fFullScoresArr)}
                 </div>
