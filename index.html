@@ -1738,6 +1738,15 @@
       marqueeItemCount = applicants.length;
       startMarqueeProgressTimer();
     }
+    function getActualScrolledPx(track) {
+      const style = window.getComputedStyle(track);
+      const transform = style.transform;
+      if (!transform || transform === 'none') return 0;
+      // อ่านค่า translateY จริงจาก matrix ที่เบราว์เซอร์คำนวณ ณ ขณะนั้น (ตรงกับภาพที่เห็นจริงเป๊ะ ไม่มีคลาดเคลื่อน)
+      const match = transform.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,[^,]+,\s*([-\d.]+)\)/);
+      if (!match) return 0;
+      return -parseFloat(match[1]); // ค่าที่อ่านได้เป็นลบ (เลื่อนขึ้น) แปลงเป็นบวกไว้คำนวณต่อ
+    }
     function startMarqueeProgressTimer() {
       if (marqueeProgressTimer) clearInterval(marqueeProgressTimer);
       if (!document.getElementById('marquee-progress-current')) return; // ไม่ได้อยู่หน้า login ไม่ต้องตั้ง timer
@@ -1746,25 +1755,22 @@
         return;
       }
       const tick = () => {
-        const durationSec = getMarqueeDurationSec();
-        const elapsedTotal = (Date.now() - marqueeStartTime) / 1000;
         const N = marqueeItemCount;
         const visibleRows = Math.min(marqueeRows, N);
-        if (elapsedTotal < marqueePauseDelaySec) {
-          // ยังอยู่ในช่วงหน่วงเวลานิ่งตอนเริ่ม ยังไม่เลื่อน เลขจึงคงที่อยู่ที่จำนวนแถวเริ่มต้น
+        const track = document.getElementById('marquee-track');
+        if (!track) {
           updateMarqueeProgressDisplay(visibleRows, N);
           return;
         }
-        const elapsed = elapsedTotal - marqueePauseDelaySec;
-        // ระยะที่เลื่อนไปแล้วในรอบปัจจุบัน (px) — 1 รอบเต็ม = เลื่อนผ่าน N แถว (แถวละ 32px)
-        const scrolledPx = ((elapsed % durationSec) / durationSec) * N * 32;
+        // อ่านตำแหน่งเลื่อนจริงจากภาพที่เบราว์เซอร์วาด ณ ขณะนี้ ไม่ใช้สูตรคำนวณเวลาเทียบเอง
+        const scrolledPx = getActualScrolledPx(track);
         const rowsClearedBottom = Math.floor(scrolledPx / 32); // จำนวนแถวที่พ้นกรอบล่างขึ้นมาเพิ่มจากตอนเริ่ม
         // เริ่มที่ "จำนวนแถวที่ตั้งไว้" แล้ววนนับต่อตามจำนวนแถวที่พ้นกรอบขึ้นมา ไล่ 1..N ต่อเนื่องไม่มีสิ้นสุด
         const currentIndex = ((visibleRows - 1 + rowsClearedBottom) % N) + 1;
         updateMarqueeProgressDisplay(currentIndex, N);
       };
       tick();
-      marqueeProgressTimer = setInterval(tick, 500);
+      marqueeProgressTimer = setInterval(tick, 300);
     }
     function updateMarqueeProgressDisplay(current, total) {
       const curEl = document.getElementById('marquee-progress-current');
