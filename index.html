@@ -108,7 +108,10 @@
         <div class="flex items-start gap-3">
          <div class="flex-1 min-w-0">
           <div id="notification-marquee-text"></div>
-          <div class="overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;"></div>
+          <div class="relative overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;">
+           <div id="marquee-band" class="absolute left-0 right-0 bg-purple-100/70 pointer-events-none rounded" style="height: 36px;"></div>
+           <div id="marquee-track-container"></div>
+          </div>
          </div>
          <div class="flex-shrink-0 text-center bg-blue-50 rounded-lg px-3 py-2">
           <p class="text-[10px] text-gray-500 whitespace-nowrap">เลื่อนไปแล้ว</p>
@@ -1711,15 +1714,47 @@
     let marqueeProgressTimer = null;
     let marqueeStartTime = 0;
     let marqueeItemCount = 0;
+    function positionMarqueeBand() {
+      const band = document.getElementById('marquee-band');
+      if (!band) return;
+      const viewportHeight = marqueeRows * 32;
+      const bandHeight = 36;
+      const centeredTop = (viewportHeight - bandHeight) / 2;
+      band.style.top = `${Math.max(0, centeredTop + 32)}px`; // ขยับลงมาอีก 1 แถว
+    }
+    function applyMarqueeKeyframes() {
+      const scrollSec = getMarqueeDurationSec();
+      const pauseSec = marqueePauseDelaySec;
+      const totalSec = scrollSec + pauseSec;
+      const pausePercent = totalSec > 0 ? (pauseSec / totalSec) * 100 : 0;
+      let styleEl = document.getElementById('marquee-dynamic-keyframes');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'marquee-dynamic-keyframes';
+        document.head.appendChild(styleEl);
+      }
+      // 0% ถึง pausePercent% = นิ่งค้างไว้ (คนที่ 1 อยู่ในแถบสี) / หลังจากนั้นค่อยเลื่อนไปจนครบรอบ
+      // เพราะ infinite วนซ้ำคำสั่ง keyframes ทั้งชุดนี้ตลอด การหน่วงจึงเกิดขึ้นทุกรอบที่วนกลับมาคนแรก ไม่ใช่แค่ครั้งแรก
+      styleEl.textContent = `
+        @keyframes marquee-scroll-up-dynamic {
+          0% { transform: translateY(0); }
+          ${pausePercent}% { transform: translateY(0); }
+          100% { transform: translateY(-50%); }
+        }
+      `;
+      return totalSec;
+    }
     function updateMarqueeApplicantsList() {
       const viewport = document.getElementById('marquee-viewport');
-      if (!viewport) return;
+      const trackContainer = document.getElementById('marquee-track-container');
+      if (!viewport || !trackContainer) return;
       const applicants = computeNewApplicants();
       const signature = applicants.map(s => s.__backendId).join(',');
       viewport.style.height = `${marqueeRows * 32}px`;
+      positionMarqueeBand();
       if (applicants.length === 0) {
         if (signature !== lastMarqueeApplicantsSignature) {
-          viewport.innerHTML = '<p class="text-gray-400 text-xs text-center py-3">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</p>';
+          trackContainer.innerHTML = '<p class="text-gray-400 text-xs text-center py-3">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</p>';
           lastMarqueeApplicantsSignature = signature;
           marqueeItemCount = 0;
           startMarqueeProgressTimer();
@@ -1729,10 +1764,13 @@
       // อัปเดตรายการเฉพาะตอนรายชื่อเปลี่ยนจริง กันไม่ให้ภาพเลื่อนสะดุด/รีสตาร์ทบ่อยเกินไป
       if (signature === lastMarqueeApplicantsSignature) return;
       lastMarqueeApplicantsSignature = signature;
-      const rowHtml = (s) => `<div style="height:32px" class="flex items-center px-3 text-sm text-gray-700 border-b border-gray-100">👤 ${s.prefix}${s.first_name} ${s.last_name} — ${s.class_name}/${s.room_number}</div>`;
-      const listHtml = applicants.map(rowHtml).join('');
+      const spacerHtml = `<div style="height:32px"></div>`;
+      const rowHtml = (s) => `<div style="height:32px" class="flex items-center px-3 text-sm text-gray-700">👤 ${s.prefix}${s.first_name} ${s.last_name} — ${s.class_name}/${s.room_number}</div>`;
+      // เพิ่มแถวว่าง 1 แถวไว้ก่อนคนที่ 1 เพื่อให้คนที่ 1 ตกอยู่ในกรอบสีม่วงตั้งแต่ต้นพอดี
+      const unitHtml = spacerHtml + applicants.map(rowHtml).join('');
+      const totalSec = applyMarqueeKeyframes();
       // ทำซ้ำ 2 ชุดต่อกัน เพื่อให้เลื่อนวนแบบไม่มีรอยต่อ (seamless loop)
-      viewport.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation-duration: ${getMarqueeDurationSec()}s; animation-delay: ${marqueePauseDelaySec}s;">${listHtml}${listHtml}</div>`;
+      trackContainer.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation: marquee-scroll-up-dynamic ${totalSec}s linear infinite;">${unitHtml}${unitHtml}</div>`;
       // เริ่มจับเวลาใหม่ เพื่อคำนวณว่าขณะนี้เลื่อนผ่านคนที่เท่าไรแล้ว
       marqueeStartTime = Date.now();
       marqueeItemCount = applicants.length;
@@ -1756,17 +1794,17 @@
       }
       const tick = () => {
         const N = marqueeItemCount;
-        const visibleRows = Math.min(marqueeRows, N);
         const track = document.getElementById('marquee-track');
         if (!track) {
-          updateMarqueeProgressDisplay(visibleRows, N);
+          updateMarqueeProgressDisplay(1, N);
           return;
         }
         // อ่านตำแหน่งเลื่อนจริงจากภาพที่เบราว์เซอร์วาด ณ ขณะนี้ ไม่ใช้สูตรคำนวณเวลาเทียบเอง
         const scrolledPx = getActualScrolledPx(track);
-        const rowsClearedBottom = Math.floor(scrolledPx / 32); // จำนวนแถวที่พ้นกรอบล่างขึ้นมาเพิ่มจากตอนเริ่ม
-        // เริ่มที่ "จำนวนแถวที่ตั้งไว้" แล้ววนนับต่อตามจำนวนแถวที่พ้นกรอบขึ้นมา ไล่ 1..N ต่อเนื่องไม่มีสิ้นสุด
-        const currentIndex = ((visibleRows - 1 + rowsClearedBottom) % N) + 1;
+        // มีแถวว่าง (spacer) คั่นอยู่ก่อนคนที่ 1 หนึ่งแถว ทำให้ 1 รอบเต็มมี N+1 ช่อง (spacer+N คน)
+        const slot = Math.floor(scrolledPx / 32) % (N + 1);
+        // slot 0..N-1 = คนที่ 1..N กำลังอยู่ในกรอบสีม่วง / slot N = ช่วงแถวว่างคั่นรอบ ให้คงเลขสุดท้ายไว้ก่อน
+        const currentIndex = slot < N ? slot + 1 : N;
         updateMarqueeProgressDisplay(currentIndex, N);
       };
       tick();
@@ -1780,8 +1818,9 @@
     }
     async function adjustMarqueeSpeed(delta) {
       marqueeSpeedLevel = Math.max(1, Math.min(10, marqueeSpeedLevel + delta));
+      const totalSec = applyMarqueeKeyframes();
       const track = document.getElementById('marquee-track');
-      if (track) track.style.animationDuration = `${getMarqueeDurationSec()}s`;
+      if (track) track.style.animation = `marquee-scroll-up-dynamic ${totalSec}s linear infinite`;
       // รีเซ็ตจับเวลาใหม่ ให้สอดคล้องกับความเร็วใหม่ (กันตัวเลขกระโดดผิด)
       marqueeStartTime = Date.now();
       startMarqueeProgressTimer();
@@ -1793,12 +1832,18 @@
       marqueeRows = Math.max(1, Math.min(8, marqueeRows + delta));
       const viewport = document.getElementById('marquee-viewport');
       if (viewport) viewport.style.height = `${marqueeRows * 32}px`;
+      positionMarqueeBand();
       const display = document.getElementById('marquee-rows-display');
       if (display) display.textContent = marqueeRows;
       await saveMarqueeSettings();
     }
     async function adjustMarqueeDelay(delta) {
       marqueePauseDelaySec = Math.max(0, Math.min(15, marqueePauseDelaySec + delta));
+      const totalSec = applyMarqueeKeyframes();
+      const track = document.getElementById('marquee-track');
+      if (track) track.style.animation = `marquee-scroll-up-dynamic ${totalSec}s linear infinite`;
+      marqueeStartTime = Date.now();
+      startMarqueeProgressTimer();
       const display = document.getElementById('marquee-delay-display');
       if (display) display.textContent = marqueePauseDelaySec;
       await saveMarqueeSettings();
