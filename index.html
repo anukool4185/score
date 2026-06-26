@@ -957,6 +957,16 @@
         renderNotificationBells();
         // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
         updateMarqueeApplicantsList();
+        // ถ้าแอดมินกำลังเปิดแท็บ "ให้คะแนน"/"ลงเวลาเรียน" อยู่ ให้รีเฟรชแค่รายชื่อด้านซ้ายแบบสด
+        // (ไม่แตะช่องกรอกด้านขวาเลย กันไม่ให้ข้อมูลที่กำลังกรอกอยู่หาย แม้มีคนลงทะเบียนใหม่เข้ามาขณะนั้น)
+        const gradingContainer = document.getElementById('grading-students-container');
+        if (gradingContainer && !document.getElementById('admin-tab-grading')?.classList.contains('hidden')) {
+          refreshGradingNameListOnly();
+        }
+        const timekeepingContainer = document.getElementById('timekeeping-students-container');
+        if (timekeepingContainer && !document.getElementById('admin-tab-timekeeping')?.classList.contains('hidden')) {
+          refreshTimekeepingNameListOnly();
+        }
         // ถ้าหน้าประเมินครูผู้สอน (แบบไม่ login) เปิดอยู่ ให้รีเฟรชเนื้อหาด้วย
         // กันปัญหา: ถ้าคนกดปุ่มเร็วก่อนข้อมูลโหลดเสร็จ หน้าจะค้างที่ข้อความ "ยังไม่ได้ตั้งค่า" ตลอดไป
         const publicEvalPage = document.getElementById('page-public-evaluation');
@@ -5197,6 +5207,51 @@
       updateGradingStudents();
     }
     let selectedGradingRegId = null;
+    function refreshGradingNameListOnly() {
+      const className = document.getElementById('filter-grading-class')?.value;
+      const roomNumber = document.getElementById('filter-grading-room')?.value;
+      const subjectName = document.getElementById('filter-grading-subject')?.value;
+      const container = document.getElementById('grading-students-container');
+      const emptyMsg = document.getElementById('grading-empty-message');
+      if (!container || !className || !roomNumber || !subjectName) return null;
+      let registrations = allData.filter(d =>
+        d.type === 'student_registration' &&
+        d.class_name === className &&
+        d.room_number === roomNumber &&
+        d.subject_name === subjectName
+      );
+      registrations = registrations.slice().sort((a, b) => {
+        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const numA = parseFloat(studentA?.student_number) || 0;
+        const numB = parseFloat(studentB?.student_number) || 0;
+        return numA - numB;
+      });
+      if (registrations.length === 0) {
+        container.classList.add('hidden');
+        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
+        return registrations;
+      }
+      if (emptyMsg) emptyMsg.classList.add('hidden');
+      container.classList.remove('hidden');
+      if (!selectedGradingRegId || !registrations.find(r => r.__backendId === selectedGradingRegId)) {
+        selectedGradingRegId = registrations[0].__backendId;
+      }
+      const namelistEl = document.getElementById('grading-student-namelist');
+      if (namelistEl) {
+        namelistEl.innerHTML = registrations.map(reg => {
+          const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+          const isActive = reg.__backendId === selectedGradingRegId;
+          const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+          return `
+            <button onclick="selectGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
+              #${student?.student_number || '-'} ${name}
+            </button>
+          `;
+        }).join('');
+      }
+      return registrations;
+    }
     function updateGradingStudents() {
       const className = document.getElementById('filter-grading-class').value;
       const roomNumber = document.getElementById('filter-grading-room').value;
@@ -5212,45 +5267,8 @@
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
-      
-      // ค้นหา registrations ที่ตรงกับ class_name, room_number และ subject_name เท่านั้น
-      let registrations = allData.filter(d => 
-        d.type === 'student_registration' && 
-        d.class_name === className &&
-        d.room_number === roomNumber &&
-        d.subject_name === subjectName
-      );
-      // เรียงรายชื่อจากเลขที่น้อยไปมาก
-      registrations = registrations.slice().sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseFloat(studentA?.student_number) || 0;
-        const numB = parseFloat(studentB?.student_number) || 0;
-        return numA - numB;
-      });
-      if (registrations.length === 0) {
-        container.classList.add('hidden');
-        emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้';
-        emptyMsg.classList.remove('hidden');
-        return;
-      }
-      emptyMsg.classList.add('hidden');
-      container.classList.remove('hidden');
-      if (!selectedGradingRegId || !registrations.find(r => r.__backendId === selectedGradingRegId)) {
-        selectedGradingRegId = registrations[0].__backendId;
-      }
-      // รายชื่อด้านซ้าย
-      const namelistEl = document.getElementById('grading-student-namelist');
-      namelistEl.innerHTML = registrations.map(reg => {
-        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        const isActive = reg.__backendId === selectedGradingRegId;
-        const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
-        return `
-          <button onclick="selectGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-            #${student?.student_number || '-'} ${name}
-          </button>
-        `;
-      }).join('');
+      const registrations = refreshGradingNameListOnly();
+      if (!registrations || registrations.length === 0) return;
       // รายละเอียดด้านขวา ของคนที่เลือกไว้
       renderGradingDetail(selectedGradingRegId, scoresData, className, subjectName);
     }
@@ -5721,6 +5739,48 @@
       updateTimekeepingStudents();
     }
     let selectedTimekeepingRegId = null;
+    function refreshTimekeepingNameListOnly() {
+      const className = document.getElementById('filter-timekeeping-class')?.value;
+      const roomNumber = document.getElementById('filter-timekeeping-room')?.value;
+      const subjectName = document.getElementById('filter-timekeeping-subject')?.value;
+      const container = document.getElementById('timekeeping-students-container');
+      const emptyMsg = document.getElementById('timekeeping-empty-message');
+      if (!container || !className || !roomNumber || !subjectName) return null;
+      const registrations = allData.filter(d => {
+        if (d.type !== 'student_registration') return false;
+        return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
+      }).sort((a, b) => {
+        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const numA = parseInt(studentA?.student_number) || 0;
+        const numB = parseInt(studentB?.student_number) || 0;
+        return numA - numB;
+      });
+      if (registrations.length === 0) {
+        container.classList.add('hidden');
+        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
+        return registrations;
+      }
+      if (emptyMsg) emptyMsg.classList.add('hidden');
+      container.classList.remove('hidden');
+      if (!selectedTimekeepingRegId || !registrations.find(r => r.__backendId === selectedTimekeepingRegId)) {
+        selectedTimekeepingRegId = registrations[0].__backendId;
+      }
+      const namelistEl = document.getElementById('timekeeping-student-namelist');
+      if (namelistEl) {
+        namelistEl.innerHTML = registrations.map(reg => {
+          const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+          const isActive = reg.__backendId === selectedTimekeepingRegId;
+          const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+          return `
+            <button onclick="selectTimekeepingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
+              #${student?.student_number || '-'} ${name}
+            </button>
+          `;
+        }).join('');
+      }
+      return registrations;
+    }
     function updateTimekeepingStudents() {
       const className = document.getElementById('filter-timekeeping-class').value;
       const roomNumber = document.getElementById('filter-timekeeping-room').value;
@@ -5734,41 +5794,8 @@
         emptyMsg.classList.remove('hidden');
         return;
       }
-      // ดึงนักเรียนที่ลงทะเบียนวิชานี้เท่านั้น
-      const registrations = allData.filter(d => {
-        if (d.type !== 'student_registration') return false;
-        return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
-      }).sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseInt(studentA?.student_number) || 0;
-        const numB = parseInt(studentB?.student_number) || 0;
-        return numA - numB;
-      });
-      if (registrations.length === 0) {
-        container.classList.add('hidden');
-        emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้';
-        emptyMsg.classList.remove('hidden');
-        return;
-      }
-      emptyMsg.classList.add('hidden');
-      container.classList.remove('hidden');
-      // ถ้ายังไม่ได้เลือกใคร หรือคนที่เลือกไว้ไม่อยู่ในรายชื่อกรองใหม่แล้ว ให้เลือกคนแรกอัตโนมัติ
-      if (!selectedTimekeepingRegId || !registrations.find(r => r.__backendId === selectedTimekeepingRegId)) {
-        selectedTimekeepingRegId = registrations[0].__backendId;
-      }
-      // รายชื่อด้านซ้าย
-      const namelistEl = document.getElementById('timekeeping-student-namelist');
-      namelistEl.innerHTML = registrations.map(reg => {
-        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        const isActive = reg.__backendId === selectedTimekeepingRegId;
-        const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
-        return `
-          <button onclick="selectTimekeepingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-            #${student?.student_number || '-'} ${name}
-          </button>
-        `;
-      }).join('');
+      const registrations = refreshTimekeepingNameListOnly();
+      if (!registrations || registrations.length === 0) return;
       // รายละเอียดด้านขวา ของคนที่เลือกไว้
       renderTimekeepingDetail(selectedTimekeepingRegId);
     }
