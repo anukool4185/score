@@ -5399,12 +5399,12 @@
           m_scores: '',
           f_scores: ''
         };
-        const kFullScore = scoresData?.k_full_score || 100;
-        const pFullScore = scoresData?.p_full_score || 100;
-        const aFullScore = scoresData?.a_full_score || 100;
-        const cFullScore = scoresData?.c_full_score || 100;
-        const mFullScore = scoresData?.m_full_score || 100;
-        const fFullScore = scoresData?.f_full_score || 100;
+        const kFullScore = scoresData?.k_full_score || 0;
+        const pFullScore = scoresData?.p_full_score || 0;
+        const aFullScore = scoresData?.a_full_score || 0;
+        const cFullScore = scoresData?.c_full_score || 0;
+        const mFullScore = scoresData?.m_full_score || 0;
+        const fFullScore = scoresData?.f_full_score || 0;
         const kFullScoresArr = parseFullScoresArray(scoresData?.k_full_scores, 10);
         const pFullScoresArr = parseFullScoresArray(scoresData?.p_full_scores, 3);
         const aFullScoresArr = parseFullScoresArray(scoresData?.a_full_scores, 3);
