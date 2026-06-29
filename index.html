@@ -1395,14 +1395,14 @@
       proceedWithRegistration(formData, null, submitBtn);
     }
     function cancelRegisterOverwrite() {
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       pendingRegisterFormData = null;
       pendingRegisterExistingStudent = null;
       pendingRegisterSubmitBtn = null;
       // ไม่บันทึกอะไร ปล่อยให้ผู้สมัครแก้ไขข้อมูลในฟอร์มเอง (เช่น เปลี่ยนรหัสนักเรียนถ้ากรอกผิด)
     }
     function confirmRegisterOverwrite() {
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       const formData = pendingRegisterFormData;
       const existingStudent = pendingRegisterExistingStudent;
       const submitBtn = pendingRegisterSubmitBtn;
@@ -2093,7 +2093,7 @@
       }
       const result = await window.dataSdk.update({ ...ann, text: newText, image_url: newImage });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขประกาศสำเร็จ');
         updateAnnouncementList(ann.target);
       } else {
@@ -2584,7 +2584,7 @@
       }
       const result = await window.dataSdk.update({ ...topic, topic_text: newText });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขหัวข้อสำเร็จ');
         updateEvalTopicsList();
         updateEvalResultsSummary();
@@ -2679,7 +2679,7 @@
       }
       const result = await window.dataSdk.update({ ...level, level_label: newLabel, percent_value: newPercent });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขระดับสำเร็จ');
         updateEvalLevelsList();
         updateEvalResultsSummary();
@@ -2765,7 +2765,7 @@
       }
       const result = await window.dataSdk.update({ ...option, name: newName });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขสำเร็จ');
         updateEvaluatorOptionsList();
       } else {
@@ -3246,7 +3246,7 @@
         password: password
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('แก้ไขผู้ช่วยแอดมินสำเร็จ ✅');
         updateAdminList();
       } else {
@@ -3621,7 +3621,7 @@
       document.body.appendChild(confirmDiv);
     }
     async function confirmBulkDeleteStudents(ids) {
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       showToast(`⏳ กำลังลบ ${ids.length} คน...`);
       let successCount = 0;
       let failCount = 0;
@@ -3810,7 +3810,7 @@
         ...reg, k_percent: kPercent, p_percent: pPercent, a_percent: aPercent, c_percent: cPercent
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขการลงทะเบียนสำเร็จ');
         updateRegistrationsTable();
       } else {
@@ -3840,7 +3840,7 @@
       if (!reg) return;
       await cascadeDeleteRegistrationData(reg);
       const result = await window.dataSdk.delete(reg);
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       if (result.isOk) {
         showToast('🗑️ ลบการลงทะเบียนสำเร็จ');
         updateRegistrationsTable();
@@ -3951,7 +3951,7 @@
       if (!student) return;
       const result = await deleteStudentWithRelatedData(student);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบนักเรียนและข้อมูลที่เกี่ยวข้องสำเร็จ ✅');
         updateStudentsList();
       } else {
@@ -4067,7 +4067,7 @@
         password: password
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
         updateStudentsList();
       } else {
@@ -4188,7 +4188,7 @@
         phone_number: phone, username, password, created_at: new Date().toISOString()
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ เพิ่มนักเรียนใหม่สำเร็จ');
         updateStudentsList();
       } else {
@@ -4304,7 +4304,7 @@
             k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
           });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast(existingReg ? '✅ บันทึกค่า KPAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
@@ -4331,7 +4331,7 @@
       if (!admin) return;
       const result = await window.dataSdk.delete(admin);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบแอดมินสำเร็จ ✅');
         updateAdminList();
       } else {
@@ -4497,7 +4497,7 @@
         subjectType: subjectType
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('แก้ไขรายวิชาสำเร็จ ✅');
         updateImportedData();
       } else {
@@ -4526,7 +4526,7 @@
       if (!cs) return;
       const result = await window.dataSdk.delete(cs);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบรายวิชาสำเร็จ ✅');
         updateImportedData();
       } else {
@@ -4726,7 +4726,7 @@
       if (!mf) return;
       const result = await window.dataSdk.delete(mf);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบข้อมูลสำเร็จ ✅');
         updateMFDisplayList();
       } else {
@@ -4783,7 +4783,7 @@
         final_percent: finalValue
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateMFDisplayList();
         showToast('แก้ไข M/F สำเร็จ ✅');
       } else {
@@ -5102,7 +5102,7 @@
         actual_hours_can_absent: actualHoursCanAbsent
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateHoursDisplayList();
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
       } else {
@@ -5130,7 +5130,7 @@
       if (!hours) return;
       const result = await window.dataSdk.delete(hours);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบข้อมูลสำเร็จ ✅');
         updateHoursDisplayList();
       } else {
@@ -5369,7 +5369,7 @@
         ...fullScoresData
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateScoresDisplayList();
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
       } else {
@@ -5397,7 +5397,7 @@
       if (!scores) return;
       const result = await window.dataSdk.delete(scores);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบข้อมูลสำเร็จ ✅');
         updateScoresDisplayList();
       } else {
@@ -5626,7 +5626,7 @@
         ? await window.dataSdk.update({ ...existing, ...updateData })
         : await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, ...updateData });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ แก้ไขคะแนนเต็มสำเร็จ (มีผลกับนักเรียนทุกคนในวิชานี้)');
         // รีเฟรชการ์ดของนักเรียนที่เลือกอยู่ ให้คะแนนเต็มใหม่มีผลทันที
         updateGradingStudents();
@@ -5930,7 +5930,7 @@
         if (warningElement) warningElement.classList.add('hidden');
       }
       
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       showToast('ลบคะแนนทั้งหมดแล้ว');
     }
     // ======= TIMEKEEPING MANAGEMENT FUNCTIONS (ลงเวลาเรียน) =======
@@ -7091,7 +7091,7 @@
       const submission = allData.find(d => d.__backendId === submissionId);
       if (!submission) return;
       const result = await window.dataSdk.delete(submission);
-      document.querySelector('.fixed')?.remove();
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
       if (result.isOk) {
         showToast('🗑️ ลบการประเมินสำเร็จ');
         updateAdminEvaluatorsList();
@@ -7906,7 +7906,7 @@
         c_percent: c
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showToast('อัปเดตรายการสำเร็จ ✅');
       } else {
@@ -7934,7 +7934,7 @@
       if (!reg) return;
       const result = await window.dataSdk.delete(reg);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showStudentRegister();
         showToast('ลบรายการสำเร็จ ✅');
@@ -8021,7 +8021,7 @@
         c_percent: c
       });
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showToast('อัปเดตรายการสำเร็จ ✅');
       } else {
@@ -8049,7 +8049,7 @@
       if (!reg) return;
       const result = await window.dataSdk.delete(reg);
       if (result.isOk) {
-        document.querySelector('.fixed')?.remove();
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showStudentRegister(); // รีโหลดหน้าลงทะเบียนเพื่อแสดงวิชาที่เพิ่งลบเป็นพร้อมลงทะเบียนใหม่
         showToast('ลบรายการสำเร็จ ✅');
