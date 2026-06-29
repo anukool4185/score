@@ -541,6 +541,10 @@
 
         <!-- โหมด 1: นักเรียนที่สมัคร (ตาราง) -->
         <div id="students-subtab-applicants">
+         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <p class="text-sm text-gray-500">รายชื่อนักเรียนที่สมัครเข้าระบบทั้งหมด</p>
+          <button onclick="addStudentPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium whitespace-nowrap">➕ เพิ่มนักเรียนใหม่</button>
+         </div>
          <div class="flex items-center gap-3 flex-wrap mb-3">
           <label class="text-sm font-medium text-gray-700 flex items-center gap-2">🏫 กรองตามชั้น:
            <select id="students-filter-class" onchange="filterStudentsList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
@@ -3556,6 +3560,7 @@
             <div class="flex gap-1 justify-center">
               <button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
               <button onclick="deleteStudent('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
+              <button onclick="adminRegisterStudentPopup('${s.__backendId}')" title="ลงทะเบียนวิชาให้นักเรียน (ไม่ติดเงื่อนไขวันที่)" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียน</button>
             </div>
           </td>
         </tr>
@@ -4060,6 +4065,233 @@
         updateStudentsList();
       } else {
         showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
+      }
+    }
+    function addStudentPopup() {
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">➕ เพิ่มนักเรียนใหม่</h3>
+          <p id="add-student-error" class="text-red-500 text-sm mb-3 hidden"></p>
+          <div class="space-y-3 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🆔 รหัสนักเรียน</label>
+              <input type="text" id="add-student-id" placeholder="เช่น 001" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">📛 คำนำหน้า</label>
+              <select id="add-prefix" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="เด็กชาย">เด็กชาย</option>
+                <option value="เด็กหญิง">เด็กหญิง</option>
+                <option value="นาย">นาย</option>
+                <option value="นางสาว">นางสาว</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">✍️ ชื่อ</label>
+              <input type="text" id="add-first-name" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">📌 นามสกุล</label>
+              <input type="text" id="add-last-name" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้นเรียน</label>
+              <select id="add-class" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="">-- เลือก --</option>
+                <option value="อ.1">อ.1</option><option value="อ.2">อ.2</option><option value="อ.3">อ.3</option>
+                <option value="อ.4">อ.4</option><option value="อ.5">อ.5</option><option value="อ.6">อ.6</option>
+                <option value="ม.1">ม.1</option><option value="ม.2">ม.2</option><option value="ม.3">ม.3</option>
+                <option value="ม.4">ม.4</option><option value="ม.5">ม.5</option><option value="ม.6">ม.6</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้องเรียน</label>
+              <input type="text" id="add-room" placeholder="เช่น 1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">#️⃣ เลขที่</label>
+              <input type="number" id="add-number" min="1" placeholder="เช่น 1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">📱 เบอร์โทรศัพท์</label>
+              <input type="tel" id="add-phone" placeholder="เช่น 0812345678" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">👤 Username</label>
+              <input type="text" id="add-username" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🔐 Password</label>
+              <input type="text" id="add-password" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmAddStudent()" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ เพิ่ม</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmAddStudent() {
+      const errorDiv = document.getElementById('add-student-error');
+      const studentId = document.getElementById('add-student-id').value.trim();
+      const prefix = document.getElementById('add-prefix').value;
+      const firstName = document.getElementById('add-first-name').value.trim();
+      const lastName = document.getElementById('add-last-name').value.trim();
+      const className = document.getElementById('add-class').value;
+      const roomNumber = document.getElementById('add-room').value.trim();
+      const studentNumber = document.getElementById('add-number').value.trim();
+      const phone = document.getElementById('add-phone').value.trim();
+      const username = document.getElementById('add-username').value.trim();
+      const password = document.getElementById('add-password').value;
+      if (!studentId || !prefix || !firstName || !lastName || !className || !roomNumber || !studentNumber || !phone || !username || !password) {
+        errorDiv.textContent = '❌ กรุณากรอกข้อมูลให้ครบ';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      if (!/^\d+$/.test(studentId) || !/^\d+$/.test(roomNumber) || !/^\d+$/.test(studentNumber)) {
+        errorDiv.textContent = '❌ รหัสนักเรียน/ห้องเรียน/เลขที่ ต้องเป็นตัวเลขเท่านั้น';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      if (!/^0\d{9}$/.test(phone)) {
+        errorDiv.textContent = '❌ เบอร์โทรต้องเป็น 10 หลัก ขึ้นต้นด้วย 0';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      const existingId = allData.find(d => d.type === 'student' && d.student_id === studentId);
+      if (existingId) {
+        errorDiv.textContent = '❌ รหัสนักเรียนนี้มีอยู่แล้ว';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      const existingUsername = allData.find(d => d.type === 'student' && d.username === username);
+      if (existingUsername) {
+        errorDiv.textContent = '❌ Username นี้มีคนใช้แล้ว';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      errorDiv.classList.add('hidden');
+      const result = await window.dataSdk.create({
+        type: 'student', student_id: studentId, prefix, first_name: firstName, last_name: lastName,
+        class_name: className, room_number: roomNumber, student_number: studentNumber,
+        phone_number: phone, username, password, created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ เพิ่มนักเรียนใหม่สำเร็จ');
+        updateStudentsList();
+      } else {
+        showToast('ไม่สามารถเพิ่มนักเรียนได้', 'error');
+      }
+    }
+    // ----- แอดมินลงทะเบียนวิชาให้นักเรียนแทน (ไม่ติดเงื่อนไขวันที่เปิด-ปิดลงทะเบียน) -----
+    function adminRegisterStudentPopup(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const allSubjects = allData.filter(d => d.type === 'subject');
+      const availableSubjects = allSubjects.filter(subj => allData.some(d =>
+        d.type === 'class_subject' && d.class_name === student.class_name &&
+        d.room_number === student.room_number && d.subject_name === subj.subject_name
+      ));
+      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registeredSubjectNames = new Set(registrations.map(r => r.subject_name));
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">📚 ลงทะเบียนวิชาให้นักเรียน</h3>
+          <p class="text-gray-600 mb-1 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${student.class_name}/${student.room_number}</p>
+          <p class="text-xs text-orange-600 mb-4">⚠️ การลงทะเบียนนี้ไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน</p>
+          ${availableSubjects.length === 0 ? `
+            <p class="text-red-500 text-sm py-4 text-center">❌ ยังไม่มีวิชาสำหรับชั้น ${student.class_name} ห้อง ${student.room_number}</p>
+            <button onclick="this.closest('.fixed').remove()" class="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">ปิด</button>
+          ` : `
+            <select id="admin-reg-subject-select" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-4">
+              <option value="">-- เลือกวิชา --</option>
+              ${availableSubjects.map(subj => `<option value="${subj.subject_name}">${subj.subject_name}${registeredSubjectNames.has(subj.subject_name) ? ' (ลงทะเบียนแล้ว)' : ''}</option>`).join('')}
+            </select>
+            <div id="admin-reg-form-container"><p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p></div>
+          `}
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+      if (availableSubjects.length > 0) {
+        document.getElementById('admin-reg-subject-select').onchange = () => updateAdminRegForm(studentBackendId);
+      }
+    }
+    function updateAdminRegForm(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      const subjectName = document.getElementById('admin-reg-subject-select').value;
+      const container = document.getElementById('admin-reg-form-container');
+      if (!subjectName) { container.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p>'; return; }
+      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const midPercent = classSubjectRecord?.mid_percent || 0;
+      const finalPercent = classSubjectRecord?.final_percent || 0;
+      const kpacPercent = 100 - midPercent - finalPercent;
+      container.innerHTML = `
+        <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
+          <p class="text-xs text-gray-600 mb-3">M ${midPercent}% | F ${finalPercent}% | เหลือสำหรับ K+P+A+C: <strong>${kpacPercent}%</strong></p>
+          <div class="grid grid-cols-4 gap-2 mb-3">
+            <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="admin-reg-k" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="admin-reg-p" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="admin-reg-a" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="admin-reg-c" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+          </div>
+          <p class="text-sm text-gray-700 mb-2">รวม: <span id="admin-reg-kpac-total" class="font-bold">0</span>% (ต้อง ≤ ${kpacPercent}%)</p>
+          <p id="admin-reg-warning" class="text-xs text-red-600 font-semibold hidden mb-2">❌ เกินขีดจำกัด!</p>
+          <p id="admin-reg-error" class="text-xs text-red-600 hidden mb-2"></p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmAdminRegisterStudent('${studentBackendId}', '${subjectName}', ${kpacPercent})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ ลงทะเบียน</button>
+          </div>
+        </div>
+      `;
+    }
+    function updateAdminRegKpacTotal(kpacLimit) {
+      const k = parseFloat(document.getElementById('admin-reg-k').value) || 0;
+      const p = parseFloat(document.getElementById('admin-reg-p').value) || 0;
+      const a = parseFloat(document.getElementById('admin-reg-a').value) || 0;
+      const c = parseFloat(document.getElementById('admin-reg-c').value) || 0;
+      const total = k + p + a + c;
+      document.getElementById('admin-reg-kpac-total').textContent = total.toFixed(1);
+      document.getElementById('admin-reg-warning').classList.toggle('hidden', total <= kpacLimit);
+    }
+    async function confirmAdminRegisterStudent(studentBackendId, subjectName, kpacLimit) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const errorEl = document.getElementById('admin-reg-error');
+      const k = parseFloat(document.getElementById('admin-reg-k').value) || 0;
+      const p = parseFloat(document.getElementById('admin-reg-p').value) || 0;
+      const a = parseFloat(document.getElementById('admin-reg-a').value) || 0;
+      const c = parseFloat(document.getElementById('admin-reg-c').value) || 0;
+      if (k + p + a + c > kpacLimit) {
+        errorEl.textContent = '❌ คะแนนเก็บเกินขีดจำกัด';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      const alreadyRegistered = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      if (alreadyRegistered) {
+        errorEl.textContent = '❌ นักเรียนคนนี้ลงทะเบียนวิชานี้แล้ว';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      errorEl.classList.add('hidden');
+      // หมายเหตุ: แอดมินลงทะเบียนแทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
+      const result = await window.dataSdk.create({
+        type: 'student_registration', student_id: student.student_id, class_name: student.class_name,
+        room_number: student.room_number, subject_name: subjectName,
+        class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
+        k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        document.querySelector('.fixed')?.remove();
+        showToast('✅ ลงทะเบียนให้นักเรียนสำเร็จ');
+      } else {
+        showToast('ไม่สามารถลงทะเบียนได้', 'error');
       }
     }
     async function deleteAdmin(adminId) {
