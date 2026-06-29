@@ -797,8 +797,15 @@
     // กันไม่ให้กดปุ่มอะไรซ้ำได้เลยจนกว่าจะเสร็จ แล้วจะปิดให้ทันทีอัตโนมัติ
     // ============================================================
     let pendingRequestCount = 0;
-    function showBusyOverlay() {
-      if (document.getElementById('global-busy-overlay')) return;
+    function showBusyOverlay(message) {
+      const defaultMsg = '⏳ ระบบกำลังดำเนินการ กรุณารอสักครู่...';
+      const existing = document.getElementById('global-busy-overlay');
+      if (existing) {
+        // ถ้ามี overlay อยู่แล้ว แค่อัปเดตข้อความให้ตรงกับงานล่าสุดที่กำลังทำ
+        const msgEl = document.getElementById('global-busy-overlay-message');
+        if (msgEl) msgEl.textContent = message || defaultMsg;
+        return;
+      }
       const overlay = document.createElement('div');
       overlay.id = 'global-busy-overlay';
       overlay.className = 'fixed inset-0 flex items-center justify-center p-4';
@@ -807,7 +814,7 @@
       overlay.innerHTML = `
         <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-4">
           <div class="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-          <p class="text-gray-700 font-medium">⏳ ระบบกำลังดำเนินการ กรุณารอสักครู่...</p>
+          <p id="global-busy-overlay-message" class="text-gray-700 font-medium">${message || defaultMsg}</p>
         </div>
       `;
       document.body.appendChild(overlay);
@@ -815,9 +822,9 @@
     function hideBusyOverlay() {
       document.getElementById('global-busy-overlay')?.remove();
     }
-    function beginRequest() {
+    function beginRequest(message) {
       pendingRequestCount++;
-      showBusyOverlay();
+      showBusyOverlay(message);
     }
     function endRequest() {
       pendingRequestCount = Math.max(0, pendingRequestCount - 1);
@@ -865,7 +872,7 @@
       },
 
       async create(record) {
-        beginRequest();
+        beginRequest('💾 กำลังบันทึก กรุณารอสักครู่...');
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -885,7 +892,7 @@
       },
 
       async update(record) {
-        beginRequest();
+        beginRequest('💾 กำลังบันทึก กรุณารอสักครู่...');
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -906,7 +913,7 @@
       },
 
       async delete(record) {
-        beginRequest();
+        beginRequest('🗑️ กำลังลบ กรุณารอสักครู่...');
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
@@ -4212,7 +4219,11 @@
           ` : `
             <select id="admin-reg-subject-select" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-4">
               <option value="">-- เลือกวิชา --</option>
-              ${availableSubjects.map(subj => `<option value="${subj.subject_name}">${subj.subject_name}${registeredSubjectNames.has(subj.subject_name) ? ' (ลงทะเบียนแล้ว)' : ''}</option>`).join('')}
+              ${availableSubjects.map(subj => {
+                const isRegistered = registeredSubjectNames.has(subj.subject_name);
+                const style = isRegistered ? 'background-color:#dcfce7;color:#166534;' : 'background-color:#fee2e2;color:#991b1b;';
+                return `<option value="${subj.subject_name}" style="${style}">${subj.subject_name}${isRegistered ? ' ✅ กำหนด KPAC แล้ว' : ' ❌ ยังไม่กำหนด'}</option>`;
+              }).join('')}
             </select>
             <div id="admin-reg-form-container"><p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p></div>
           `}
@@ -4232,21 +4243,28 @@
       const midPercent = classSubjectRecord?.mid_percent || 0;
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
+      // ถ้านักเรียนกำหนด KPAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
+      const existingReg = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const kVal = existingReg?.k_percent ?? '';
+      const pVal = existingReg?.p_percent ?? '';
+      const aVal = existingReg?.a_percent ?? '';
+      const cVal = existingReg?.c_percent ?? '';
       container.innerHTML = `
         <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
+          ${existingReg ? '<p class="text-xs text-green-700 font-semibold mb-2">✅ วิชานี้กำหนด KPAC ไว้แล้ว — ตัวเลขเดิมแสดงอยู่ด้านล่าง แก้ไขแล้วกดบันทึกเพื่อกำหนดใหม่</p>' : ''}
           <p class="text-xs text-gray-600 mb-3">M ${midPercent}% | F ${finalPercent}% | เหลือสำหรับ K+P+A+C: <strong>${kpacPercent}%</strong></p>
           <div class="grid grid-cols-4 gap-2 mb-3">
-            <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="admin-reg-k" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="admin-reg-p" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="admin-reg-a" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="admin-reg-c" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="admin-reg-k" min="0" max="100" step="0.1" value="${kVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="admin-reg-p" min="0" max="100" step="0.1" value="${pVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="admin-reg-a" min="0" max="100" step="0.1" value="${aVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="admin-reg-c" min="0" max="100" step="0.1" value="${cVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
           </div>
-          <p class="text-sm text-gray-700 mb-2">รวม: <span id="admin-reg-kpac-total" class="font-bold">0</span>% (ต้อง ≤ ${kpacPercent}%)</p>
+          <p class="text-sm text-gray-700 mb-2">รวม: <span id="admin-reg-kpac-total" class="font-bold">${((existingReg?.k_percent||0)+(existingReg?.p_percent||0)+(existingReg?.a_percent||0)+(existingReg?.c_percent||0)).toFixed(1)}</span>% (ต้อง ≤ ${kpacPercent}%)</p>
           <p id="admin-reg-warning" class="text-xs text-red-600 font-semibold hidden mb-2">❌ เกินขีดจำกัด!</p>
           <p id="admin-reg-error" class="text-xs text-red-600 hidden mb-2"></p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
-            <button onclick="confirmAdminRegisterStudent('${studentBackendId}', '${subjectName}', ${kpacPercent})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ ลงทะเบียน</button>
+            <button onclick="confirmAdminRegisterStudent('${studentBackendId}', '${subjectName}', ${kpacPercent})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">${existingReg ? '✅ บันทึกค่าใหม่' : '✅ ลงทะเบียน'}</button>
           </div>
         </div>
       `;
@@ -4273,23 +4291,21 @@
         errorEl.classList.remove('hidden');
         return;
       }
-      const alreadyRegistered = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
-      if (alreadyRegistered) {
-        errorEl.textContent = '❌ นักเรียนคนนี้ลงทะเบียนวิชานี้แล้ว';
-        errorEl.classList.remove('hidden');
-        return;
-      }
       errorEl.classList.add('hidden');
-      // หมายเหตุ: แอดมินลงทะเบียนแทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
-      const result = await window.dataSdk.create({
-        type: 'student_registration', student_id: student.student_id, class_name: student.class_name,
-        room_number: student.room_number, subject_name: subjectName,
-        class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
-        k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
-      });
+      const existingReg = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KPAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
+      // ถ้ามีการลงทะเบียนวิชานี้อยู่แล้ว ให้แก้ไขค่าเดิม (อัปเดต) แทนการสร้างใหม่ซ้ำ
+      const result = existingReg
+        ? await window.dataSdk.update({ ...existingReg, k_percent: k, p_percent: p, a_percent: a, c_percent: c })
+        : await window.dataSdk.create({
+            type: 'student_registration', student_id: student.student_id, class_name: student.class_name,
+            room_number: student.room_number, subject_name: subjectName,
+            class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
+            k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+          });
       if (result.isOk) {
         document.querySelector('.fixed')?.remove();
-        showToast('✅ ลงทะเบียนให้นักเรียนสำเร็จ');
+        showToast(existingReg ? '✅ บันทึกค่า KPAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
       }
