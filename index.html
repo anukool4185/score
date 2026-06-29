@@ -3555,7 +3555,10 @@
         container.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนลงทะเบียน' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
         return;
       }
-      container.innerHTML = students.map(s => `
+      container.innerHTML = students.map(s => {
+        const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
+        const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
+        return `
         <tr class="hover:bg-gray-50">
           <td class="px-2 py-2 text-center whitespace-nowrap"><input type="checkbox" class="student-select-checkbox w-4 h-4" data-id="${s.__backendId}" onchange="updateBulkDeleteButton()"></td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
@@ -3567,11 +3570,12 @@
             <div class="flex gap-1 justify-center">
               <button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
               <button onclick="deleteStudent('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
-              <button onclick="adminRegisterStudentPopup('${s.__backendId}')" title="ลงทะเบียนวิชาให้นักเรียน (ไม่ติดเงื่อนไขวันที่)" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียน</button>
+              <button onclick="adminRegisterStudentPopup('${s.__backendId}')" title="ลงทะเบียนวิชาให้นักเรียน (ไม่ติดเงื่อนไขวันที่)" class="px-2 py-1 ${regBtnColorClass} text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียน</button>
             </div>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
       updateBulkDeleteButton();
     }
     function toggleSelectAllStudents(sourceCheckbox) {
@@ -4209,7 +4213,8 @@
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
       editDiv.innerHTML = `
-        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-xl font-bold text-gray-800 mb-2">📚 ลงทะเบียนวิชาให้นักเรียน</h3>
           <p class="text-gray-600 mb-1 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${student.class_name}/${student.room_number}</p>
           <p class="text-xs text-orange-600 mb-4">⚠️ การลงทะเบียนนี้ไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน</p>
@@ -4219,11 +4224,7 @@
           ` : `
             <select id="admin-reg-subject-select" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-4">
               <option value="">-- เลือกวิชา --</option>
-              ${availableSubjects.map(subj => {
-                const isRegistered = registeredSubjectNames.has(subj.subject_name);
-                const style = isRegistered ? 'background-color:#dcfce7;color:#166534;' : 'background-color:#fee2e2;color:#991b1b;';
-                return `<option value="${subj.subject_name}" style="${style}">${subj.subject_name}${isRegistered ? ' ✅ กำหนด KPAC แล้ว' : ' ❌ ยังไม่กำหนด'}</option>`;
-              }).join('')}
+              ${availableSubjects.map(subj => `<option value="${subj.subject_name}">${subj.subject_name}${registeredSubjectNames.has(subj.subject_name) ? ' (ลงทะเบียนแล้ว)' : ''}</option>`).join('')}
             </select>
             <div id="admin-reg-form-container"><p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p></div>
           `}
