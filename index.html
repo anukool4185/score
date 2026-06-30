@@ -134,7 +134,7 @@
           <p class="text-lg font-bold text-blue-600 whitespace-nowrap"><span id="marquee-progress-current">0</span>/<span id="marquee-progress-total">0</span></p>
           <p class="text-[10px] text-gray-500">คน</p>
           <button onclick="toggleTodayHomeworkMarquee()" class="mt-2 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] whitespace-nowrap">📝 การบ้านวันนี้ (<span id="today-homework-count">0</span>)</button>
-          <button onclick="toggleApprovedRequestsMarquee()" class="mt-1 px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] whitespace-nowrap">✅ สถานะอนุมัติคำขอ (<span id="approved-requests-count">0</span>)</button>
+          <button onclick="toggleApprovedRequestsMarquee()" class="mt-3 px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] whitespace-nowrap">✅ สถานะอนุมัติคำขอ (<span id="approved-requests-count">0</span>)</button>
          </div>
         </div>
         <div id="today-homework-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
@@ -559,9 +559,7 @@
           <span class="ml-3">จำนวนแถวที่เห็น: <span id="hw-marquee-rows-display" class="font-bold">3</span></span>
           <button onclick="adjustHwMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustHwMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-         </div>
-         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap mt-2">
-          <span>หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="hw-marquee-delay-display" class="font-bold">3</span>s</span>
+          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="hw-marquee-delay-display" class="font-bold">3</span>s</span>
           <button onclick="adjustHwMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustHwMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
          </div>
@@ -700,9 +698,7 @@
            <span class="ml-3">จำนวนแถวที่เห็น: <span id="approved-marquee-rows-display" class="font-bold">3</span></span>
            <button onclick="adjustApprovedMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
            <button onclick="adjustApprovedMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          </div>
-          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap mt-2">
-           <span>หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="approved-marquee-delay-display" class="font-bold">3</span>s</span>
+           <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="approved-marquee-delay-display" class="font-bold">3</span>s</span>
            <button onclick="adjustApprovedMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
            <button onclick="adjustApprovedMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
           </div>
@@ -1838,7 +1834,7 @@
                   <p class="text-xs text-sky-600">ขอโดย: ${req.requested_by_subadmin}</p>
                   ${isAdminLoggedIn ? `
                     <div class="flex gap-2 mt-1">
-                      <button onclick="approveRegistrationRequest('${req.__backendId}')" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">✅ อนุญาต (เฉพาะวันนี้)</button>
+                      <button onclick="approveRegistrationRequest('${req.__backendId}')" class="px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">✅ อนุญาต</button>
                       <button onclick="dismissRegistrationRequest('${req.__backendId}')" class="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded text-xs">✕ ปิดคำขอ</button>
                     </div>
                   ` : ''}
@@ -2961,13 +2957,11 @@
             <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">${marqueeRows}</span></span>
             <button onclick="adjustMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
             <button onclick="adjustMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          </div>
-          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap mt-2">
-            <span>หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="marquee-delay-display" class="font-bold">${marqueePauseDelaySec}</span>s</span>
+            <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="marquee-delay-display" class="font-bold">${marqueePauseDelaySec}</span>s</span>
             <button onclick="adjustMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
             <button onclick="adjustMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-            <span class="text-xs text-gray-500">(หน่วงแค่ตอนเข้าหน้าใหม่/กลับมาที่หน้าเว็บ ไม่หยุดซ้ำทุกรอบที่วน)</span>
           </div>
+          <p class="text-xs text-gray-500 mt-1">(หน่วงแค่ตอนเข้าหน้าใหม่/กลับมาที่หน้าเว็บ ไม่หยุดซ้ำทุกรอบที่วน)</p>
         </div>
       ` : '';
       container.innerHTML = `
