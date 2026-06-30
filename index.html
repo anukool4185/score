@@ -579,10 +579,10 @@
           </div>
           <p class="text-xs text-gray-500 mb-2">📌 ขอบเขตที่รับผิดชอบ (สำหรับจัดการการบ้าน)</p>
           <div class="grid md:grid-cols-3 gap-4 mb-4">
-            <select id="new-admin-class" onchange="updateNewAdminScopeOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+            <select id="new-admin-class" onchange="updateNewAdminRoomOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
               <option value="">-- เลือกชั้น --</option>
             </select>
-            <select id="new-admin-room" onchange="updateNewAdminScopeOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+            <select id="new-admin-room" onchange="updateNewAdminSubjectOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
               <option value="">-- เลือกห้อง --</option>
             </select>
             <select id="new-admin-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
@@ -2873,17 +2873,25 @@
       if (!classSelect) return;
       const classes = [...new Set(getAllClassRoomSubjectCombos().map(c => c.class_name).filter(Boolean))].sort();
       classSelect.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
-      updateNewAdminScopeOptions();
+      updateNewAdminRoomOptions();
     }
-    function updateNewAdminScopeOptions() {
+    function updateNewAdminRoomOptions() {
+      const className = document.getElementById('new-admin-class')?.value || '';
+      const roomSelect = document.getElementById('new-admin-room');
+      if (!roomSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      updateNewAdminSubjectOptions();
+    }
+    function updateNewAdminSubjectOptions() {
       const className = document.getElementById('new-admin-class')?.value || '';
       const roomSelect = document.getElementById('new-admin-room');
       const subjectSelect = document.getElementById('new-admin-subject');
       if (!roomSelect || !subjectSelect) return;
       let combos = getAllClassRoomSubjectCombos();
       if (className) combos = combos.filter(c => c.class_name === className);
-      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
-      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
       const roomNumber = roomSelect.value;
       let subjectCombos = combos;
       if (roomNumber) subjectCombos = subjectCombos.filter(c => c.room_number === roomNumber);
@@ -4266,13 +4274,13 @@
             <p class="text-xs text-gray-500">📌 ขอบเขตที่รับผิดชอบ</p>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้น</label>
-              <select id="edit-admin-class" onchange="updateEditAdminScopeOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-admin-class" onchange="updateEditAdminRoomOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
                 <option value="">-- เลือกชั้น --</option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้อง</label>
-              <select id="edit-admin-room" onchange="updateEditAdminScopeOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-admin-room" onchange="updateEditAdminSubjectOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
                 <option value="">-- เลือกห้อง --</option>
               </select>
             </div>
@@ -4319,17 +4327,25 @@
       if (!classSelect) return;
       const classes = [...new Set(getAllClassRoomSubjectCombos().map(c => c.class_name).filter(Boolean))].sort();
       classSelect.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`).join('');
-      updateEditAdminScopeOptions(currentRoom, currentSubject);
+      updateEditAdminRoomOptions(currentRoom, currentSubject);
     }
-    function updateEditAdminScopeOptions(currentRoom, currentSubject) {
+    function updateEditAdminRoomOptions(currentRoom, currentSubject) {
+      const className = document.getElementById('edit-admin-class')?.value || '';
+      const roomSelect = document.getElementById('edit-admin-room');
+      if (!roomSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}" ${r === currentRoom ? 'selected' : ''}>${r}</option>`).join('');
+      updateEditAdminSubjectOptions(currentSubject);
+    }
+    function updateEditAdminSubjectOptions(currentSubject) {
       const className = document.getElementById('edit-admin-class')?.value || '';
       const roomSelect = document.getElementById('edit-admin-room');
       const subjectSelect = document.getElementById('edit-admin-subject');
       if (!roomSelect || !subjectSelect) return;
       let combos = getAllClassRoomSubjectCombos();
       if (className) combos = combos.filter(c => c.class_name === className);
-      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
-      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}" ${r === currentRoom ? 'selected' : ''}>${r}</option>`).join('');
       const roomNumber = roomSelect.value;
       let subjectCombos = combos;
       if (roomNumber) subjectCombos = subjectCombos.filter(c => c.room_number === roomNumber);
