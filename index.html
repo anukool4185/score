@@ -133,8 +133,10 @@
           <p class="text-[10px] text-gray-500 whitespace-nowrap">เลื่อนไปแล้ว</p>
           <p class="text-lg font-bold text-blue-600 whitespace-nowrap"><span id="marquee-progress-current">0</span>/<span id="marquee-progress-total">0</span></p>
           <p class="text-[10px] text-gray-500">คน</p>
-          <button onclick="toggleTodayHomeworkMarquee()" class="mt-2 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] whitespace-nowrap">📝 การบ้านวันนี้ (<span id="today-homework-count">0</span>)</button>
-          <button onclick="toggleApprovedRequestsMarquee()" class="mt-4 px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] whitespace-nowrap">✅ สถานะอนุมัติคำขอ (<span id="approved-requests-count">0</span>)</button>
+          <div class="flex flex-col w-full gap-1 mt-2">
+           <button onclick="toggleTodayHomeworkMarquee()" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] whitespace-nowrap">📝 การบ้านวันนี้ (<span id="today-homework-count">0</span>)</button>
+           <button onclick="toggleApprovedRequestsMarquee()" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[10px] whitespace-nowrap">✅ สถานะอนุมัติคำขอ (<span id="approved-requests-count">0</span>)</button>
+          </div>
          </div>
         </div>
         <div id="today-homework-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
@@ -2786,6 +2788,11 @@
         </div>
       `;
       const listHtml = todayHomework.map(rowHtml).join('');
+      // เลื่อนเฉพาะตอนรายการมีมากกว่าจำนวนแถวที่แสดงเท่านั้น ถ้ามีน้อยกว่าหรือเท่ากับจำนวนแถว ไม่ต้องวนซ้ำ (กันไม่ให้เห็นรายการซ้ำเป็น 2 ชุดทั้งที่มีแค่ชุดเดียว)
+      if (todayHomework.length <= hwMarqueeRows) {
+        trackContainer.innerHTML = `<div>${listHtml}</div>`;
+        return;
+      }
       const totalSec = applyGenericMarqueeKeyframes('hw-marquee-scroll', getHwMarqueeDurationSec(), hwMarqueePauseDelaySec);
       trackContainer.innerHTML = `<div class="marquee-track" style="animation: hw-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
@@ -2827,6 +2834,11 @@
         </div>
       `;
       const listHtml = approved.map(rowHtml).join('');
+      // เลื่อนเฉพาะตอนรายการมีมากกว่าจำนวนแถวที่แสดงเท่านั้น ถ้ามีน้อยกว่าหรือเท่ากับจำนวนแถว ไม่ต้องวนซ้ำ (กันไม่ให้เห็นรายการซ้ำเป็น 2 ชุดทั้งที่มีแค่ชุดเดียว)
+      if (approved.length <= approvedMarqueeRows) {
+        trackContainer.innerHTML = `<div>${listHtml}</div>`;
+        return;
+      }
       const totalSec = applyGenericMarqueeKeyframes('approved-marquee-scroll', getApprovedMarqueeDurationSec(), approvedMarqueePauseDelaySec);
       trackContainer.innerHTML = `<div class="marquee-track" style="animation: approved-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
