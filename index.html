@@ -325,7 +325,7 @@
     <div id="page-student-management" class="page p-4 md:p-8 overflow-auto flex-1 flex flex-col hidden">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="student-tabs" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
-       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
+       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('homework')" id="tab-homework-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 การบ้าน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
       </div>
       <div id="student-content" class="flex-1 overflow-auto"></div>
      </div>
@@ -335,10 +335,15 @@
       <div id="director-content" class="flex-1 overflow-auto"></div>
      </div>
     </div>
+    <div id="page-subadmin" class="page p-4 md:p-8 overflow-auto flex-1 flex flex-col hidden">
+     <div class="max-w-5xl mx-auto w-full flex flex-col h-full">
+      <div id="subadmin-content" class="flex-1 overflow-auto"></div>
+     </div>
+    </div>
     <div id="page-admin" class="page h-full overflow-auto flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
-      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
+      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -496,6 +501,56 @@
         <p id="timekeeping-empty-message" class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>
        </div>
       </div>
+      <div id="admin-tab-homework" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">📝 จัดการการบ้าน</h3>
+        <div class="flex items-center gap-3 flex-wrap mb-4">
+         <select id="hw-filter-class" onchange="updateHomeworkSubjectFilter(); updateHomeworkTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">ทุกชั้น</option>
+         </select>
+         <select id="hw-filter-room" onchange="updateHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">ทุกห้อง</option>
+         </select>
+         <select id="hw-filter-subject" onchange="updateHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="">ทุกวิชา</option>
+         </select>
+         <input type="date" id="hw-filter-date" onchange="updateHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <button onclick="document.getElementById('hw-filter-date').value=''; updateHomeworkTable();" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้างวันที่</button>
+         <button onclick="addHomeworkPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium whitespace-nowrap">➕ เพิ่มการบ้าน</button>
+         <button onclick="sendTaskMessagePopup()" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium whitespace-nowrap">📨 ส่งข้อความไปผู้ช่วยแอดมิน</button>
+        </div>
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap bg-gray-50 rounded-lg p-3">
+         <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+          <input type="checkbox" id="hw-select-all" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"> เลือกทั้งหมด
+         </label>
+         <div class="flex gap-2">
+          <button id="hw-bulk-delete-btn" onclick="bulkDeleteHomework()" disabled class="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-medium cursor-not-allowed">🗑️ ลบที่เลือก (0)</button>
+          <button onclick="deleteAllHomeworkFiltered()" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg text-sm font-medium">🗑️ ลบทั้งหมด (ตามตัวกรอง)</button>
+         </div>
+        </div>
+        <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+         <table class="w-full text-sm">
+          <thead class="bg-gray-100">
+           <tr>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700"><input type="checkbox" id="hw-select-all-th" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"></th>
+            <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
+            <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">งานครั้งที่</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">วันที่เรียน</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">กำหนดส่ง</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จำนวนข้อ</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รูปภาพ</th>
+            <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>
+           </tr>
+          </thead>
+          <tbody id="hw-table-body" class="divide-y divide-gray-200"></tbody>
+         </table>
+        </div>
+        <hr class="my-6">
+        <h4 class="text-lg font-bold text-gray-800 mb-3">📨 ข้อความที่ส่งไปผู้ช่วยแอดมิน</h4>
+        <div id="hw-task-message-list" class="space-y-2"></div>
+       </div>
+      </div>
       <div id="admin-tab-grading" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">🎓 บันทึกคะแนน</h3>
@@ -521,6 +576,12 @@
          <div class="mb-6 pb-6 border-b-2 border-gray-200">
           <h4 class="text-lg font-semibold text-gray-800 mb-4">➕ เพิ่มผู้ช่วยแอดมินใหม่</h4>
           <div class="grid md:grid-cols-2 gap-4 mb-4"><input type="text" id="new-admin-username" placeholder="👤 Username" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <input type="password" id="new-admin-password" placeholder="🔐 Password" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+          </div>
+          <p class="text-xs text-gray-500 mb-2">📌 ขอบเขตที่รับผิดชอบ (สำหรับจัดการการบ้าน)</p>
+          <div class="grid md:grid-cols-3 gap-4 mb-4">
+            <input type="text" id="new-admin-class" placeholder="🏫 ชั้น เช่น ม.4" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+            <input type="text" id="new-admin-room" placeholder="🏠 ห้อง เช่น 1" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+            <input type="text" id="new-admin-subject" placeholder="📖 วิชา เช่น คณิตศาสตร์" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
           </div>
           <p id="add-admin-error" class="text-red-500 text-sm mb-4 hidden"></p><button onclick="addNewAdmin()" class="w-full btn-primary text-white px-4 py-3 rounded-xl font-medium">➕ เพิ่มแอดมิน</button>
          </div>
@@ -978,6 +1039,13 @@
         if (timekeepingContainer && !document.getElementById('admin-tab-timekeeping')?.classList.contains('hidden')) {
           refreshTimekeepingNameListOnly();
         }
+        // อัปเดตสถานะข้อความสั่งงาน (ดำเนินการแล้ว/รอดำเนินการ) แบบสด ถ้ากำลังเปิดแท็บที่เกี่ยวข้องอยู่
+        if (document.getElementById('hw-task-message-list') && !document.getElementById('admin-tab-homework')?.classList.contains('hidden')) {
+          updateTaskMessageList();
+        }
+        if (currentUser?.user_type === 'subadmin' && document.getElementById('subadmin-task-messages') && !document.getElementById('page-subadmin')?.classList.contains('hidden')) {
+          renderSubAdminTaskMessages();
+        }
         // ถ้าหน้าประเมินครูผู้สอน (แบบไม่ login) เปิดอยู่ ให้รีเฟรชเนื้อหาด้วย
         // กันปัญหา: ถ้าคนกดปุ่มเร็วก่อนข้อมูลโหลดเสร็จ หน้าจะค้างที่ข้อความ "ยังไม่ได้ตั้งค่า" ตลอดไป
         const publicEvalPage = document.getElementById('page-public-evaluation');
@@ -1083,7 +1151,11 @@
           currentUser = JSON.parse(savedUser);
           console.log('📌 พบ user ที่บันทึกไว้:', currentUser.username);
           showLoggedInUI();
-          goToHomePage();
+          if (currentUser.user_type === 'subadmin') {
+            goToSubAdminPage();
+          } else {
+            goToHomePage();
+          }
         } catch (e) {
           console.error('❌ ไม่สามารถอ่าน user ที่บันทึกไว้:', e);
           localStorage.removeItem('currentUser');
@@ -1205,7 +1277,7 @@
       if (adminRecord) {
         console.log('✅ Found admin record:', username);
         currentUser = { 
-          user_type: 'admin',
+          user_type: 'subadmin',
           username: username,
           __backendId: adminRecord.__backendId,
           is_main_admin: false
@@ -1216,8 +1288,8 @@
         document.getElementById('page-register').classList.add('hidden');
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
-        showAdminPanel();
-        showToast('เข้าสู่ระบบแอดมินสำเร็จ ✅');
+        goToSubAdminPage();
+        showToast('เข้าสู่ระบบผู้ช่วยแอดมินสำเร็จ ✅');
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
         return;
@@ -1631,8 +1703,9 @@
       console.log('📌 UI switched - showing app-main');
       
       const isAdmin = currentUser && currentUser.user_type === 'admin';
+      const isSubAdmin = currentUser && currentUser.user_type === 'subadmin';
       const isDirector = currentUser && currentUser.user_type === 'director';
-      console.log('🔍 isAdmin:', isAdmin, 'isDirector:', isDirector, 'user_type:', currentUser?.user_type, 'username:', currentUser?.username);
+      console.log('🔍 isAdmin:', isAdmin, 'isSubAdmin:', isSubAdmin, 'isDirector:', isDirector, 'user_type:', currentUser?.user_type, 'username:', currentUser?.username);
       
       // แสดงปุ่มแอดมิน
       const adminBtn = document.getElementById('admin-nav-btn');
@@ -1669,6 +1742,8 @@
         document.getElementById('user-display').textContent = `กรรมการนิเทศ: ${currentUser.username}`;
       } else if (isAdmin) {
         document.getElementById('user-display').textContent = `Admin: ${currentUser.username}`;
+      } else if (isSubAdmin) {
+        document.getElementById('user-display').textContent = `ผู้ช่วยแอดมิน: ${currentUser.username}`;
       }
       document.getElementById('user-display').classList.remove('hidden');
 
@@ -1703,6 +1778,197 @@
       if (!currentUser || currentUser.user_type !== 'director') return;
       showPage('director-management');
       showDirectorMainPage();
+    }
+    function getSubAdminScope() {
+      const record = allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
+      return {
+        className: record?.scope_class_name || '',
+        roomNumber: record?.scope_room_number || '',
+        subjectName: record?.scope_subject_name || ''
+      };
+    }
+    function goToSubAdminPage() {
+      if (!currentUser || currentUser.user_type !== 'subadmin') return;
+      showPage('subadmin');
+      renderSubAdminPage();
+    }
+    function renderSubAdminPage() {
+      const content = document.getElementById('subadmin-content');
+      if (!content) return;
+      const scope = getSubAdminScope();
+      const hasScope = scope.className && scope.roomNumber && scope.subjectName;
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 จัดการการบ้าน (ผู้ช่วยแอดมิน)</h2>
+          ${hasScope
+            ? `<p class="text-sm text-gray-500 mb-6">ขอบเขตที่รับผิดชอบ: <strong>${scope.className} / ${scope.roomNumber} / ${scope.subjectName}</strong></p>`
+            : `<p class="text-sm text-red-500 mb-6">⚠️ บัญชีนี้ยังไม่ได้ระบุขอบเขตชั้น/ห้อง/วิชา กรุณาติดต่อแอดมิน</p>`
+          }
+          <div id="subadmin-task-messages" class="mb-8"></div>
+          ${hasScope ? `
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h3 class="text-lg font-bold text-gray-800">📋 รายการการบ้าน</h3>
+              <button onclick="addHomeworkScopedPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มการบ้าน</button>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap mb-4">
+              <input type="date" id="subadmin-hw-filter-date" onchange="loadSubAdminHomeworkSection()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <button onclick="document.getElementById('subadmin-hw-filter-date').value=''; loadSubAdminHomeworkSection();" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้างวันที่</button>
+            </div>
+            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap bg-gray-50 rounded-lg p-3">
+              <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+                <input type="checkbox" id="subadmin-hw-select-all" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"> เลือกทั้งหมด
+              </label>
+              <div class="flex gap-2">
+                <button id="hw-bulk-delete-btn" onclick="bulkDeleteHomework()" disabled class="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-medium cursor-not-allowed">🗑️ ลบที่เลือก (0)</button>
+                <button onclick="deleteAllHomeworkFiltered()" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg text-sm font-medium">🗑️ ลบทั้งหมด (ตามตัวกรอง)</button>
+              </div>
+            </div>
+            <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700"><input type="checkbox" id="subadmin-hw-select-all-th" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"></th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">งานครั้งที่</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">วันที่เรียน</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">กำหนดส่ง</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จำนวนข้อ</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รูปภาพ</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="hw-table-body"></tbody>
+              </table>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      // ใช้ id ร่วมกับฝั่งแอดมิน (hw-select-all, hw-bulk-delete-btn) แต่ผูก checkbox เพิ่มให้ id ฝั่งนี้ด้วย เพื่อให้ toggleSelectAllHomework / updateHwBulkDeleteButton ทำงานถูกต้อง
+      const subAdminSelectAll = document.getElementById('subadmin-hw-select-all');
+      if (subAdminSelectAll) subAdminSelectAll.id = 'hw-select-all';
+      const subAdminSelectAllTh = document.getElementById('subadmin-hw-select-all-th');
+      if (subAdminSelectAllTh) subAdminSelectAllTh.id = 'hw-select-all-th';
+      renderSubAdminTaskMessages();
+      if (hasScope) loadSubAdminHomeworkSection();
+    }
+    function loadSubAdminHomeworkSection() {
+      const scope = getSubAdminScope();
+      const dateFilter = document.getElementById('subadmin-hw-filter-date')?.value || '';
+      const tbody = document.getElementById('hw-table-body');
+      if (!tbody) return;
+      const list = getFilteredHomeworkList({ className: scope.className, roomNumber: scope.roomNumber, subjectName: scope.subjectName, dateFilter });
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-8">ไม่มีการบ้าน</td></tr>';
+        updateHwBulkDeleteButton();
+        return;
+      }
+      tbody.innerHTML = list.map(hw => {
+        const images = (hw.image_urls || '').split(',').filter(u => u.trim());
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-2 py-2 text-center whitespace-nowrap"><input type="checkbox" class="hw-select-checkbox w-4 h-4" data-id="${hw.__backendId}" onchange="updateHwBulkDeleteButton()"></td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.work_number || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.study_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.due_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.num_questions || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${images.length > 0 ? `🖼️ ${images.length} รูป` : '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">
+              <div class="flex gap-1 justify-center">
+                <button onclick="editHomeworkPopup('${hw.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
+                <button onclick="deleteHomeworkSingle('${hw.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      updateHwBulkDeleteButton();
+    }
+    function addHomeworkScopedPopup() {
+      const scope = getSubAdminScope();
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">➕ เพิ่มการบ้าน</h3>
+          <p class="text-sm text-gray-500 mb-4">${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
+          ${homeworkFormFieldsHtml({ class_name: scope.className }, null)}
+          <p id="hw-form-error" class="text-red-500 text-sm mb-3 hidden"></p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmAddHomeworkScoped()" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ เพิ่ม</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+      // ล็อกค่าชั้น/ห้อง/วิชาให้ตรงกับขอบเขตของผู้ช่วยแอดมินเสมอ (input ที่ disabled ไว้ใน homeworkFormFieldsHtml)
+      document.getElementById('hw-form-room').innerHTML = `<option value="${scope.roomNumber}">${scope.roomNumber}</option>`;
+      document.getElementById('hw-form-subject').innerHTML = `<option value="${scope.subjectName}">${scope.subjectName}</option>`;
+    }
+    async function confirmAddHomeworkScoped() {
+      const scope = getSubAdminScope();
+      const workNumber = document.getElementById('hw-form-worknum').value.trim();
+      const numQuestions = document.getElementById('hw-form-numq').value.trim();
+      const studyDate = document.getElementById('hw-form-studydate').value;
+      const dueDate = document.getElementById('hw-form-duedate').value;
+      const errorEl = document.getElementById('hw-form-error');
+      if (!workNumber || !studyDate || !dueDate) {
+        errorEl.textContent = '❌ กรุณากรอกข้อมูลให้ครบ';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      const result = await window.dataSdk.create({
+        type: 'homework', class_name: scope.className, room_number: scope.roomNumber, subject_name: scope.subjectName,
+        work_number: workNumber, num_questions: numQuestions, study_date: studyDate, due_date: dueDate,
+        image_urls: readHwFormImages(), created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('✅ เพิ่มการบ้านสำเร็จ');
+        loadSubAdminHomeworkSection();
+      } else {
+        showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
+      }
+    }
+    function renderSubAdminTaskMessages() {
+      const container = document.getElementById('subadmin-task-messages');
+      if (!container) return;
+      const messages = allData.filter(d => d.type === 'task_message' && d.to_subadmin_id === currentUser.__backendId)
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      if (messages.length === 0) {
+        container.innerHTML = `
+          <h3 class="text-lg font-bold text-gray-800 mb-3">📨 ข้อความจากแอดมิน</h3>
+          <p class="text-gray-400 text-sm py-3">ยังไม่มีข้อความ</p>
+        `;
+        return;
+      }
+      container.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-3">📨 ข้อความจากแอดมิน</h3>
+        <div class="space-y-2">
+          ${messages.map(msg => {
+            const isDone = msg.status === 'done';
+            return `
+              <div class="border-2 ${isDone ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} rounded-lg p-3">
+                <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
+                  <span class="text-xs font-bold ${isDone ? 'text-green-700' : 'text-red-700'}">${isDone ? '✅ ดำเนินการแล้ว' : '🔴 รอดำเนินการ'}</span>
+                  ${!isDone ? `<button onclick="confirmTaskMessageDone('${msg.__backendId}')" class="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs">✓ ยืนยันดำเนินการแล้ว</button>` : ''}
+                </div>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">${msg.message}</p>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+    async function confirmTaskMessageDone(msgId) {
+      const msg = allData.find(d => d.__backendId === msgId);
+      if (!msg) return;
+      const result = await window.dataSdk.update({ ...msg, status: 'done' });
+      if (result.isOk) {
+        showToast('✅ ยืนยันดำเนินการแล้ว');
+        renderSubAdminTaskMessages();
+      } else {
+        showToast('ไม่สามารถอัปเดตได้', 'error');
+      }
     }
     // ============================================================
     // 📢 ระบบประชาสัมพันธ์ (Announcements) — หน้าแรกเว็บ / หน้าหลักนักเรียน / หน้าหลักผู้นิเทศ
@@ -2108,6 +2374,7 @@
       document.getElementById('page-home').classList.add('hidden');
       document.getElementById('page-student-management').classList.add('hidden');
       document.getElementById('page-director-management').classList.add('hidden');
+      document.getElementById('page-subadmin').classList.add('hidden');
       document.getElementById('page-admin').classList.add('hidden');
       
       // ลบข้อมูล user หลังจากซ่อน UI
@@ -2168,7 +2435,7 @@
       showAdminTab('import');
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'grading', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -2329,6 +2596,414 @@
       } else {
         showToast('ไม่สามารถบันทึกได้', 'error');
       }
+    }
+    // ============================================================
+    // 📝 ระบบจัดการการบ้าน (Homework) — แอดมิน + ผู้ช่วยแอดมิน + นักเรียน
+    // ============================================================
+    function getAllClassRoomSubjectCombos() {
+      // ดึงชุดชั้น/ห้อง/วิชา ที่มีอยู่จริงในระบบ (จาก class_subject) มาให้เลือกกรอง/เพิ่มการบ้าน
+      return allData.filter(d => d.type === 'class_subject');
+    }
+    function loadHomeworkTab() {
+      const classes = [...new Set(getAllClassRoomSubjectCombos().map(d => d.class_name).filter(Boolean))].sort();
+      const classSelect = document.getElementById('hw-filter-class');
+      if (classSelect) classSelect.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      updateHomeworkSubjectFilter();
+      updateHomeworkTable();
+      updateTaskMessageList();
+    }
+    function updateHomeworkSubjectFilter() {
+      const className = document.getElementById('hw-filter-class')?.value || '';
+      const roomSelect = document.getElementById('hw-filter-room');
+      const subjectSelect = document.getElementById('hw-filter-subject');
+      if (!roomSelect || !subjectSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(combos.map(c => c.subject_name).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjectSelect.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    function getFilteredHomeworkList(scope) {
+      // scope (ถ้ามี) ใช้สำหรับผู้ช่วยแอดมิน: { className, roomNumber, subjectName } บังคับกรองตามขอบเขตเสมอ
+      let list = allData.filter(d => d.type === 'homework');
+      const className = scope?.className ?? document.getElementById('hw-filter-class')?.value;
+      const roomNumber = scope?.roomNumber ?? document.getElementById('hw-filter-room')?.value;
+      const subjectName = scope?.subjectName ?? document.getElementById('hw-filter-subject')?.value;
+      const dateFilter = scope?.dateFilter ?? document.getElementById('hw-filter-date')?.value;
+      if (className) list = list.filter(h => h.class_name === className);
+      if (roomNumber) list = list.filter(h => h.room_number === roomNumber);
+      if (subjectName) list = list.filter(h => h.subject_name === subjectName);
+      if (dateFilter) list = list.filter(h => h.study_date === dateFilter || h.due_date === dateFilter);
+      return list.sort((a, b) => new Date(b.study_date || 0) - new Date(a.study_date || 0));
+    }
+    function updateHomeworkTable() {
+      const tbody = document.getElementById('hw-table-body');
+      if (!tbody) return;
+      const list = getFilteredHomeworkList();
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-gray-400 py-8">ไม่มีการบ้าน</td></tr>';
+        updateHwBulkDeleteButton();
+        return;
+      }
+      tbody.innerHTML = list.map(hw => {
+        const images = (hw.image_urls || '').split(',').filter(u => u.trim());
+        return `
+          <tr class="hover:bg-gray-50">
+            <td class="px-2 py-2 text-center whitespace-nowrap"><input type="checkbox" class="hw-select-checkbox w-4 h-4" data-id="${hw.__backendId}" onchange="updateHwBulkDeleteButton()"></td>
+            <td class="px-2 py-2 whitespace-nowrap">${hw.class_name}/${hw.room_number}</td>
+            <td class="px-2 py-2 whitespace-nowrap">${hw.subject_name}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.work_number || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.study_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.due_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.num_questions || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${images.length > 0 ? `🖼️ ${images.length} รูป` : '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">
+              <div class="flex gap-1 justify-center">
+                <button onclick="editHomeworkPopup('${hw.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
+                <button onclick="deleteHomeworkSingle('${hw.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      updateHwBulkDeleteButton();
+    }
+    function toggleSelectAllHomework(sourceCheckbox) {
+      const checked = sourceCheckbox.checked;
+      document.querySelectorAll('.hw-select-checkbox').forEach(cb => cb.checked = checked);
+      updateHwBulkDeleteButton();
+    }
+    function updateHwBulkDeleteButton() {
+      const allCb = document.querySelectorAll('.hw-select-checkbox');
+      const checkedCb = document.querySelectorAll('.hw-select-checkbox:checked');
+      const btn = document.getElementById('hw-bulk-delete-btn');
+      if (btn) {
+        btn.textContent = `🗑️ ลบที่เลือก (${checkedCb.length})`;
+        if (checkedCb.length > 0) {
+          btn.disabled = false;
+          btn.classList.remove('bg-red-300', 'cursor-not-allowed');
+          btn.classList.add('bg-red-500', 'hover:bg-red-600');
+        } else {
+          btn.disabled = true;
+          btn.classList.add('bg-red-300', 'cursor-not-allowed');
+          btn.classList.remove('bg-red-500', 'hover:bg-red-600');
+        }
+      }
+      const allChecked = allCb.length > 0 && checkedCb.length === allCb.length;
+      const selAllTop = document.getElementById('hw-select-all');
+      const selAllTh = document.getElementById('hw-select-all-th');
+      if (selAllTop) selAllTop.checked = allChecked;
+      if (selAllTh) selAllTh.checked = allChecked;
+    }
+    function homeworkFormFieldsHtml(hw, classOptions) {
+      const images = hw ? (hw.image_urls || '').split(',').filter(u => u.trim()) : [];
+      return `
+        <div class="space-y-3 mb-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้นเรียน</label>
+              <select id="hw-form-class" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" ${classOptions ? '' : 'disabled'} onchange="updateHwFormSubjectOptions()">
+                ${classOptions || `<option>${hw.class_name}</option>`}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้องเรียน</label>
+              <select id="hw-form-room" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" ${classOptions ? '' : 'disabled'}></select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">📖 วิชา</label>
+            <select id="hw-form-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" ${classOptions ? '' : 'disabled'}></select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🔢 งานครั้งที่</label>
+              <input type="number" id="hw-form-worknum" min="1" value="${hw?.work_number || ''}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">❓ จำนวนข้อ</label>
+              <input type="number" id="hw-form-numq" min="1" value="${hw?.num_questions || ''}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">📅 วันที่เรียน</label>
+              <input type="date" id="hw-form-studydate" value="${hw?.study_date || ''}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">⏰ กำหนดส่ง</label>
+              <input type="date" id="hw-form-duedate" value="${hw?.due_date || ''}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">🖼️ ลิงก์รูปภาพ (ใส่ได้หลายรูป กดเพิ่มทีละบรรทัด)</label>
+            <div id="hw-image-inputs" class="space-y-2">
+              ${images.length > 0 ? images.map(url => `
+                <div class="flex gap-2"><input type="text" value="${url}" class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button></div>
+              `).join('') : `<div class="flex gap-2"><input type="text" placeholder="https://..." class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button></div>`}
+            </div>
+            <button type="button" onclick="addHwImageInputRow()" class="mt-2 px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">➕ เพิ่มช่องรูปภาพ</button>
+          </div>
+        </div>
+      `;
+    }
+    function addHwImageInputRow() {
+      const container = document.getElementById('hw-image-inputs');
+      const row = document.createElement('div');
+      row.className = 'flex gap-2';
+      row.innerHTML = `<input type="text" placeholder="https://..." class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button>`;
+      container.appendChild(row);
+    }
+    function updateHwFormSubjectOptions() {
+      const className = document.getElementById('hw-form-class')?.value;
+      const roomSelect = document.getElementById('hw-form-room');
+      const subjectSelect = document.getElementById('hw-form-subject');
+      if (!roomSelect || !subjectSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      roomSelect.innerHTML = rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      updateHwFormSubjectByRoom();
+      roomSelect.onchange = updateHwFormSubjectByRoom;
+    }
+    function updateHwFormSubjectByRoom() {
+      const className = document.getElementById('hw-form-class')?.value;
+      const roomNumber = document.getElementById('hw-form-room')?.value;
+      const subjectSelect = document.getElementById('hw-form-subject');
+      if (!subjectSelect) return;
+      let combos = getAllClassRoomSubjectCombos().filter(c => c.class_name === className && c.room_number === roomNumber);
+      const subjects = [...new Set(combos.map(c => c.subject_name).filter(Boolean))].sort();
+      subjectSelect.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    function addHomeworkPopup() {
+      const classes = [...new Set(getAllClassRoomSubjectCombos().map(c => c.class_name).filter(Boolean))].sort();
+      const classOptions = classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-xl font-bold text-gray-800 mb-4">➕ เพิ่มการบ้าน</h3>
+          ${homeworkFormFieldsHtml(null, classOptions)}
+          <p id="hw-form-error" class="text-red-500 text-sm mb-3 hidden"></p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmAddHomework()" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ เพิ่ม</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+      updateHwFormSubjectOptions();
+    }
+    function readHwFormImages() {
+      return Array.from(document.querySelectorAll('.hw-image-input')).map(i => i.value.trim()).filter(Boolean).join(',');
+    }
+    function readHwFormCommon(errorElId) {
+      const className = document.getElementById('hw-form-class').value;
+      const roomNumber = document.getElementById('hw-form-room').value;
+      const subjectName = document.getElementById('hw-form-subject').value;
+      const workNumber = document.getElementById('hw-form-worknum').value.trim();
+      const numQuestions = document.getElementById('hw-form-numq').value.trim();
+      const studyDate = document.getElementById('hw-form-studydate').value;
+      const dueDate = document.getElementById('hw-form-duedate').value;
+      const errorEl = document.getElementById(errorElId);
+      if (!className || !roomNumber || !subjectName || !workNumber || !studyDate || !dueDate) {
+        errorEl.textContent = '❌ กรุณากรอกข้อมูลให้ครบ (ชั้น/ห้อง/วิชา/งานครั้งที่/วันที่เรียน/กำหนดส่ง)';
+        errorEl.classList.remove('hidden');
+        return null;
+      }
+      errorEl.classList.add('hidden');
+      return {
+        class_name: className, room_number: roomNumber, subject_name: subjectName,
+        work_number: workNumber, num_questions: numQuestions, study_date: studyDate, due_date: dueDate,
+        image_urls: readHwFormImages()
+      };
+    }
+    async function confirmAddHomework() {
+      const data = readHwFormCommon('hw-form-error');
+      if (!data) return;
+      const result = await window.dataSdk.create({ type: 'homework', ...data, created_at: new Date().toISOString() });
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('✅ เพิ่มการบ้านสำเร็จ');
+        if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
+      } else {
+        showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
+      }
+    }
+    function editHomeworkPopup(hwId) {
+      const hw = allData.find(d => d.__backendId === hwId);
+      if (!hw) return;
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">✏️ แก้ไขการบ้าน</h3>
+          <p class="text-sm text-gray-500 mb-4">${hw.class_name}/${hw.room_number} | ${hw.subject_name}</p>
+          ${homeworkFormFieldsHtml(hw, null)}
+          <p id="hw-form-error" class="text-red-500 text-sm mb-3 hidden"></p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmEditHomework('${hwId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ บันทึก</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmEditHomework(hwId) {
+      const hw = allData.find(d => d.__backendId === hwId);
+      if (!hw) return;
+      const workNumber = document.getElementById('hw-form-worknum').value.trim();
+      const numQuestions = document.getElementById('hw-form-numq').value.trim();
+      const studyDate = document.getElementById('hw-form-studydate').value;
+      const dueDate = document.getElementById('hw-form-duedate').value;
+      const errorEl = document.getElementById('hw-form-error');
+      if (!workNumber || !studyDate || !dueDate) {
+        errorEl.textContent = '❌ กรุณากรอกข้อมูลให้ครบ';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      const result = await window.dataSdk.update({
+        ...hw, work_number: workNumber, num_questions: numQuestions,
+        study_date: studyDate, due_date: dueDate, image_urls: readHwFormImages()
+      });
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('✅ แก้ไขการบ้านสำเร็จ');
+        if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
+      } else {
+        showToast('ไม่สามารถแก้ไขได้', 'error');
+      }
+    }
+    function deleteHomeworkSingle(hwId) {
+      const confirmDiv = document.createElement('div');
+      confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      confirmDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <p class="text-lg font-semibold text-gray-800 mb-5">⚠️ ลบการบ้านนี้ใช่หรือไม่?</p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmDeleteHomeworkSingle('${hwId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmDiv);
+    }
+    async function confirmDeleteHomeworkSingle(hwId) {
+      const hw = allData.find(d => d.__backendId === hwId);
+      if (!hw) return;
+      const result = await window.dataSdk.delete(hw);
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
+      if (result.isOk) {
+        showToast('🗑️ ลบการบ้านสำเร็จ');
+        if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
+      } else {
+        showToast('ไม่สามารถลบได้', 'error');
+      }
+    }
+    function bulkDeleteHomework() {
+      const ids = Array.from(document.querySelectorAll('.hw-select-checkbox:checked')).map(cb => cb.dataset.id);
+      if (ids.length === 0) return;
+      const confirmDiv = document.createElement('div');
+      confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      confirmDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <p class="text-lg font-semibold text-gray-800 mb-5">⚠️ ลบการบ้านที่เลือกไว้ ${ids.length} รายการ ใช่หรือไม่?</p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmBulkDeleteHomework('${ids.join('|')}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmDiv);
+    }
+    async function confirmBulkDeleteHomework(idsStr) {
+      const ids = idsStr.split('|');
+      for (const id of ids) {
+        const hw = allData.find(d => d.__backendId === id);
+        if (hw) await window.dataSdk.delete(hw);
+      }
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
+      showToast(`🗑️ ลบการบ้าน ${ids.length} รายการสำเร็จ`);
+      if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
+    }
+    function deleteAllHomeworkFiltered() {
+      const list = getFilteredHomeworkList(currentUser?.user_type === 'subadmin' ? getSubAdminScope() : undefined);
+      if (list.length === 0) { showToast('ไม่มีรายการให้ลบ', 'error'); return; }
+      const confirmDiv = document.createElement('div');
+      confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      confirmDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full">
+          <p class="text-lg font-semibold text-gray-800 mb-5">⚠️ ลบการบ้านทั้งหมดที่ตรงตัวกรองตอนนี้ (${list.length} รายการ) ใช่หรือไม่?</p>
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+            <button onclick="confirmBulkDeleteHomework('${list.map(h => h.__backendId).join('|')}')" class="flex-1 px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg">🗑️ ยืนยันลบทั้งหมด</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmDiv);
+    }
+    // ----- ระบบส่งข้อความสั่งงานจากแอดมินไปผู้ช่วยแอดมิน + สถานะดำเนินการ -----
+    function sendTaskMessagePopup() {
+      const subAdmins = allData.filter(d => d.type === 'admin');
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-lg font-bold text-gray-800 mb-4">📨 ส่งข้อความไปผู้ช่วยแอดมิน</h3>
+          ${subAdmins.length === 0 ? '<p class="text-gray-400 text-sm py-4 text-center">ยังไม่มีผู้ช่วยแอดมินในระบบ</p>' : `
+            <select id="task-msg-target" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-3">
+              ${subAdmins.map(a => `<option value="${a.__backendId}">${a.username}${a.scope_class_name ? ` (${a.scope_class_name}/${a.scope_room_number}/${a.scope_subject_name})` : ''}</option>`).join('')}
+            </select>
+            <textarea id="task-msg-text" rows="4" placeholder="พิมพ์ข้อความ/คำสั่งงาน..." class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-3"></textarea>
+            <div class="flex gap-3">
+              <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
+              <button onclick="confirmSendTaskMessage()" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">📨 ส่ง</button>
+            </div>
+          `}
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmSendTaskMessage() {
+      const targetId = document.getElementById('task-msg-target').value;
+      const text = document.getElementById('task-msg-text').value.trim();
+      if (!text) { showToast('กรุณากรอกข้อความ', 'error'); return; }
+      const result = await window.dataSdk.create({
+        type: 'task_message', to_subadmin_id: targetId, message: text, status: 'pending', created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('✅ ส่งข้อความสำเร็จ');
+        updateTaskMessageList();
+      } else {
+        showToast('ไม่สามารถส่งข้อความได้', 'error');
+      }
+    }
+    function updateTaskMessageList() {
+      const container = document.getElementById('hw-task-message-list');
+      if (!container) return;
+      const messages = allData.filter(d => d.type === 'task_message').sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      if (messages.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-3 text-sm">ยังไม่มีข้อความที่ส่ง</p>';
+        return;
+      }
+      container.innerHTML = messages.map(msg => {
+        const subAdmin = allData.find(a => a.type === 'admin' && a.__backendId === msg.to_subadmin_id);
+        const isDone = msg.status === 'done';
+        return `
+          <div class="border-2 ${isDone ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} rounded-lg p-3">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <p class="text-sm font-semibold text-gray-700">ถึง: ${subAdmin?.username || 'ไม่ทราบ'}</p>
+              <span class="text-xs font-bold ${isDone ? 'text-green-700' : 'text-red-700'}">${isDone ? '✅ ดำเนินการแล้ว' : '🔴 รอดำเนินการ'}</span>
+            </div>
+            <p class="text-sm text-gray-600 mt-1 whitespace-pre-wrap">${msg.message}</p>
+          </div>
+        `;
+      }).join('');
     }
     function loadGradeReportTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
@@ -2933,6 +3608,8 @@
         loadStudentDataTab();
       } else if (tabName === 'gradereport') {
         loadGradeReportTab();
+      } else if (tabName === 'homework') {
+        loadHomeworkTab();
       }
     }
     function showToast(message, type = 'success') {
@@ -3175,6 +3852,9 @@
     async function addNewAdmin() {
       const username = document.getElementById('new-admin-username').value.trim();
       const password = document.getElementById('new-admin-password').value;
+      const scopeClass = document.getElementById('new-admin-class').value.trim();
+      const scopeRoom = document.getElementById('new-admin-room').value.trim();
+      const scopeSubject = document.getElementById('new-admin-subject').value.trim();
       const errorDiv = document.getElementById('add-admin-error');
       if (!username || !password) {
         errorDiv.textContent = '❌ กรุณากรอก Username และ Password';
@@ -3190,12 +3870,18 @@
             type: 'admin',
             username: username,
             password: password,
+            scope_class_name: scopeClass,
+            scope_room_number: scopeRoom,
+            scope_subject_name: scopeSubject,
             created_at: new Date().toISOString()
           });
       if (result.isOk) {
         errorDiv.classList.add('hidden');
         document.getElementById('new-admin-username').value = '';
         document.getElementById('new-admin-password').value = '';
+        document.getElementById('new-admin-class').value = '';
+        document.getElementById('new-admin-room').value = '';
+        document.getElementById('new-admin-subject').value = '';
         showToast('เพิ่มแอดมินสำเร็จ ✅');
         updateAdminList();
       }
@@ -3216,6 +3902,19 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🔐 Password</label>
               <input type="password" id="edit-admin-password" value="${admin.password}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <p class="text-xs text-gray-500">📌 ขอบเขตที่รับผิดชอบ</p>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้น</label>
+              <input type="text" id="edit-admin-class" value="${admin.scope_class_name || ''}" placeholder="เช่น ม.4" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้อง</label>
+              <input type="text" id="edit-admin-room" value="${admin.scope_room_number || ''}" placeholder="เช่น 1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">📖 วิชา</label>
+              <input type="text" id="edit-admin-subject" value="${admin.scope_subject_name || ''}" placeholder="เช่น คณิตศาสตร์" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
           </div>
           <div class="flex gap-3">
@@ -3243,7 +3942,10 @@
       const result = await window.dataSdk.update({
         ...admin,
         username: username,
-        password: password
+        password: password,
+        scope_class_name: document.getElementById('edit-admin-class').value.trim(),
+        scope_room_number: document.getElementById('edit-admin-room').value.trim(),
+        scope_subject_name: document.getElementById('edit-admin-subject').value.trim()
       });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
@@ -4410,7 +5112,7 @@
         <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
           <div>
             <p class="font-semibold text-gray-800">👤 ${admin.username}</p>
-            ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : '<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>'}
+            ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : `<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>${(admin.scope_class_name || admin.scope_room_number || admin.scope_subject_name) ? `<p class="text-xs text-gray-500 mt-1">📌 ${admin.scope_class_name || '-'} / ${admin.scope_room_number || '-'} / ${admin.scope_subject_name || '-'}</p>` : '<p class="text-xs text-red-400 mt-1">⚠️ ยังไม่ระบุขอบเขต</p>'}`}
           </div>
           ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2"><button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button><button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button></div>` : ''}
         </div>
@@ -6565,7 +7267,7 @@
     }
     function showStudentTab(tabName) {
       currentStudentTab = tabName;
-      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-evaluate'];
+      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
       allTabIds.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -6573,7 +7275,9 @@
           btn.classList.add('bg-gray-300', 'text-gray-700');
         }
       });
-      const activeBtn = document.getElementById('tab-' + tabName);
+      // ปุ่ม "การบ้าน" ของนักเรียนใช้ id พิเศษ tab-homework-student (กันชนกับ tab-homework ของแอดมิน)
+      const activeBtnId = tabName === 'homework' ? 'tab-homework-student' : 'tab-' + tabName;
+      const activeBtn = document.getElementById(activeBtnId);
       if (activeBtn) {
         activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
         activeBtn.classList.add('bg-blue-500', 'text-white');
@@ -6587,6 +7291,8 @@
         showStudentGrades();
       } else if (tabName === 'attendance') {
         showStudentAttendance();
+      } else if (tabName === 'homework') {
+        showStudentHomework();
       } else if (tabName === 'evaluate') {
         showStudentEvaluation();
       }
@@ -6886,6 +7592,102 @@
       }).from(area).save().then(() => {
         if (headerEl) headerEl.classList.add('hidden');
       });
+    }
+    function showStudentHomework() {
+      const content = document.getElementById('student-content');
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) {
+        content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
+        return;
+      }
+      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registeredSubjects = [...new Set(registrations.map(r => r.subject_name))].sort();
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-6">📝 การบ้าน</h2>
+          ${registeredSubjects.length === 0 ? '<p class="text-gray-400 text-center py-8">คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ</p>' : `
+            <div class="flex items-center gap-3 flex-wrap mb-4">
+              <select id="student-hw-filter-subject" onchange="updateStudentHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                <option value="">ทุกวิชา</option>
+                ${registeredSubjects.map(s => `<option value="${s}">${s}</option>`).join('')}
+              </select>
+              <input type="date" id="student-hw-filter-date" onchange="updateStudentHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <button onclick="document.getElementById('student-hw-filter-date').value=''; updateStudentHomeworkTable();" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้างวันที่</button>
+            </div>
+            <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-100">
+                  <tr>
+                    <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">งานครั้งที่</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">วันที่เรียน</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">กำหนดส่ง</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จำนวนข้อ</th>
+                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รูปภาพ</th>
+                  </tr>
+                </thead>
+                <tbody id="student-hw-table-body"></tbody>
+              </table>
+            </div>
+          `}
+        </div>
+      `;
+      if (registeredSubjects.length > 0) updateStudentHomeworkTable();
+    }
+    function updateStudentHomeworkTable() {
+      const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
+      if (!student) return;
+      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const myCombos = registrations.map(r => `${r.class_name}|${r.room_number}|${r.subject_name}`);
+      const subjectFilter = document.getElementById('student-hw-filter-subject')?.value || '';
+      const dateFilter = document.getElementById('student-hw-filter-date')?.value || '';
+      let list = allData.filter(d => {
+        if (d.type !== 'homework') return false;
+        const combo = `${d.class_name}|${d.room_number}|${d.subject_name}`;
+        if (!myCombos.includes(combo)) return false;
+        if (subjectFilter && d.subject_name !== subjectFilter) return false;
+        if (dateFilter && d.study_date !== dateFilter && d.due_date !== dateFilter) return false;
+        return true;
+      }).sort((a, b) => new Date(b.study_date || 0) - new Date(a.study_date || 0));
+      const tbody = document.getElementById('student-hw-table-body');
+      if (!tbody) return;
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">ไม่มีการบ้าน</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(hw => {
+        const images = (hw.image_urls || '').split(',').filter(u => u.trim());
+        return `
+          <tr class="hover:bg-blue-50 cursor-pointer" onclick="viewHomeworkImagesPopup('${hw.__backendId}')">
+            <td class="px-2 py-2 whitespace-nowrap">${hw.subject_name}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.work_number || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.study_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.due_date || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${hw.num_questions || '-'}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${images.length > 0 ? `🖼️ ${images.length} รูป (กดดู)` : '-'}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    function viewHomeworkImagesPopup(hwId) {
+      const hw = allData.find(d => d.__backendId === hwId);
+      if (!hw) return;
+      const images = (hw.image_urls || '').split(',').filter(u => u.trim());
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-xl font-bold text-gray-800 mb-2">📝 ${hw.subject_name} — งานครั้งที่ ${hw.work_number || '-'}</h3>
+          <p class="text-sm text-gray-500 mb-4">วันที่เรียน: ${hw.study_date || '-'} | กำหนดส่ง: ${hw.due_date || '-'} | จำนวนข้อ: ${hw.num_questions || '-'}</p>
+          ${images.length === 0 ? '<p class="text-gray-400 text-center py-8">ไม่มีรูปภาพแนบ</p>' : `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${images.map(url => `<img src="${url}" alt="" class="w-full rounded-lg border border-gray-200" onerror="this.style.display='none'">`).join('')}
+            </div>
+          `}
+        </div>
+      `;
+      document.body.appendChild(editDiv);
     }
     function showStudentAttendance() {
       const content = document.getElementById('student-content');
