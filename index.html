@@ -70,13 +70,14 @@
  <body class="h-full bg-gray-100 overflow-auto">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
-    <div class="fixed top-4 right-4 z-40 flex gap-2">
-     <div class="relative">
+    <div class="fixed top-4 right-4 z-40 flex gap-3">
+     <div class="relative flex flex-col items-center">
       <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
        🔔
        <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
       </button>
-      <div id="bell-dropdown-applicants" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+      <span class="text-[10px] text-gray-600 mt-0.5 bg-white/80 px-1 rounded">ผู้สมัคร</span>
+      <div id="bell-dropdown-applicants" class="hidden absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
        <div class="px-3 py-2 border-b border-gray-200 bg-blue-50 rounded-t-xl">
         <p class="text-sm font-semibold text-blue-800">🔔 ผู้สมัครใหม่</p>
         <p class="text-xs text-blue-600">นักเรียนที่สมัครแล้ว แต่ยังไม่ลงทะเบียนวิชา</p>
@@ -84,12 +85,27 @@
        <div id="bell-list-applicants" class="max-h-64 overflow-y-auto"></div>
       </div>
      </div>
-     <div class="relative">
+     <div class="relative flex flex-col items-center">
+      <button onclick="toggleBellDropdown('requests')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
+       🔵
+       <span class="bell-requests-count hidden absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
+      </button>
+      <span class="text-[10px] text-gray-600 mt-0.5 bg-white/80 px-1 rounded">คำขอลงทะเบียน</span>
+      <div id="bell-dropdown-requests" class="hidden absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+       <div class="px-3 py-2 border-b border-gray-200 bg-sky-50 rounded-t-xl">
+        <p class="text-sm font-semibold text-sky-800">🔵 คำขอลงทะเบียนจากผู้ช่วยแอดมิน</p>
+        <p class="text-xs text-sky-600">รอแอดมินอนุมัติ/ดำเนินการ</p>
+       </div>
+       <div id="bell-list-requests" class="max-h-64 overflow-y-auto"></div>
+      </div>
+     </div>
+     <div class="relative flex flex-col items-center">
       <button onclick="toggleBellDropdown('registrations')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
        🔔
-       <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
+       <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-green-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
       </button>
-      <div id="bell-dropdown-registrations" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+      <span class="text-[10px] text-gray-600 mt-0.5 bg-white/80 px-1 rounded">ลงทะเบียนใหม่</span>
+      <div id="bell-dropdown-registrations" class="hidden absolute right-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
        <div class="px-3 py-2 border-b border-gray-200 bg-purple-50 rounded-t-xl">
         <p class="text-sm font-semibold text-purple-800">🔔 ผู้ลงทะเบียนใหม่</p>
         <p class="text-xs text-purple-600">ลงทะเบียนวิชาแล้ว รอแอดมินตรวจสอบ</p>
@@ -117,6 +133,13 @@
           <p class="text-[10px] text-gray-500 whitespace-nowrap">เลื่อนไปแล้ว</p>
           <p class="text-lg font-bold text-blue-600 whitespace-nowrap"><span id="marquee-progress-current">0</span>/<span id="marquee-progress-total">0</span></p>
           <p class="text-[10px] text-gray-500">คน</p>
+          <button onclick="toggleTodayHomeworkMarquee()" class="mt-2 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[10px] whitespace-nowrap">📝 การบ้านวันนี้</button>
+         </div>
+        </div>
+        <div id="today-homework-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
+         <p class="text-xs font-semibold text-amber-700 mb-1">📝 การบ้านที่ต้องเรียน/ส่งวันนี้ (<span id="today-homework-date-label"></span>)</p>
+         <div class="overflow-hidden rounded-lg bg-amber-50" id="today-homework-viewport" style="height: 96px;">
+          <div id="today-homework-track-container"></div>
          </div>
         </div>
        </div>
@@ -279,13 +302,14 @@
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
       <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
-       <div id="admin-bells-container" class="hidden gap-2">
-        <div class="relative">
+       <div id="admin-bells-container" class="hidden gap-3">
+        <div class="relative flex flex-col items-center">
          <button onclick="toggleBellDropdown('applicants', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
           🔔
           <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
          </button>
-         <div id="bell-dropdown-applicants-admin" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
+         <span class="text-[9px] text-white/90 mt-0.5">ผู้สมัคร</span>
+         <div id="bell-dropdown-applicants-admin" class="hidden absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
           <div class="px-3 py-2 border-b border-gray-200 bg-blue-50 rounded-t-xl">
            <p class="text-sm font-semibold text-blue-800">🔔 ผู้สมัครใหม่</p>
            <p class="text-xs text-blue-600">นักเรียนที่สมัครแล้ว แต่ยังไม่ลงทะเบียนวิชา</p>
@@ -293,12 +317,27 @@
           <div id="bell-list-applicants-admin" class="max-h-64 overflow-y-auto"></div>
          </div>
         </div>
-        <div class="relative">
+        <div class="relative flex flex-col items-center">
+         <button onclick="toggleBellDropdown('requests', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
+          🔵
+          <span class="bell-requests-count hidden absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+         </button>
+         <span class="text-[9px] text-white/90 mt-0.5">คำขอ</span>
+         <div id="bell-dropdown-requests-admin" class="hidden absolute right-0 top-full mt-1 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
+          <div class="px-3 py-2 border-b border-gray-200 bg-sky-50 rounded-t-xl">
+           <p class="text-sm font-semibold text-sky-800">🔵 คำขอลงทะเบียนจากผู้ช่วยแอดมิน</p>
+           <p class="text-xs text-sky-600">รอแอดมินอนุมัติ/ดำเนินการ</p>
+          </div>
+          <div id="bell-list-requests-admin" class="max-h-64 overflow-y-auto"></div>
+         </div>
+        </div>
+        <div class="relative flex flex-col items-center">
          <button onclick="toggleBellDropdown('registrations', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
           🔔
-          <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
+          <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-green-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">0</span>
          </button>
-         <div id="bell-dropdown-registrations-admin" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
+         <span class="text-[9px] text-white/90 mt-0.5">ลงทะเบียนใหม่</span>
+         <div id="bell-dropdown-registrations-admin" class="hidden absolute right-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 text-gray-800">
           <div class="px-3 py-2 border-b border-gray-200 bg-purple-50 rounded-t-xl">
            <p class="text-sm font-semibold text-purple-800">🔔 ผู้ลงทะเบียนใหม่</p>
            <p class="text-xs text-purple-600">ลงทะเบียนวิชาแล้ว รอแอดมินตรวจสอบ</p>
@@ -504,6 +543,14 @@
       <div id="admin-tab-homework" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📝 จัดการการบ้าน</h3>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-amber-800 mb-2">⚙️ ความเร็วแถบเลื่อน "การบ้านวันนี้" (หน้า login)</p>
+         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+          <span>ความเร็ว: <span id="hw-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <button onclick="adjustHwMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustHwMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+         </div>
+        </div>
         <div class="flex items-center gap-3 flex-wrap mb-4">
          <select id="hw-filter-class" onchange="updateHomeworkSubjectFilter(); updateHomeworkTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           <option value="">ทุกชั้น</option>
@@ -1097,6 +1144,11 @@
         renderNotificationBells();
         // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
         updateMarqueeApplicantsList();
+        // อัปเดตแถบเลื่อนการบ้านวันนี้แบบสด ถ้าเปิดอยู่
+        const todayHwSection = document.getElementById('today-homework-marquee-section');
+        if (todayHwSection && !todayHwSection.classList.contains('hidden')) {
+          renderTodayHomeworkMarquee();
+        }
         // ถ้าแอดมินกำลังเปิดแท็บ "ให้คะแนน"/"ลงเวลาเรียน" อยู่ ให้รีเฟรชแค่รายชื่อด้านซ้ายแบบสด
         // (ไม่แตะช่องกรอกด้านขวาเลย กันไม่ให้ข้อมูลที่กำลังกรอกอยู่หาย แม้มีคนลงทะเบียนใหม่เข้ามาขณะนั้น)
         const gradingContainer = document.getElementById('grading-students-container');
@@ -1133,6 +1185,7 @@
           if (settingsRecord.marquee_speed_level) marqueeSpeedLevel = settingsRecord.marquee_speed_level;
           if (settingsRecord.marquee_rows) marqueeRows = settingsRecord.marquee_rows;
           if (settingsRecord.marquee_pause_delay_sec !== undefined) marqueePauseDelaySec = settingsRecord.marquee_pause_delay_sec;
+          if (settingsRecord.hw_marquee_speed_level) hwMarqueeSpeedLevel = settingsRecord.hw_marquee_speed_level;
         }
         const classRecords = data.filter(d => d.type === 'class');
         const subjectRecords = data.filter(d => d.type === 'subject');
@@ -1681,9 +1734,13 @@
       // หลุดออกจากแจ้งเตือนได้ 2 ทาง: (1) แอดมินกดรับทราบ หรือ (2) มีการกรอกคะแนนแล้วอย่างน้อย 1 ครั้ง
       return allData.filter(d => d.type === 'student_registration' && !d.notification_acknowledged && !hasAnyScoreEntered(d.__backendId));
     }
+    function computeRegistrationRequests() {
+      return allData.filter(d => d.type === 'registration_request' && d.status === 'pending');
+    }
     function renderNotificationBells() {
       const applicants = computeNewApplicants();
       const registrations = computeNewRegistrations();
+      const requests = computeRegistrationRequests();
       document.querySelectorAll('.bell-applicants-count').forEach(el => {
         el.textContent = applicants.length;
         el.classList.toggle('hidden', applicants.length === 0);
@@ -1691,6 +1748,10 @@
       document.querySelectorAll('.bell-registrations-count').forEach(el => {
         el.textContent = registrations.length;
         el.classList.toggle('hidden', registrations.length === 0);
+      });
+      document.querySelectorAll('.bell-requests-count').forEach(el => {
+        el.textContent = requests.length;
+        el.classList.toggle('hidden', requests.length === 0);
       });
     }
     function toggleBellDropdown(type, context) {
@@ -1720,6 +1781,23 @@
                   <p class="text-xs text-gray-500">${s.class_name}/${s.room_number}</p>
                 </div>
               `).join('');
+        } else if (type === 'requests') {
+          const requests = computeRegistrationRequests();
+          listEl.innerHTML = requests.length === 0
+            ? '<p class="text-gray-400 text-sm text-center py-3">ไม่มีคำขอลงทะเบียน</p>'
+            : requests.map(req => `
+                <div class="px-3 py-2 border-b border-gray-100 text-sm">
+                  <p class="font-medium text-gray-800">${req.student_name}</p>
+                  <p class="text-xs text-gray-500">${req.class_name}/${req.room_number} | ${req.subject_name}</p>
+                  <p class="text-xs text-sky-600">ขอโดย: ${req.requested_by_subadmin}</p>
+                  ${isAdminLoggedIn ? `
+                    <div class="flex gap-2 mt-1">
+                      <button onclick="goRegisterFromRequest('${req.__backendId}', '${req.student_backend_id}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📚 ไปลงทะเบียนให้</button>
+                      <button onclick="dismissRegistrationRequest('${req.__backendId}')" class="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded text-xs">✕ ปิดคำขอ</button>
+                    </div>
+                  ` : ''}
+                </div>
+              `).join('');
         } else {
           const registrations = computeNewRegistrations();
           listEl.innerHTML = registrations.length === 0
@@ -1739,6 +1817,19 @@
               }).join('');
         }
       });
+    }
+    async function dismissRegistrationRequest(reqId) {
+      const req = allData.find(d => d.__backendId === reqId);
+      if (!req) return;
+      const result = await window.dataSdk.update({ ...req, status: 'dismissed' });
+      if (result.isOk) {
+        renderBellDropdownContent('requests');
+        showToast('✕ ปิดคำขอแล้ว');
+      }
+    }
+    function goRegisterFromRequest(reqId, studentBackendId) {
+      document.querySelectorAll('[id^="bell-dropdown-"]').forEach(d => d.classList.add('hidden'));
+      adminRegisterStudentPopup(studentBackendId, reqId);
     }
     async function acknowledgeRegistration(regId) {
       const reg = allData.find(d => d.__backendId === regId);
@@ -2114,7 +2205,7 @@
       const students = allData.filter(d => d.type === 'student' && d.class_name === scope.className && d.room_number === scope.roomNumber)
         .sort((a, b) => (parseFloat(a.student_number) || 0) - (parseFloat(b.student_number) || 0));
       container.innerHTML = `
-        ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : ''}
+        ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้ (ยังเห็นสถานะลงทะเบียนได้ตามปกติ เพื่อติดตามเพื่อนให้ลงทะเบียน)</p>' : ''}
         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
           <table class="w-full text-sm">
             <thead class="bg-gray-100">
@@ -2123,23 +2214,74 @@
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัสนักเรียน</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เบอร์โทร</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">สถานะลงทะเบียน</th>
                 ${perm === 'manage' ? '<th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>' : ''}
               </tr>
             </thead>
             <tbody>
-              ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 5 : 4}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => `
+              ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 6 : 5}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
+                const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
+                const btnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
+                const statusBadge = `<button onclick="subAdminRequestRegistrationPopup('${s.__backendId}')" class="px-2 py-1 ${btnColorClass} text-white rounded text-xs whitespace-nowrap">📚 ${hasAnyRegistration ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน'}</button>`;
+                return `
                 <tr class="hover:bg-gray-50">
                   <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
+                  <td class="px-2 py-2 text-center whitespace-nowrap">${statusBadge}</td>
                   ${perm === 'manage' ? `<td class="px-2 py-2 text-center whitespace-nowrap"><button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️ แก้ไข</button></td>` : ''}
                 </tr>
-              `).join('')}
+              `;
+              }).join('')}
             </tbody>
           </table>
         </div>
       `;
+    }
+    // ----- ผู้ช่วยแอดมินขอให้แอดมินลงทะเบียนให้นักเรียน (ไม่ได้ลงทะเบียนเอง แค่ส่งคำขอ) -----
+    function subAdminRequestRegistrationPopup(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const scope = getSubAdminScope();
+      const alreadyPending = allData.find(d => d.type === 'registration_request' && d.status === 'pending' && d.student_backend_id === studentBackendId && d.subject_name === scope.subjectName);
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-lg font-bold text-gray-800 mb-2">📚 ขออนุญาตแอดมินลงทะเบียน</h3>
+          <p class="text-gray-600 mb-4 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
+          ${alreadyPending
+            ? '<p class="text-amber-600 text-sm mb-4">⏳ มีคำขอลงทะเบียนของนักเรียนคนนี้ค้างอยู่แล้ว รอแอดมินดำเนินการ</p>'
+            : '<p class="text-gray-500 text-sm mb-4">ระบบจะส่งคำขอไปแจ้งเตือนแอดมิน เพื่อให้แอดมินเข้ามาลงทะเบียน/กำหนดคะแนน KPAC ให้นักเรียนคนนี้</p>'
+          }
+          <div class="flex gap-3">
+            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">${alreadyPending ? 'ปิด' : '❌ ยกเลิก'}</button>
+            ${alreadyPending ? '' : `<button onclick="confirmSubAdminRequestRegistration('${studentBackendId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">📨 ส่งคำขอ</button>`}
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+    async function confirmSubAdminRequestRegistration(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const scope = getSubAdminScope();
+      const result = await window.dataSdk.create({
+        type: 'registration_request',
+        student_backend_id: studentBackendId,
+        student_name: `${student.prefix}${student.first_name} ${student.last_name}`,
+        class_name: scope.className, room_number: scope.roomNumber, subject_name: scope.subjectName,
+        requested_by_subadmin: currentUser.username,
+        status: 'pending', created_at: new Date().toISOString()
+      });
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('📨 ส่งคำขอลงทะเบียนไปแอดมินแล้ว');
+      } else {
+        showToast('ไม่สามารถส่งคำขอได้', 'error');
+      }
     }
     function addHomeworkScopedPopup() {
       const scope = getSubAdminScope();
@@ -2240,6 +2382,7 @@
     let marqueeSpeedLevel = 5; // ระดับ 1-10 (สูง = เร็ว)
     let marqueeRows = 3;
     let marqueePauseDelaySec = 3; // หน่วงเวลานิ่งก่อนเริ่มเลื่อน (วินาที) ให้อ่านคนแรกๆทัน
+    let hwMarqueeSpeedLevel = 5; // ความเร็วแถบเลื่อน "การบ้านวันนี้" (ระดับ 1-10)
     function getMarqueeDurationSec() {
       return Math.max(3, 30 - marqueeSpeedLevel * 2.5);
     }
@@ -2402,9 +2545,53 @@
     async function saveMarqueeSettings() {
       const existing = allData.find(d => d.type === 'settings');
       const result = existing
-        ? await window.dataSdk.update({ ...existing, marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec })
-        : await window.dataSdk.create({ type: 'settings', marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec });
+        ? await window.dataSdk.update({ ...existing, marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec, hw_marquee_speed_level: hwMarqueeSpeedLevel })
+        : await window.dataSdk.create({ type: 'settings', marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec, hw_marquee_speed_level: hwMarqueeSpeedLevel });
       if (!result.isOk) showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+    }
+    async function adjustHwMarqueeSpeed(delta) {
+      hwMarqueeSpeedLevel = Math.max(1, Math.min(10, hwMarqueeSpeedLevel + delta));
+      const display = document.getElementById('hw-marquee-speed-display');
+      if (display) display.textContent = hwMarqueeSpeedLevel;
+      const track = document.getElementById('today-homework-track');
+      if (track) track.style.animationDuration = `${getHwMarqueeDurationSec()}s`;
+      await saveMarqueeSettings();
+    }
+    function getHwMarqueeDurationSec() {
+      return Math.max(3, 30 - hwMarqueeSpeedLevel * 2.5);
+    }
+    function toggleTodayHomeworkMarquee() {
+      const section = document.getElementById('today-homework-marquee-section');
+      if (!section) return;
+      const isHidden = section.classList.contains('hidden');
+      if (isHidden) {
+        section.classList.remove('hidden');
+        renderTodayHomeworkMarquee();
+      } else {
+        section.classList.add('hidden');
+      }
+    }
+    function renderTodayHomeworkMarquee() {
+      const trackContainer = document.getElementById('today-homework-track-container');
+      const dateLabel = document.getElementById('today-homework-date-label');
+      if (!trackContainer) return;
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      if (dateLabel) dateLabel.textContent = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      const todayHomework = allData.filter(d => d.type === 'homework' && (d.study_date === todayStr || d.due_date === todayStr));
+      if (todayHomework.length === 0) {
+        trackContainer.innerHTML = '<p class="text-gray-400 text-xs text-center py-8">วันนี้ไม่มีการบ้าน</p>';
+        return;
+      }
+      const rowHtml = (hw) => `
+        <div style="height:32px" class="flex items-center px-3 text-xs text-gray-700 gap-2">
+          <span class="font-semibold whitespace-nowrap">${hw.study_date === todayStr ? '📖 เรียนวันนี้' : '⏰ กำหนดส่งวันนี้'}</span>
+          <span class="whitespace-nowrap">${hw.subject_name}</span>
+          <span class="text-gray-400 whitespace-nowrap">${hw.class_name}/${hw.room_number}</span>
+        </div>
+      `;
+      const listHtml = todayHomework.map(rowHtml).join('');
+      trackContainer.innerHTML = `<div class="marquee-track" id="today-homework-track" style="animation: marquee-scroll-up ${getHwMarqueeDurationSec()}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
     function renderLandingAnnouncements() {
       const container = document.getElementById('landing-announcements');
@@ -2902,6 +3089,8 @@
       const classes = [...new Set(getAllClassRoomSubjectCombos().map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('hw-filter-class');
       if (classSelect) classSelect.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      const speedDisplay = document.getElementById('hw-marquee-speed-display');
+      if (speedDisplay) speedDisplay.textContent = hwMarqueeSpeedLevel;
       updateHomeworkSubjectFilter();
       updateHomeworkTable();
       updateTaskMessageList();
@@ -5332,7 +5521,7 @@
       }
     }
     // ----- แอดมินลงทะเบียนวิชาให้นักเรียนแทน (ไม่ติดเงื่อนไขวันที่เปิด-ปิดลงทะเบียน) -----
-    function adminRegisterStudentPopup(studentBackendId) {
+    function adminRegisterStudentPopup(studentBackendId, requestId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
       const allSubjects = allData.filter(d => d.type === 'subject');
@@ -5364,10 +5553,10 @@
       `;
       document.body.appendChild(editDiv);
       if (availableSubjects.length > 0) {
-        document.getElementById('admin-reg-subject-select').onchange = () => updateAdminRegForm(studentBackendId);
+        document.getElementById('admin-reg-subject-select').onchange = () => updateAdminRegForm(studentBackendId, requestId);
       }
     }
-    function updateAdminRegForm(studentBackendId) {
+    function updateAdminRegForm(studentBackendId, requestId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       const subjectName = document.getElementById('admin-reg-subject-select').value;
       const container = document.getElementById('admin-reg-form-container');
@@ -5397,7 +5586,7 @@
           <p id="admin-reg-error" class="text-xs text-red-600 hidden mb-2"></p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
-            <button onclick="confirmAdminRegisterStudent('${studentBackendId}', '${subjectName}', ${kpacPercent})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">${existingReg ? '✅ บันทึกค่าใหม่' : '✅ ลงทะเบียน'}</button>
+            <button onclick="confirmAdminRegisterStudent('${studentBackendId}', '${subjectName}', ${kpacPercent}, ${requestId ? `'${requestId}'` : 'null'})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">${existingReg ? '✅ บันทึกค่าใหม่' : '✅ ลงทะเบียน'}</button>
           </div>
         </div>
       `;
@@ -5411,7 +5600,7 @@
       document.getElementById('admin-reg-kpac-total').textContent = total.toFixed(1);
       document.getElementById('admin-reg-warning').classList.toggle('hidden', total <= kpacLimit);
     }
-    async function confirmAdminRegisterStudent(studentBackendId, subjectName, kpacLimit) {
+    async function confirmAdminRegisterStudent(studentBackendId, subjectName, kpacLimit, requestId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
       const errorEl = document.getElementById('admin-reg-error');
@@ -5439,6 +5628,11 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast(existingReg ? '✅ บันทึกค่า KPAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
+        // ปิดคำขอลงทะเบียนที่เปิด popup นี้มา (ถ้ามี) อัตโนมัติ เพราะแอดมินดำเนินการให้แล้ว
+        if (requestId) {
+          const req = allData.find(d => d.__backendId === requestId);
+          if (req) await window.dataSdk.update({ ...req, status: 'done' });
+        }
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
       }
