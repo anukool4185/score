@@ -579,9 +579,15 @@
           </div>
           <p class="text-xs text-gray-500 mb-2">📌 ขอบเขตที่รับผิดชอบ (สำหรับจัดการการบ้าน)</p>
           <div class="grid md:grid-cols-3 gap-4 mb-4">
-            <input type="text" id="new-admin-class" placeholder="🏫 ชั้น เช่น ม.4" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            <input type="text" id="new-admin-room" placeholder="🏠 ห้อง เช่น 1" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
-            <input type="text" id="new-admin-subject" placeholder="📖 วิชา เช่น คณิตศาสตร์" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+            <select id="new-admin-class" onchange="updateNewAdminScopeOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกชั้น --</option>
+            </select>
+            <select id="new-admin-room" onchange="updateNewAdminScopeOptions()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+            <select id="new-admin-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกวิชา --</option>
+            </select>
           </div>
           <p class="text-xs text-gray-500 mb-2">🔑 สิทธิ์การเข้าถึงแท็บอื่นๆ</p>
           <div class="grid md:grid-cols-3 gap-4 mb-4">
@@ -2862,6 +2868,28 @@
       // ดึงชุดชั้น/ห้อง/วิชา ที่มีอยู่จริงในระบบ (จาก class_subject) มาให้เลือกกรอง/เพิ่มการบ้าน
       return allData.filter(d => d.type === 'class_subject');
     }
+    function populateNewAdminClassOptions() {
+      const classSelect = document.getElementById('new-admin-class');
+      if (!classSelect) return;
+      const classes = [...new Set(getAllClassRoomSubjectCombos().map(c => c.class_name).filter(Boolean))].sort();
+      classSelect.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      updateNewAdminScopeOptions();
+    }
+    function updateNewAdminScopeOptions() {
+      const className = document.getElementById('new-admin-class')?.value || '';
+      const roomSelect = document.getElementById('new-admin-room');
+      const subjectSelect = document.getElementById('new-admin-subject');
+      if (!roomSelect || !subjectSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      const roomNumber = roomSelect.value;
+      let subjectCombos = combos;
+      if (roomNumber) subjectCombos = subjectCombos.filter(c => c.room_number === roomNumber);
+      const subjects = [...new Set(subjectCombos.map(c => c.subject_name).filter(Boolean))].sort();
+      subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
     function loadHomeworkTab() {
       const classes = [...new Set(getAllClassRoomSubjectCombos().map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('hw-filter-class');
@@ -3913,6 +3941,7 @@
         showStudentsSubTab('applicants');
       } else if (tabName === 'admins') {
         updateAdminList();
+        populateNewAdminClassOptions();
       } else if (tabName === 'settings') {
         loadMFFilters();
         updateMFDisplayList();
@@ -4237,15 +4266,21 @@
             <p class="text-xs text-gray-500">📌 ขอบเขตที่รับผิดชอบ</p>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้น</label>
-              <input type="text" id="edit-admin-class" value="${admin.scope_class_name || ''}" placeholder="เช่น ม.4" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-admin-class" onchange="updateEditAdminScopeOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="">-- เลือกชั้น --</option>
+              </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้อง</label>
-              <input type="text" id="edit-admin-room" value="${admin.scope_room_number || ''}" placeholder="เช่น 1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-admin-room" onchange="updateEditAdminScopeOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="">-- เลือกห้อง --</option>
+              </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">📖 วิชา</label>
-              <input type="text" id="edit-admin-subject" value="${admin.scope_subject_name || ''}" placeholder="เช่น คณิตศาสตร์" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-admin-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="">-- เลือกวิชา --</option>
+              </select>
             </div>
             <p class="text-xs text-gray-500">🔑 สิทธิ์การเข้าถึงแท็บอื่นๆ</p>
             <div>
@@ -4277,6 +4312,29 @@
         </div>
       `;
       document.body.appendChild(editDiv);
+      populateEditAdminClassOptions(admin.scope_class_name, admin.scope_room_number, admin.scope_subject_name);
+    }
+    function populateEditAdminClassOptions(currentClass, currentRoom, currentSubject) {
+      const classSelect = document.getElementById('edit-admin-class');
+      if (!classSelect) return;
+      const classes = [...new Set(getAllClassRoomSubjectCombos().map(c => c.class_name).filter(Boolean))].sort();
+      classSelect.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}" ${c === currentClass ? 'selected' : ''}>${c}</option>`).join('');
+      updateEditAdminScopeOptions(currentRoom, currentSubject);
+    }
+    function updateEditAdminScopeOptions(currentRoom, currentSubject) {
+      const className = document.getElementById('edit-admin-class')?.value || '';
+      const roomSelect = document.getElementById('edit-admin-room');
+      const subjectSelect = document.getElementById('edit-admin-subject');
+      if (!roomSelect || !subjectSelect) return;
+      let combos = getAllClassRoomSubjectCombos();
+      if (className) combos = combos.filter(c => c.class_name === className);
+      const rooms = [...new Set(combos.map(c => c.room_number).filter(Boolean))].sort();
+      roomSelect.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}" ${r === currentRoom ? 'selected' : ''}>${r}</option>`).join('');
+      const roomNumber = roomSelect.value;
+      let subjectCombos = combos;
+      if (roomNumber) subjectCombos = subjectCombos.filter(c => c.room_number === roomNumber);
+      const subjects = [...new Set(subjectCombos.map(c => c.subject_name).filter(Boolean))].sort();
+      subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}" ${s === currentSubject ? 'selected' : ''}>${s}</option>`).join('');
     }
     async function confirmEditSubAdmin(adminId) {
       const admin = allAdmins.find(a => a.__backendId === adminId);
