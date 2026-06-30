@@ -583,6 +583,27 @@
             <input type="text" id="new-admin-room" placeholder="🏠 ห้อง เช่น 1" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
             <input type="text" id="new-admin-subject" placeholder="📖 วิชา เช่น คณิตศาสตร์" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
           </div>
+          <p class="text-xs text-gray-500 mb-2">🔑 สิทธิ์การเข้าถึงแท็บอื่นๆ</p>
+          <div class="grid md:grid-cols-3 gap-4 mb-4">
+            <label class="text-xs text-gray-600">⏱️ ลงเวลาเรียน
+              <select id="new-admin-perm-timekeeping" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mt-1">
+                <option value="view">ดูอย่างเดียว</option>
+                <option value="manage">จัดการได้</option>
+              </select>
+            </label>
+            <label class="text-xs text-gray-600">🎓 ให้คะแนน
+              <select id="new-admin-perm-grading" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mt-1">
+                <option value="view">ดูอย่างเดียว</option>
+                <option value="manage">จัดการได้</option>
+              </select>
+            </label>
+            <label class="text-xs text-gray-600">👨‍🎓 นักเรียน
+              <select id="new-admin-perm-students" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mt-1">
+                <option value="view">ดูอย่างเดียว</option>
+                <option value="manage">จัดการได้</option>
+              </select>
+            </label>
+          </div>
           <p id="add-admin-error" class="text-red-500 text-sm mb-4 hidden"></p><button onclick="addNewAdmin()" class="w-full btn-primary text-white px-4 py-3 rounded-xl font-medium">➕ เพิ่มแอดมิน</button>
          </div>
         </div>
@@ -851,6 +872,47 @@
     // ============================================================
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     const POLL_INTERVAL_MS = 4000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time
+
+    // ============================================================
+    // 🖼️ ระบบอัปโหลด/ลบรูปการบ้านใน Google Drive (เก็บแยกโฟลเดอร์ ห้อง>วิชา>วันที่)
+    // ============================================================
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    async function uploadHomeworkImageFile(file, classNameRoom, subjectName, dateStr) {
+      const base64Data = await fileToBase64(file);
+      const response = await fetch(SHEETS_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'uploadHomeworkImage',
+          roomFolderName: classNameRoom,
+          subjectFolderName: subjectName,
+          dateFolderName: dateStr,
+          fileName: file.name,
+          mimeType: file.type,
+          base64Data: base64Data
+        })
+      });
+      const result = await response.json();
+      if (!result.ok) throw new Error(result.error || 'อัปโหลดไม่สำเร็จ');
+      return result.data; // { fileId, url }
+    }
+    async function deleteHomeworkImagesByFileIds(fileIds) {
+      if (!fileIds || fileIds.length === 0) return;
+      try {
+        await fetch(SHEETS_API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteHomeworkImages', fileIds })
+        });
+      } catch (err) {
+        console.error('ลบรูปการบ้านไม่สำเร็จ:', err);
+      }
+    }
 
     // ============================================================
     // 🔒 ระบบป้องกันการกดซ้ำซ้อนแบบรวมศูนย์ (ใช้ได้กับทุกปุ่ม บันทึก/แก้ไข/ลบ ทั้งแอป)
@@ -1792,6 +1854,11 @@
       showPage('subadmin');
       renderSubAdminPage();
     }
+    function getSubAdminPermission(tabKey) {
+      const record = allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
+      return record?.[`perm_${tabKey}`] === 'manage' ? 'manage' : 'view';
+    }
+    let currentSubAdminTab = 'homework';
     function renderSubAdminPage() {
       const content = document.getElementById('subadmin-content');
       if (!content) return;
@@ -1799,56 +1866,86 @@
       const hasScope = scope.className && scope.roomNumber && scope.subjectName;
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 จัดการการบ้าน (ผู้ช่วยแอดมิน)</h2>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">🧑‍💼 หน้าผู้ช่วยแอดมิน</h2>
           ${hasScope
-            ? `<p class="text-sm text-gray-500 mb-6">ขอบเขตที่รับผิดชอบ: <strong>${scope.className} / ${scope.roomNumber} / ${scope.subjectName}</strong></p>`
-            : `<p class="text-sm text-red-500 mb-6">⚠️ บัญชีนี้ยังไม่ได้ระบุขอบเขตชั้น/ห้อง/วิชา กรุณาติดต่อแอดมิน</p>`
+            ? `<p class="text-sm text-gray-500 mb-4">ขอบเขตที่รับผิดชอบ: <strong>${scope.className} / ${scope.roomNumber} / ${scope.subjectName}</strong></p>`
+            : `<p class="text-sm text-red-500 mb-4">⚠️ บัญชีนี้ยังไม่ได้ระบุขอบเขตชั้น/ห้อง/วิชา กรุณาติดต่อแอดมิน</p>`
           }
-          <div id="subadmin-task-messages" class="mb-8"></div>
+          <div id="subadmin-task-messages" class="mb-6"></div>
           ${hasScope ? `
-            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 class="text-lg font-bold text-gray-800">📋 รายการการบ้าน</h3>
-              <button onclick="addHomeworkScopedPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มการบ้าน</button>
+            <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+              <button onclick="showSubAdminTab('homework')" id="subadmin-tab-homework" class="px-4 py-2 bg-blue-500 text-white rounded-t-lg font-medium text-sm">📝 การบ้าน</button>
+              <button onclick="showSubAdminTab('timekeeping')" id="subadmin-tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">⏱️ ลงเวลาเรียน ${getSubAdminPermission('timekeeping') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
+              <button onclick="showSubAdminTab('grading')" id="subadmin-tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">🎓 ให้คะแนน ${getSubAdminPermission('grading') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
+              <button onclick="showSubAdminTab('students')" id="subadmin-tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">👨‍🎓 นักเรียน ${getSubAdminPermission('students') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
             </div>
-            <div class="flex items-center gap-3 flex-wrap mb-4">
-              <input type="date" id="subadmin-hw-filter-date" onchange="loadSubAdminHomeworkSection()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-              <button onclick="document.getElementById('subadmin-hw-filter-date').value=''; loadSubAdminHomeworkSection();" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้างวันที่</button>
-            </div>
-            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap bg-gray-50 rounded-lg p-3">
-              <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-                <input type="checkbox" id="subadmin-hw-select-all" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"> เลือกทั้งหมด
-              </label>
-              <div class="flex gap-2">
-                <button id="hw-bulk-delete-btn" onclick="bulkDeleteHomework()" disabled class="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-medium cursor-not-allowed">🗑️ ลบที่เลือก (0)</button>
-                <button onclick="deleteAllHomeworkFiltered()" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg text-sm font-medium">🗑️ ลบทั้งหมด (ตามตัวกรอง)</button>
-              </div>
-            </div>
-            <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
-              <table class="w-full text-sm">
-                <thead class="bg-gray-100">
-                  <tr>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700"><input type="checkbox" id="subadmin-hw-select-all-th" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"></th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">งานครั้งที่</th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">วันที่เรียน</th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">กำหนดส่ง</th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จำนวนข้อ</th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รูปภาพ</th>
-                    <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody id="hw-table-body"></tbody>
-              </table>
-            </div>
+            <div id="subadmin-section-homework"></div>
+            <div id="subadmin-section-timekeeping" class="hidden"></div>
+            <div id="subadmin-section-grading" class="hidden"></div>
+            <div id="subadmin-section-students" class="hidden"></div>
           ` : ''}
         </div>
       `;
-      // ใช้ id ร่วมกับฝั่งแอดมิน (hw-select-all, hw-bulk-delete-btn) แต่ผูก checkbox เพิ่มให้ id ฝั่งนี้ด้วย เพื่อให้ toggleSelectAllHomework / updateHwBulkDeleteButton ทำงานถูกต้อง
-      const subAdminSelectAll = document.getElementById('subadmin-hw-select-all');
-      if (subAdminSelectAll) subAdminSelectAll.id = 'hw-select-all';
-      const subAdminSelectAllTh = document.getElementById('subadmin-hw-select-all-th');
-      if (subAdminSelectAllTh) subAdminSelectAllTh.id = 'hw-select-all-th';
       renderSubAdminTaskMessages();
-      if (hasScope) loadSubAdminHomeworkSection();
+      if (hasScope) {
+        renderSubAdminHomeworkSectionShell();
+        showSubAdminTab('homework');
+      }
+    }
+    function showSubAdminTab(tabName) {
+      currentSubAdminTab = tabName;
+      ['homework', 'timekeeping', 'grading', 'students'].forEach(t => {
+        const btn = document.getElementById('subadmin-tab-' + t);
+        const section = document.getElementById('subadmin-section-' + t);
+        if (btn) {
+          if (t === tabName) { btn.classList.add('bg-blue-500', 'text-white'); btn.classList.remove('bg-gray-300', 'text-gray-700'); }
+          else { btn.classList.remove('bg-blue-500', 'text-white'); btn.classList.add('bg-gray-300', 'text-gray-700'); }
+        }
+        if (section) section.classList.toggle('hidden', t !== tabName);
+      });
+      if (tabName === 'homework') loadSubAdminHomeworkSection();
+      else if (tabName === 'timekeeping') renderSubAdminTimekeeping();
+      else if (tabName === 'grading') renderSubAdminGrading();
+      else if (tabName === 'students') renderSubAdminStudents();
+    }
+    function renderSubAdminHomeworkSectionShell() {
+      const container = document.getElementById('subadmin-section-homework');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 class="text-lg font-bold text-gray-800">📋 รายการการบ้าน</h3>
+          <button onclick="addHomeworkScopedPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มการบ้าน</button>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap mb-4">
+          <input type="date" id="subadmin-hw-filter-date" onchange="loadSubAdminHomeworkSection()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <button onclick="document.getElementById('subadmin-hw-filter-date').value=''; loadSubAdminHomeworkSection();" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้างวันที่</button>
+        </div>
+        <div class="flex items-center justify-between mb-3 gap-3 flex-wrap bg-gray-50 rounded-lg p-3">
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
+            <input type="checkbox" id="hw-select-all" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"> เลือกทั้งหมด
+          </label>
+          <div class="flex gap-2">
+            <button id="hw-bulk-delete-btn" onclick="bulkDeleteHomework()" disabled class="px-4 py-2 bg-red-300 text-white rounded-lg text-sm font-medium cursor-not-allowed">🗑️ ลบที่เลือก (0)</button>
+            <button onclick="deleteAllHomeworkFiltered()" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg text-sm font-medium">🗑️ ลบทั้งหมด (ตามตัวกรอง)</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700"><input type="checkbox" id="hw-select-all-th" onchange="toggleSelectAllHomework(this)" class="w-4 h-4"></th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">งานครั้งที่</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">วันที่เรียน</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">กำหนดส่ง</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จำนวนข้อ</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รูปภาพ</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="hw-table-body"></tbody>
+          </table>
+        </div>
+      `;
     }
     function loadSubAdminHomeworkSection() {
       const scope = getSubAdminScope();
@@ -1882,6 +1979,162 @@
       }).join('');
       updateHwBulkDeleteButton();
     }
+    // ----- ⏱️ ลงเวลาเรียน (สำหรับผู้ช่วยแอดมิน) -----
+    function renderSubAdminTimekeeping() {
+      const container = document.getElementById('subadmin-section-timekeeping');
+      if (!container) return;
+      const scope = getSubAdminScope();
+      const perm = getSubAdminPermission('timekeeping');
+      container.innerHTML = `
+        ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : ''}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-1">
+            <div id="subadmin-timekeeping-namelist" class="space-y-1 max-h-[75vh] overflow-y-auto border-2 border-gray-200 rounded-lg p-2"></div>
+          </div>
+          <div class="md:col-span-3">
+            <div id="subadmin-timekeeping-detail" class="${perm === 'view' ? 'pointer-events-none opacity-70' : ''}"></div>
+          </div>
+        </div>
+      `;
+      const registrations = allData.filter(d =>
+        d.type === 'student_registration' && d.class_name === scope.className &&
+        d.room_number === scope.roomNumber && d.subject_name === scope.subjectName
+      ).sort((a, b) => {
+        const sa = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const sb = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        return (parseFloat(sa?.student_number) || 0) - (parseFloat(sb?.student_number) || 0);
+      });
+      const namelistEl = document.getElementById('subadmin-timekeeping-namelist');
+      if (registrations.length === 0) {
+        namelistEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนลงทะเบียน</p>';
+        return;
+      }
+      if (!window.subAdminSelectedTkRegId || !registrations.find(r => r.__backendId === window.subAdminSelectedTkRegId)) {
+        window.subAdminSelectedTkRegId = registrations[0].__backendId;
+      }
+      const renderList = () => {
+        namelistEl.innerHTML = registrations.map(reg => {
+          const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+          const isActive = reg.__backendId === window.subAdminSelectedTkRegId;
+          const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+          return `<button onclick="selectSubAdminTkStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">#${student?.student_number || '-'} ${name}</button>`;
+        }).join('');
+      };
+      renderList();
+      window.selectSubAdminTkStudent = function(regId) {
+        window.subAdminSelectedTkRegId = regId;
+        renderList();
+        document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === regId));
+      };
+      document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === window.subAdminSelectedTkRegId));
+    }
+    // ----- 🎓 ให้คะแนน (สำหรับผู้ช่วยแอดมิน) -----
+    function renderSubAdminGrading() {
+      const container = document.getElementById('subadmin-section-grading');
+      if (!container) return;
+      const scope = getSubAdminScope();
+      const perm = getSubAdminPermission('grading');
+      container.innerHTML = `
+        ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : ''}
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="md:col-span-1">
+            <div id="subadmin-grading-namelist" class="space-y-1 max-h-[75vh] overflow-y-auto border-2 border-gray-200 rounded-lg p-2"></div>
+          </div>
+          <div class="md:col-span-3">
+            <div id="subadmin-grading-detail" class="${perm === 'view' ? 'pointer-events-none opacity-70' : ''}"></div>
+          </div>
+        </div>
+      `;
+      const classSubjectId = `${scope.className}_${scope.roomNumber}_${scope.subjectName}`;
+      const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      const registrations = allData.filter(d =>
+        d.type === 'student_registration' && d.class_name === scope.className &&
+        d.room_number === scope.roomNumber && d.subject_name === scope.subjectName
+      ).sort((a, b) => {
+        const sa = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const sb = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        return (parseFloat(sa?.student_number) || 0) - (parseFloat(sb?.student_number) || 0);
+      });
+      const namelistEl = document.getElementById('subadmin-grading-namelist');
+      if (registrations.length === 0) {
+        namelistEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนลงทะเบียน</p>';
+        return;
+      }
+      if (!window.subAdminSelectedGradingRegId || !registrations.find(r => r.__backendId === window.subAdminSelectedGradingRegId)) {
+        window.subAdminSelectedGradingRegId = registrations[0].__backendId;
+      }
+      const renderDetail = (regId) => {
+        const detailEl = document.getElementById('subadmin-grading-detail');
+        const reg = allData.find(d => d.__backendId === regId);
+        detailEl.innerHTML = buildGradingCardHtml(reg, scoresData, scope.className, scope.subjectName);
+        document.querySelectorAll('#subadmin-grading-detail input[type="number"].score-input').forEach(input => {
+          input.addEventListener('focus', function() { this.select(); });
+          input.addEventListener('input', function() {
+            validateScores(this);
+            if (this.id.startsWith('a-')) {
+              const m = this.id.match(/^a-(.+)-\d+$/);
+              if (m) updateAPassFailStatus(m[1]);
+            }
+          });
+        });
+        ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
+          const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
+          if (firstInput) validateScores(firstInput);
+        });
+        updateAPassFailStatus(reg.__backendId);
+      };
+      const renderList = () => {
+        namelistEl.innerHTML = registrations.map(reg => {
+          const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+          const isActive = reg.__backendId === window.subAdminSelectedGradingRegId;
+          const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
+          return `<button onclick="selectSubAdminGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">#${student?.student_number || '-'} ${name}</button>`;
+        }).join('');
+      };
+      renderList();
+      window.selectSubAdminGradingStudent = function(regId) {
+        window.subAdminSelectedGradingRegId = regId;
+        renderList();
+        renderDetail(regId);
+      };
+      renderDetail(window.subAdminSelectedGradingRegId);
+    }
+    // ----- 👨‍🎓 นักเรียน (สำหรับผู้ช่วยแอดมิน) -----
+    function renderSubAdminStudents() {
+      const container = document.getElementById('subadmin-section-students');
+      if (!container) return;
+      const scope = getSubAdminScope();
+      const perm = getSubAdminPermission('students');
+      const students = allData.filter(d => d.type === 'student' && d.class_name === scope.className && d.room_number === scope.roomNumber)
+        .sort((a, b) => (parseFloat(a.student_number) || 0) - (parseFloat(b.student_number) || 0));
+      container.innerHTML = `
+        ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : ''}
+        <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เลขที่</th>
+                <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
+                <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัสนักเรียน</th>
+                <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เบอร์โทร</th>
+                ${perm === 'manage' ? '<th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>' : ''}
+              </tr>
+            </thead>
+            <tbody>
+              ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 5 : 4}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => `
+                <tr class="hover:bg-gray-50">
+                  <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
+                  <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
+                  <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
+                  <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
+                  ${perm === 'manage' ? `<td class="px-2 py-2 text-center whitespace-nowrap"><button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️ แก้ไข</button></td>` : ''}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
     function addHomeworkScopedPopup() {
       const scope = getSubAdminScope();
       const editDiv = document.createElement('div');
@@ -1903,6 +2156,7 @@
       // ล็อกค่าชั้น/ห้อง/วิชาให้ตรงกับขอบเขตของผู้ช่วยแอดมินเสมอ (input ที่ disabled ไว้ใน homeworkFormFieldsHtml)
       document.getElementById('hw-form-room').innerHTML = `<option value="${scope.roomNumber}">${scope.roomNumber}</option>`;
       document.getElementById('hw-form-subject').innerHTML = `<option value="${scope.subjectName}">${scope.subjectName}</option>`;
+      renderHwExistingImages();
     }
     async function confirmAddHomeworkScoped() {
       const scope = getSubAdminScope();
@@ -1916,10 +2170,14 @@
         errorEl.classList.remove('hidden');
         return;
       }
+      showBusyOverlay('📤 กำลังอัปโหลดรูปภาพ กรุณารอสักครู่...');
+      const roomFolderName = `${scope.className}-${scope.roomNumber}`;
+      const { image_urls, image_file_ids } = await processHwImagesOnSave(roomFolderName, scope.subjectName, studyDate);
+      hideBusyOverlay();
       const result = await window.dataSdk.create({
         type: 'homework', class_name: scope.className, room_number: scope.roomNumber, subject_name: scope.subjectName,
         work_number: workNumber, num_questions: numQuestions, study_date: studyDate, due_date: dueDate,
-        image_urls: readHwFormImages(), created_at: new Date().toISOString()
+        image_urls, image_file_ids, created_at: new Date().toISOString()
       });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
@@ -2696,8 +2954,18 @@
       if (selAllTop) selAllTop.checked = allChecked;
       if (selAllTh) selAllTh.checked = allChecked;
     }
+    let hwPendingNewFiles = []; // ไฟล์ใหม่ที่เลือกไว้ รออัปโหลดตอนกดบันทึก
+    let hwExistingImages = []; // รูปเดิม (ตอนแก้ไข) [{fileId, url}] ที่ยังเหลืออยู่ (ยังไม่ถูกลบออก)
+    let hwRemovedFileIds = []; // fileId ของรูปเดิมที่ถูกลบออกจากฟอร์ม รอลบจริงใน Drive ตอนกดบันทึก
+    function parseHwImagePairs(hw) {
+      const urls = (hw?.image_urls || '').split(',').filter(u => u.trim());
+      const fileIds = (hw?.image_file_ids || '').split(',');
+      return urls.map((url, i) => ({ url, fileId: fileIds[i] || '' }));
+    }
     function homeworkFormFieldsHtml(hw, classOptions) {
-      const images = hw ? (hw.image_urls || '').split(',').filter(u => u.trim()) : [];
+      hwPendingNewFiles = [];
+      hwExistingImages = parseHwImagePairs(hw);
+      hwRemovedFileIds = [];
       return `
         <div class="space-y-3 mb-4">
           <div class="grid grid-cols-2 gap-3">
@@ -2737,23 +3005,67 @@
             </div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">🖼️ ลิงก์รูปภาพ (ใส่ได้หลายรูป กดเพิ่มทีละบรรทัด)</label>
-            <div id="hw-image-inputs" class="space-y-2">
-              ${images.length > 0 ? images.map(url => `
-                <div class="flex gap-2"><input type="text" value="${url}" class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button></div>
-              `).join('') : `<div class="flex gap-2"><input type="text" placeholder="https://..." class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button></div>`}
-            </div>
-            <button type="button" onclick="addHwImageInputRow()" class="mt-2 px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">➕ เพิ่มช่องรูปภาพ</button>
+            <label class="block text-sm font-medium text-gray-700 mb-1">🖼️ รูปภาพ (อัปโหลดได้หลายรูป — เก็บเข้า Google Drive อัตโนมัติ)</label>
+            <div id="hw-existing-images" class="grid grid-cols-3 gap-2 mb-2"></div>
+            <div id="hw-new-files-preview" class="grid grid-cols-3 gap-2 mb-2"></div>
+            <input type="file" id="hw-file-input" accept="image/*" multiple onchange="handleHwFileSelect(event)" class="w-full text-sm">
           </div>
         </div>
       `;
     }
-    function addHwImageInputRow() {
-      const container = document.getElementById('hw-image-inputs');
-      const row = document.createElement('div');
-      row.className = 'flex gap-2';
-      row.innerHTML = `<input type="text" placeholder="https://..." class="hw-image-input flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="this.parentElement.remove()" class="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg text-sm">✕</button>`;
-      container.appendChild(row);
+    function renderHwExistingImages() {
+      const container = document.getElementById('hw-existing-images');
+      if (!container) return;
+      container.innerHTML = hwExistingImages.map((img, idx) => `
+        <div class="relative">
+          <img src="${img.url}" class="w-full h-20 object-cover rounded-lg border border-gray-200" onerror="this.style.display='none'">
+          <button type="button" onclick="removeHwExistingImage(${idx})" class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center">✕</button>
+        </div>
+      `).join('');
+    }
+    function removeHwExistingImage(idx) {
+      const removed = hwExistingImages.splice(idx, 1)[0];
+      if (removed?.fileId) hwRemovedFileIds.push(removed.fileId);
+      renderHwExistingImages();
+    }
+    function handleHwFileSelect(event) {
+      hwPendingNewFiles = hwPendingNewFiles.concat(Array.from(event.target.files));
+      renderHwNewFilesPreview();
+    }
+    function renderHwNewFilesPreview() {
+      const container = document.getElementById('hw-new-files-preview');
+      if (!container) return;
+      container.innerHTML = hwPendingNewFiles.map((file, idx) => `
+        <div class="relative">
+          <img src="${URL.createObjectURL(file)}" class="w-full h-20 object-cover rounded-lg border-2 border-green-300">
+          <button type="button" onclick="removeHwPendingFile(${idx})" class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center">✕</button>
+          <span class="absolute bottom-0 left-0 right-0 bg-green-500/80 text-white text-[10px] text-center">ใหม่</span>
+        </div>
+      `).join('');
+    }
+    function removeHwPendingFile(idx) {
+      hwPendingNewFiles.splice(idx, 1);
+      renderHwNewFilesPreview();
+    }
+    // อัปโหลดไฟล์ใหม่ทั้งหมด (ถ้ามี) แล้วลบรูปเดิมที่ถูกตัดออก (ถ้ามี) คืนค่า {image_urls, image_file_ids} รวมของที่เหลือ+ใหม่
+    async function processHwImagesOnSave(roomFolderName, subjectFolderName, dateStr) {
+      if (hwRemovedFileIds.length > 0) {
+        await deleteHomeworkImagesByFileIds(hwRemovedFileIds);
+      }
+      const uploadedResults = [];
+      for (const file of hwPendingNewFiles) {
+        try {
+          const uploaded = await uploadHomeworkImageFile(file, roomFolderName, subjectFolderName, dateStr);
+          uploadedResults.push(uploaded);
+        } catch (err) {
+          showToast(`อัปโหลดรูป ${file.name} ไม่สำเร็จ: ${err.message}`, 'error');
+        }
+      }
+      const allImages = [...hwExistingImages, ...uploadedResults];
+      return {
+        image_urls: allImages.map(i => i.url).join(','),
+        image_file_ids: allImages.map(i => i.fileId).join(',')
+      };
     }
     function updateHwFormSubjectOptions() {
       const className = document.getElementById('hw-form-class')?.value;
@@ -2795,9 +3107,7 @@
       `;
       document.body.appendChild(editDiv);
       updateHwFormSubjectOptions();
-    }
-    function readHwFormImages() {
-      return Array.from(document.querySelectorAll('.hw-image-input')).map(i => i.value.trim()).filter(Boolean).join(',');
+      renderHwExistingImages();
     }
     function readHwFormCommon(errorElId) {
       const className = document.getElementById('hw-form-class').value;
@@ -2816,14 +3126,17 @@
       errorEl.classList.add('hidden');
       return {
         class_name: className, room_number: roomNumber, subject_name: subjectName,
-        work_number: workNumber, num_questions: numQuestions, study_date: studyDate, due_date: dueDate,
-        image_urls: readHwFormImages()
+        work_number: workNumber, num_questions: numQuestions, study_date: studyDate, due_date: dueDate
       };
     }
     async function confirmAddHomework() {
       const data = readHwFormCommon('hw-form-error');
       if (!data) return;
-      const result = await window.dataSdk.create({ type: 'homework', ...data, created_at: new Date().toISOString() });
+      showBusyOverlay('📤 กำลังอัปโหลดรูปภาพ กรุณารอสักครู่...');
+      const roomFolderName = `${data.class_name}-${data.room_number}`;
+      const { image_urls, image_file_ids } = await processHwImagesOnSave(roomFolderName, data.subject_name, data.study_date);
+      hideBusyOverlay();
+      const result = await window.dataSdk.create({ type: 'homework', ...data, image_urls, image_file_ids, created_at: new Date().toISOString() });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ เพิ่มการบ้านสำเร็จ');
@@ -2851,6 +3164,7 @@
         </div>
       `;
       document.body.appendChild(editDiv);
+      renderHwExistingImages();
     }
     async function confirmEditHomework(hwId) {
       const hw = allData.find(d => d.__backendId === hwId);
@@ -2865,9 +3179,13 @@
         errorEl.classList.remove('hidden');
         return;
       }
+      showBusyOverlay('📤 กำลังอัปเดตรูปภาพ กรุณารอสักครู่...');
+      const roomFolderName = `${hw.class_name}-${hw.room_number}`;
+      const { image_urls, image_file_ids } = await processHwImagesOnSave(roomFolderName, hw.subject_name, studyDate);
+      hideBusyOverlay();
       const result = await window.dataSdk.update({
         ...hw, work_number: workNumber, num_questions: numQuestions,
-        study_date: studyDate, due_date: dueDate, image_urls: readHwFormImages()
+        study_date: studyDate, due_date: dueDate, image_urls, image_file_ids
       });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
@@ -2894,7 +3212,11 @@
     async function confirmDeleteHomeworkSingle(hwId) {
       const hw = allData.find(d => d.__backendId === hwId);
       if (!hw) return;
+      showBusyOverlay('🗑️ กำลังลบรูปภาพและการบ้าน กรุณารอสักครู่...');
+      const fileIds = (hw.image_file_ids || '').split(',').filter(Boolean);
+      await deleteHomeworkImagesByFileIds(fileIds);
       const result = await window.dataSdk.delete(hw);
+      hideBusyOverlay();
       document.querySelectorAll('.fixed').forEach(el => el.remove());
       if (result.isOk) {
         showToast('🗑️ ลบการบ้านสำเร็จ');
@@ -2921,10 +3243,16 @@
     }
     async function confirmBulkDeleteHomework(idsStr) {
       const ids = idsStr.split('|');
+      showBusyOverlay('🗑️ กำลังลบรูปภาพและการบ้าน กรุณารอสักครู่...');
       for (const id of ids) {
         const hw = allData.find(d => d.__backendId === id);
-        if (hw) await window.dataSdk.delete(hw);
+        if (hw) {
+          const fileIds = (hw.image_file_ids || '').split(',').filter(Boolean);
+          await deleteHomeworkImagesByFileIds(fileIds);
+          await window.dataSdk.delete(hw);
+        }
       }
+      hideBusyOverlay();
       document.querySelectorAll('.fixed').forEach(el => el.remove());
       showToast(`🗑️ ลบการบ้าน ${ids.length} รายการสำเร็จ`);
       if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
@@ -3873,6 +4201,9 @@
             scope_class_name: scopeClass,
             scope_room_number: scopeRoom,
             scope_subject_name: scopeSubject,
+            perm_timekeeping: document.getElementById('new-admin-perm-timekeeping').value,
+            perm_grading: document.getElementById('new-admin-perm-grading').value,
+            perm_students: document.getElementById('new-admin-perm-students').value,
             created_at: new Date().toISOString()
           });
       if (result.isOk) {
@@ -3916,6 +4247,28 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">📖 วิชา</label>
               <input type="text" id="edit-admin-subject" value="${admin.scope_subject_name || ''}" placeholder="เช่น คณิตศาสตร์" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
+            <p class="text-xs text-gray-500">🔑 สิทธิ์การเข้าถึงแท็บอื่นๆ</p>
+            <div>
+              <label class="block text-xs text-gray-600 mb-1">⏱️ ลงเวลาเรียน</label>
+              <select id="edit-admin-perm-timekeeping" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg">
+                <option value="view" ${admin.perm_timekeeping !== 'manage' ? 'selected' : ''}>ดูอย่างเดียว</option>
+                <option value="manage" ${admin.perm_timekeeping === 'manage' ? 'selected' : ''}>จัดการได้</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-600 mb-1">🎓 ให้คะแนน</label>
+              <select id="edit-admin-perm-grading" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg">
+                <option value="view" ${admin.perm_grading !== 'manage' ? 'selected' : ''}>ดูอย่างเดียว</option>
+                <option value="manage" ${admin.perm_grading === 'manage' ? 'selected' : ''}>จัดการได้</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs text-gray-600 mb-1">👨‍🎓 นักเรียน</label>
+              <select id="edit-admin-perm-students" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg">
+                <option value="view" ${admin.perm_students !== 'manage' ? 'selected' : ''}>ดูอย่างเดียว</option>
+                <option value="manage" ${admin.perm_students === 'manage' ? 'selected' : ''}>จัดการได้</option>
+              </select>
+            </div>
           </div>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
@@ -3945,7 +4298,10 @@
         password: password,
         scope_class_name: document.getElementById('edit-admin-class').value.trim(),
         scope_room_number: document.getElementById('edit-admin-room').value.trim(),
-        scope_subject_name: document.getElementById('edit-admin-subject').value.trim()
+        scope_subject_name: document.getElementById('edit-admin-subject').value.trim(),
+        perm_timekeeping: document.getElementById('edit-admin-perm-timekeeping').value,
+        perm_grading: document.getElementById('edit-admin-perm-grading').value,
+        perm_students: document.getElementById('edit-admin-perm-students').value
       });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
