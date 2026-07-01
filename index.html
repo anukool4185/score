@@ -140,13 +140,13 @@
          </div>
         </div>
         <div id="today-homework-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
-         <p class="text-xs font-semibold text-amber-700 mb-1">📝 การบ้านที่ต้องเรียน/ส่งวันนี้ (<span id="today-homework-date-label"></span>)</p>
+         <p class="text-xs font-semibold text-amber-700 mb-1">📝 การบ้านที่สั่งวันนี้ / การบ้านที่ต้องส่งวันนี้ | วันที่ <span id="today-homework-date-label"></span></p>
          <div class="overflow-hidden rounded-lg bg-amber-50" id="today-homework-viewport" style="height: 96px;">
           <div id="today-homework-track-container"></div>
          </div>
         </div>
         <div id="approved-requests-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
-         <p class="text-xs font-semibold text-emerald-700 mb-1">✅ รายการที่อนุมัติคำขอลงทะเบียนแล้ว</p>
+         <p class="text-xs font-semibold text-emerald-700 mb-1">✅ อนุมัติคำขอ กรุณากลับไปลงทะเบียน</p>
          <div class="overflow-hidden rounded-lg bg-emerald-50" id="approved-requests-viewport" style="height: 96px;">
           <div id="approved-requests-track-container"></div>
          </div>
@@ -739,6 +739,8 @@
              <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัสนักเรียน</th>
              <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
              <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เบอร์โทร</th>
+             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">User</th>
+             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">Password</th>
              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>
             </tr>
            </thead>
@@ -2066,7 +2068,10 @@
       container.innerHTML = `
         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 class="text-lg font-bold text-gray-800">📋 รายการการบ้าน</h3>
-          <button onclick="addHomeworkScopedPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มการบ้าน</button>
+          <div class="flex gap-2">
+            <button onclick="printSubAdminHomework()" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">🖨️ พิมพ์ / PDF</button>
+            <button onclick="addHomeworkScopedPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มการบ้าน</button>
+          </div>
         </div>
         <div class="flex items-center gap-3 flex-wrap mb-4">
           <input type="date" id="subadmin-hw-filter-date" onchange="loadSubAdminHomeworkSection()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
@@ -2106,7 +2111,7 @@
       if (!tbody) return;
       const list = getFilteredHomeworkList({ className: scope.className, roomNumber: scope.roomNumber, subjectName: scope.subjectName, dateFilter });
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-8">ไม่มีการบ้าน</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-8">ไม่มีการบ้าน</td></tr>';
         updateHwBulkDeleteButton();
         return;
       }
@@ -2124,12 +2129,19 @@
               <div class="flex gap-1 justify-center">
                 <button onclick="editHomeworkPopup('${hw.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
                 <button onclick="deleteHomeworkSingle('${hw.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
+                <button onclick="viewHomeworkImagesPopup('${hw.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs">🖼️ ดูรายละเอียด</button>
               </div>
             </td>
           </tr>
         `;
       }).join('');
       updateHwBulkDeleteButton();
+    }
+    function printSubAdminHomework() {
+      const scope = getSubAdminScope();
+      const list = getFilteredHomeworkList({ className: scope.className, roomNumber: scope.roomNumber, subjectName: scope.subjectName });
+      const rows = list.map(hw => `<tr><td>${hw.work_number||'-'}</td><td>${hw.study_date||'-'}</td><td>${hw.due_date||'-'}</td><td>${hw.num_questions||'-'}</td></tr>`).join('');
+      printHtml('รายการการบ้าน', `<h2>📝 รายการการบ้าน — ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</h2><table><thead><tr><th>ครั้งที่</th><th>วันที่เรียน</th><th>กำหนดส่ง</th><th>จำนวนข้อ</th></tr></thead><tbody>${rows}</tbody></table>`);
     }
     // ----- ⏱️ ลงเวลาเรียน (สำหรับผู้ช่วยแอดมิน) -----
     function renderSubAdminTimekeeping() {
@@ -2284,7 +2296,7 @@
                 } else if (approvedReq) {
                   statusBadge = `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ อนุญาตให้ลงทะเบียน</button>`;
                 } else if (pendingReq) {
-                  statusBadge = '<button disabled class="px-2 py-1 bg-yellow-400 cursor-not-allowed opacity-90 text-white rounded text-xs whitespace-nowrap">⏳ รอแอดมินอนุญาต</button>';
+                  statusBadge = '<button disabled class="px-2 py-1 bg-gray-400 cursor-not-allowed opacity-90 text-gray-800 rounded text-xs whitespace-nowrap">⏳ รอแอดมินอนุญาต</button>';
                 } else {
                   statusBadge = `<button onclick="subAdminRequestRegistrationPopup('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs whitespace-nowrap">📚 ยังไม่ลงทะเบียน</button>`;
                 }
@@ -2794,7 +2806,7 @@
         return;
       }
       const totalSec = applyGenericMarqueeKeyframes('hw-marquee-scroll', getHwMarqueeDurationSec(), hwMarqueePauseDelaySec);
-      trackContainer.innerHTML = `<div class="marquee-track" style="animation: hw-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
+      trackContainer.innerHTML = `<div class="hw-marquee-el" style="animation: hw-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
     // ----- ✅ แถบเลื่อนสถานะอนุมัติคำขอลงทะเบียน (ตั้งค่าความเร็ว/แถว/หน่วงเวลาที่แท็บ "นักเรียนที่สมัคร") -----
     function getApprovedMarqueeDurationSec() {
@@ -2840,7 +2852,7 @@
         return;
       }
       const totalSec = applyGenericMarqueeKeyframes('approved-marquee-scroll', getApprovedMarqueeDurationSec(), approvedMarqueePauseDelaySec);
-      trackContainer.innerHTML = `<div class="marquee-track" style="animation: approved-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
+      trackContainer.innerHTML = `<div class="approved-marquee-el" style="animation: approved-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
     async function adjustApprovedMarqueeSpeed(delta) {
       approvedMarqueeSpeedLevel = Math.max(1, Math.min(10, approvedMarqueeSpeedLevel + delta));
@@ -5146,7 +5158,7 @@
         countLabel.textContent = `แสดง ${students.length} จาก ${allStudents.length} คน`;
       }
       if (students.length === 0) {
-        container.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนลงทะเบียน' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
+        container.innerHTML = `<tr><td colspan="9" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนลงทะเบียน' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
         return;
       }
       container.innerHTML = students.map(s => {
@@ -5160,6 +5172,8 @@
           <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.class_name}/${s.room_number}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
+          <td class="px-2 py-2 whitespace-nowrap font-mono text-xs">${s.username || '-'}</td>
+          <td class="px-2 py-2 whitespace-nowrap font-mono text-xs text-blue-700">${s.password || '-'}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">
             <div class="flex gap-1 justify-center">
               <button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
@@ -8507,7 +8521,10 @@
       const registeredSubjects = [...new Set(registrations.map(r => r.subject_name))].sort();
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-6">📝 การบ้าน</h2>
+          <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <h2 class="text-2xl font-bold text-gray-800">📝 การบ้าน</h2>
+            ${registeredSubjects.length > 0 ? '<button onclick="printStudentHomework()" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">🖨️ พิมพ์ / PDF</button>' : ''}
+          </div>
           ${registeredSubjects.length === 0 ? '<p class="text-gray-400 text-center py-8">คุณยังไม่ได้ลงทะเบียนเรียนวิชาใดๆ</p>' : `
             <div class="flex items-center gap-3 flex-wrap mb-4">
               <select id="student-hw-filter-subject" onchange="updateStudentHomeworkTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
@@ -8536,6 +8553,12 @@
         </div>
       `;
       if (registeredSubjects.length > 0) updateStudentHomeworkTable();
+    }
+    function printStudentHomework() {
+      const tbody = document.getElementById('student-hw-table-body');
+      if (!tbody) return;
+      const rows = Array.from(tbody.querySelectorAll('tr')).map(tr => `<tr>${Array.from(tr.querySelectorAll('td')).map(td => `<td>${td.innerText}</td>`).join('')}</tr>`).join('');
+      printHtml('การบ้าน', `<h2>📝 การบ้าน</h2><table><thead><tr><th>วิชา</th><th>งานครั้งที่</th><th>วันที่เรียน</th><th>กำหนดส่ง</th><th>จำนวนข้อ</th></tr></thead><tbody>${rows}</tbody></table>`);
     }
     function updateStudentHomeworkTable() {
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
@@ -8582,7 +8605,8 @@
         <div class="bg-white rounded-2xl p-6 max-w-2xl w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-xl font-bold text-gray-800 mb-2">📝 ${hw.subject_name} — งานครั้งที่ ${hw.work_number || '-'}</h3>
-          <p class="text-sm text-gray-500 mb-4">วันที่เรียน: ${hw.study_date || '-'} | กำหนดส่ง: ${hw.due_date || '-'} | จำนวนข้อ: ${hw.num_questions || '-'}</p>
+          <p class="text-sm text-gray-500 mb-3">วันที่เรียน: ${hw.study_date || '-'} | กำหนดส่ง: ${hw.due_date || '-'} | จำนวนข้อ: ${hw.num_questions || '-'}</p>
+          <button onclick="printHomeworkDetail('${hwId}')" class="mb-4 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">🖨️ พิมพ์ / PDF</button>
           ${images.length === 0 ? '<p class="text-gray-400 text-center py-8">ไม่มีรูปภาพแนบ</p>' : `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               ${images.map(url => `<img src="${url}" alt="" class="w-full rounded-lg border border-gray-200" onerror="this.style.display='none'">`).join('')}
@@ -8591,6 +8615,24 @@
         </div>
       `;
       document.body.appendChild(editDiv);
+    }
+    function printHomeworkDetail(hwId) {
+      const hw = allData.find(d => d.__backendId === hwId);
+      if (!hw) return;
+      const images = (hw.image_urls || '').split(',').filter(u => u.trim());
+      const imagesHtml = images.length > 0 ? images.map(url => `<img src="${url}" style="max-width:100%;margin:8px 0;border:1px solid #ccc;border-radius:4px">`).join('') : '<p>ไม่มีรูปภาพแนบ</p>';
+      printHtml(`การบ้าน ${hw.subject_name} ครั้งที่ ${hw.work_number}`,
+        `<h2>📝 ${hw.subject_name} — งานครั้งที่ ${hw.work_number || '-'}</h2>
+         <p>ชั้น/ห้อง: ${hw.class_name}/${hw.room_number}</p>
+         <p>วันที่เรียน: ${hw.study_date || '-'} | กำหนดส่ง: ${hw.due_date || '-'} | จำนวนข้อ: ${hw.num_questions || '-'}</p>
+         <hr style="margin:12px 0">${imagesHtml}`);
+    }
+    function printHtml(title, bodyHtml) {
+      const win = window.open('', '_blank');
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+        <style>body{font-family:sans-serif;padding:20px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f3f4f6}@media print{button{display:none}}</style>
+      </head><body>${bodyHtml}<br><button onclick="window.print()">🖨️ พิมพ์</button></body></html>`);
+      win.document.close();
     }
     function showStudentAttendance() {
       const content = document.getElementById('student-content');
@@ -8682,10 +8724,18 @@
       }).join('');
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-6">⏱️ เวลาเรียน</h2>
+          <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <h2 class="text-2xl font-bold text-gray-800">⏱️ เวลาเรียน</h2>
+            <button onclick="printStudentAttendance()" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm flex items-center gap-1">🖨️ พิมพ์ / PDF</button>
+          </div>
           ${cardsHtml}
         </div>
       `;
+    }
+    function printStudentAttendance() {
+      const content = document.getElementById('student-content');
+      const title = 'บันทึกเวลาเรียน';
+      printHtml(title, `<h2>${title}</h2>${content.querySelector('.bg-white')?.innerHTML || ''}`);
     }
     function sumScoresStr(scoresStr) {
       if (!scoresStr) return 0;
@@ -9479,8 +9529,11 @@
             </div>
           </div>
           <div class="flex gap-2">
-            <button onclick="editRegistration('${reg.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
-            <button onclick="deleteRegistration('${reg.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+            ${isRegistrationOpen()
+              ? `<button onclick="editRegistration('${reg.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+                 <button onclick="deleteRegistration('${reg.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>`
+              : `<span class="text-xs text-gray-400 italic">🔒 ปิดรับลงทะเบียนแล้ว</span>`
+            }
           </div>
         </div>
       `;
