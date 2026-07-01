@@ -2796,6 +2796,7 @@
         <div style="height:32px" class="flex items-center px-3 text-xs text-gray-700 gap-2">
           <span class="font-semibold whitespace-nowrap">${hw.study_date === todayStr ? '📖 เรียนวันนี้' : '⏰ กำหนดส่งวันนี้'}</span>
           <span class="whitespace-nowrap">${hw.subject_name}</span>
+          <span class="whitespace-nowrap text-gray-500">งานครั้งที่ ${hw.work_number || '-'}</span>
           <span class="text-gray-400 whitespace-nowrap">${hw.class_name}/${hw.room_number}</span>
         </div>
       `;
