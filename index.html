@@ -70,9 +70,9 @@
  <body class="h-full bg-gray-100 overflow-auto">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
-    <div class="fixed top-4 right-4 z-40 flex gap-3">
+    <div class="fixed top-3 right-3 z-40 flex gap-2">
      <div class="relative flex flex-col items-center">
-      <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white shadow-lg rounded-full w-12 h-12 flex items-center justify-center text-2xl hover:scale-105 transition">
+      <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-white shadow-lg rounded-full w-10 h-10 flex items-center justify-center text-xl hover:scale-105 transition">
        🔔
        <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">0</span>
       </button>
@@ -114,17 +114,17 @@
       </div>
      </div>
     </div>
-    <div class="max-w-6xl mx-auto py-8 px-4">
-     <div class="grid md:grid-cols-2 gap-6 items-start">
+    <div class="max-w-6xl mx-auto py-4 px-3 md:py-8 md:px-4">
+     <div class="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 items-start">
       <!-- ซ้าย: ประชาสัมพันธ์ (กล่องแจ้งเตือน+แถบเลื่อน อยู่บน / ประกาศหน้าแรกเว็บ อยู่ล่าง ใต้หัวข้อเดียวกัน) -->
-      <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-       <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">📢 ประชาสัมพันธ์</h2>
+      <div class="bg-white rounded-2xl card-shadow p-4 md:p-8 fade-in w-full">
+       <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 text-center">📢 ประชาสัมพันธ์</h2>
        <!-- กล่องบน: รายการแจ้งเตือน + แถบเลื่อนรายชื่อ -->
-       <div id="notification-marquee-box" class="border-2 border-gray-200 rounded-xl p-4 mb-6">
+       <div id="notification-marquee-box" class="border-2 border-gray-200 rounded-xl p-3 mb-4">
         <div class="flex items-start gap-3">
          <div class="flex-1 min-w-0">
           <div id="notification-marquee-text"></div>
-          <div class="relative overflow-hidden mt-2 rounded-lg bg-gray-50" id="marquee-viewport" style="height: 96px;">
+          <div class="relative overflow-hidden mt-2 rounded-lg bg-gray-50 w-full" id="marquee-viewport" style="height: 96px;">
            <div id="marquee-band" class="absolute left-0 right-0 bg-purple-100/70 pointer-events-none rounded" style="height: 36px;"></div>
            <div id="marquee-track-container"></div>
           </div>
@@ -158,8 +158,8 @@
        </div>
       </div>
       <!-- ขวา: ฟอร์ม login -->
-      <div class="bg-white rounded-2xl card-shadow p-8 fade-in">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">🔐 เข้าสู่ระบบ</h2>
+      <div class="bg-white rounded-2xl card-shadow p-5 md:p-8 fade-in w-full">
+      <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-5 text-center">🔐 เข้าสู่ระบบ</h2>
       <form onsubmit="handleLogin(event)">
        <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700 mb-2">👤 Username *</label> <input type="text" id="login-username" placeholder="กรอก username" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
