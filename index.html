@@ -70,10 +70,8 @@
  <body class="h-full bg-gray-100 overflow-auto">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
-    <!-- ปุ่ม × และกระดิ่งแจ้งเตือนอยู่แถวเดียวกัน -->
-    <div class="fixed top-2 right-2 z-50 flex items-center gap-2">
-     <!-- ปุ่มปิดเว็บ -->
-     <button onclick="window.close()" title="ปิดหน้าต่าง" class="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-base font-bold shadow-lg transition leading-none">×</button>
+    <!-- กระดิ่งแจ้งเตือนทั้งสามอยู่มุมซ้ายบน -->
+    <div class="fixed top-2 left-2 z-50 flex items-center gap-2">
      <!-- กระดิ่ง 1: ผู้สมัคร (ส้ม) -->
      <div class="relative flex flex-col items-center">
       <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-orange-400 hover:bg-orange-500 shadow-lg rounded-full w-8 h-8 flex items-center justify-center text-base hover:scale-105 transition">
@@ -81,7 +79,7 @@
        <span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">0</span>
       </button>
       <span class="text-[9px] text-gray-600 mt-0.5 bg-white/80 px-0.5 rounded leading-tight">ผู้สมัคร</span>
-      <div id="bell-dropdown-applicants" class="hidden absolute right-0 top-full mt-1 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+      <div id="bell-dropdown-applicants" class="hidden absolute left-0 top-full mt-1 w-64 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
        <div class="px-3 py-2 border-b border-gray-200 bg-blue-50 rounded-t-xl">
         <p class="text-sm font-semibold text-blue-800">🔔 ผู้สมัครใหม่</p>
         <p class="text-xs text-blue-600">นักเรียนที่สมัครแล้ว แต่ยังไม่ลงทะเบียนวิชา</p>
@@ -92,13 +90,13 @@
      <!-- กระดิ่ง 2: คำขอลงทะเบียน (ฟ้า) -->
      <div class="relative flex flex-col items-center">
       <button onclick="toggleBellDropdown('requests')" class="bell-button relative bg-sky-500 hover:bg-sky-600 shadow-lg rounded-full w-8 h-8 flex items-center justify-center text-base hover:scale-105 transition">
-       🔵
+       🔔
        <span class="bell-requests-count hidden absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">0</span>
       </button>
       <span class="text-[9px] text-gray-600 mt-0.5 bg-white/80 px-0.5 rounded leading-tight">คำขอ</span>
-      <div id="bell-dropdown-requests" class="hidden absolute right-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+      <div id="bell-dropdown-requests" class="hidden absolute left-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
        <div class="px-3 py-2 border-b border-gray-200 bg-sky-50 rounded-t-xl">
-        <p class="text-sm font-semibold text-sky-800">🔵 คำขอลงทะเบียนจากผู้ช่วยแอดมิน</p>
+        <p class="text-sm font-semibold text-sky-800">🔔 คำขอลงทะเบียนจากผู้ช่วยแอดมิน</p>
         <p class="text-xs text-sky-600">รอแอดมินอนุมัติ/ดำเนินการ</p>
        </div>
        <div id="bell-list-requests" class="max-h-64 overflow-y-auto"></div>
@@ -111,7 +109,7 @@
        <span class="bell-registrations-count hidden absolute -top-1 -right-1 bg-red-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">0</span>
       </button>
       <span class="text-[9px] text-gray-600 mt-0.5 bg-white/80 px-0.5 rounded leading-tight">ลงทะเบียนใหม่</span>
-      <div id="bell-dropdown-registrations" class="hidden absolute right-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
+      <div id="bell-dropdown-registrations" class="hidden absolute left-0 top-full mt-1 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
        <div class="px-3 py-2 border-b border-gray-200 bg-purple-50 rounded-t-xl">
         <p class="text-sm font-semibold text-purple-800">🔔 ผู้ลงทะเบียนใหม่</p>
         <p class="text-xs text-purple-600">ลงทะเบียนวิชาแล้ว รอแอดมินตรวจสอบ</p>
@@ -120,6 +118,8 @@
       </div>
      </div>
     </div>
+    <!-- ปุ่มปิดเว็บมุมขวาบน -->
+    <button onclick="window.close()" title="ปิดหน้าต่าง" class="fixed top-2 right-2 z-50 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-base font-bold shadow-lg transition leading-none">×</button>
     <div class="max-w-6xl mx-auto py-4 px-3 md:py-8 md:px-4">
      <div class="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 items-start">
       <!-- ซ้าย: ประชาสัมพันธ์ (กล่องแจ้งเตือน+แถบเลื่อน อยู่บน / ประกาศหน้าแรกเว็บ อยู่ล่าง ใต้หัวข้อเดียวกัน) -->
