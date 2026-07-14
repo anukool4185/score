@@ -2746,19 +2746,19 @@
                 const approvedReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && isRequestApprovedToday(d));
                 const kpacReq = allData.find(d => d.type === 'kpac_request' && d.student_id === s.student_id && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
 
-                // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร)
+                // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KPAC
                 const kpacCell = kpacReq
-                  ? `<div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>`
+                  ? `<div class="flex flex-col items-center gap-1">
+                      <div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>
+                      ${approvedReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-1.5 py-0.5 bg-orange-400 hover:bg-orange-500 text-white rounded text-[10px] whitespace-nowrap">🔑 ขอใช้ KPAC</button>` : ''}
+                    </div>`
                   : '<span class="text-gray-300 text-xs">-</span>';
 
                 let statusBadge;
                 if (hasAnyRegistration) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-green-500 cursor-not-allowed opacity-80 text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียนแล้ว</button>';
                 } else if (approvedReq) {
-                  // แอดมินอนุมัติแล้ว → ถ้ามี kpac_request ให้ auto-fill, ถ้าไม่มีก็ลงทะเบียนปกติ
-                  statusBadge = kpacReq
-                    ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">🔑 ขอใช้ KPAC</button>`
-                    : `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', null)" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ ลงทะเบียน</button>`;
+                  statusBadge = `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', null)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs whitespace-nowrap">✅ ได้รับอนุญาต - ลงทะเบียนเลย</button>`;
                 } else if (pendingReq) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-gray-400 cursor-not-allowed opacity-90 text-gray-800 rounded text-xs whitespace-nowrap">⏳ รอแอดมินอนุญาต</button>';
                 } else {
@@ -5727,9 +5727,26 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast(`✅ แต่งตั้ง ${student.first_name} เป็นผู้ช่วยแอดมินสำเร็จ`);
         updateStudentsList();
-        updateAdminList?.();
+        updateAdminList();
+        // Refresh ช่องค้นหาในแท็บผู้ช่วยแอดมินถ้าเปิดอยู่
+        searchStudentForAppoint();
       } else {
         showToast('ไม่สามารถบันทึกได้', 'error');
+      }
+    }
+
+    async function revokeSubAdmin(adminBackendId, studentBackendId) {
+      if (!confirm('ยืนยันยกเลิกสถานะผู้ช่วยแอดมินของนักเรียนคนนี้?')) return;
+      const adminRec = allData.find(d => d.__backendId === adminBackendId);
+      if (!adminRec) return;
+      const result = await window.dataSdk.delete(adminRec);
+      if (result.isOk) {
+        showToast('✅ ยกเลิกสถานะผู้ช่วยแอดมินสำเร็จ');
+        updateStudentsList();
+        updateAdminList();
+        searchStudentForAppoint();
+      } else {
+        showToast('ไม่สามารถยกเลิกได้', 'error');
       }
     }
 
@@ -5911,15 +5928,30 @@
         { username: 'admin', isDefault: true },
         ...allAdmins.map(a => ({ ...a, isDefault: false }))
       ];
-      adminList.innerHTML = allAdminsList.map(admin => `
-        <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <div>
-            <p class="font-semibold text-gray-800">👤 ${admin.username}</p>
+      adminList.innerHTML = allAdminsList.map(admin => {
+        const linkedStudent = admin.linked_student_id
+          ? allData.find(s => s.__backendId === admin.linked_student_id)
+          : null;
+        const nameDisplay = linkedStudent
+          ? `<span class="text-xs text-gray-700 ml-1">(${linkedStudent.prefix}${linkedStudent.first_name} ${linkedStudent.last_name})</span>`
+          : '';
+        const scopeDisplay = (!admin.isDefault && (admin.scope_class_name || admin.scope_subject_name))
+          ? `<span class="text-xs text-gray-500 block">${admin.scope_class_name || ''}/${admin.scope_room_number || ''} | ${admin.scope_subject_name || ''}</span>`
+          : '';
+        return `
+          <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
+           <div>
+            <p class="font-semibold text-gray-800">👤 ${admin.username} ${nameDisplay}</p>
             ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : '<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>'}
+            ${scopeDisplay}
+           </div>
+           ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2">
+            <button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+            <button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+           </div>` : ''}
           </div>
-          ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2"><button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button><button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button></div>` : ''}
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
     let registeredStudentsFilter = { className: '', roomNumber: '' };
     function populateRegFilterOptions(allStudents) {
@@ -6211,7 +6243,7 @@
         const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
         const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === s.__backendId);
         const adminBadge = existingAdmin
-          ? `<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs whitespace-nowrap">✅ ผู้ช่วยแอดมิน</span>`
+          ? `<button onclick="revokeSubAdmin('${existingAdmin.__backendId}', '${s.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-red-500 text-white rounded text-xs whitespace-nowrap" title="กดซ้ำเพื่อยกเลิกสถานะผู้ช่วยแอดมิน">✅ ผู้ช่วยแอดมิน</button>`
           : `<button onclick="appointSubAdminPopup('${s.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs whitespace-nowrap">👤 แต่งตั้ง</button>`;
         return `
         <tr class="hover:bg-gray-50">
@@ -7004,6 +7036,8 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบแอดมินสำเร็จ ✅');
         updateAdminList();
+        updateStudentsList();
+        searchStudentForAppoint();
       } else {
         showToast('ไม่สามารถลบแอดมิน', 'error');
       }
