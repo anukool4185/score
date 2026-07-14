@@ -815,8 +815,6 @@
           <option value="1">ครั้งที่ 1 (ปรนัย)</option>
           <option value="2">ครั้งที่ 2 (อัตนัย)</option>
          </select>
-         <button onclick="pullPendingScores(1)" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">🔗 ดึงคะแนนครั้งที่ 1</button>
-         <button onclick="pullPendingScores(2)" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm">🔗 ดึงคะแนนครั้งที่ 2</button>
          <button onclick="deleteSelectedPendingScores()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm">🗑️ ลบที่เลือก</button>
         </div>
         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
@@ -4770,25 +4768,37 @@
       while (scoresArr.length < round) scoresArr.push('');
       scoresArr[round - 1] = String(pendingRecord.raw_score);
       const newScoresStr = scoresArr.join(',');
+      let writeResult;
       if (grade) {
-        await window.dataSdk.update({ ...grade, [scoreField]: newScoresStr });
+        writeResult = await window.dataSdk.update({ ...grade, [scoreField]: newScoresStr });
       } else {
         const student = allData.find(s => s.type === 'student' && s.student_id === pendingRecord.student_id);
-        await window.dataSdk.create({
+        writeResult = await window.dataSdk.create({
           type: 'grade', registration_id: reg.__backendId, student_id: pendingRecord.student_id,
           class_name: reg.class_name, subject_name: pendingRecord.subject_name,
           [scoreField]: newScoresStr, created_at: new Date().toISOString()
         });
       }
-      return true;
+      // เมื่อเขียนคะแนนสำเร็จ ลบ pending_score ออกทันที
+      if (writeResult?.isOk) {
+        await window.dataSdk.delete(pendingRecord);
+        return true;
+      }
+      return false;
     }
 
     async function applyPendingScoresOnRegistration(studentId, subjectName) {
-      // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ
+      // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ แล้วลบออก
       const pendings = allData.filter(d => d.type === 'pending_score' && d.student_id === studentId && d.subject_name === subjectName);
+      let applied = 0;
       for (const p of pendings) {
-        await applyPendingScore(p);
+        const ok = await applyPendingScore(p);
+        if (ok) applied++;
       }
+      if (applied > 0) {
+        renderPendingScoreTable?.();
+      }
+      return applied;
     }
     function loadGradeReportTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
