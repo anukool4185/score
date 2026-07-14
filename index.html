@@ -1302,7 +1302,9 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          this._cache.push(json.data);
+          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
+          const fresh = await this._fetchAll();
+          this._cache = fresh;
           this._handler.onDataChanged(this._cache);
           return { isOk: true, data: json.data };
         } catch (err) {
@@ -1322,8 +1324,9 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          const idx = this._cache.findIndex(d => d.__backendId === record.__backendId);
-          if (idx >= 0) this._cache[idx] = json.data;
+          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
+          const fresh = await this._fetchAll();
+          this._cache = fresh;
           this._handler.onDataChanged(this._cache);
           return { isOk: true, data: json.data };
         } catch (err) {
@@ -1343,7 +1346,9 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          this._cache = this._cache.filter(d => d.__backendId !== record.__backendId);
+          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
+          const fresh = await this._fetchAll();
+          this._cache = fresh;
           this._handler.onDataChanged(this._cache);
           return { isOk: true };
         } catch (err) {
@@ -3645,29 +3650,39 @@
       _currentPage = pageName;
     }
     function refreshCurrentView() {
-      // เรียก refresh ที่เหมาะสมกับ page/tab ที่กำลังแสดงอยู่
       try {
-        if (_currentPage === 'subadmin' || document.getElementById('page-subadmin')?.classList.contains('hidden') === false) {
-          if (_currentSubAdminTab === 'students') renderSubAdminStudents();
-          else if (_currentSubAdminTab === 'homework') loadSubAdminHomeworkSection();
-          else if (_currentSubAdminTab === 'grading') refreshSubAdminGrading?.();
-          else if (_currentSubAdminTab === 'timekeeping') updateTimekeepingStudents?.();
+        const subadminVisible = !document.getElementById('page-subadmin')?.classList.contains('hidden');
+        const adminVisible = !document.getElementById('page-admin')?.classList.contains('hidden');
+
+        // Sub-admin page — เรียก renderSubAdminStudents เสมอเพื่อให้ badge + สถานะอัปเดตทันที
+        if (subadminVisible) {
+          const tab = _currentSubAdminTab || currentSubAdminTab || 'students';
+          if (tab === 'homework') loadSubAdminHomeworkSection?.();
+          else if (tab === 'timekeeping') updateTimekeepingStudents?.();
+          else if (tab === 'grading') renderSubAdminGrading?.();
+          renderSubAdminStudents(); // เรียกเสมอ ไม่ว่า tab ไหน (badge + สถานะ)
         }
-        if (document.getElementById('page-admin')?.classList.contains('hidden') === false) {
-          if (_currentAdminTab === 'students') { updateStudentsList?.(); updateRegisteredStudents?.(); }
-          else if (_currentAdminTab === 'admins') { updateAdminList?.(); }
-          else if (_currentAdminTab === 'homework') updateHomeworkTable?.();
-          else if (_currentAdminTab === 'grading') refreshGradingStudentList?.();
-          else if (_currentAdminTab === 'timekeeping') updateTimekeepingStudents?.();
-          else if (_currentAdminTab === 'scores') updateScoreInputTable?.();
-          else if (_currentAdminTab === 'gradereport') loadGradeReportTab?.();
-          else if (_currentAdminTab === 'uploadscore') renderPendingScoreTable?.();
-          else if (_currentAdminTab === 'hours') updateHoursTable?.();
+
+        // Admin page
+        if (adminVisible) {
+          const tab = _currentAdminTab;
+          if (tab === 'students') { updateStudentsList?.(); updateRegisteredStudents?.(); }
+          else if (tab === 'admins') updateAdminList?.();
+          else if (tab === 'homework') updateHomeworkTable?.();
+          else if (tab === 'timekeeping') updateTimekeepingStudents?.();
+          else if (tab === 'scores') updateScoreInputTable?.();
+          else if (tab === 'gradereport') loadGradeReportTab?.();
+          else if (tab === 'uploadscore') renderPendingScoreTable?.();
+          else if (tab === 'hours') updateHoursTable?.();
+          else if (tab === 'grading') renderGradingView?.();
         }
+
+        // Student page
         if (_currentPage === 'student-management') {
           updateStudentHomeworkTable?.();
           updateStudentRegistrationsList?.();
         }
+
         renderNotificationBells();
         updateTodayHomeworkCount?.();
         updateApprovedRequestsCount?.();
@@ -6604,6 +6619,7 @@
       if (result.isOk) {
         showToast('🗑️ ลบการลงทะเบียนสำเร็จ');
         updateRegistrationsTable();
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถลบได้', 'error');
       }
