@@ -166,7 +166,7 @@
         </div>
        </div>
        <!-- กล่องล่าง: ประกาศหน้าแรกของเว็บ -->
-       <!-- 🔍 ช่องค้นหานักเรียน + ขอกำหนด KPAC -->
+       <!-- 🔍 ช่องค้นหานักเรียน + แจ้ง KPAC ไปยังผู้ช่วยแอดมิน -->
        <div class="border-2 border-gray-200 rounded-xl p-3 mb-4">
         <p class="text-xs font-semibold text-gray-700 mb-2">🔍 ค้นหาสถานะ</p>
         <div class="flex gap-3 flex-wrap mb-2">
@@ -2016,7 +2016,7 @@
       return allData.filter(d => d.type === 'registration_request' && d.status === 'pending');
     }
     // ============================================================
-    // 🔍 ค้นหานักเรียนหน้า login + ขอกำหนด KPAC
+    // 🔍 ค้นหานักเรียนหน้า login + แจ้ง KPAC ไปยังผู้ช่วยแอดมิน
     // ============================================================
     function loginPageStudentSearch() {
       const q = document.getElementById('login-student-search')?.value.trim().toLowerCase();
@@ -2056,7 +2056,7 @@
           : `<span class="flex items-center gap-1 text-[10px] font-semibold text-red-700"><span class="w-2 h-2 rounded-full bg-red-500"></span>ยังไม่ลงทะเบียน</span>`;
 
         const kpacBtn = !hasReg
-          ? `<button onclick="kpacRequestPopup('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">📋 ขอกำหนด KPAC</button>`
+          ? `<button onclick="kpacRequestPopup('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">📋 แจ้ง KPAC ไปยังผู้ช่วยแอดมิน</button>`
           : '';
 
         return `
@@ -2094,7 +2094,7 @@
       editDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
-          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 ขอกำหนด KPAC</h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 แจ้ง KPAC ไปยังผู้ช่วยแอดมิน</h3>
           <p class="text-sm text-gray-600 mb-4">${student.prefix}${student.first_name} ${student.last_name} | ${studentClass}/${studentRoom}</p>
           <div class="mb-3">
            <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
@@ -2734,24 +2734,31 @@
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัสนักเรียน</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เบอร์โทร</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">KPAC ที่แจ้งไว้</th>
                 <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">สถานะลงทะเบียน</th>
                 ${perm === 'manage' ? '<th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>' : ''}
               </tr>
             </thead>
             <tbody>
-              ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 6 : 5}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
+              ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 7 : 6}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
                 const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
                 const pendingReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && d.status === 'pending');
                 const approvedReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && isRequestApprovedToday(d));
-                // kpac_request ที่นักเรียนส่งมาให้ผู้ช่วยแอดมิน
                 const kpacReq = allData.find(d => d.type === 'kpac_request' && d.student_id === s.student_id && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
-                const kpacBadgeHtml = kpacReq ? `<span class="ml-1 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">📋 ขอกำหนด KPAC (K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent})</span>` : '';
+
+                // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร)
+                const kpacCell = kpacReq
+                  ? `<div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>`
+                  : '<span class="text-gray-300 text-xs">-</span>';
+
                 let statusBadge;
                 if (hasAnyRegistration) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-green-500 cursor-not-allowed opacity-80 text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียนแล้ว</button>';
                 } else if (approvedReq) {
-                  const useKpacBtn = kpacReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ ใช้ KPAC นี้</button>` : `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', null)" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ อนุญาตให้ลงทะเบียน</button>`;
-                  statusBadge = useKpacBtn;
+                  // แอดมินอนุมัติแล้ว → ถ้ามี kpac_request ให้ auto-fill, ถ้าไม่มีก็ลงทะเบียนปกติ
+                  statusBadge = kpacReq
+                    ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">🔑 ขอใช้ KPAC</button>`
+                    : `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', null)" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ ลงทะเบียน</button>`;
                 } else if (pendingReq) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-gray-400 cursor-not-allowed opacity-90 text-gray-800 rounded text-xs whitespace-nowrap">⏳ รอแอดมินอนุญาต</button>';
                 } else {
@@ -2760,9 +2767,10 @@
                 return `
                 <tr class="hover:bg-gray-50">
                   <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
-                  <td class="px-2 py-2 whitespace-nowrap"><span>${s.prefix} ${s.first_name} ${s.last_name}</span>${kpacBadgeHtml}</td>
+                  <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
+                  <td class="px-2 py-2 text-center">${kpacCell}</td>
                   <td class="px-2 py-2 text-center whitespace-nowrap">${statusBadge}</td>
                   ${perm === 'manage' ? `<td class="px-2 py-2 text-center whitespace-nowrap"><button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️ แก้ไข</button></td>` : ''}
                 </tr>
