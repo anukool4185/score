@@ -152,6 +152,14 @@
           </button>
          </div>
         </div>
+        <!-- 🔍 ช่องค้นหาสถานะนักเรียน -->
+        <div class="mt-3 pt-3 border-t border-gray-200">
+         <div class="flex gap-2">
+          <input type="text" id="login-student-search" placeholder="🔍 ค้นหารหัส / ชื่อ / นามสกุล..." oninput="loginPageStudentSearch()" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-xs focus:border-blue-500 focus:outline-none">
+          <button onclick="document.getElementById('login-student-search').value=''; document.getElementById('login-student-search-result').innerHTML=''" class="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs">✕</button>
+         </div>
+         <div id="login-student-search-result" class="mt-2"></div>
+        </div>
         <div id="today-homework-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
          <p class="text-xs font-semibold text-amber-700 mb-1">📝 การบ้านที่สั่งวันนี้ / การบ้านที่ต้องส่งวันนี้ | วันที่ <span id="today-homework-date-label"></span></p>
          <div class="overflow-hidden rounded-lg bg-amber-50 w-full" id="today-homework-viewport" style="height: 96px;">
@@ -166,6 +174,14 @@
         </div>
        </div>
        <!-- กล่องล่าง: ประกาศหน้าแรกของเว็บ -->
+       <!-- 🔍 ช่องค้นหานักเรียน + ขอกำหนด KPAC -->
+       <div class="border-2 border-gray-200 rounded-xl p-3 mb-4">
+        <div class="flex gap-2 mb-2">
+         <input type="text" id="login-student-search" placeholder="🔍 ค้นหาจากรหัส/ชื่อ/นามสกุล" oninput="loginPageStudentSearch()" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <button onclick="document.getElementById('login-student-search').value=''; document.getElementById('login-search-result').innerHTML='';" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">ล้าง</button>
+        </div>
+        <div id="login-search-result"></div>
+       </div>
        <div id="landing-announcements">
         <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
        </div>
@@ -323,7 +339,7 @@
     <nav class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
-      <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
+      <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToSubAdminPageFromStudent()" id="student-subadmin-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">🧑‍💼 ผู้ช่วยแอดมิน</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
        <div id="admin-bells-container" class="hidden gap-3">
         <div class="relative flex flex-col items-center">
          <button onclick="toggleBellDropdown('applicants', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
@@ -827,9 +843,18 @@
       <div id="admin-tab-admins" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">👥 จัดการผู้ช่วยแอดมิน</h3>
+        <!-- 🔍 ค้นหานักเรียนเพื่อแต่งตั้ง -->
+        <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+         <h4 class="text-sm font-semibold text-purple-800 mb-3">🔍 ค้นหานักเรียนเพื่อแต่งตั้งเป็นผู้ช่วยแอดมิน</h4>
+         <div class="flex gap-2 mb-3">
+          <input type="text" id="appoint-search-input" placeholder="รหัสนักเรียน / ชื่อ / นามสกุล / ชั้น / ห้อง" oninput="searchStudentForAppoint()" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+          <button onclick="document.getElementById('appoint-search-input').value=''; document.getElementById('appoint-search-results').innerHTML=''" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">ล้าง</button>
+         </div>
+         <div id="appoint-search-results" class="space-y-1 max-h-48 overflow-y-auto"></div>
+        </div>
         <div id="main-admin-section">
          <div class="mb-6 pb-6 border-b-2 border-gray-200">
-          <h4 class="text-lg font-semibold text-gray-800 mb-4">➕ เพิ่มผู้ช่วยแอดมินใหม่</h4>
+          <h4 class="text-lg font-semibold text-gray-800 mb-4">➕ เพิ่มผู้ช่วยแอดมินด้วย Username/Password ตรงๆ</h4>
           <div class="grid md:grid-cols-2 gap-4 mb-4"><input type="text" id="new-admin-username" placeholder="👤 Username" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <input type="password" id="new-admin-password" placeholder="🔐 Password" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
           </div>
           <p class="text-xs text-gray-500 mb-2">📌 ขอบเขตที่รับผิดชอบ (สำหรับจัดการการบ้าน)</p>
@@ -1699,6 +1724,13 @@
         document.getElementById('app-main').classList.remove('hidden');
         console.log('📋 Step 5: UI changed to app-main');
         
+        // ตรวจสอบว่านักเรียนคนนี้ถูกแต่งตั้งเป็นผู้ช่วยแอดมินด้วยหรือไม่
+        const linkedAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === student.__backendId);
+        if (linkedAdmin) {
+          currentUser.linked_admin_id = linkedAdmin.__backendId;
+          localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        }
+        
         // 📋 ขั้นที่ 6: อัปเดต UI เพื่อแสดงชื่อนักเรียน และปุ่มต่างๆ
         showLoggedInUI();
         console.log('📋 Step 6: UI updated to show student info');
@@ -1976,6 +2008,173 @@
     function computeRegistrationRequests() {
       return allData.filter(d => d.type === 'registration_request' && d.status === 'pending');
     }
+    // ============================================================
+    // 🔍 ค้นหานักเรียนหน้า login + ขอกำหนด KPAC
+    // ============================================================
+    function loginPageStudentSearch() {
+      const q = document.getElementById('login-student-search')?.value.trim().toLowerCase();
+      const container = document.getElementById('login-search-result');
+      if (!container) return;
+      if (!q) { container.innerHTML = ''; return; }
+      const students = allData.filter(s => s.type === 'student' && (
+        s.student_id?.toLowerCase().includes(q) ||
+        s.first_name?.toLowerCase().includes(q) ||
+        s.last_name?.toLowerCase().includes(q)
+      )).slice(0, 5);
+      if (students.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-xs text-center py-2">ไม่พบนักเรียน</p>';
+        return;
+      }
+      container.innerHTML = students.map(s => {
+        const regs = allData.filter(r => r.type === 'student_registration' && r.student_id === s.student_id);
+        const hasReg = regs.length > 0;
+        const statusBadge = hasReg
+          ? '<span class="text-xs text-green-600 font-semibold">✅ สมัครแล้ว ลงทะเบียนแล้ว</span>'
+          : '<span class="text-xs text-amber-600 font-semibold">⚠️ สมัครแล้ว ยังไม่ลงทะเบียน</span>';
+        const kpacBtn = !hasReg
+          ? `<button onclick="kpacRequestPopup('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">📋 ขอกำหนด KPAC</button>`
+          : '';
+        return `
+          <div class="bg-white rounded-lg border border-gray-200 px-3 py-2 mb-2">
+           <div class="flex items-center justify-between">
+            <div>
+             <p class="text-sm font-medium text-gray-800">${s.prefix}${s.first_name} ${s.last_name}</p>
+             <p class="text-xs text-gray-500">${s.student_id}</p>
+            </div>
+            ${statusBadge}
+           </div>
+           ${kpacBtn}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function kpacRequestPopup(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      // Cascade: ชั้น → ห้อง → วิชา จาก class_subject ที่ตรงกับนักเรียนคนนี้
+      const studentClass = student.class_name;
+      const studentRoom = student.room_number;
+      const subjects = allData.filter(d => d.type === 'class_subject' && d.class_name === studentClass && d.room_number === studentRoom);
+      if (subjects.length === 0) {
+        showToast('ยังไม่มีวิชาสำหรับชั้นนี้', 'error');
+        return;
+      }
+      const subjectOptions = subjects.map(s => `<option value="${s.subject_name}">${s.subject_name}</option>`).join('');
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 ขอกำหนด KPAC</h3>
+          <p class="text-sm text-gray-600 mb-4">${student.prefix}${student.first_name} ${student.last_name} | ${studentClass}/${studentRoom}</p>
+          <div class="mb-3">
+           <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
+           <select id="kpac-req-subject" onchange="updateKpacReqLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            <option value="">-- เลือกวิชา --</option>
+            ${subjectOptions}
+           </select>
+          </div>
+          <div id="kpac-req-limit-info" class="text-xs text-gray-500 mb-3"></div>
+          <div class="grid grid-cols-4 gap-2 mb-3">
+           <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="kpac-req-k" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
+           <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="kpac-req-p" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
+           <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="kpac-req-a" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
+           <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="kpac-req-c" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
+          </div>
+          <p class="text-sm text-gray-700 mb-1">รวม: <span id="kpac-req-total" class="font-bold">0</span>% (ต้อง ≤ ขีดจำกัดวิชา แต่ละช่อง ≥ 5%)</p>
+          <p id="kpac-req-error" class="text-xs text-red-600 mb-3 hidden"></p>
+          <div class="flex gap-3">
+           <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">ยกเลิก</button>
+           <button onclick="confirmSendKpacRequest('${studentBackendId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg font-medium">📨 แจ้งผู้ช่วยแอดมิน</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+    }
+
+    function updateKpacReqLimit() {
+      const subjectName = document.getElementById('kpac-req-subject')?.value;
+      const infoEl = document.getElementById('kpac-req-limit-info');
+      if (!subjectName || !infoEl) return;
+      // ดึงชั้น/ห้องจากนักเรียน (ใช้ค่าจาก popup context ไม่ได้ ต้องหาจาก subject)
+      const classSubjects = allData.filter(d => d.type === 'class_subject' && d.subject_name === subjectName);
+      if (classSubjects.length > 0) {
+        const cs = classSubjects[0];
+        const kpacLimit = 100 - (cs.mid_percent || 0) - (cs.final_percent || 0);
+        infoEl.textContent = `M ${cs.mid_percent}% | F ${cs.final_percent}% | ขีดจำกัด KPAC รวม: ${kpacLimit}%`;
+        infoEl.dataset.limit = kpacLimit;
+      }
+    }
+
+    function updateKpacReqTotal() {
+      const k = parseFloat(document.getElementById('kpac-req-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('kpac-req-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('kpac-req-a')?.value) || 0;
+      const c = parseFloat(document.getElementById('kpac-req-c')?.value) || 0;
+      const total = k + p + a + c;
+      const totalEl = document.getElementById('kpac-req-total');
+      if (totalEl) totalEl.textContent = total.toFixed(1);
+    }
+
+    async function confirmSendKpacRequest(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const subjectName = document.getElementById('kpac-req-subject')?.value;
+      const k = parseFloat(document.getElementById('kpac-req-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('kpac-req-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('kpac-req-a')?.value) || 0;
+      const c = parseFloat(document.getElementById('kpac-req-c')?.value) || 0;
+      const errorEl = document.getElementById('kpac-req-error');
+      const limit = parseFloat(document.getElementById('kpac-req-limit-info')?.dataset.limit) || 100;
+      if (!subjectName) { errorEl.textContent = 'กรุณาเลือกวิชา'; errorEl.classList.remove('hidden'); return; }
+      if (k < 5 || p < 5 || a < 5 || c < 5) { errorEl.textContent = 'แต่ละช่อง K P A C ต้องไม่ต่ำกว่า 5%'; errorEl.classList.remove('hidden'); return; }
+      if (k + p + a + c > limit) { errorEl.textContent = `รวมเกินขีดจำกัด ${limit}%`; errorEl.classList.remove('hidden'); return; }
+      errorEl.classList.add('hidden');
+
+      // สร้าง kpac_request
+      const result = await window.dataSdk.create({
+        type: 'kpac_request',
+        student_id: student.student_id,
+        class_name: student.class_name, room_number: student.room_number, subject_name: subjectName,
+        k_percent: k, p_percent: p, a_percent: a, c_percent: c,
+        status: 'pending', created_at: new Date().toISOString()
+      });
+      if (!result.isOk) { showToast('ไม่สามารถส่งคำขอได้', 'error'); return; }
+
+      // แสดง popup รายชื่อผู้ช่วยแอดมินในห้องนั้น
+      document.querySelectorAll('.fixed').forEach(el => el.remove());
+      showSubAdminContactPopup(student.class_name, student.room_number, subjectName);
+    }
+
+    function showSubAdminContactPopup(className, roomNumber, subjectName) {
+      const subAdmins = allData.filter(d => d.type === 'admin' && d.user_type === 'subadmin' &&
+        d.scope_class_name === className && d.scope_room_number === roomNumber && d.scope_subject_name === subjectName);
+      const popup = document.createElement('div');
+      popup.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      const listHtml = subAdmins.length === 0
+        ? '<p class="text-gray-400 text-center py-4">ยังไม่มีผู้ช่วยแอดมินสำหรับห้องนี้</p>'
+        : subAdmins.map(a => {
+            const studentRec = a.linked_student_id ? allData.find(s => s.__backendId === a.linked_student_id) : null;
+            const name = studentRec ? `${studentRec.prefix}${studentRec.first_name} ${studentRec.last_name}` : a.username;
+            const phone = a.phone_number || studentRec?.phone_number || '-';
+            return `<div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 mb-2">
+              <div><p class="text-sm font-medium">${name}</p><p class="text-xs text-gray-500">${a.username}</p></div>
+              <a href="tel:${phone}" class="text-blue-600 text-sm font-semibold">📞 ${phone}</a>
+            </div>`;
+          }).join('');
+      popup.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-lg font-bold text-gray-800 mb-1">✅ ส่งคำขอสำเร็จแล้ว!</h3>
+          <p class="text-sm text-gray-600 mb-4">กรุณาติดต่อผู้ช่วยแอดมิน ${className}/${roomNumber} วิชา ${subjectName}</p>
+          ${listHtml}
+          <button onclick="this.closest('.fixed').remove()" class="w-full mt-3 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium">ปิด</button>
+        </div>
+      `;
+      document.body.appendChild(popup);
+    }
+
     function renderNotificationBells() {
       const applicants = computeNewApplicants();
       const registrations = computeNewRegistrations();
@@ -2142,8 +2341,14 @@
       // แสดง/ซ่อนปุ่มเมนูการจัดการ ตามบทบาท
       const studentMgmtBtn = document.getElementById('student-mgmt-nav-btn');
       const directorMgmtBtn = document.getElementById('director-mgmt-nav-btn');
+      const subAdminNavBtn = document.getElementById('student-subadmin-nav-btn');
       if (studentMgmtBtn) studentMgmtBtn.classList.toggle('hidden', currentUser.user_type !== 'student');
       if (directorMgmtBtn) directorMgmtBtn.classList.toggle('hidden', !isDirector);
+      // แสดงปุ่ม "ผู้ช่วยแอดมิน" ถ้านักเรียนคนนี้ถูกแต่งตั้งไว้
+      if (subAdminNavBtn) {
+        const hasLinkedAdmin = currentUser.user_type === 'student' && !!currentUser.linked_admin_id;
+        subAdminNavBtn.classList.toggle('hidden', !hasLinkedAdmin);
+      }
 
       if (currentUser.user_type === 'student') {
         document.getElementById('user-display').textContent = `${currentUser.prefix} ${currentUser.first_name} ${currentUser.last_name}`;
@@ -2188,24 +2393,42 @@
       showPage('director-management');
       showDirectorMainPage();
     }
+    function goToSubAdminPage() {
+      if (!currentUser) return;
+      showPage('subadmin');
+      renderSubAdminPage();
+    }
+    function goToSubAdminPageFromStudent() {
+      if (!currentUser || !currentUser.linked_admin_id) return;
+      const adminRecord = allData.find(d => d.__backendId === currentUser.linked_admin_id);
+      if (!adminRecord) { showToast('ไม่พบข้อมูลผู้ช่วยแอดมิน', 'error'); return; }
+      currentUser.__subadminOverride = adminRecord;
+      currentUser._subadminMode = true;
+      showPage('subadmin');
+      renderSubAdminPage();
+    }
+    function exitSubAdminMode() {
+      if (!currentUser?._subadminMode) return;
+      currentUser._subadminMode = false;
+      delete currentUser.__subadminOverride;
+      goToStudentManagementPage();
+    }
     function getSubAdminScope() {
-      const record = allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
+      const record = currentUser?._subadminMode && currentUser?.__subadminOverride
+        ? currentUser.__subadminOverride
+        : allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
       return {
         className: record?.scope_class_name || '',
         roomNumber: record?.scope_room_number || '',
         subjectName: record?.scope_subject_name || ''
       };
     }
-    function goToSubAdminPage() {
-      if (!currentUser || currentUser.user_type !== 'subadmin') return;
-      showPage('subadmin');
-      renderSubAdminPage();
-    }
     function getSubAdminPermission(tabKey) {
-      const record = allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
+      const record = currentUser?._subadminMode && currentUser?.__subadminOverride
+        ? currentUser.__subadminOverride
+        : allData.find(d => d.type === 'admin' && d.__backendId === currentUser?.__backendId);
       return record?.[`perm_${tabKey}`] === 'manage' ? 'manage' : 'view';
     }
-    let currentSubAdminTab = 'homework';
     function renderSubAdminPage() {
       const content = document.getElementById('subadmin-content');
       if (!content) return;
@@ -2224,7 +2447,7 @@
               <button onclick="showSubAdminTab('homework')" id="subadmin-tab-homework" class="px-4 py-2 bg-blue-500 text-white rounded-t-lg font-medium text-sm">📝 การบ้าน</button>
               <button onclick="showSubAdminTab('timekeeping')" id="subadmin-tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">⏱️ ลงเวลาเรียน ${getSubAdminPermission('timekeeping') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
               <button onclick="showSubAdminTab('grading')" id="subadmin-tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">🎓 ให้คะแนน ${getSubAdminPermission('grading') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
-              <button onclick="showSubAdminTab('students')" id="subadmin-tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">👨‍🎓 นักเรียน ${getSubAdminPermission('students') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
+              <button onclick="showSubAdminTab('students')" id="subadmin-tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">👨‍🎓 นักเรียน ${getSubAdminPermission('students') === 'view' ? '(ดูอย่างเดียว)' : ''} <span id="subadmin-kpac-request-badge" class="hidden bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">0</span></button>
             </div>
             <div id="subadmin-section-homework"></div>
             <div id="subadmin-section-timekeeping" class="hidden"></div>
@@ -2464,6 +2687,12 @@
       const perm = getSubAdminPermission('students');
       const students = allData.filter(d => d.type === 'student' && d.class_name === scope.className && d.room_number === scope.roomNumber)
         .sort((a, b) => (parseFloat(a.student_number) || 0) - (parseFloat(b.student_number) || 0));
+
+      // อัปเดต badge จำนวน kpac_request บนแท็บนักเรียน
+      const kpacRequests = allData.filter(d => d.type === 'kpac_request' && d.class_name === scope.className && d.room_number === scope.roomNumber && d.subject_name === scope.subjectName && d.status === 'pending');
+      const kpacBadge = document.getElementById('subadmin-kpac-request-badge');
+      if (kpacBadge) { kpacBadge.textContent = kpacRequests.length; kpacBadge.classList.toggle('hidden', kpacRequests.length === 0); }
+
       container.innerHTML = `
         ${perm === 'view' ? '<p class="text-xs text-amber-600 mb-3">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้ (ยังเห็นสถานะลงทะเบียนได้ตามปกติ เพื่อติดตามเพื่อนให้ลงทะเบียน)</p>' : ''}
         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
@@ -2483,11 +2712,15 @@
                 const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
                 const pendingReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && d.status === 'pending');
                 const approvedReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && isRequestApprovedToday(d));
+                // kpac_request ที่นักเรียนส่งมาให้ผู้ช่วยแอดมิน
+                const kpacReq = allData.find(d => d.type === 'kpac_request' && d.student_id === s.student_id && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
+                const kpacBadgeHtml = kpacReq ? `<span class="ml-1 text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">📋 ขอกำหนด KPAC (K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent})</span>` : '';
                 let statusBadge;
                 if (hasAnyRegistration) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-green-500 cursor-not-allowed opacity-80 text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียนแล้ว</button>';
                 } else if (approvedReq) {
-                  statusBadge = `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ อนุญาตให้ลงทะเบียน</button>`;
+                  const useKpacBtn = kpacReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ ใช้ KPAC นี้</button>` : `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', null)" class="px-2 py-1 bg-sky-500 hover:bg-sky-600 text-white rounded text-xs whitespace-nowrap">✅ อนุญาตให้ลงทะเบียน</button>`;
+                  statusBadge = useKpacBtn;
                 } else if (pendingReq) {
                   statusBadge = '<button disabled class="px-2 py-1 bg-gray-400 cursor-not-allowed opacity-90 text-gray-800 rounded text-xs whitespace-nowrap">⏳ รอแอดมินอนุญาต</button>';
                 } else {
@@ -2496,7 +2729,7 @@
                 return `
                 <tr class="hover:bg-gray-50">
                   <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
-                  <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
+                  <td class="px-2 py-2 whitespace-nowrap"><span>${s.prefix} ${s.first_name} ${s.last_name}</span>${kpacBadgeHtml}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
                   <td class="px-2 py-2 text-center whitespace-nowrap">${statusBadge}</td>
@@ -2554,7 +2787,7 @@
       }
     }
     // ----- ผู้ช่วยแอดมินลงทะเบียนเองหลังได้รับอนุมัติจากแอดมินแล้ว -----
-    function subAdminPerformApprovedRegistration(studentBackendId, requestId) {
+    function subAdminPerformApprovedRegistration(studentBackendId, requestId, kpacRequestId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
       const scope = getSubAdminScope();
@@ -2562,6 +2795,13 @@
       const midPercent = classSubjectRecord?.mid_percent || 0;
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
+      // ดึง KPAC ที่นักเรียนขอมา (ถ้ามี)
+      const kpacReq = kpacRequestId ? allData.find(d => d.__backendId === kpacRequestId) : null;
+      const kVal = kpacReq?.k_percent ?? '';
+      const pVal = kpacReq?.p_percent ?? '';
+      const aVal = kpacReq?.a_percent ?? '';
+      const cVal = kpacReq?.c_percent ?? '';
+      const kpacNote = kpacReq ? `<p class="text-xs text-orange-600 mb-2 font-semibold">📋 KPAC ที่นักเรียนขอ: K=${kpacReq.k_percent} P=${kpacReq.p_percent} A=${kpacReq.a_percent} C=${kpacReq.c_percent} — เติมให้แล้ว แก้ไขได้</p>` : '';
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       editDiv.innerHTML = `
@@ -2569,21 +2809,22 @@
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-lg font-bold text-gray-800 mb-2">📚 ลงทะเบียนวิชาให้นักเรียน</h3>
           <p class="text-gray-600 mb-1 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
-          <p class="text-xs text-green-600 mb-4">✅ ได้รับอนุญาตจากแอดมินให้ลงทะเบียนนักเรียนคนนี้แล้ว</p>
+          <p class="text-xs text-green-600 mb-2">✅ ได้รับอนุญาตจากแอดมินให้ลงทะเบียนนักเรียนคนนี้แล้ว</p>
           <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
+            ${kpacNote}
             <p class="text-xs text-gray-600 mb-3">M ${midPercent}% | F ${finalPercent}% | เหลือสำหรับ K+P+A+C: <strong>${kpacPercent}%</strong></p>
             <div class="grid grid-cols-4 gap-2 mb-3">
-              <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="subadmin-reg-k" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
-              <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="subadmin-reg-p" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
-              <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="subadmin-reg-a" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
-              <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="subadmin-reg-c" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="subadmin-reg-k" value="${kVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="subadmin-reg-p" value="${pVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="subadmin-reg-a" value="${aVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="subadmin-reg-c" value="${cVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
             </div>
-            <p class="text-sm text-gray-700 mb-2">รวม: <span id="subadmin-reg-kpac-total" class="font-bold">0</span>% (ต้อง ≤ ${kpacPercent}%)</p>
+            <p class="text-sm text-gray-700 mb-2">รวม: <span id="subadmin-reg-kpac-total" class="font-bold">${Number(kVal)+Number(pVal)+Number(aVal)+Number(cVal)||0}</span>% (ต้อง ≤ ${kpacPercent}%)</p>
             <p id="subadmin-reg-warning" class="text-xs text-red-600 font-semibold hidden mb-2">❌ เกินขีดจำกัด!</p>
             <p id="subadmin-reg-error" class="text-xs text-red-600 hidden mb-2"></p>
             <div class="flex gap-3">
               <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
-              <button onclick="confirmSubAdminPerformRegistration('${studentBackendId}', '${requestId}', ${kpacPercent})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ ลงทะเบียน</button>
+              <button onclick="confirmSubAdminPerformRegistration('${studentBackendId}', '${requestId}', ${kpacPercent}, ${kpacRequestId ? `'${kpacRequestId}'` : 'null'})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg">✅ ลงทะเบียน</button>
             </div>
           </div>
         </div>
@@ -2599,7 +2840,7 @@
       document.getElementById('subadmin-reg-kpac-total').textContent = total.toFixed(1);
       document.getElementById('subadmin-reg-warning').classList.toggle('hidden', total <= kpacLimit);
     }
-    async function confirmSubAdminPerformRegistration(studentBackendId, requestId, kpacLimit) {
+    async function confirmSubAdminPerformRegistration(studentBackendId, requestId, kpacLimit, kpacRequestId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
       const scope = getSubAdminScope();
@@ -2623,6 +2864,11 @@
       if (result.isOk) {
         const req = allData.find(d => d.__backendId === requestId);
         if (req) await window.dataSdk.update({ ...req, status: 'done' });
+        // ปิด kpac_request ที่เกี่ยวข้อง (ถ้ามี)
+        if (kpacRequestId) {
+          const kpacReq = allData.find(d => d.__backendId === kpacRequestId);
+          if (kpacReq) await window.dataSdk.update({ ...kpacReq, status: 'done' });
+        }
         // ดึงคะแนน pending ที่เก็บสำรองไว้มาใส่อัตโนมัติ (ถ้ามี)
         await applyPendingScoresOnRegistration(student.student_id, scope.subjectName);
         document.querySelectorAll('.fixed').forEach(el => el.remove());
@@ -5309,6 +5555,144 @@
       document.getElementById('text-file').value = '';
       window.pendingImportData = null;
     }
+    // ---- ค้นหานักเรียนเพื่อแต่งตั้งผู้ช่วยแอดมิน ----
+    function searchStudentForAppoint() {
+      const q = document.getElementById('appoint-search-input')?.value.trim().toLowerCase();
+      const container = document.getElementById('appoint-search-results');
+      if (!container) return;
+      if (!q) { container.innerHTML = ''; return; }
+      const students = allData.filter(s => s.type === 'student' && (
+        s.student_id?.toLowerCase().includes(q) ||
+        s.first_name?.toLowerCase().includes(q) ||
+        s.last_name?.toLowerCase().includes(q) ||
+        s.class_name?.toLowerCase().includes(q) ||
+        s.room_number?.toLowerCase().includes(q)
+      )).slice(0, 10);
+      if (students.length === 0) { container.innerHTML = '<p class="text-gray-400 text-xs">ไม่พบนักเรียน</p>'; return; }
+      container.innerHTML = students.map(s => {
+        const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === s.__backendId);
+        const badge = existingAdmin ? '<span class="text-xs text-purple-600 ml-2">✅ แต่งตั้งแล้ว</span>' : '';
+        return `
+          <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200 hover:border-purple-300">
+           <div>
+            <span class="text-sm font-medium">${s.prefix}${s.first_name} ${s.last_name}</span>
+            <span class="text-xs text-gray-500 ml-2">${s.student_id} | ${s.class_name}/${s.room_number}</span>
+            ${badge}
+           </div>
+           <button onclick="appointSubAdminPopup('${s.__backendId}')" class="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs whitespace-nowrap ml-2">
+            ${existingAdmin ? '✏️ แก้ไข' : '👤 แต่งตั้ง'}
+           </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function appointSubAdminPopup(studentBackendId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === studentBackendId);
+
+      // Cascade dropdowns: ชั้น → ห้อง → วิชา จาก class_subject
+      const classSubjects = allData.filter(d => d.type === 'class_subject');
+      const classes = [...new Set(classSubjects.map(d => d.class_name).filter(Boolean))].sort();
+      const scopeClass = existingAdmin?.scope_class_name || '';
+      const scopeRoom = existingAdmin?.scope_room_number || '';
+      const scopeSubject = existingAdmin?.scope_subject_name || '';
+
+      const classOptions = `<option value="">-- เลือกชั้น --</option>` + classes.map(c => `<option value="${c}" ${c === scopeClass ? 'selected' : ''}>${c}</option>`).join('');
+
+      const editDiv = document.createElement('div');
+      editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      editDiv.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
+          <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+          <h3 class="text-xl font-bold text-gray-800 mb-1">👤 แต่งตั้งผู้ช่วยแอดมิน</h3>
+          <p class="text-sm text-gray-600 mb-4">${student.prefix}${student.first_name} ${student.last_name} | ${student.student_id}</p>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">👤 Username</label>
+            <input id="appoint-username" value="${student.student_id}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm" readonly>
+           </div>
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">🔐 Password</label>
+            <input id="appoint-password" value="${student.password || ''}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+           </div>
+          </div>
+          <p class="text-xs font-semibold text-gray-700 mb-2">📌 ขอบเขตความรับผิดชอบ</p>
+          <div class="grid grid-cols-3 gap-2 mb-4">
+           <select id="appoint-class" onchange="updateAppointRoomOptions('${studentBackendId}')" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">${classOptions}</select>
+           <select id="appoint-room" onchange="updateAppointSubjectOptions('${studentBackendId}')" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ห้อง --</option></select>
+           <select id="appoint-subject" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- วิชา --</option></select>
+          </div>
+          <p class="text-xs font-semibold text-gray-700 mb-2">🔑 สิทธิ์การเข้าถึง</p>
+          <div class="grid grid-cols-3 gap-2 mb-4">
+           <label class="text-xs text-gray-600">⏱️ ลงเวลาเรียน<select id="appoint-perm-timekeeping" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_timekeeping === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
+           <label class="text-xs text-gray-600">🎓 ให้คะแนน<select id="appoint-perm-grading" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_grading === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
+           <label class="text-xs text-gray-600">👨‍🎓 นักเรียน<select id="appoint-perm-students" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_students === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
+          </div>
+          <p id="appoint-error" class="text-red-500 text-sm mb-2 hidden"></p>
+          <div class="flex gap-3">
+           <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">ยกเลิก</button>
+           <button onclick="confirmAppointSubAdmin('${studentBackendId}', ${existingAdmin ? `'${existingAdmin.__backendId}'` : 'null'})" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg font-medium">${existingAdmin ? '✅ บันทึกการแก้ไข' : '✅ แต่งตั้ง'}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(editDiv);
+      if (scopeClass) updateAppointRoomOptions(studentBackendId, scopeRoom, scopeSubject);
+    }
+
+    function updateAppointRoomOptions(studentBackendId, preRoom = '', preSubject = '') {
+      const className = document.getElementById('appoint-class')?.value;
+      const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === className).map(d => d.room_number).filter(Boolean))].sort();
+      const sel = document.getElementById('appoint-room');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}" ${r === preRoom ? 'selected' : ''}>${r}</option>`).join('');
+      if (preRoom) updateAppointSubjectOptions(studentBackendId, preSubject);
+    }
+
+    function updateAppointSubjectOptions(studentBackendId, preSubject = '') {
+      const className = document.getElementById('appoint-class')?.value;
+      const roomNumber = document.getElementById('appoint-room')?.value;
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === className && d.room_number === roomNumber).map(d => d.subject_name).filter(Boolean))].sort();
+      const sel = document.getElementById('appoint-subject');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}" ${s === preSubject ? 'selected' : ''}>${s}</option>`).join('');
+    }
+
+    async function confirmAppointSubAdmin(studentBackendId, existingAdminId) {
+      const student = allData.find(s => s.__backendId === studentBackendId);
+      if (!student) return;
+      const username = document.getElementById('appoint-username')?.value.trim();
+      const password = document.getElementById('appoint-password')?.value.trim();
+      const scopeClass = document.getElementById('appoint-class')?.value;
+      const scopeRoom = document.getElementById('appoint-room')?.value;
+      const scopeSubject = document.getElementById('appoint-subject')?.value;
+      const permT = document.getElementById('appoint-perm-timekeeping')?.value;
+      const permG = document.getElementById('appoint-perm-grading')?.value;
+      const permS = document.getElementById('appoint-perm-students')?.value;
+      const errorEl = document.getElementById('appoint-error');
+      if (!username || !password) { errorEl.textContent = 'กรุณากรอก Username/Password'; errorEl.classList.remove('hidden'); return; }
+      if (!scopeClass || !scopeRoom || !scopeSubject) { errorEl.textContent = 'กรุณาเลือกชั้น ห้อง วิชา'; errorEl.classList.remove('hidden'); return; }
+      const record = { type: 'admin', user_type: 'subadmin', username, password, phone_number: student.phone_number, linked_student_id: studentBackendId, scope_class_name: scopeClass, scope_room_number: scopeRoom, scope_subject_name: scopeSubject, perm_timekeeping: permT, perm_grading: permG, perm_students: permS };
+      let result, adminId;
+      if (existingAdminId) {
+        const existing = allData.find(d => d.__backendId === existingAdminId);
+        result = await window.dataSdk.update({ ...existing, ...record });
+        adminId = existingAdminId;
+      } else {
+        result = await window.dataSdk.create({ ...record, created_at: new Date().toISOString() });
+        adminId = result.data?.__backendId;
+      }
+      if (result.isOk) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast(`✅ แต่งตั้ง ${student.first_name} เป็นผู้ช่วยแอดมินสำเร็จ`);
+        updateStudentsList();
+        updateAdminList?.();
+      } else {
+        showToast('ไม่สามารถบันทึกได้', 'error');
+      }
+    }
+
     async function addNewAdmin() {
       const username = document.getElementById('new-admin-username').value.trim();
       const password = document.getElementById('new-admin-password').value;
@@ -5785,6 +6169,10 @@
       container.innerHTML = students.map(s => {
         const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
         const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
+        const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === s.__backendId);
+        const adminBadge = existingAdmin
+          ? `<span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs whitespace-nowrap">✅ ผู้ช่วยแอดมิน</span>`
+          : `<button onclick="appointSubAdminPopup('${s.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs whitespace-nowrap">👤 แต่งตั้ง</button>`;
         return `
         <tr class="hover:bg-gray-50">
           <td class="px-2 py-2 text-center whitespace-nowrap"><input type="checkbox" class="student-select-checkbox w-4 h-4" data-id="${s.__backendId}" onchange="updateBulkDeleteButton()"></td>
@@ -5796,10 +6184,11 @@
           <td class="px-2 py-2 whitespace-nowrap font-mono text-xs">${s.username || '-'}</td>
           <td class="px-2 py-2 whitespace-nowrap font-mono text-xs text-blue-700">${s.password || '-'}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">
-            <div class="flex gap-1 justify-center">
+            <div class="flex gap-1 justify-center flex-wrap">
               <button onclick="editStudent('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
               <button onclick="deleteStudent('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
-              <button onclick="adminRegisterStudentPopup('${s.__backendId}')" title="ลงทะเบียนวิชาให้นักเรียน (ไม่ติดเงื่อนไขวันที่)" class="px-2 py-1 ${regBtnColorClass} text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียน</button>
+              <button onclick="adminRegisterStudentPopup('${s.__backendId}')" title="ลงทะเบียนวิชาให้นักเรียน" class="px-2 py-1 ${regBtnColorClass} text-white rounded text-xs whitespace-nowrap">📚 ลงทะเบียน</button>
+              ${adminBadge}
             </div>
           </td>
         </tr>
