@@ -682,6 +682,7 @@
          <p class="text-xs text-gray-400">ระบบจะอ่านหัวคอลัมน์แล้วแสดง Preview ให้ยืนยันก่อนนำเข้าจริง</p>
         </div>
         <!-- Preview และ mapping คอลัมน์ -->
+        <!-- ③ ตรวจสอบคอลัมน์ -->
         <div id="us-preview-section" class="hidden">
          <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
           <p class="text-sm font-semibold text-yellow-800 mb-3">③ ตรวจสอบและระบุคอลัมน์</p>
@@ -698,79 +699,80 @@
           <div class="overflow-x-auto border border-gray-200 rounded-lg mb-3">
            <table id="us-preview-table" class="w-full text-xs"></table>
           </div>
-          <button onclick="processUploadedScores()" class="px-5 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ ยืนยันคอลัมน์และดำเนินการต่อ</button>
+          <button onclick="confirmColumnsShowAll()" class="px-5 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ ยืนยันคอลัมน์ — ดูข้อมูลทั้งหมด</button>
          </div>
         </div>
-        <!-- ผลการจับคู่ -->
+        <!-- ④ แสดงข้อมูลทั้งหมด + กรอง + เลือก -->
+        <div id="us-allrows-section" class="hidden">
+         <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+           <p class="text-sm font-semibold text-blue-800">④ เลือกรายการที่ต้องการนำเข้าระบบ</p>
+           <div class="flex gap-2 flex-wrap">
+            <button onclick="toggleSelectAllRows(true)" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">เลือกทั้งหมด</button>
+            <button onclick="toggleSelectAllRows(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">ยกเลิกทั้งหมด</button>
+            <button onclick="importSelectedRows()" class="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">📥 นำเข้าระบบ (<span id="us-selected-count">0</span> รายการ)</button>
+           </div>
+          </div>
+          <div id="us-temp-filters" class="flex items-center gap-2 flex-wrap mb-3"></div>
+          <div class="overflow-x-auto border border-blue-200 rounded-lg" style="max-height:400px;overflow-y:auto;">
+           <table class="w-full text-xs">
+            <thead class="bg-blue-100 sticky top-0">
+             <tr id="us-allrows-thead"></tr>
+            </thead>
+            <tbody id="us-allrows-tbody"></tbody>
+           </table>
+          </div>
+         </div>
+        </div>
+        <!-- ⑤ ผลการนำเข้า -->
         <div id="us-result-section" class="hidden space-y-4">
-         <!-- กลุ่ม 1: ตรง + ลงทะเบียนแล้ว -->
          <div id="us-matched-section" class="hidden">
           <div class="bg-green-50 border border-green-200 rounded-xl p-4">
-           <div class="flex items-center justify-between mb-3">
-            <p class="text-sm font-semibold text-green-800">✅ พบรหัสและลงทะเบียนแล้ว — รอยืนยันเขียนคะแนน</p>
-            <button onclick="confirmWriteScores()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">💾 ยืนยันเขียนคะแนนทั้งหมด</button>
+           <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p class="text-sm font-semibold text-green-800">✅ ลงทะเบียนแล้ว — เขียนคะแนนสำเร็จ</p>
+            <div class="flex gap-2">
+             <button onclick="exportResultPdf('matched')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📄 PDF</button>
+             <button onclick="exportResultExcel('matched')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">📊 Excel</button>
+            </div>
            </div>
            <div class="overflow-x-auto border border-green-200 rounded-lg">
-            <table class="w-full text-xs">
-             <thead class="bg-green-100">
-              <tr>
-               <th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
-               <th class="px-2 py-2 text-left">วิชา</th>
-               <th class="px-2 py-2 text-center">ห้อง</th>
-               <th class="px-2 py-2 text-center">คะแนนเดิม</th>
-               <th class="px-2 py-2 text-center">คะแนนใหม่</th>
-              </tr>
-             </thead>
-             <tbody id="us-matched-tbody"></tbody>
-            </table>
+            <table class="w-full text-xs"><thead class="bg-green-100"><tr>
+             <th class="px-2 py-2 text-left">รหัส</th><th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-2 text-center">ชั้น/ห้อง</th><th class="px-2 py-2 text-center">คะแนนเดิม</th><th class="px-2 py-2 text-center">คะแนนใหม่</th>
+            </tr></thead><tbody id="us-matched-tbody"></tbody></table>
            </div>
           </div>
          </div>
-         <!-- กลุ่ม 2: ตรง + ยังไม่ลงทะเบียน -->
          <div id="us-pending-section" class="hidden">
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
-           <p class="text-sm font-semibold text-amber-800 mb-2">⏳ พบรหัสแต่ยังไม่ลงทะเบียนวิชา — เก็บสำรองไว้แล้วอัตโนมัติ (กดลบแถวที่ไม่ต้องการออก)</p>
-           <div class="flex items-center gap-2 mb-2 flex-wrap">
-            <select id="us-pending-filter-class" onchange="renderUploadPendingFiltered()" class="px-2 py-1 border border-amber-300 rounded text-xs"><option value="">ทุกชั้น</option></select>
-            <select id="us-pending-filter-room" onchange="renderUploadPendingFiltered()" class="px-2 py-1 border border-amber-300 rounded text-xs"><option value="">ทุกห้อง</option></select>
+           <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p class="text-sm font-semibold text-amber-800">⏳ พบรหัสในระบบ แต่ยังไม่ลงทะเบียนวิชา — เก็บ pending แล้ว</p>
+            <div class="flex gap-2">
+             <button onclick="exportResultPdf('not_registered')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📄 PDF</button>
+             <button onclick="exportResultExcel('not_registered')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">📊 Excel</button>
+            </div>
            </div>
            <div class="overflow-x-auto border border-amber-200 rounded-lg">
-            <table class="w-full text-xs">
-             <thead class="bg-amber-100">
-              <tr>
-               <th class="px-2 py-2 text-left">รหัสนักเรียน</th>
-               <th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
-               <th class="px-2 py-2 text-center">ชั้น/ห้อง</th>
-               <th class="px-2 py-2 text-center">คะแนน</th>
-               <th class="px-2 py-2 text-center">สถานะ</th>
-               <th class="px-2 py-2 text-center">ลบ</th>
-              </tr>
-             </thead>
-             <tbody id="us-pending-tbody"></tbody>
-            </table>
+            <table class="w-full text-xs"><thead class="bg-amber-100"><tr>
+             <th class="px-2 py-2 text-left">รหัส</th><th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-2 text-center">ชั้น/ห้อง</th><th class="px-2 py-2 text-center">คะแนน</th>
+            </tr></thead><tbody id="us-pending-tbody"></tbody></table>
            </div>
           </div>
          </div>
-         <!-- กลุ่ม 3: ไม่พบรหัส -->
          <div id="us-notfound-section" class="hidden">
           <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-           <p class="text-sm font-semibold text-red-800 mb-2">❌ ไม่พบรหัสนักเรียนในระบบ (กดลบแถวที่เป็นห้องที่ไม่ได้สอนออก)</p>
-           <div class="flex items-center gap-2 mb-2 flex-wrap">
-            <select id="us-nf-filter-class" onchange="renderUploadNotFoundFiltered()" class="px-2 py-1 border border-red-300 rounded text-xs"><option value="">ทุกชั้น</option></select>
-            <select id="us-nf-filter-room" onchange="renderUploadNotFoundFiltered()" class="px-2 py-1 border border-red-300 rounded text-xs"><option value="">ทุกห้อง</option></select>
+           <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p class="text-sm font-semibold text-red-800">❌ ไม่พบรหัสในระบบ (ยังไม่สมัคร) — เก็บ pending แล้ว</p>
+            <div class="flex gap-2">
+             <button onclick="exportResultPdf('not_found')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📄 PDF</button>
+             <button onclick="exportResultExcel('not_found')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">📊 Excel</button>
+            </div>
            </div>
            <div class="overflow-x-auto border border-red-200 rounded-lg">
-            <table class="w-full text-xs">
-             <thead class="bg-red-100">
-              <tr>
-               <th class="px-2 py-2 text-left">รหัสในไฟล์ Excel</th>
-               <th class="px-2 py-2 text-center">ชั้น/ห้อง</th>
-               <th class="px-2 py-2 text-center">คะแนน</th>
-               <th class="px-2 py-2 text-center">ลบ</th>
-              </tr>
-             </thead>
-             <tbody id="us-notfound-tbody"></tbody>
-            </table>
+            <table class="w-full text-xs"><thead class="bg-red-100"><tr>
+             <th class="px-2 py-2 text-left">รหัส (จากไฟล์)</th><th class="px-2 py-2 text-center">คะแนน</th>
+            </tr></thead><tbody id="us-notfound-tbody"></tbody></table>
            </div>
           </div>
          </div>
@@ -4121,247 +4123,233 @@
       return 0;
     }
 
+    // ---------- ③ Column mapping confirmed → show all rows ----------
     function showUploadScorePreview() {
       const section = document.getElementById('us-preview-section');
       if (!section) return;
       section.classList.remove('hidden');
+      document.getElementById('us-allrows-section')?.classList.add('hidden');
       document.getElementById('us-result-section')?.classList.add('hidden');
 
-      // เดาคอลัมน์
-      const idGuess = guessColumn(usCurrentHeaders, ['รหัสประจำตัว', 'รหัสนักเรียน', 'student_id', 'id', 'รหัส']);
+      const idGuess = guessColumn(usCurrentHeaders, ['รหัสประจำตัว', 'รหัสนักเรียน', 'student_id', 'รหัส', 'id']);
       const scoreGuess = guessColumn(usCurrentHeaders, ['คะแนนรวม', 'คะแนน', 'score', 'total', 'รวม']);
 
-      // สร้าง dropdown
       const options = usCurrentHeaders.map((h, i) => `<option value="${i}">${h || `คอลัมน์ ${i + 1}`}</option>`).join('');
-      const colId = document.getElementById('us-col-id');
-      const colScore = document.getElementById('us-col-score');
-      colId.innerHTML = options;
-      colScore.innerHTML = options;
-      colId.value = idGuess;
-      colScore.value = scoreGuess;
+      document.getElementById('us-col-id').innerHTML = options;
+      document.getElementById('us-col-score').innerHTML = options;
+      document.getElementById('us-col-id').value = idGuess;
+      document.getElementById('us-col-score').value = scoreGuess;
 
-      // Preview ตาราง (10 แถวแรก)
       const table = document.getElementById('us-preview-table');
-      const previewRows = usCurrentRows.slice(0, 10);
+      const previewRows = usCurrentRows.slice(0, 8);
       table.innerHTML = `
-        <thead class="bg-gray-100">
-          <tr>${usCurrentHeaders.map((h, i) => `<th class="px-2 py-2 text-left text-xs font-semibold text-gray-600 whitespace-nowrap">${h || `คอลัมน์ ${i + 1}`}</th>`).join('')}</tr>
-        </thead>
-        <tbody>
-          ${previewRows.map(row => `<tr class="border-t border-gray-100">${usCurrentHeaders.map((_, i) => `<td class="px-2 py-1 text-xs text-gray-700 whitespace-nowrap">${row[i] ?? ''}</td>`).join('')}</tr>`).join('')}
-        </tbody>
+        <thead class="bg-gray-100"><tr>${usCurrentHeaders.map((h, i) => `<th class="px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">${h || `คอลัมน์ ${i + 1}`}</th>`).join('')}</tr></thead>
+        <tbody>${previewRows.map(row => `<tr class="border-t border-gray-100">${usCurrentHeaders.map((_, i) => `<td class="px-2 py-1 text-xs whitespace-nowrap">${row[i] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
       `;
     }
 
-    async function processUploadedScores() {
+    // ---------- ④ Show all rows with temp filters + checkboxes ----------
+    let usAllRowsData = []; // { rowIndex, values (all cols), studentId, score }
+    let usTempFilterValues = {}; // { colIdx: selectedValue }
+
+    function confirmColumnsShowAll() {
+      const colId = parseInt(document.getElementById('us-col-id')?.value);
+      const colScore = parseInt(document.getElementById('us-col-score')?.value);
+      document.getElementById('us-preview-section').classList.add('hidden');
+      document.getElementById('us-allrows-section').classList.remove('hidden');
+      document.getElementById('us-result-section').classList.add('hidden');
+
+      usAllRowsData = usCurrentRows.map((row, idx) => ({
+        rowIndex: idx,
+        values: row,
+        studentId: String(row[colId] || '').trim(),
+        score: String(row[colScore] || '').trim()
+      })).filter(r => r.studentId);
+
+      usTempFilterValues = {};
+
+      // Build temp filter dropdowns from all string columns (excluding id/score cols)
+      const filterContainer = document.getElementById('us-temp-filters');
+      filterContainer.innerHTML = '';
+      usCurrentHeaders.forEach((h, i) => {
+        if (!h || i === colId || i === colScore) return;
+        const uniqueVals = [...new Set(usAllRowsData.map(r => String(r.values[i] || '').trim()).filter(Boolean))].sort();
+        if (uniqueVals.length === 0 || uniqueVals.length > 50) return;
+        const sel = document.createElement('select');
+        sel.className = 'px-2 py-1 border border-blue-300 rounded text-xs';
+        sel.innerHTML = `<option value="">ทุก${h}</option>` + uniqueVals.map(v => `<option value="${v}">${v}</option>`).join('');
+        sel.onchange = () => { usTempFilterValues[i] = sel.value; renderAllRowsTable(); };
+        const label = document.createElement('span');
+        label.className = 'text-xs text-gray-600';
+        label.textContent = h + ':';
+        filterContainer.appendChild(label);
+        filterContainer.appendChild(sel);
+      });
+
+      renderAllRowsTable();
+    }
+
+    function getFilteredAllRows() {
+      return usAllRowsData.filter(r => {
+        for (const [colIdx, val] of Object.entries(usTempFilterValues)) {
+          if (val && String(r.values[parseInt(colIdx)] || '').trim() !== val) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderAllRowsTable() {
+      const thead = document.getElementById('us-allrows-thead');
+      const tbody = document.getElementById('us-allrows-tbody');
+      const filtered = getFilteredAllRows();
+
+      thead.innerHTML = `<th class="px-2 py-2 text-center"><input type="checkbox" onchange="toggleSelectAllRows(this.checked)" class="w-4 h-4"></th>` +
+        usCurrentHeaders.map(h => `<th class="px-2 py-2 text-left font-semibold whitespace-nowrap">${h}</th>`).join('');
+
+      tbody.innerHTML = filtered.map(r => `
+        <tr class="border-t border-blue-100 hover:bg-blue-50" id="us-row-${r.rowIndex}">
+          <td class="px-2 py-1 text-center"><input type="checkbox" class="us-row-cb w-4 h-4" data-idx="${r.rowIndex}" onchange="updateSelectedCount()" checked></td>
+          ${usCurrentHeaders.map((_, i) => `<td class="px-2 py-1 whitespace-nowrap">${r.values[i] ?? ''}</td>`).join('')}
+        </tr>
+      `).join('');
+
+      updateSelectedCount();
+    }
+
+    function toggleSelectAllRows(checked) {
+      document.querySelectorAll('.us-row-cb').forEach(cb => cb.checked = checked);
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      const count = document.querySelectorAll('.us-row-cb:checked').length;
+      const el = document.getElementById('us-selected-count');
+      if (el) el.textContent = count;
+    }
+
+    // ---------- ⑤ Import selected rows → write/pending ----------
+    let usLastMatchedList = [];
+    let usLastPendingNotRegList = [];
+    let usLastNotFoundList = [];
+
+    async function importSelectedRows() {
       const subjectName = document.getElementById('us-subject')?.value;
       const examType = document.getElementById('us-examtype')?.value;
       const round = parseInt(document.getElementById('us-round')?.value);
-      const colId = parseInt(document.getElementById('us-col-id')?.value);
-      const colScore = parseInt(document.getElementById('us-col-score')?.value);
-
       if (!subjectName) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
 
+      const selectedIdxs = new Set(Array.from(document.querySelectorAll('.us-row-cb:checked')).map(cb => parseInt(cb.dataset.idx)));
+      if (selectedIdxs.size === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
+
+      const selected = usAllRowsData.filter(r => selectedIdxs.has(r.rowIndex));
       const scoreField = examType === 'mid' ? 'm_scores' : 'f_scores';
+      const matched = [], notReg = [], notFound = [];
 
-      // Parse ข้อมูลจาก Excel — พยายามดึงชั้น/ห้องจากไฟล์ด้วย (ถ้ามีคอลัมน์ตรงกัน)
-      const colClass = usCurrentHeaders.findIndex(h => /ชั้น|class/i.test(h));
-      const colRoom = usCurrentHeaders.findIndex(h => /ห้อง|room/i.test(h));
-
-      const excelData = usCurrentRows.map(row => ({
-        studentId: String(row[colId] || '').trim(),
-        score: String(row[colScore] || '').trim(),
-        excelClass: colClass >= 0 ? String(row[colClass] || '').trim() : '',
-        excelRoom: colRoom >= 0 ? String(row[colRoom] || '').trim() : ''
-      })).filter(d => d.studentId && d.score);
-
-      const matched = [];
-      const pendingList = [];
-      const notFound = [];
-
-      for (const item of excelData) {
+      for (const item of selected) {
+        if (!item.studentId || !item.score) continue;
         const student = allData.find(s => s.type === 'student' && s.student_id === item.studentId);
         if (!student) {
-          notFound.push({ ...item, className: item.excelClass || student?.class_name || '-', roomNumber: item.excelRoom || student?.room_number || '-' });
+          // ไม่พบในระบบ → pending (source: not_found)
+          notFound.push({ studentId: item.studentId, score: item.score });
+          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round && d.source === 'not_found');
+          if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, source: 'not_found', created_at: new Date().toISOString() });
           continue;
         }
         const reg = allData.find(r => r.type === 'student_registration' && r.student_id === item.studentId && r.subject_name === subjectName);
         if (!reg) {
-          pendingList.push({
-            ...item,
-            studentName: `${student.prefix}${student.first_name} ${student.last_name}`,
-            className: item.excelClass || student.class_name || '-',
-            roomNumber: item.excelRoom || student.room_number || '-'
-          });
+          // พบในระบบ แต่ไม่ลงทะเบียน → pending (source: not_registered)
+          notReg.push({ studentId: item.studentId, studentName: `${student.prefix}${student.first_name} ${student.last_name}`, className: student.class_name, roomNumber: student.room_number, score: item.score });
+          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round && d.source === 'not_registered');
+          if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, source: 'not_registered', class_name: student.class_name, room_number: student.room_number, created_at: new Date().toISOString() });
           continue;
         }
+        // พบและลงทะเบียนแล้ว → เขียนคะแนนเลย
         const grade = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
         const oldScores = (grade?.[scoreField] || '').split(',');
         const oldScore = (oldScores[round - 1] || '').trim();
-        matched.push({
-          studentId: item.studentId,
-          studentName: `${student.prefix}${student.first_name} ${student.last_name}`,
-          className: reg.class_name, roomNumber: reg.room_number,
-          subjectName: reg.subject_name,
-          regId: reg.__backendId, gradeId: grade?.__backendId,
-          gradeRecord: grade, scoreField, round, oldScore, newScore: item.score
-        });
-      }
-
-      usMatchedData = matched;
-
-      // เก็บ pending อัตโนมัติ — บันทึก class_name/room_number ด้วยเพื่อให้กรองได้
-      for (const p of pendingList) {
-        const existingPending = allData.find(d => d.type === 'pending_score' && d.student_id === p.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round);
-        if (!existingPending) {
-          await window.dataSdk.create({ type: 'pending_score', student_id: p.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: p.score, class_name: p.className, room_number: p.roomNumber, created_at: new Date().toISOString() });
-        }
-      }
-
-      const resultSection = document.getElementById('us-result-section');
-      resultSection.classList.remove('hidden');
-
-      // กลุ่ม 1: matched
-      const matchedSection = document.getElementById('us-matched-section');
-      const matchedTbody = document.getElementById('us-matched-tbody');
-      if (matched.length > 0) {
-        matchedSection.classList.remove('hidden');
-        matchedTbody.innerHTML = matched.map(m => `
-          <tr class="border-t border-green-100">
-            <td class="px-2 py-1">${m.studentName}</td>
-            <td class="px-2 py-1">${m.subjectName}</td>
-            <td class="px-2 py-1 text-center">${m.className}/${m.roomNumber}</td>
-            <td class="px-2 py-1 text-center ${m.oldScore ? 'text-amber-600' : 'text-gray-400'}">${m.oldScore || '-'}</td>
-            <td class="px-2 py-1 text-center font-bold text-green-700">${m.newScore}</td>
-          </tr>
-        `).join('');
-      } else {
-        matchedSection.classList.add('hidden');
-      }
-
-      // กลุ่ม 2: pending — มีชั้น ห้อง + ปุ่มลบ
-      const pendingSection = document.getElementById('us-pending-section');
-      const pendingTbody = document.getElementById('us-pending-tbody');
-      if (pendingList.length > 0) {
-        pendingSection.classList.remove('hidden');
-        // Filter controls
-        const pendingClasses = [...new Set(pendingList.map(p => p.className).filter(Boolean))].sort();
-        const pendingRooms = [...new Set(pendingList.map(p => p.roomNumber).filter(Boolean))].sort();
-        document.getElementById('us-pending-filter-class').innerHTML = '<option value="">ทุกชั้น</option>' + pendingClasses.map(c => `<option>${c}</option>`).join('');
-        document.getElementById('us-pending-filter-room').innerHTML = '<option value="">ทุกห้อง</option>' + pendingRooms.map(r => `<option>${r}</option>`).join('');
-        window._usPendingList = pendingList;
-        renderUploadPendingFiltered();
-      } else {
-        pendingSection.classList.add('hidden');
-      }
-
-      // กลุ่ม 3: notfound — มีชั้น ห้อง + ปุ่มลบ
-      const notFoundSection = document.getElementById('us-notfound-section');
-      const notFoundTbody = document.getElementById('us-notfound-tbody');
-      if (notFound.length > 0) {
-        notFoundSection.classList.remove('hidden');
-        const nfClasses = [...new Set(notFound.map(n => n.className).filter(c => c && c !== '-'))].sort();
-        const nfRooms = [...new Set(notFound.map(n => n.roomNumber).filter(r => r && r !== '-'))].sort();
-        document.getElementById('us-nf-filter-class').innerHTML = '<option value="">ทุกชั้น</option>' + nfClasses.map(c => `<option>${c}</option>`).join('');
-        document.getElementById('us-nf-filter-room').innerHTML = '<option value="">ทุกห้อง</option>' + nfRooms.map(r => `<option>${r}</option>`).join('');
-        window._usNotFoundList = notFound;
-        renderUploadNotFoundFiltered();
-      } else {
-        notFoundSection.classList.add('hidden');
-      }
-
-      document.getElementById('us-preview-section').classList.add('hidden');
-      renderPendingScoreTable();
-      showToast(`✅ วิเคราะห์เสร็จ: ${matched.length} ลงทะเบียนแล้ว | ${pendingList.length} รอลงทะเบียน | ${notFound.length} ไม่พบรหัส`);
-    }
-
-    function renderUploadPendingFiltered() {
-      const filterClass = document.getElementById('us-pending-filter-class')?.value || '';
-      const filterRoom = document.getElementById('us-pending-filter-room')?.value || '';
-      const list = (window._usPendingList || []).filter(p =>
-        (!filterClass || p.className === filterClass) &&
-        (!filterRoom || p.roomNumber === filterRoom)
-      );
-      const tbody = document.getElementById('us-pending-tbody');
-      if (!tbody) return;
-      tbody.innerHTML = list.map((p, idx) => `
-        <tr class="border-t border-amber-100" id="us-pending-row-${idx}">
-          <td class="px-2 py-1">${p.studentId}</td>
-          <td class="px-2 py-1">${p.studentName}</td>
-          <td class="px-2 py-1 text-center">${p.className}/${p.roomNumber}</td>
-          <td class="px-2 py-1 text-center">${p.score}</td>
-          <td class="px-2 py-1 text-center text-amber-600">⏳ เก็บสำรองแล้ว</td>
-          <td class="px-2 py-1 text-center"><button onclick="removeUploadPendingRow(${idx})" class="px-2 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs">✕ ลบ</button></td>
-        </tr>
-      `).join('');
-    }
-
-    async function removeUploadPendingRow(idx) {
-      const item = window._usPendingList?.[idx];
-      if (!item) return;
-      // ลบ pending_score ที่เก็บไว้แล้ว
-      const subjectName = document.getElementById('us-subject')?.value;
-      const examType = document.getElementById('us-examtype')?.value;
-      const round = parseInt(document.getElementById('us-round')?.value);
-      const pendingRec = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round);
-      if (pendingRec) await window.dataSdk.delete(pendingRec);
-      window._usPendingList.splice(idx, 1);
-      renderUploadPendingFiltered();
-      renderPendingScoreTable();
-    }
-
-    function renderUploadNotFoundFiltered() {
-      const filterClass = document.getElementById('us-nf-filter-class')?.value || '';
-      const filterRoom = document.getElementById('us-nf-filter-room')?.value || '';
-      const list = (window._usNotFoundList || []).filter(n =>
-        (!filterClass || n.className === filterClass) &&
-        (!filterRoom || n.roomNumber === filterRoom)
-      );
-      const tbody = document.getElementById('us-notfound-tbody');
-      if (!tbody) return;
-      tbody.innerHTML = list.map((n, idx) => `
-        <tr class="border-t border-red-100" id="us-nf-row-${idx}">
-          <td class="px-2 py-1">${n.studentId}</td>
-          <td class="px-2 py-1 text-center">${n.className}/${n.roomNumber}</td>
-          <td class="px-2 py-1 text-center">${n.score}</td>
-          <td class="px-2 py-1 text-center"><button onclick="removeUploadNotFoundRow(${idx})" class="px-2 py-0.5 bg-red-100 hover:bg-red-200 text-red-600 rounded text-xs">✕ ลบ</button></td>
-        </tr>
-      `).join('');
-    }
-
-    function removeUploadNotFoundRow(idx) {
-      window._usNotFoundList?.splice(idx, 1);
-      renderUploadNotFoundFiltered();
-    }
-
-    async function confirmWriteScores() {
-      if (usMatchedData.length === 0) return;
-      let written = 0;
-      for (const m of usMatchedData) {
-        const scoreField = m.scoreField;
-        let scoresArr = (m.gradeRecord?.[scoreField] || '').split(',').map(s => s.trim());
-        // ขยาย array ให้ครอบถึง index ที่ต้องการ
-        while (scoresArr.length < m.round) scoresArr.push('');
-        scoresArr[m.round - 1] = m.newScore;
-        const newScoresStr = scoresArr.join(',');
-        if (m.gradeRecord) {
-          await window.dataSdk.update({ ...m.gradeRecord, [scoreField]: newScoresStr });
+        let scoresArr = (grade?.[scoreField] || '').split(',').map(s => s.trim());
+        while (scoresArr.length < round) scoresArr.push('');
+        scoresArr[round - 1] = item.score;
+        if (grade) {
+          await window.dataSdk.update({ ...grade, [scoreField]: scoresArr.join(',') });
         } else {
-          const reg = allData.find(r => r.__backendId === m.regId);
-          await window.dataSdk.create({
-            type: 'grade', registration_id: m.regId, student_id: m.studentId,
-            class_name: m.className, subject_name: m.subjectName,
-            [scoreField]: newScoresStr, created_at: new Date().toISOString()
-          });
+          await window.dataSdk.create({ type: 'grade', registration_id: reg.__backendId, student_id: item.studentId, class_name: reg.class_name, subject_name: subjectName, [scoreField]: scoresArr.join(','), created_at: new Date().toISOString() });
         }
-        written++;
+        matched.push({ studentId: item.studentId, studentName: `${student.prefix}${student.first_name} ${student.last_name}`, className: reg.class_name, roomNumber: reg.room_number, oldScore, newScore: item.score });
       }
-      usMatchedData = [];
-      document.getElementById('us-matched-section')?.classList.add('hidden');
-      showToast(`✅ เขียนคะแนนสำเร็จ ${written} คน`);
+
+      // เก็บผลสำหรับ export
+      usLastMatchedList = matched;
+      usLastPendingNotRegList = notReg;
+      usLastNotFoundList = notFound;
+
+      // แสดงผล
+      document.getElementById('us-allrows-section').classList.add('hidden');
+      document.getElementById('us-result-section').classList.remove('hidden');
+
+      const matchedSec = document.getElementById('us-matched-section');
+      document.getElementById('us-matched-tbody').innerHTML = matched.map(m => `
+        <tr class="border-t border-green-100"><td class="px-2 py-1">${m.studentId}</td><td class="px-2 py-1">${m.studentName}</td>
+        <td class="px-2 py-1 text-center">${m.className}/${m.roomNumber}</td>
+        <td class="px-2 py-1 text-center ${m.oldScore ? 'text-amber-600' : 'text-gray-400'}">${m.oldScore || '-'}</td>
+        <td class="px-2 py-1 text-center font-bold text-green-700">${m.newScore}</td></tr>
+      `).join('');
+      matched.length > 0 ? matchedSec.classList.remove('hidden') : matchedSec.classList.add('hidden');
+
+      const pendSec = document.getElementById('us-pending-section');
+      document.getElementById('us-pending-tbody').innerHTML = notReg.map(p => `
+        <tr class="border-t border-amber-100"><td class="px-2 py-1">${p.studentId}</td><td class="px-2 py-1">${p.studentName}</td>
+        <td class="px-2 py-1 text-center">${p.className}/${p.roomNumber}</td><td class="px-2 py-1 text-center font-bold">${p.score}</td></tr>
+      `).join('');
+      notReg.length > 0 ? pendSec.classList.remove('hidden') : pendSec.classList.add('hidden');
+
+      const nfSec = document.getElementById('us-notfound-section');
+      document.getElementById('us-notfound-tbody').innerHTML = notFound.map(n => `
+        <tr class="border-t border-red-100"><td class="px-2 py-1">${n.studentId}</td><td class="px-2 py-1 text-center font-bold">${n.score}</td></tr>
+      `).join('');
+      notFound.length > 0 ? nfSec.classList.remove('hidden') : nfSec.classList.add('hidden');
+
+      renderPendingScoreTable();
+      showToast(`✅ เขียนคะแนน ${matched.length} | pending ไม่ลงทะเบียน ${notReg.length} | pending ไม่พบรหัส ${notFound.length}`);
     }
 
-    // ---------- Pending Score Management ----------
+    // ---------- Export PDF/Excel ----------
+    function getExportData(group) {
+      if (group === 'matched') {
+        return { title: 'รายชื่อที่เขียนคะแนนสำเร็จ', headers: ['รหัส', 'ชื่อ-นามสกุล', 'ชั้น/ห้อง', 'คะแนนเดิม', 'คะแนนใหม่'], rows: usLastMatchedList.map(m => [m.studentId, m.studentName, `${m.className}/${m.roomNumber}`, m.oldScore || '-', m.newScore]) };
+      } else if (group === 'not_registered') {
+        return { title: 'รายชื่อยังไม่ลงทะเบียนวิชา', headers: ['รหัส', 'ชื่อ-นามสกุล', 'ชั้น/ห้อง', 'คะแนน'], rows: usLastPendingNotRegList.map(p => [p.studentId, p.studentName, `${p.className}/${p.roomNumber}`, p.score]) };
+      } else {
+        return { title: 'รายชื่อยังไม่สมัครในระบบ', headers: ['รหัส (จากไฟล์)', 'คะแนน'], rows: usLastNotFoundList.map(n => [n.studentId, n.score]) };
+      }
+    }
+
+    function exportResultPdf(group) {
+      const { title, headers, rows } = getExportData(group);
+      const subjectName = document.getElementById('us-subject')?.value || '';
+      const examType = document.getElementById('us-examtype')?.value === 'mid' ? 'กลางภาค' : 'ปลายภาค';
+      const round = document.getElementById('us-round')?.value === '1' ? 'ครั้งที่ 1 (ปรนัย)' : 'ครั้งที่ 2 (อัตนัย)';
+      const tableRows = rows.map(r => `<tr>${r.map(c => `<td style="border:1px solid #ccc;padding:6px 8px">${c}</td>`).join('')}</tr>`).join('');
+      printHtml(title, `<h2>${title}</h2><p>วิชา: ${subjectName} | ${examType} | ${round}</p><br><table style="width:100%;border-collapse:collapse"><thead><tr>${headers.map(h => `<th style="border:1px solid #ccc;padding:6px 8px;background:#f3f4f6">${h}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table>`);
+    }
+
+    function exportResultExcel(group) {
+      const { title, headers, rows } = getExportData(group);
+      if (typeof XLSX === 'undefined') { showToast('ไม่พบ XLSX library', 'error'); return; }
+      const wsData = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 30));
+      XLSX.writeFile(wb, `${title}.xlsx`);
+    }
+
+    // ---------- ล้างฟังก์ชันเก่าที่ไม่ใช้แล้ว ----------
+    function renderUploadPendingFiltered() {}
+    async function removeUploadPendingRow(idx) {}
+    function renderUploadNotFoundFiltered() {}
+    function removeUploadNotFoundRow(idx) {}
+    async function confirmWriteScores() {}
+
     function renderPendingScoreTable() {
       const tbody = document.getElementById('us-pending-score-tbody');
       if (!tbody) return;
