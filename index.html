@@ -2291,6 +2291,7 @@
       if (result.isOk) {
         renderBellDropdownContent('requests');
         showToast('✕ ปิดคำขอแล้ว');
+        refreshCurrentView();
       }
     }
     async function approveRegistrationRequest(reqId) {
@@ -2300,6 +2301,7 @@
       if (result.isOk) {
         renderBellDropdownContent('requests');
         showToast('✅ อนุญาตแล้ว (มีผลเฉพาะวันนี้) ผู้ช่วยแอดมินสามารถลงทะเบียนให้นักเรียนคนนี้ได้แล้ว');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถอนุมัติได้', 'error');
       }
@@ -2495,6 +2497,7 @@
     }
     function showSubAdminTab(tabName) {
       currentSubAdminTab = tabName;
+      _currentSubAdminTab = tabName;
       ['homework', 'timekeeping', 'grading', 'students'].forEach(t => {
         const btn = document.getElementById('subadmin-tab-' + t);
         const section = document.getElementById('subadmin-section-' + t);
@@ -2821,6 +2824,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('📨 ส่งคำขอลงทะเบียนไปแอดมินแล้ว');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถส่งคำขอได้', 'error');
       }
@@ -2912,6 +2916,7 @@
         await applyPendingScoresOnRegistration(student.student_id, scope.subjectName);
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ ลงทะเบียนสำเร็จ');
+        refreshCurrentView();
         renderSubAdminStudents();
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
@@ -2964,6 +2969,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ เพิ่มการบ้านสำเร็จ');
+        refreshCurrentView();
         loadSubAdminHomeworkSection();
       } else {
         showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
@@ -3629,11 +3635,45 @@
       });
       
       showToast('ออกจากระบบสำเร็จ 👋');
+      refreshCurrentView();
     }
+    let _currentPage = '';
+    let _currentAdminTab = '';
+    let _currentSubAdminTab = '';
     function showPage(pageName) {
       document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
       const page = document.getElementById('page-' + pageName);
       if (page) page.classList.remove('hidden');
+      _currentPage = pageName;
+    }
+    function refreshCurrentView() {
+      // เรียก refresh ที่เหมาะสมกับ page/tab ที่กำลังแสดงอยู่
+      try {
+        if (_currentPage === 'subadmin' || document.getElementById('page-subadmin')?.classList.contains('hidden') === false) {
+          if (_currentSubAdminTab === 'students') renderSubAdminStudents();
+          else if (_currentSubAdminTab === 'homework') loadSubAdminHomeworkSection();
+          else if (_currentSubAdminTab === 'grading') refreshSubAdminGrading?.();
+          else if (_currentSubAdminTab === 'timekeeping') updateTimekeepingStudents?.();
+        }
+        if (document.getElementById('page-admin')?.classList.contains('hidden') === false) {
+          if (_currentAdminTab === 'students') { updateStudentsList?.(); updateRegisteredStudents?.(); }
+          else if (_currentAdminTab === 'admins') { updateAdminList?.(); }
+          else if (_currentAdminTab === 'homework') updateHomeworkTable?.();
+          else if (_currentAdminTab === 'grading') refreshGradingStudentList?.();
+          else if (_currentAdminTab === 'timekeeping') updateTimekeepingStudents?.();
+          else if (_currentAdminTab === 'scores') updateScoreInputTable?.();
+          else if (_currentAdminTab === 'gradereport') loadGradeReportTab?.();
+          else if (_currentAdminTab === 'uploadscore') renderPendingScoreTable?.();
+          else if (_currentAdminTab === 'hours') updateHoursTable?.();
+        }
+        if (_currentPage === 'student-management') {
+          updateStudentHomeworkTable?.();
+          updateStudentRegistrationsList?.();
+        }
+        renderNotificationBells();
+        updateTodayHomeworkCount?.();
+        updateApprovedRequestsCount?.();
+      } catch(e) { /* ไม่ให้ error จาก refresh รบกวน main flow */ }
     }
     function showAdminPanel() {
       // ตรวจสอบว่าเป็นแอดมินจริง (ใช้ user_type ไม่ใช่ type)
@@ -3658,6 +3698,7 @@
           document.getElementById('admin-tab-' + name)?.classList.remove('hidden');
         });
         showToast(`แสดงแท็บทั้งหมด ${ADMIN_TAB_NAMES.length} แท็บ ✅`);
+        refreshCurrentView();
       } else {
         // ซ่อนทั้งหมด แล้วแสดงแท็บแรก
         showAdminTab('import');
@@ -4597,6 +4638,7 @@
 
       renderPendingScoreTable();
       showToast(`✅ เขียนคะแนน ${matched.length} | pending ไม่ลงทะเบียน ${notReg.length} | pending ไม่พบรหัส ${notFound.length}`);
+      refreshCurrentView();
     }
 
     // ---------- Export PDF/Excel ----------
@@ -5307,6 +5349,7 @@
       container.innerHTML = renderEvalSummaryHtml(140);
     }
     function showAdminTab(tabName) {
+      _currentAdminTab = tabName;
       // ถ้ากำลังแสดงทั้งหมด ให้ปิดโหมดนั้นก่อน
       if (isShowingAllTabs) {
         isShowingAllTabs = false;
@@ -5398,6 +5441,7 @@
             lock_date: lockDate
           });
       if (result.isOk) showToast('บันทึกการตั้งค่าสำเร็จ ✅');
+      refreshCurrentView();
     }
     function handleTextFileUpload(event) {
       const file = event.target.files[0];
@@ -5726,6 +5770,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast(`✅ แต่งตั้ง ${student.first_name} เป็นผู้ช่วยแอดมินสำเร็จ`);
+        refreshCurrentView();
         updateStudentsList();
         updateAdminList();
         // Refresh ช่องค้นหาในแท็บผู้ช่วยแอดมินถ้าเปิดอยู่
@@ -5742,6 +5787,7 @@
       const result = await window.dataSdk.delete(adminRec);
       if (result.isOk) {
         showToast('✅ ยกเลิกสถานะผู้ช่วยแอดมินสำเร็จ');
+        refreshCurrentView();
         updateStudentsList();
         updateAdminList();
         searchStudentForAppoint();
@@ -5787,6 +5833,7 @@
         document.getElementById('new-admin-room').value = '';
         document.getElementById('new-admin-subject').value = '';
         showToast('เพิ่มแอดมินสำเร็จ ✅');
+        refreshCurrentView();
         updateAdminList();
       }
     }
@@ -5916,6 +5963,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('แก้ไขผู้ช่วยแอดมินสำเร็จ ✅');
+        refreshCurrentView();
         updateAdminList();
       } else {
         showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
@@ -6083,6 +6131,7 @@
         showLoggedInUI();
         showPage('home');
         showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
+        refreshCurrentView();
         return;
       }
       
@@ -6332,6 +6381,7 @@
       updateStudentsList();
       if (failCount === 0) {
         showToast(`✅ ลบนักเรียนสำเร็จ ${successCount} คน`);
+        refreshCurrentView();
       } else {
         showToast(`⚠️ ลบสำเร็จ ${successCount} คน, ล้มเหลว ${failCount} คน`, 'error');
       }
@@ -6653,6 +6703,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบนักเรียนและข้อมูลที่เกี่ยวข้องสำเร็จ ✅');
+        refreshCurrentView();
         updateStudentsList();
       } else {
         showToast('ไม่สามารถลบนักเรียน', 'error');
@@ -6769,6 +6820,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
+        refreshCurrentView();
         updateStudentsList();
       } else {
         showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
@@ -6890,6 +6942,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ เพิ่มนักเรียนใหม่สำเร็จ');
+        refreshCurrentView();
         updateStudentsList();
       } else {
         showToast('ไม่สามารถเพิ่มนักเรียนได้', 'error');
@@ -7035,6 +7088,7 @@
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('ลบแอดมินสำเร็จ ✅');
+        refreshCurrentView();
         updateAdminList();
         updateStudentsList();
         searchStudentForAppoint();
@@ -7099,9 +7153,7 @@
       const adminList = document.getElementById('admin-list');
       const mainAdminSection = document.getElementById('main-admin-section');
       const subAdminSection = document.getElementById('sub-admin-section');
-      
       if (!adminList) return;
-      // ตรวจสอบว่าเป็นแอดมินหลักหรือไม่
       const isMainAdmin = currentUser.username === 'admin';
       if (mainAdminSection) mainAdminSection.style.display = isMainAdmin ? 'block' : 'none';
       if (subAdminSection) subAdminSection.style.display = isMainAdmin ? 'block' : 'none';
@@ -7109,15 +7161,30 @@
         { username: 'admin', isDefault: true },
         ...allAdmins.map(a => ({ ...a, isDefault: false }))
       ];
-      adminList.innerHTML = allAdminsList.map(admin => `
+      adminList.innerHTML = allAdminsList.map(admin => {
+        const linkedStudent = admin.linked_student_id
+          ? allData.find(s => s.__backendId === admin.linked_student_id)
+          : null;
+        const nameDisplay = linkedStudent
+          ? ` <span class="text-xs text-gray-700">(${linkedStudent.prefix}${linkedStudent.first_name} ${linkedStudent.last_name})</span>`
+          : '';
+        const scopeDisplay = (!admin.isDefault && (admin.scope_class_name || admin.scope_subject_name))
+          ? `<p class="text-xs text-gray-500 mt-0.5">📌 ${admin.scope_class_name || '-'}/${admin.scope_room_number || '-'} | ${admin.scope_subject_name || '-'}</p>`
+          : (!admin.isDefault ? '<p class="text-xs text-red-400 mt-0.5">⚠️ ยังไม่ระบุขอบเขต</p>' : '');
+        return `
         <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
           <div>
-            <p class="font-semibold text-gray-800">👤 ${admin.username}</p>
-            ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : `<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>${(admin.scope_class_name || admin.scope_room_number || admin.scope_subject_name) ? `<p class="text-xs text-gray-500 mt-1">📌 ${admin.scope_class_name || '-'} / ${admin.scope_room_number || '-'} / ${admin.scope_subject_name || '-'}</p>` : '<p class="text-xs text-red-400 mt-1">⚠️ ยังไม่ระบุขอบเขต</p>'}`}
+            <p class="font-semibold text-gray-800">👤 ${admin.username}${nameDisplay}</p>
+            ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : '<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>'}
+            ${scopeDisplay}
           </div>
-          ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2"><button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button><button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button></div>` : ''}
+          ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2">
+            <button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+            <button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+          </div>` : ''}
         </div>
-      `).join('');
+        `;
+      }).join('');
     }
     function updateImportedData() {
       const container = document.getElementById('imported-data');
@@ -7490,6 +7557,7 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateMFDisplayList();
         showToast('แก้ไข M/F สำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถแก้ไข M/F', 'error');
       }
@@ -7809,6 +7877,7 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateHoursDisplayList();
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
       }
@@ -8076,6 +8145,7 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateScoresDisplayList();
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
       }
@@ -8294,6 +8364,7 @@
         }
       }
       showToast(`🔓 ปลดล็อคชั่วคราวให้กรอกคะแนน ${CATEGORY_LABELS[type]} แล้ว (ชั่วคราวเฉพาะหน้านี้)`);
+      refreshCurrentView();
     }
     function editCategoryFullScorePopup(classSubjectId, type) {
       const times = CATEGORY_TIMES[type];
@@ -8636,6 +8707,7 @@
       
       document.querySelectorAll('.fixed').forEach(el => el.remove());
       showToast('ลบคะแนนทั้งหมดแล้ว');
+      refreshCurrentView();
     }
     // ======= TIMEKEEPING MANAGEMENT FUNCTIONS (ลงเวลาเรียน) =======
     function loadTimekeepingFilters() {
@@ -10283,6 +10355,7 @@
         message.classList.remove('hidden');
         setTimeout(() => message.classList.add('hidden'), 3000);
         showToast('อัปเดตข้อมูลสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถอัปเดตข้อมูล', 'error');
       }
@@ -10754,6 +10827,7 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showToast('อัปเดตรายการสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถอัปเดตรายการ', 'error');
       }
@@ -10783,6 +10857,7 @@
         updateStudentRegistrationsList();
         showStudentRegister();
         showToast('ลบรายการสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถลบรายการ', 'error');
       }
@@ -10869,6 +10944,7 @@
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         updateStudentRegistrationsList();
         showToast('อัปเดตรายการสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถอัปเดตรายการ', 'error');
       }
@@ -10898,6 +10974,7 @@
         updateStudentRegistrationsList();
         showStudentRegister(); // รีโหลดหน้าลงทะเบียนเพื่อแสดงวิชาที่เพิ่งลบเป็นพร้อมลงทะเบียนใหม่
         showToast('ลบรายการสำเร็จ ✅');
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถลบรายการ', 'error');
       }
