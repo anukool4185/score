@@ -6748,6 +6748,13 @@
     function renderNoEnrollTable() {
       const tbody = document.getElementById('noenroll-tbody');
       if (!tbody) return;
+
+      // โหลดรายวิชาลง dropdown
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      const noenrollSel = document.getElementById('noenroll-subject');
+      if (noenrollSel && (noenrollSel.options.length <= 1)) {
+        noenrollSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      }
       const allNoEnroll = allData.filter(s => s.type === 'student' &&
         !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
       // Build multi class/room checkboxes
