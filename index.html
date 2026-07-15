@@ -983,7 +983,7 @@
            <p class="text-xs text-gray-500 mb-3">Username = รหัสนักเรียน | Password = รหัสนักเรียน</p>
            <button onclick="importAddSelectedStudents()" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium">➕ เพิ่มนักเรียนที่เลือกเข้าระบบ</button>
           </div>
-          <!-- ขั้นตอนที่ 2: ลงทะเบียนวิชา + KPAC -->
+          <!-- ขั้นตอนที่ 2: ลงทะเบียนวิชา + KPAC จากตารางนำเข้า -->
           <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
            <p class="text-sm font-semibold text-purple-800 mb-2">ขั้นตอนที่ 2: ลงทะเบียนวิชาพร้อมกำหนด KPAC (สำหรับคนที่สมัครแล้วแต่ยังไม่ลงทะเบียน)</p>
            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -1004,6 +1004,117 @@
            </div>
            <button onclick="importEnrollSelectedStudents()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก</button>
           </div>
+         </div>
+        </div>
+        <!-- ====== ส่วนถาวร: นักเรียนในระบบที่ยังไม่ลงทะเบียน (ดึงจาก server ตลอด) ====== -->
+        <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
+         <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+           <h4 class="text-lg font-bold text-gray-800">📋 นักเรียนในระบบที่ยังไม่ลงทะเบียนวิชา</h4>
+           <p class="text-xs text-gray-500 mt-0.5">ข้อมูลนี้ดึงจากระบบโดยตรง — ล็อกอินใหม่ยังคงอยู่</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+           <button onclick="exportNoEnrollPdf()" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">📄 PDF</button>
+           <button onclick="exportNoEnrollExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
+          </div>
+         </div>
+         <!-- Filter + select buttons -->
+         <div class="flex items-center gap-2 flex-wrap mb-3">
+          <select id="noenroll-filter-class" onchange="renderNoEnrollTable()" class="px-2 py-1 border border-gray-300 rounded text-sm"><option value="">ทุกชั้น</option></select>
+          <select id="noenroll-filter-room" onchange="renderNoEnrollTable()" class="px-2 py-1 border border-gray-300 rounded text-sm"><option value="">ทุกห้อง</option></select>
+          <button onclick="toggleNoEnrollSelectAll(true)" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ เลือกทั้งหมด</button>
+          <button onclick="selectNoEnrollByRoom()" class="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs">🏫 เลือกชั้น/ห้องที่กรอง</button>
+          <button onclick="toggleNoEnrollSelectAll(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ ยกเลิกทั้งหมด</button>
+         </div>
+         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-4">
+          <table class="w-full text-sm">
+           <thead class="bg-gray-100">
+            <tr>
+             <th class="px-2 py-3 text-center"><input type="checkbox" onchange="toggleNoEnrollSelectAll(this.checked)" class="w-4 h-4"></th>
+             <th class="px-2 py-3 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-3 text-left whitespace-nowrap">รหัสนักเรียน</th>
+             <th class="px-2 py-3 text-center whitespace-nowrap">ชั้น/ห้อง</th>
+             <th class="px-2 py-3 text-left whitespace-nowrap">เบอร์โทร</th>
+            </tr>
+           </thead>
+           <tbody id="noenroll-tbody"></tbody>
+          </table>
+         </div>
+         <!-- ลงทะเบียนวิชา + KPAC สำหรับส่วนนี้ -->
+         <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <p class="text-sm font-semibold text-purple-800 mb-3">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">เลือกวิชา</label>
+            <select id="noenroll-subject" onchange="updateNoEnrollKpacLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"><option value="">-- เลือกวิชา --</option></select>
+           </div>
+           <div class="md:col-span-2">
+            <label class="block text-xs text-gray-600 mb-1">KPAC (รวม ≤ ขีดจำกัดวิชา แต่ละช่อง ≥ 5%)</label>
+            <div class="flex gap-2">
+             <input type="number" id="noenroll-k" placeholder="K%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
+             <input type="number" id="noenroll-p" placeholder="P%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
+             <input type="number" id="noenroll-a" placeholder="A%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
+             <input type="number" id="noenroll-c" placeholder="C%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">รวม: <span id="noenroll-kpac-total" class="font-bold">0</span>% | ขีดจำกัด: <span id="noenroll-kpac-limit" class="font-bold">-</span>%</p>
+           </div>
+          </div>
+          <button onclick="enrollNoEnrollSelected()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก (<span id="noenroll-selected-count">0</span> คน)</button>
+         </div>
+        </div>
+        <!-- ส่วนถาวร: ลงทะเบียนวิชาพร้อมกัน (ไม่ต้องใช้ไฟล์ Excel) -->
+        <div id="students-subtab-import" class="hidden"> </div><!-- placeholder เพื่อให้ JS toggle ได้ -->
+        <div id="students-batch-register" class="hidden bg-white rounded-2xl card-shadow p-5 mb-4">
+         <h4 class="text-base font-bold text-gray-800 mb-1">📚 ลงทะเบียนวิชาพร้อมกัน (ถาวร — ไม่ต้องอัพโหลดไฟล์ใหม่)</h4>
+         <p class="text-xs text-gray-500 mb-4">เลือกชั้น/ห้อง กรองนักเรียนที่ยังไม่ลงทะเบียน → เลือก → กำหนด KPAC → ลงทะเบียนพร้อมกัน</p>
+         <!-- Filter -->
+         <div class="flex items-center gap-2 flex-wrap mb-3">
+          <select id="br-filter-class" onchange="updateBatchRegRooms()" class="px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="">ทุกชั้น</option></select>
+          <select id="br-filter-room" onchange="renderBatchRegTable()" class="px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="">ทุกห้อง</option></select>
+          <select id="br-filter-subject" onchange="renderBatchRegTable()" class="px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="">ทุกวิชา</option></select>
+          <select id="br-filter-status" onchange="renderBatchRegTable()" class="px-2 py-1.5 border border-gray-300 rounded text-sm">
+           <option value="not_reg">ยังไม่ลงทะเบียน</option>
+           <option value="all">ทั้งหมด</option>
+           <option value="reg">ลงทะเบียนแล้ว</option>
+          </select>
+          <button onclick="toggleBatchSelectAll(true)" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">เลือกทั้งหมด</button>
+          <button onclick="selectBatchByClassRoom()" class="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs">🏫 เลือกชั้น/ห้องที่กรอง</button>
+          <button onclick="toggleBatchSelectAll(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">ยกเลิก</button>
+         </div>
+         <div class="overflow-x-auto border border-gray-200 rounded-lg mb-4" style="max-height:320px;overflow-y:auto;">
+          <table class="w-full text-xs">
+           <thead class="bg-gray-100 sticky top-0">
+            <tr>
+             <th class="px-2 py-2 text-center"><input type="checkbox" onchange="toggleBatchSelectAll(this.checked)" class="w-4 h-4"></th>
+             <th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-2 text-left">รหัส</th>
+             <th class="px-2 py-2 text-center">ชั้น/ห้อง</th>
+             <th class="px-2 py-2 text-center">สถานะ</th>
+            </tr>
+           </thead>
+           <tbody id="br-tbody"></tbody>
+          </table>
+         </div>
+         <!-- KPAC + วิชา -->
+         <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-3">
+          <p class="text-xs font-semibold text-purple-800 mb-2">กำหนด KPAC สำหรับนักเรียนที่เลือก</p>
+          <div class="grid grid-cols-2 gap-3 mb-2">
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">วิชาที่ลงทะเบียน</label>
+            <select id="br-subject" onchange="updateBrKpacLimit()" class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"><option value="">-- เลือกวิชา --</option></select>
+           </div>
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">รวม K+P+A+C ≤ <span id="br-kpac-limit">-</span>%</label>
+            <div class="flex gap-1">
+             <input type="number" id="br-k" placeholder="K" min="0" step="0.1" oninput="updateBrKpacTotal()" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+             <input type="number" id="br-p" placeholder="P" min="0" step="0.1" oninput="updateBrKpacTotal()" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+             <input type="number" id="br-a" placeholder="A" min="0" step="0.1" oninput="updateBrKpacTotal()" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+             <input type="number" id="br-c" placeholder="C" min="0" step="0.1" oninput="updateBrKpacTotal()" class="w-full px-2 py-1 border border-gray-300 rounded text-sm">
+            </div>
+            <p class="text-xs text-gray-500 mt-1">รวม: <span id="br-kpac-total" class="font-bold">0</span>%</p>
+           </div>
+          </div>
+          <button onclick="batchRegisterStudents()" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก (<span id="br-selected-count">0</span> คน)</button>
          </div>
         </div>
         <!-- โหมด 1: นักเรียนที่สมัคร (ตาราง) -->
@@ -6623,10 +6734,13 @@
       // Reset all
       [btnImport, btnApplicants, btnRegistrations].forEach(b => { if (b) { b.classList.add('bg-gray-300','text-gray-700'); b.classList.remove('bg-blue-500','text-white'); } });
       [panelImport, panelApplicants, panelRegistrations].forEach(p => { if (p) p.classList.add('hidden'); });
+      document.getElementById('students-batch-register')?.classList.add('hidden');
       if (mode === 'import') {
         btnImport?.classList.add('bg-blue-500','text-white'); btnImport?.classList.remove('bg-gray-300','text-gray-700');
         panelImport?.classList.remove('hidden');
+        document.getElementById('students-batch-register')?.classList.remove('hidden');
         loadImportStudentTab();
+        loadBatchRegisterSection();
       } else if (mode === 'applicants') {
         btnApplicants?.classList.add('bg-blue-500','text-white'); btnApplicants?.classList.remove('bg-gray-300','text-gray-700');
         panelApplicants?.classList.remove('hidden');
@@ -6661,11 +6775,125 @@
     ];
 
     function loadImportStudentTab() {
-      // โหลด dropdown วิชาสำหรับขั้นตอนที่ 2
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
       const subjectSel = document.getElementById('import-enroll-subject');
       if (subjectSel) subjectSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      const noenrollSel = document.getElementById('noenroll-subject');
+      if (noenrollSel) noenrollSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      renderNoEnrollTable();
     }
+
+    function getNoEnrollStudents() {
+      const filterClass = document.getElementById('noenroll-filter-class')?.value || '';
+      const filterRoom = document.getElementById('noenroll-filter-room')?.value || '';
+      return allData.filter(s => {
+        if (s.type !== 'student') return false;
+        if (filterClass && s.class_name !== filterClass) return false;
+        if (filterRoom && s.room_number !== filterRoom) return false;
+        return !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
+      }).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
+    }
+
+    function renderNoEnrollTable() {
+      const tbody = document.getElementById('noenroll-tbody');
+      if (!tbody) return;
+      const list = getNoEnrollStudents();
+      const allNoEnroll = allData.filter(s => s.type==='student' && !allData.some(r=>r.type==='student_registration'&&r.student_id===s.student_id));
+      const classes = [...new Set(allNoEnroll.map(s=>s.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(allNoEnroll.map(s=>s.room_number).filter(Boolean))].sort();
+      const fc = document.getElementById('noenroll-filter-class');
+      const fr = document.getElementById('noenroll-filter-room');
+      const fcVal = fc?.value||''; const frVal = fr?.value||'';
+      if (fc) fc.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c=>`<option value="${c}" ${c===fcVal?'selected':''}>${c}</option>`).join('');
+      if (fr) fr.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r=>`<option value="${r}" ${r===frVal?'selected':''}>${r}</option>`).join('');
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ นักเรียนทุกคนลงทะเบียนครบแล้ว</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(s => `
+        <tr class="border-t border-gray-100 hover:bg-gray-50">
+         <td class="px-2 py-2 text-center"><input type="checkbox" class="noenroll-cb w-4 h-4" data-sid="${s.student_id}" onchange="updateNoEnrollCount()"></td>
+         <td class="px-2 py-2 whitespace-nowrap text-sm">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</td>
+         <td class="px-2 py-2 whitespace-nowrap text-sm font-mono">${s.student_id}</td>
+         <td class="px-2 py-2 text-center whitespace-nowrap text-sm">${s.class_name||'-'}/${s.room_number||'-'}</td>
+         <td class="px-2 py-2 whitespace-nowrap text-sm">${s.phone_number||'-'}</td>
+        </tr>`).join('');
+      updateNoEnrollCount();
+    }
+
+    function updateNoEnrollCount() {
+      const n = document.querySelectorAll('.noenroll-cb:checked').length;
+      const el = document.getElementById('noenroll-selected-count');
+      if (el) el.textContent = n;
+    }
+    function toggleNoEnrollSelectAll(checked) {
+      document.querySelectorAll('.noenroll-cb').forEach(cb=>cb.checked=checked);
+      updateNoEnrollCount();
+    }
+    function selectNoEnrollByRoom() {
+      document.querySelectorAll('.noenroll-cb').forEach(cb=>cb.checked=false);
+      const fc = document.getElementById('noenroll-filter-class')?.value||'';
+      const fr = document.getElementById('noenroll-filter-room')?.value||'';
+      if (!fc && !fr) { showToast('กรุณาเลือกชั้นหรือห้องก่อน','error'); return; }
+      let count=0;
+      getNoEnrollStudents().forEach(s=>{
+        const cb=document.querySelector(`.noenroll-cb[data-sid="${s.student_id}"]`);
+        if(cb){cb.checked=true;count++;}
+      });
+      showToast(`✅ เลือก ${count} คน`); updateNoEnrollCount();
+    }
+    function updateNoEnrollKpacLimit() {
+      const sn=document.getElementById('noenroll-subject')?.value;
+      if(!sn)return;
+      const cs=allData.find(d=>d.type==='class_subject'&&d.subject_name===sn);
+      const lim=cs?100-(cs.mid_percent||0)-(cs.final_percent||0):100;
+      const el=document.getElementById('noenroll-kpac-limit');
+      if(el)el.textContent=lim; updateNoEnrollKpacTotal();
+    }
+    function updateNoEnrollKpacTotal() {
+      const k=parseFloat(document.getElementById('noenroll-k')?.value)||0;
+      const p=parseFloat(document.getElementById('noenroll-p')?.value)||0;
+      const a=parseFloat(document.getElementById('noenroll-a')?.value)||0;
+      const c=parseFloat(document.getElementById('noenroll-c')?.value)||0;
+      const el=document.getElementById('noenroll-kpac-total');
+      if(el)el.textContent=(k+p+a+c).toFixed(1);
+    }
+    async function enrollNoEnrollSelected() {
+      const sn=document.getElementById('noenroll-subject')?.value;
+      if(!sn){showToast('กรุณาเลือกวิชาก่อน','error');return;}
+      const k=parseFloat(document.getElementById('noenroll-k')?.value)||0;
+      const p=parseFloat(document.getElementById('noenroll-p')?.value)||0;
+      const a=parseFloat(document.getElementById('noenroll-a')?.value)||0;
+      const c=parseFloat(document.getElementById('noenroll-c')?.value)||0;
+      const lim=parseFloat(document.getElementById('noenroll-kpac-limit')?.textContent)||100;
+      if(k+p+a+c>lim){showToast(`รวม KPAC เกินขีดจำกัด ${lim}%`,'error');return;}
+      const ids=Array.from(document.querySelectorAll('.noenroll-cb:checked')).map(cb=>cb.dataset.sid);
+      if(ids.length===0){showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน','error');return;}
+      let enrolled=0, skipped=0;
+      for(const sid of ids){
+        const s=allData.find(s=>s.type==='student'&&s.student_id===sid);
+        if(!s){skipped++;continue;}
+        const ex=allData.find(r=>r.type==='student_registration'&&r.student_id===sid&&r.subject_name===sn);
+        if(ex){skipped++;continue;}
+        const res=await window.dataSdk.create({type:'student_registration',student_id:sid,class_name:s.class_name,room_number:s.room_number,subject_name:sn,class_subject_id:`${s.class_name}_${s.room_number}_${sn}`,k_percent:k,p_percent:p,a_percent:a,c_percent:c,created_at:new Date().toISOString()});
+        if(res.isOk){enrolled++;await applyPendingScoresOnRegistration(sid,sn);}
+      }
+      showToast(`✅ ลงทะเบียนวิชา ${sn} ให้ ${enrolled} คน${skipped>0?` (ข้าม ${skipped} คน)`:''}`);
+      renderNoEnrollTable();
+    }
+    function exportNoEnrollExcel() {
+      if(typeof XLSX==='undefined'){showToast('ไม่พบ XLSX','error');return;}
+      const list=getNoEnrollStudents();
+      const ws=XLSX.utils.aoa_to_sheet([['คำนำหน้า','ชื่อ','นามสกุล','รหัสนักเรียน','ชั้น','ห้อง','เบอร์โทร'],...list.map(s=>[s.prefix||'',s.first_name||'',s.last_name||'',s.student_id,s.class_name||'',s.room_number||'',s.phone_number||''])]);
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'ยังไม่ลงทะเบียน');
+      XLSX.writeFile(wb,'นักเรียนยังไม่ลงทะเบียน.xlsx');
+    }
+    function exportNoEnrollPdf() {
+      const list=getNoEnrollStudents();
+      const rows=list.map((s,i)=>`<tr><td>${i+1}</td><td>${s.prefix||''}${s.first_name||''} ${s.last_name||''}</td><td>${s.student_id}</td><td>${s.class_name||'-'}/${s.room_number||'-'}</td><td>${s.phone_number||'-'}</td></tr>`).join('');
+      printHtml('นักเรียนที่ยังไม่ลงทะเบียนวิชา',`<h2>📋 นักเรียนยังไม่ลงทะเบียนวิชา (${list.length} คน)</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>ลำดับ</th><th>ชื่อ-นามสกุล</th><th>รหัส</th><th>ชั้น/ห้อง</th><th>เบอร์โทร</th></tr></thead><tbody>${rows}</tbody></table>`);
+    }
+
 
     const THAI_PREFIXES = ['นางสาว', 'นาง', 'นาย', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'Mr.', 'Mrs.', 'Ms.'];
 
@@ -7204,6 +7432,142 @@
         return `<tr><td>${r.student_number||'-'}</td><td>${r.prefix||''}${r.first_name||''} ${r.last_name||''}</td><td>${r.student_id||'-'}</td><td>${r.class_name||'-'}/${r.room_number||'-'}</td><td>${r.phone_number||'-'}</td><td style="color:${student?'green':'red'}">${student?'✅ สมัครแล้ว':'🔴 ยังไม่สมัคร'}</td><td style="color:${hasReg?'green':'red'}">${hasReg?'✅ ลงทะเบียนแล้ว':'🔴 ยังไม่ลงทะเบียน'}</td></tr>`;
       }).join('');
       printHtml('รายชื่อนักเรียน', `<h2>📋 รายชื่อนักเรียน</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>รหัส</th><th>ชั้น/ห้อง</th><th>เบอร์โทร</th><th>สถานะสมัคร</th><th>สถานะลงทะเบียน</th></tr></thead><tbody>${rows}</tbody></table>`);
+    }
+
+    // ============================================================
+    // 📚 ลงทะเบียนวิชาพร้อมกัน (ถาวร — ดึงจาก allData)
+    // ============================================================
+    function loadBatchRegisterSection() {
+      const classes = [...new Set(allData.filter(d => d.type === 'student').map(d => d.class_name).filter(Boolean))].sort();
+      const classSelBr = document.getElementById('br-filter-class');
+      if (classSelBr) classSelBr.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option>${c}</option>`).join('');
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      const subSel = document.getElementById('br-subject');
+      const subFilter = document.getElementById('br-filter-subject');
+      const opts = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option>${s}</option>`).join('');
+      if (subSel) subSel.innerHTML = opts;
+      if (subFilter) subFilter.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option>${s}</option>`).join('');
+      renderBatchRegTable();
+    }
+
+    function updateBatchRegRooms() {
+      const cls = document.getElementById('br-filter-class')?.value;
+      const rooms = [...new Set(allData.filter(d => d.type === 'student' && (!cls || d.class_name === cls)).map(d => d.room_number).filter(Boolean))].sort();
+      const sel = document.getElementById('br-filter-room');
+      if (sel) sel.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option>${r}</option>`).join('');
+      renderBatchRegTable();
+    }
+
+    function renderBatchRegTable() {
+      const tbody = document.getElementById('br-tbody');
+      if (!tbody) return;
+      const fc = document.getElementById('br-filter-class')?.value || '';
+      const fr = document.getElementById('br-filter-room')?.value || '';
+      const fsub = document.getElementById('br-filter-subject')?.value || '';
+      const fstatus = document.getElementById('br-filter-status')?.value || 'not_reg';
+      let students = allData.filter(s => s.type === 'student');
+      if (fc) students = students.filter(s => s.class_name === fc);
+      if (fr) students = students.filter(s => s.room_number === fr);
+      students = students.sort((a, b) => (a.class_name||'').localeCompare(b.class_name||'') || (a.room_number||'').localeCompare(b.room_number||'') || (parseFloat(a.student_number)||0) - (parseFloat(b.student_number)||0));
+      if (fstatus !== 'all') {
+        students = students.filter(s => {
+          const hasReg = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id && (!fsub || r.subject_name === fsub));
+          return fstatus === 'not_reg' ? !hasReg : hasReg;
+        });
+      }
+      if (students.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">ไม่พบนักเรียน</td></tr>'; return; }
+      tbody.innerHTML = students.map(s => {
+        const hasReg = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id && (!fsub || r.subject_name === fsub));
+        const badge = hasReg
+          ? '<span class="text-green-600 text-xs">✅ ลงทะเบียนแล้ว</span>'
+          : '<span class="text-red-600 text-xs">🔴 ยังไม่ลงทะเบียน</span>';
+        return `<tr class="border-t border-gray-100 hover:bg-gray-50">
+          <td class="px-2 py-1.5 text-center"><input type="checkbox" class="br-row-cb w-4 h-4" data-sid="${s.student_id}" data-class="${s.class_name}" data-room="${s.room_number}" onchange="updateBrCount()"></td>
+          <td class="px-2 py-1.5">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</td>
+          <td class="px-2 py-1.5 font-mono">${s.student_id}</td>
+          <td class="px-2 py-1.5 text-center">${s.class_name||'-'}/${s.room_number||'-'}</td>
+          <td class="px-2 py-1.5 text-center">${badge}</td>
+        </tr>`;
+      }).join('');
+      updateBrCount();
+    }
+
+    function toggleBatchSelectAll(checked) {
+      document.querySelectorAll('.br-row-cb').forEach(cb => cb.checked = checked);
+      updateBrCount();
+    }
+
+    function selectBatchByClassRoom() {
+      document.querySelectorAll('.br-row-cb').forEach(cb => cb.checked = false);
+      const fc = document.getElementById('br-filter-class')?.value || '';
+      const fr = document.getElementById('br-filter-room')?.value || '';
+      if (!fc && !fr) { showToast('กรุณาเลือกชั้น หรือห้อง ก่อน', 'error'); return; }
+      let count = 0;
+      document.querySelectorAll('.br-row-cb').forEach(cb => {
+        const matchClass = !fc || cb.dataset.class === fc;
+        const matchRoom = !fr || cb.dataset.room === fr;
+        if (matchClass && matchRoom) { cb.checked = true; count++; }
+      });
+      showToast(`✅ เลือก ${count} คน`);
+      updateBrCount();
+    }
+
+    function updateBrCount() {
+      const n = document.querySelectorAll('.br-row-cb:checked').length;
+      const el = document.getElementById('br-selected-count');
+      if (el) el.textContent = n;
+    }
+
+    function updateBrKpacLimit() {
+      const subjectName = document.getElementById('br-subject')?.value;
+      if (!subjectName) { document.getElementById('br-kpac-limit').textContent = '-'; return; }
+      const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName);
+      const limit = cs ? 100 - (cs.mid_percent||0) - (cs.final_percent||0) : 100;
+      document.getElementById('br-kpac-limit').textContent = limit;
+      updateBrKpacTotal();
+    }
+
+    function updateBrKpacTotal() {
+      const k = parseFloat(document.getElementById('br-k')?.value)||0;
+      const p = parseFloat(document.getElementById('br-p')?.value)||0;
+      const a = parseFloat(document.getElementById('br-a')?.value)||0;
+      const c = parseFloat(document.getElementById('br-c')?.value)||0;
+      document.getElementById('br-kpac-total').textContent = (k+p+a+c).toFixed(1);
+    }
+
+    async function batchRegisterStudents() {
+      const subjectName = document.getElementById('br-subject')?.value;
+      if (!subjectName) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
+      const k = parseFloat(document.getElementById('br-k')?.value)||0;
+      const p = parseFloat(document.getElementById('br-p')?.value)||0;
+      const a = parseFloat(document.getElementById('br-a')?.value)||0;
+      const c = parseFloat(document.getElementById('br-c')?.value)||0;
+      const limit = parseFloat(document.getElementById('br-kpac-limit')?.textContent)||100;
+      if (k+p+a+c > limit) { showToast(`รวม KPAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
+      const selectedIds = Array.from(document.querySelectorAll('.br-row-cb:checked')).map(cb => cb.dataset.sid);
+      if (selectedIds.length === 0) { showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน', 'error'); return; }
+      let enrolled = 0, skipped = 0;
+      for (const sid of selectedIds) {
+        const student = allData.find(s => s.type === 'student' && s.student_id === sid);
+        if (!student) { skipped++; continue; }
+        const exists = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === subjectName);
+        if (exists) { skipped++; continue; }
+        const result = await window.dataSdk.create({
+          type: 'student_registration', student_id: sid,
+          class_name: student.class_name, room_number: student.room_number,
+          subject_name: subjectName,
+          class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
+          k_percent: k, p_percent: p, a_percent: a, c_percent: c,
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          enrolled++;
+          await applyPendingScoresOnRegistration(sid, subjectName);
+        }
+      }
+      showToast(`✅ ลงทะเบียนวิชา "${subjectName}" สำเร็จ ${enrolled} คน${skipped > 0 ? ` (ข้าม ${skipped} คนที่ลงแล้ว)` : ''}`);
+      renderBatchRegTable();
+      refreshCurrentView();
     }
 
     function loadRegistrationsTab() {
