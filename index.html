@@ -6580,6 +6580,72 @@
       if (subjectSel) subjectSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
     }
 
+    const THAI_PREFIXES = ['นางสาว', 'นาง', 'นาย', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'Mr.', 'Mrs.', 'Ms.'];
+
+    function detectSplittableColumns(headers, rows) {
+      // หาคอลัมน์ที่น่าจะมีคำนำหน้า+ชื่อ รวมกัน เช่น "นายสมชาย ใจดี"
+      const sampleSize = Math.min(rows.length, 10);
+      return headers.map((h, i) => {
+        let matchCount = 0;
+        for (let r = 0; r < sampleSize; r++) {
+          const val = String(rows[r][i] || '').trim();
+          if (THAI_PREFIXES.some(p => val.startsWith(p))) matchCount++;
+        }
+        return { colIdx: i, header: h, matchRatio: matchCount / sampleSize };
+      }).filter(c => c.matchRatio >= 0.5);
+    }
+
+    function splitThaiName(value) {
+      const val = String(value || '').trim();
+      let prefix = '', rest = val;
+      for (const p of THAI_PREFIXES) {
+        if (val.startsWith(p)) { prefix = p; rest = val.slice(p.length).trim(); break; }
+      }
+      const parts = rest.split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '';
+      return { prefix, firstName, lastName };
+    }
+
+    function showImportSplitSection(splittableCols) {
+      // แสดง popup ให้ยืนยันการแยกคอลัมน์
+      const popup = document.createElement('div');
+      popup.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      const colList = splittableCols.map(c => `<li class="text-sm"><strong>"${c.header || 'คอลัมน์ '+(c.colIdx+1)}"</strong> — ตัวอย่าง: "${String(_importRows[0]?.[c.colIdx] || '').trim()}"</li>`).join('');
+      popup.innerHTML = `
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
+          <h3 class="text-lg font-bold text-gray-800 mb-2">🔍 พบคอลัมน์ที่มีชื่อรวมกัน</h3>
+          <p class="text-sm text-gray-600 mb-3">ระบบพบคอลัมน์ที่น่าจะมี คำนำหน้า + ชื่อ + นามสกุล รวมอยู่ด้วยกัน:</p>
+          <ul class="mb-4 pl-4 list-disc">${colList}</ul>
+          <p class="text-sm text-gray-600 mb-4">ต้องการให้ระบบแยกอัตโนมัติเป็น 3 คอลัมน์ (คำนำหน้า / ชื่อ / นามสกุล) ก่อนระบุ mapping ไหม?</p>
+          <div class="flex gap-3">
+           <button onclick="this.closest('.fixed').remove(); showImportMappingSection();" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm">ไม่แยก ระบุเอง</button>
+           <button onclick="this.closest('.fixed').remove(); applyImportSplit(${JSON.stringify(splittableCols.map(c=>c.colIdx))});" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ แยกให้เลย</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(popup);
+    }
+
+    function applyImportSplit(colIdxs) {
+      // เพิ่มคอลัมน์ใหม่ 3 คอลัมน์แทนคอลัมน์เดิม (แยก prefix/firstName/lastName)
+      // ทำทีละคอลัมน์ (ตั้งแต่ colIdx สูงสุดก่อนเพื่อไม่ให้ index เลื่อน)
+      const sortedIdxs = [...colIdxs].sort((a, b) => b - a);
+      for (const idx of sortedIdxs) {
+        const origHeader = _importHeaders[idx] || `คอลัมน์ ${idx + 1}`;
+        // แทนที่คอลัมน์เดิมด้วย 3 คอลัมน์ใหม่
+        _importHeaders.splice(idx, 1, `${origHeader}_คำนำหน้า`, `${origHeader}_ชื่อ`, `${origHeader}_นามสกุล`);
+        _importRows = _importRows.map(row => {
+          const { prefix, firstName, lastName } = splitThaiName(row[idx]);
+          const newRow = [...row];
+          newRow.splice(idx, 1, prefix, firstName, lastName);
+          return newRow;
+        });
+      }
+      showToast(`✅ แยกคอลัมน์สำเร็จ — ระบุ mapping ได้เลย`);
+      showImportMappingSection();
+    }
+
     function handleImportStudentFile(event) {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -6599,7 +6665,13 @@
           if (rows.length < 2) { showToast('ไฟล์ไม่มีข้อมูล', 'error'); return; }
           _importHeaders = rows[0].map(h => String(h || '').trim());
           _importRows = rows.slice(1).filter(r => r.some(c => c !== ''));
-          showImportMappingSection();
+          // ตรวจสอบคอลัมน์ที่น่าจะมีชื่อรวมกัน
+          const splittable = detectSplittableColumns(_importHeaders, _importRows);
+          if (splittable.length > 0) {
+            showImportSplitSection(splittable);
+          } else {
+            showImportMappingSection();
+          }
         } catch(e) { showToast('อ่านไฟล์ไม่สำเร็จ: ' + e.message, 'error'); }
       };
       file.name.endsWith('.csv') ? reader.readAsText(file, 'utf-8') : reader.readAsArrayBuffer(file);
