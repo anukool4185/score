@@ -4678,7 +4678,15 @@
     let usMatchedData = []; // กลุ่มที่ตรงและลงทะเบียนแล้ว รอยืนยัน
 
     function loadUploadScoreTab() {
+      // โหลดรายวิชา
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      const sel = document.getElementById('us-subject');
+      if (sel) sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      // โหลดรายวิชาลง filter pending
+      const filterSel = document.getElementById('us-pending-filter-subject');
+      if (filterSel) filterSel.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
       updateUploadScoreRounds();
+      renderPendingScoreTable();
     }
 
     function updateUploadScoreRounds() {
