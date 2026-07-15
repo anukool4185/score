@@ -1505,7 +1505,7 @@
       },
 
       async delete(record) {
-        beginRequest('🗑️ กำลังลบ กรุณารอสักครู่...');
+        beginRequest('⏳ กำลังดำเนินการ กรุณารอสักครู่...');
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
