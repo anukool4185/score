@@ -1565,6 +1565,11 @@
           kpacBadgeEl.textContent = kpacCount;
           kpacBadgeEl.classList.toggle('hidden', kpacCount === 0);
         }
+        // อัปเดตรายชื่อนักเรียนที่สมัคร ถ้ากำลังเปิดแท็บนั้นอยู่
+        const applicantsPanel = document.getElementById('students-subtab-applicants');
+        if (applicantsPanel && !applicantsPanel.classList.contains('hidden')) {
+          updateStudentsList();
+        }
         // อัปเดตแถบเลื่อนการบ้านวันนี้แบบสด ถ้าเปิดอยู่
         const todayHwSection = document.getElementById('today-homework-marquee-section');
         if (todayHwSection && !todayHwSection.classList.contains('hidden')) {
