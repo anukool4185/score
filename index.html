@@ -1928,6 +1928,23 @@
         document.getElementById(firstErrorField)?.focus();
         return;
       }
+      // ตรวจสอบรหัสนักเรียนซ้ำ
+      const dupId = allData.find(s => s.type === 'student' && s.student_id === studentId);
+      if (dupId) {
+        errorDiv.textContent = `❌ รหัสนักเรียน ${studentId} มีในระบบแล้ว กรุณาตรวจสอบ`;
+        errorDiv.classList.remove('hidden');
+        showRegFieldError('student-id', '❌ รหัสนี้มีในระบบแล้ว');
+        return;
+      }
+      // ตรวจสอบชื่อ-นามสกุลซ้ำ
+      const dupName = allData.find(s => s.type === 'student' && s.first_name === firstName && s.last_name === lastName);
+      if (dupName) {
+        errorDiv.textContent = `⚠️ ชื่อ ${firstName} ${lastName} มีในระบบแล้ว (รหัส: ${dupName.student_id}) กรุณาตรวจสอบว่าสมัครซ้ำหรือไม่`;
+        errorDiv.classList.remove('hidden');
+        // แจ้งเตือนแต่ยังให้กดยืนยันเองได้ (อาจเป็นคนละคนที่ชื่อตรงกัน)
+        if (!confirm(`⚠️ พบชื่อ "${firstName} ${lastName}" ในระบบแล้ว (รหัส: ${dupName.student_id})\n\nหากคุณเป็นคนละคนกัน กด OK เพื่อดำเนินการต่อ\nหากสมัครซ้ำ กด Cancel`)) return;
+        errorDiv.classList.add('hidden');
+      }
       // ตรวจสอบว่ามีคนสมัครด้วยรหัสนักเรียนนี้อยู่แล้วหรือไม่ (สมัครซ้ำ)
       const existingStudent = allData.find(d => d.type === 'student' && d.student_id === studentId);
       // เช็ค username ซ้ำ แต่ไม่นับของตัวเอง (เผื่อกรณีสมัครซ้ำแล้วใช้ username เดิม)
@@ -3810,19 +3827,25 @@
         const subadminVisible = !document.getElementById('page-subadmin')?.classList.contains('hidden');
         const adminVisible = !document.getElementById('page-admin')?.classList.contains('hidden');
 
-        // Sub-admin page — เรียก renderSubAdminStudents เสมอเพื่อให้ badge + สถานะอัปเดตทันที
         if (subadminVisible) {
           const tab = _currentSubAdminTab || currentSubAdminTab || 'students';
           if (tab === 'homework') loadSubAdminHomeworkSection?.();
           else if (tab === 'timekeeping') updateTimekeepingStudents?.();
           else if (tab === 'grading') renderSubAdminGrading?.();
-          renderSubAdminStudents(); // เรียกเสมอ ไม่ว่า tab ไหน (badge + สถานะ)
+          renderSubAdminStudents();
         }
 
-        // Admin page
         if (adminVisible) {
           const tab = _currentAdminTab;
-          if (tab === 'students') { updateStudentsList?.(); updateRegisteredStudents?.(); }
+          if (tab === 'students') {
+            // ถ้ากำลังอยู่ที่ import sub-tab และมี checkbox ที่ติ๊กไว้ → ไม่ refresh ตาราง (กัน checkbox หาย)
+            const importVisible = !document.getElementById('students-subtab-import')?.classList.contains('hidden');
+            const hasChecked = importVisible && document.querySelectorAll('.import-row-cb:checked').length > 0;
+            if (!hasChecked) {
+              updateStudentsList?.();
+              updateRegisteredStudents?.();
+            }
+          }
           else if (tab === 'admins') updateAdminList?.();
           else if (tab === 'homework') updateHomeworkTable?.();
           else if (tab === 'timekeeping') updateTimekeepingStudents?.();
@@ -3833,7 +3856,6 @@
           else if (tab === 'grading') renderGradingView?.();
         }
 
-        // Student page
         if (_currentPage === 'student-management') {
           updateStudentHomeworkTable?.();
           updateStudentRegistrationsList?.();
@@ -7068,12 +7090,30 @@
     async function importAddSelectedStudents() {
       const ids = getImportSelectedIds();
       if (ids.length === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
-      let added = 0, skipped = 0;
+
+      // ตรวจสอบรหัสและชื่อซ้ำก่อน
+      const dupIdList = [];
+      const dupNameList = [];
       for (const sid of ids) {
         const row = _importMapped.find(r => r.student_id === sid);
         if (!row) continue;
-        const exists = allData.find(s => s.type === 'student' && s.student_id === sid);
-        if (exists) { skipped++; continue; }
+        const dupId = allData.find(s => s.type === 'student' && s.student_id === sid);
+        if (dupId) { dupIdList.push(sid); continue; }
+        const dupName = allData.find(s => s.type === 'student' &&
+          s.first_name === row.first_name && s.last_name === row.last_name && row.first_name);
+        if (dupName) dupNameList.push(`${row.first_name} ${row.last_name} (รหัส: ${dupName.student_id})`);
+      }
+
+      if (dupNameList.length > 0) {
+        const proceed = confirm(`⚠️ พบชื่อซ้ำกับในระบบ:\n${dupNameList.slice(0,5).join('\n')}${dupNameList.length>5?`\n...และอีก ${dupNameList.length-5} คน`:''}\n\nต้องการเพิ่มต่อไปหรือไม่? (รหัสซ้ำจะข้ามอัตโนมัติ)`);
+        if (!proceed) return;
+      }
+
+      let added = 0, skippedId = dupIdList.length;
+      for (const sid of ids) {
+        if (dupIdList.includes(sid)) continue;
+        const row = _importMapped.find(r => r.student_id === sid);
+        if (!row) continue;
         const result = await window.dataSdk.create({
           type: 'student', student_id: sid, username: sid, password: sid,
           prefix: row.prefix || 'นาย', first_name: row.first_name || '', last_name: row.last_name || '',
@@ -7083,9 +7123,8 @@
         });
         if (result.isOk) added++;
       }
-      showToast(`✅ เพิ่มนักเรียน ${added} คน${skipped > 0 ? ` (ข้าม ${skipped} คนที่สมัครแล้ว)` : ''}`);
+      showToast(`✅ เพิ่มนักเรียน ${added} คน${skippedId > 0 ? ` (ข้ามรหัสซ้ำ ${skippedId} คน)` : ''}`);
       renderImportTable();
-      refreshCurrentView();
     }
 
     function updateImportEnrollKpacLimit() {
@@ -7455,6 +7494,10 @@
           <h3 class="text-xl font-bold text-gray-800 mb-4">✏️ แก้ไขข้อมูลนักเรียน</h3>
           <div class="space-y-3 mb-4">
             <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">🆔 รหัสนักเรียน</label>
+              <input type="text" id="edit-student-id" value="${student.student_id}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+            </div>
+            <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">📛 คำนำหน้า</label>
               <select id="edit-prefix" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
                 <option value="เด็กชาย" ${student.prefix === 'เด็กชาย' ? 'selected' : ''}>เด็กชาย</option>
@@ -7473,25 +7516,17 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้นเรียน</label>
-              <select id="edit-class" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-class" onchange="updateEditStudentRooms('${studentId}')" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
                 <option value="">-- เลือก --</option>
-                <option value="อ.1" ${student.class_name === 'อ.1' ? 'selected' : ''}>อ.1</option>
-                <option value="อ.2" ${student.class_name === 'อ.2' ? 'selected' : ''}>อ.2</option>
-                <option value="อ.3" ${student.class_name === 'อ.3' ? 'selected' : ''}>อ.3</option>
-                <option value="อ.4" ${student.class_name === 'อ.4' ? 'selected' : ''}>อ.4</option>
-                <option value="อ.5" ${student.class_name === 'อ.5' ? 'selected' : ''}>อ.5</option>
-                <option value="อ.6" ${student.class_name === 'อ.6' ? 'selected' : ''}>อ.6</option>
-                <option value="ม.1" ${student.class_name === 'ม.1' ? 'selected' : ''}>ม.1</option>
-                <option value="ม.2" ${student.class_name === 'ม.2' ? 'selected' : ''}>ม.2</option>
-                <option value="ม.3" ${student.class_name === 'ม.3' ? 'selected' : ''}>ม.3</option>
-                <option value="ม.4" ${student.class_name === 'ม.4' ? 'selected' : ''}>ม.4</option>
-                <option value="ม.5" ${student.class_name === 'ม.5' ? 'selected' : ''}>ม.5</option>
-                <option value="ม.6" ${student.class_name === 'ม.6' ? 'selected' : ''}>ม.6</option>
+                ${[...new Set(allData.filter(d=>d.type==='class_subject').map(d=>d.class_name).filter(Boolean))].sort().map(c=>`<option value="${c}" ${c===student.class_name?'selected':''}>${c}</option>`).join('')}
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏠 ห้องเรียน</label>
-              <input type="text" id="edit-room" value="${student.room_number}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <select id="edit-room" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+                <option value="">-- เลือก --</option>
+                ${[...new Set(allData.filter(d=>d.type==='class_subject'&&d.class_name===student.class_name).map(d=>d.room_number).filter(Boolean))].sort().map(r=>`<option value="${r}" ${r===student.room_number?'selected':''}>${r}</option>`).join('')}
+              </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">#️⃣ เลขที่</label>
@@ -7518,14 +7553,22 @@
       `;
       document.body.appendChild(editDiv);
     }
+    function updateEditStudentRooms() {
+      const cls = document.getElementById('edit-class')?.value;
+      const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === cls).map(d => d.room_number).filter(Boolean))].sort();
+      const sel = document.getElementById('edit-room');
+      if (sel) sel.innerHTML = '<option value="">-- เลือก --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+    }
+
     async function confirmEditStudent(studentId) {
       const student = allData.find(s => s.__backendId === studentId);
       if (!student) return;
+      const newStudentId = document.getElementById('edit-student-id')?.value.trim() || student.student_id;
       const prefix = document.getElementById('edit-prefix').value;
       const firstName = document.getElementById('edit-first-name').value.trim();
       const lastName = document.getElementById('edit-last-name').value.trim();
       const className = document.getElementById('edit-class').value;
-      const roomNumber = document.getElementById('edit-room').value.trim();
+      const roomNumber = document.getElementById('edit-room').value;
       const studentNumber = document.getElementById('edit-number').value.trim();
       const phone = document.getElementById('edit-phone').value.trim();
       const username = document.getElementById('edit-username').value.trim();
@@ -7534,17 +7577,18 @@
         showToast('กรุณากรอกอย่างน้อยชื่อหรือ Username', 'error');
         return;
       }
+      // ตรวจสอบรหัสนักเรียนซ้ำ (ถ้าเปลี่ยน)
+      if (newStudentId !== student.student_id) {
+        const dup = allData.find(s => s.type === 'student' && s.student_id === newStudentId && s.__backendId !== studentId);
+        if (dup) { showToast(`รหัสนักเรียน ${newStudentId} มีในระบบแล้ว`, 'error'); return; }
+      }
       const result = await window.dataSdk.update({
         ...student,
-        prefix: prefix,
-        first_name: firstName,
-        last_name: lastName,
-        class_name: className,
-        room_number: roomNumber,
-        student_number: studentNumber,
-        phone_number: phone,
-        username: username,
-        password: password
+        student_id: newStudentId,
+        username: username || newStudentId,
+        prefix, first_name: firstName, last_name: lastName,
+        class_name: className, room_number: roomNumber,
+        student_number: studentNumber, phone_number: phone, password
       });
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
