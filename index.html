@@ -900,10 +900,101 @@
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">👨‍🎓 จัดการข้อมูลนักเรียน</h3>
         <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+         <button onclick="showStudentsSubTab('import')" id="students-subtab-btn-import" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📤 นำเข้ารายชื่อ</button>
          <button onclick="showStudentsSubTab('applicants')" id="students-subtab-btn-applicants" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📋 นักเรียนที่สมัคร</button>
          <button onclick="showStudentsSubTab('registrations')" id="students-subtab-btn-registrations" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 นักเรียนที่ลงทะเบียนแล้ว</button>
         </div>
 
+        <!-- โหมด 0: นำเข้ารายชื่อนักเรียนจาก Excel -->
+        <div id="students-subtab-import" class="hidden">
+         <!-- ① อัพโหลดไฟล์ -->
+         <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <p class="text-sm font-semibold text-blue-800 mb-3">① อัพโหลดไฟล์รายชื่อนักเรียน (.xlsx / .xls / .csv)</p>
+          <input type="file" id="import-student-file" accept=".xlsx,.xls,.csv" onchange="handleImportStudentFile(event)" class="w-full text-sm mb-2">
+          <p class="text-xs text-gray-400">ระบบจะอ่านหัวคอลัมน์แล้วแสดง Preview ให้ยืนยันก่อน</p>
+         </div>
+         <!-- ② mapping คอลัมน์ -->
+         <div id="import-mapping-section" class="hidden bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+          <p class="text-sm font-semibold text-yellow-800 mb-3">② ระบุว่าคอลัมน์ไหนคืออะไร</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3" id="import-col-mapping-grid"></div>
+          <div class="overflow-x-auto border border-gray-200 rounded-lg mb-3">
+           <table id="import-preview-table" class="w-full text-xs"></table>
+          </div>
+          <button onclick="confirmImportMapping()" class="px-5 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ ยืนยันและดูรายชื่อทั้งหมด</button>
+         </div>
+         <!-- ③ ตารางรายชื่อ -->
+         <div id="import-table-section" class="hidden">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+           <p class="text-sm font-semibold text-gray-800">③ รายชื่อนักเรียนที่นำเข้า</p>
+           <div class="flex gap-2 flex-wrap">
+            <button onclick="exportImportPdf()" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">📄 PDF</button>
+            <button onclick="exportImportExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
+           </div>
+          </div>
+          <!-- Filters -->
+          <div class="flex items-center gap-2 flex-wrap mb-3" id="import-filter-bar">
+           <select id="import-filter-class" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm"><option value="">ทุกชั้น</option></select>
+           <select id="import-filter-room" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm"><option value="">ทุกห้อง</option></select>
+           <select id="import-filter-reg" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm">
+            <option value="">ทุกสถานะสมัคร</option>
+            <option value="yes">สมัครแล้ว</option>
+            <option value="no">ยังไม่สมัคร</option>
+           </select>
+           <select id="import-filter-enroll" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm">
+            <option value="">ทุกสถานะลงทะเบียน</option>
+            <option value="yes">ลงทะเบียนแล้ว</option>
+            <option value="no">ยังไม่ลงทะเบียน</option>
+           </select>
+           <button onclick="toggleImportSelectAll(true)" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ เลือกทั้งหมด</button>
+           <button onclick="selectImportByClassRoom()" class="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs">🏫 เลือกชั้น/ห้องที่กรอง</button>
+           <button onclick="toggleImportSelectAll(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ ยกเลิกทั้งหมด</button>
+          </div>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-4">
+           <table class="w-full text-sm">
+            <thead class="bg-gray-100">
+             <tr>
+              <th class="px-2 py-3 text-center"><input type="checkbox" onchange="toggleImportSelectAll(this.checked)" class="w-4 h-4"></th>
+              <th class="px-2 py-3 text-left whitespace-nowrap">เลขที่</th>
+              <th class="px-2 py-3 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+              <th class="px-2 py-3 text-left whitespace-nowrap">รหัสนักเรียน</th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">ชั้น/ห้อง</th>
+              <th class="px-2 py-3 text-left whitespace-nowrap">เบอร์โทร</th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">สถานะสมัคร</th>
+              <th class="px-2 py-3 text-center whitespace-nowrap">สถานะลงทะเบียน</th>
+             </tr>
+            </thead>
+            <tbody id="import-student-tbody"></tbody>
+           </table>
+          </div>
+          <!-- ขั้นตอนที่ 1: เพิ่มนักเรียนที่ยังไม่สมัคร -->
+          <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-3">
+           <p class="text-sm font-semibold text-orange-800 mb-2">ขั้นตอนที่ 1: เพิ่มรายชื่อนักเรียนที่เลือกเข้าระบบ (สำหรับคนที่ยังไม่สมัคร)</p>
+           <p class="text-xs text-gray-500 mb-3">Username = รหัสนักเรียน | Password = รหัสนักเรียน</p>
+           <button onclick="importAddSelectedStudents()" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium">➕ เพิ่มนักเรียนที่เลือกเข้าระบบ</button>
+          </div>
+          <!-- ขั้นตอนที่ 2: ลงทะเบียนวิชา + KPAC -->
+          <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+           <p class="text-sm font-semibold text-purple-800 mb-2">ขั้นตอนที่ 2: ลงทะเบียนวิชาพร้อมกำหนด KPAC (สำหรับคนที่สมัครแล้วแต่ยังไม่ลงทะเบียน)</p>
+           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+             <label class="block text-xs text-gray-600 mb-1">เลือกวิชา</label>
+             <select id="import-enroll-subject" onchange="updateImportEnrollKpacLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"><option value="">-- เลือกวิชา --</option></select>
+            </div>
+            <div class="md:col-span-2">
+             <label class="block text-xs text-gray-600 mb-1">กำหนด KPAC (รวม ≤ ขีดจำกัดวิชา)</label>
+             <div class="flex gap-2">
+              <input type="number" id="import-k" placeholder="K%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
+              <input type="number" id="import-p" placeholder="P%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
+              <input type="number" id="import-a" placeholder="A%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
+              <input type="number" id="import-c" placeholder="C%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
+             </div>
+             <p class="text-xs text-gray-500 mt-1">รวม: <span id="import-kpac-total" class="font-bold">0</span>% | ขีดจำกัด: <span id="import-kpac-limit" class="font-bold">-</span>%</p>
+            </div>
+           </div>
+           <button onclick="importEnrollSelectedStudents()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก</button>
+          </div>
+         </div>
+        </div>
         <!-- โหมด 1: นักเรียนที่สมัคร (ตาราง) -->
         <div id="students-subtab-applicants">
          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
@@ -6436,17 +6527,22 @@
     // 📚 โหมด 2: นักเรียนที่ลงทะเบียนแล้ว (ตาราง)
     // ============================================================
     function showStudentsSubTab(mode) {
+      const btnImport = document.getElementById('students-subtab-btn-import');
       const btnApplicants = document.getElementById('students-subtab-btn-applicants');
       const btnRegistrations = document.getElementById('students-subtab-btn-registrations');
+      const panelImport = document.getElementById('students-subtab-import');
       const panelApplicants = document.getElementById('students-subtab-applicants');
       const panelRegistrations = document.getElementById('students-subtab-registrations');
-      if (mode === 'applicants') {
-        btnApplicants.classList.add('bg-blue-500', 'text-white');
-        btnApplicants.classList.remove('bg-gray-300', 'text-gray-700');
-        btnRegistrations.classList.add('bg-gray-300', 'text-gray-700');
-        btnRegistrations.classList.remove('bg-blue-500', 'text-white');
-        panelApplicants.classList.remove('hidden');
-        panelRegistrations.classList.add('hidden');
+      // Reset all
+      [btnImport, btnApplicants, btnRegistrations].forEach(b => { if (b) { b.classList.add('bg-gray-300','text-gray-700'); b.classList.remove('bg-blue-500','text-white'); } });
+      [panelImport, panelApplicants, panelRegistrations].forEach(p => { if (p) p.classList.add('hidden'); });
+      if (mode === 'import') {
+        btnImport?.classList.add('bg-blue-500','text-white'); btnImport?.classList.remove('bg-gray-300','text-gray-700');
+        panelImport?.classList.remove('hidden');
+        loadImportStudentTab();
+      } else if (mode === 'applicants') {
+        btnApplicants?.classList.add('bg-blue-500','text-white'); btnApplicants?.classList.remove('bg-gray-300','text-gray-700');
+        panelApplicants?.classList.remove('hidden');
         updateStudentsList();
         const speedDisplay = document.getElementById('approved-marquee-speed-display');
         const rowsDisplay = document.getElementById('approved-marquee-rows-display');
@@ -6455,15 +6551,276 @@
         if (rowsDisplay) rowsDisplay.textContent = approvedMarqueeRows;
         if (delayDisplay) delayDisplay.textContent = approvedMarqueePauseDelaySec;
       } else {
-        btnRegistrations.classList.add('bg-blue-500', 'text-white');
-        btnRegistrations.classList.remove('bg-gray-300', 'text-gray-700');
-        btnApplicants.classList.add('bg-gray-300', 'text-gray-700');
-        btnApplicants.classList.remove('bg-blue-500', 'text-white');
-        panelRegistrations.classList.remove('hidden');
-        panelApplicants.classList.add('hidden');
+        btnRegistrations?.classList.add('bg-blue-500','text-white'); btnRegistrations?.classList.remove('bg-gray-300','text-gray-700');
+        panelRegistrations?.classList.remove('hidden');
         loadRegistrationsTab();
       }
     }
+    // ============================================================
+    // 📤 นำเข้ารายชื่อนักเรียนจาก Excel
+    // ============================================================
+    let _importRows = [];       // ข้อมูลดิบจาก Excel
+    let _importHeaders = [];    // หัวคอลัมน์จาก Excel
+    let _importMapped = [];     // ข้อมูลหลัง mapping
+    const IMPORT_FIELDS = [
+      { key: 'prefix', label: 'คำนำหน้า', required: false },
+      { key: 'first_name', label: 'ชื่อ', required: true },
+      { key: 'last_name', label: 'นามสกุล', required: true },
+      { key: 'student_id', label: 'รหัสนักเรียน', required: true },
+      { key: 'class_name', label: 'ชั้น', required: true },
+      { key: 'room_number', label: 'ห้อง', required: true },
+      { key: 'student_number', label: 'เลขที่', required: false },
+      { key: 'phone_number', label: 'เบอร์โทร', required: false },
+    ];
+
+    function loadImportStudentTab() {
+      // โหลด dropdown วิชาสำหรับขั้นตอนที่ 2
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      const subjectSel = document.getElementById('import-enroll-subject');
+      if (subjectSel) subjectSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function handleImportStudentFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          let rows = [];
+          if (file.name.endsWith('.csv')) {
+            rows = e.target.result.split('\n').map(l => l.split(',').map(c => c.trim().replace(/^"|"$/g, '')));
+          } else if (typeof XLSX !== 'undefined') {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          } else {
+            showToast('ไม่รองรับ .xlsx กรุณาบันทึกเป็น .csv', 'error'); return;
+          }
+          if (rows.length < 2) { showToast('ไฟล์ไม่มีข้อมูล', 'error'); return; }
+          _importHeaders = rows[0].map(h => String(h || '').trim());
+          _importRows = rows.slice(1).filter(r => r.some(c => c !== ''));
+          showImportMappingSection();
+        } catch(e) { showToast('อ่านไฟล์ไม่สำเร็จ: ' + e.message, 'error'); }
+      };
+      file.name.endsWith('.csv') ? reader.readAsText(file, 'utf-8') : reader.readAsArrayBuffer(file);
+    }
+
+    function guessImportColumn(keywords) {
+      return _importHeaders.findIndex(h => keywords.some(kw => h.toLowerCase().includes(kw.toLowerCase())));
+    }
+
+    function showImportMappingSection() {
+      document.getElementById('import-mapping-section').classList.remove('hidden');
+      document.getElementById('import-table-section').classList.add('hidden');
+      // Build mapping dropdowns
+      const grid = document.getElementById('import-col-mapping-grid');
+      const options = '<option value="">-- ไม่ใช้ --</option>' + _importHeaders.map((h, i) => `<option value="${i}">${h || 'คอลัมน์ '+(i+1)}</option>`).join('');
+      grid.innerHTML = IMPORT_FIELDS.map(f => {
+        const guess = guessImportColumn(f.key === 'first_name' ? ['ชื่อ','first'] : f.key === 'last_name' ? ['นามสกุล','สกุล','last'] : f.key === 'student_id' ? ['รหัส','id','student'] : f.key === 'class_name' ? ['ชั้น','class'] : f.key === 'room_number' ? ['ห้อง','room'] : f.key === 'student_number' ? ['เลขที่','no'] : f.key === 'phone_number' ? ['เบอร์','โทร','phone'] : f.key === 'prefix' ? ['คำนำหน้า','นำหน้า','prefix'] : [f.key]);
+        return `<div>
+          <label class="block text-xs font-semibold text-gray-700 mb-1">${f.label}${f.required ? ' *' : ''}</label>
+          <select id="import-map-${f.key}" class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-yellow-500 focus:outline-none">${options}</select>
+          ${guess >= 0 ? `<script>document.getElementById('import-map-${f.key}').value='${guess}'<\/script>` : ''}
+        </div>`;
+      }).join('');
+      // Preview
+      const table = document.getElementById('import-preview-table');
+      const preview = _importRows.slice(0, 6);
+      table.innerHTML = `<thead class="bg-gray-100"><tr>${_importHeaders.map(h => `<th class="px-2 py-1.5 text-left text-xs font-semibold whitespace-nowrap">${h}</th>`).join('')}</tr></thead>
+        <tbody>${preview.map(row => `<tr class="border-t border-gray-100">${_importHeaders.map((_, i) => `<td class="px-2 py-1 text-xs whitespace-nowrap">${row[i] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    }
+
+    function confirmImportMapping() {
+      const getCol = key => { const v = document.getElementById(`import-map-${key}`)?.value; return v !== '' ? parseInt(v) : -1; };
+      _importMapped = _importRows.map(row => {
+        const obj = {};
+        IMPORT_FIELDS.forEach(f => { const c = getCol(f.key); if (c >= 0) obj[f.key] = String(row[c] ?? '').trim(); });
+        return obj;
+      }).filter(o => o.student_id || o.first_name);
+      if (_importMapped.length === 0) { showToast('ไม่พบข้อมูล กรุณาตรวจสอบ mapping', 'error'); return; }
+      document.getElementById('import-mapping-section').classList.add('hidden');
+      document.getElementById('import-table-section').classList.remove('hidden');
+      // Build class/room filters
+      const classes = [...new Set(_importMapped.map(r => r.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(_importMapped.map(r => r.room_number).filter(Boolean))].sort();
+      document.getElementById('import-filter-class').innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option>${c}</option>`).join('');
+      document.getElementById('import-filter-room').innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option>${r}</option>`).join('');
+      renderImportTable();
+    }
+
+    function getImportFiltered() {
+      const fc = document.getElementById('import-filter-class')?.value || '';
+      const fr = document.getElementById('import-filter-room')?.value || '';
+      const freg = document.getElementById('import-filter-reg')?.value || '';
+      const fenroll = document.getElementById('import-filter-enroll')?.value || '';
+      return _importMapped.filter(r => {
+        if (fc && r.class_name !== fc) return false;
+        if (fr && r.room_number !== fr) return false;
+        const inSystem = !!allData.find(s => s.type === 'student' && s.student_id === r.student_id);
+        if (freg === 'yes' && !inSystem) return false;
+        if (freg === 'no' && inSystem) return false;
+        const hasReg = inSystem && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        if (fenroll === 'yes' && !hasReg) return false;
+        if (fenroll === 'no' && hasReg) return false;
+        return true;
+      });
+    }
+
+    function renderImportTable() {
+      const tbody = document.getElementById('import-student-tbody');
+      if (!tbody) return;
+      const list = getImportFiltered();
+      if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-6">ไม่พบข้อมูล</td></tr>'; return; }
+      tbody.innerHTML = list.map((r, idx) => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        const regBadge = student
+          ? '<span class="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">✅ สมัครแล้ว</span>'
+          : '<span class="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full">🔴 ยังไม่สมัคร</span>';
+        const enrollBadge = hasReg
+          ? '<span class="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">✅ ลงทะเบียนแล้ว</span>'
+          : '<span class="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full">🔴 ยังไม่ลงทะเบียน</span>';
+        return `<tr class="border-t border-gray-100 hover:bg-gray-50">
+          <td class="px-2 py-2 text-center"><input type="checkbox" class="import-row-cb w-4 h-4" data-sid="${r.student_id}"></td>
+          <td class="px-2 py-2 whitespace-nowrap text-xs">${r.student_number || '-'}</td>
+          <td class="px-2 py-2 whitespace-nowrap text-xs">${r.prefix || ''}${r.first_name || ''} ${r.last_name || ''}</td>
+          <td class="px-2 py-2 whitespace-nowrap text-xs font-mono">${r.student_id || '-'}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap text-xs">${r.class_name || '-'}/${r.room_number || '-'}</td>
+          <td class="px-2 py-2 whitespace-nowrap text-xs">${r.phone_number || '-'}</td>
+          <td class="px-2 py-2 text-center">${regBadge}</td>
+          <td class="px-2 py-2 text-center">${enrollBadge}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function toggleImportSelectAll(checked) {
+      document.querySelectorAll('.import-row-cb').forEach(cb => cb.checked = checked);
+    }
+
+    function selectImportByClassRoom() {
+      // ยกเลิกทั้งหมดก่อน แล้วเลือกเฉพาะแถวที่ตรงกับชั้น/ห้องที่กรองไว้
+      document.querySelectorAll('.import-row-cb').forEach(cb => cb.checked = false);
+      const fc = document.getElementById('import-filter-class')?.value || '';
+      const fr = document.getElementById('import-filter-room')?.value || '';
+      if (!fc && !fr) {
+        showToast('กรุณาเลือกชั้น หรือห้อง ที่ต้องการก่อน', 'error');
+        return;
+      }
+      const list = getImportFiltered();
+      let count = 0;
+      list.forEach(r => {
+        const cb = document.querySelector(`.import-row-cb[data-sid="${r.student_id}"]`);
+        if (cb) { cb.checked = true; count++; }
+      });
+      showToast(`✅ เลือก ${count} คน${fc ? ` ชั้น ${fc}` : ''}${fr ? ` ห้อง ${fr}` : ''}`);
+    }
+
+    function getImportSelectedIds() {
+      return Array.from(document.querySelectorAll('.import-row-cb:checked')).map(cb => cb.dataset.sid);
+    }
+
+    async function importAddSelectedStudents() {
+      const ids = getImportSelectedIds();
+      if (ids.length === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
+      let added = 0, skipped = 0;
+      for (const sid of ids) {
+        const row = _importMapped.find(r => r.student_id === sid);
+        if (!row) continue;
+        const exists = allData.find(s => s.type === 'student' && s.student_id === sid);
+        if (exists) { skipped++; continue; }
+        const result = await window.dataSdk.create({
+          type: 'student', student_id: sid, username: sid, password: sid,
+          prefix: row.prefix || 'นาย', first_name: row.first_name || '', last_name: row.last_name || '',
+          class_name: row.class_name || '', room_number: row.room_number || '',
+          student_number: row.student_number || '', phone_number: row.phone_number || '',
+          created_at: new Date().toISOString()
+        });
+        if (result.isOk) added++;
+      }
+      showToast(`✅ เพิ่มนักเรียน ${added} คน${skipped > 0 ? ` (ข้าม ${skipped} คนที่สมัครแล้ว)` : ''}`);
+      renderImportTable();
+      refreshCurrentView();
+    }
+
+    function updateImportEnrollKpacLimit() {
+      const subjectName = document.getElementById('import-enroll-subject')?.value;
+      if (!subjectName) return;
+      const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName);
+      const limit = cs ? 100 - (cs.mid_percent || 0) - (cs.final_percent || 0) : 100;
+      const el = document.getElementById('import-kpac-limit');
+      if (el) el.textContent = limit;
+      updateImportKpacTotal();
+    }
+
+    function updateImportKpacTotal() {
+      const k = parseFloat(document.getElementById('import-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('import-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('import-a')?.value) || 0;
+      const c = parseFloat(document.getElementById('import-c')?.value) || 0;
+      const el = document.getElementById('import-kpac-total');
+      if (el) el.textContent = (k+p+a+c).toFixed(1);
+    }
+
+    async function importEnrollSelectedStudents() {
+      const subjectName = document.getElementById('import-enroll-subject')?.value;
+      const k = parseFloat(document.getElementById('import-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('import-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('import-a')?.value) || 0;
+      const c = parseFloat(document.getElementById('import-c')?.value) || 0;
+      if (!subjectName) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
+      const limitEl = document.getElementById('import-kpac-limit');
+      const limit = parseFloat(limitEl?.textContent) || 100;
+      if (k+p+a+c > limit) { showToast(`รวม KPAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
+      const ids = getImportSelectedIds();
+      if (ids.length === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
+      let enrolled = 0, skipped = 0;
+      for (const sid of ids) {
+        const student = allData.find(s => s.type === 'student' && s.student_id === sid);
+        if (!student) { skipped++; continue; }
+        const existingReg = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === subjectName);
+        if (existingReg) { skipped++; continue; }
+        const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName && d.class_name === student.class_name && d.room_number === student.room_number);
+        const result = await window.dataSdk.create({
+          type: 'student_registration', student_id: sid, class_name: student.class_name,
+          room_number: student.room_number, subject_name: subjectName,
+          class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
+          k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+        });
+        if (result.isOk) {
+          enrolled++;
+          await applyPendingScoresOnRegistration(sid, subjectName);
+        }
+      }
+      showToast(`✅ ลงทะเบียนวิชา ${subjectName} ให้ ${enrolled} คน${skipped > 0 ? ` (ข้าม ${skipped} คน)` : ''}`);
+      renderImportTable();
+      refreshCurrentView();
+    }
+
+    function exportImportExcel() {
+      if (typeof XLSX === 'undefined') { showToast('ไม่พบ XLSX library', 'error'); return; }
+      const list = getImportFiltered();
+      const headers = ['เลขที่', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'รหัสนักเรียน', 'ชั้น', 'ห้อง', 'เบอร์โทร', 'สถานะสมัคร', 'สถานะลงทะเบียน'];
+      const rows = list.map(r => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        return [r.student_number||'', r.prefix||'', r.first_name||'', r.last_name||'', r.student_id||'', r.class_name||'', r.room_number||'', r.phone_number||'', student ? 'สมัครแล้ว' : 'ยังไม่สมัคร', hasReg ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน'];
+      });
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'รายชื่อนักเรียน');
+      XLSX.writeFile(wb, 'รายชื่อนักเรียน.xlsx');
+    }
+
+    function exportImportPdf() {
+      const list = getImportFiltered();
+      const rows = list.map(r => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        return `<tr><td>${r.student_number||'-'}</td><td>${r.prefix||''}${r.first_name||''} ${r.last_name||''}</td><td>${r.student_id||'-'}</td><td>${r.class_name||'-'}/${r.room_number||'-'}</td><td>${r.phone_number||'-'}</td><td style="color:${student?'green':'red'}">${student?'✅ สมัครแล้ว':'🔴 ยังไม่สมัคร'}</td><td style="color:${hasReg?'green':'red'}">${hasReg?'✅ ลงทะเบียนแล้ว':'🔴 ยังไม่ลงทะเบียน'}</td></tr>`;
+      }).join('');
+      printHtml('รายชื่อนักเรียน', `<h2>📋 รายชื่อนักเรียน</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>รหัส</th><th>ชั้น/ห้อง</th><th>เบอร์โทร</th><th>สถานะสมัคร</th><th>สถานะลงทะเบียน</th></tr></thead><tbody>${rows}</tbody></table>`);
+    }
+
     function loadRegistrationsTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('reg-table-filter-class');
