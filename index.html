@@ -901,7 +901,7 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">👨‍🎓 จัดการข้อมูลนักเรียน</h3>
         <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
          <button onclick="showStudentsSubTab('import')" id="students-subtab-btn-import" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📤 นำเข้ารายชื่อ</button>
-         <button onclick="showStudentsSubTab('applicants')" id="students-subtab-btn-applicants" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📋 นักเรียนที่สมัคร</button>
+         <button onclick="showStudentsSubTab('applicants')" id="students-subtab-btn-applicants" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📋 นักเรียนที่สมัคร</button>
          <button onclick="showStudentsSubTab('noenroll')" id="students-subtab-btn-noenroll" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📋 ยังไม่ลงทะเบียน</button>
          <button onclick="showStudentsSubTab('registrations')" id="students-subtab-btn-registrations" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 นักเรียนที่ลงทะเบียนแล้ว</button>
         </div>
@@ -6671,7 +6671,7 @@
     // 📚 โหมด 2: นักเรียนที่ลงทะเบียนแล้ว (ตาราง)
     // ============================================================
     function showStudentsSubTab(mode) {
-      const tabs = ['import','applicants','registrations','noenroll'];
+      const tabs = ['import','applicants','noenroll','registrations'];
       tabs.forEach(t => {
         const btn = document.getElementById(`students-subtab-btn-${t}`);
         const panel = document.getElementById(`students-subtab-${t}`);
@@ -6692,8 +6692,8 @@
         if (r) r.textContent = approvedMarqueeRows;
         if (d) d.textContent = approvedMarqueePauseDelaySec;
       }
-      else if (mode === 'registrations') loadRegistrationsTab();
       else if (mode === 'noenroll') renderNoEnrollTable();
+      else if (mode === 'registrations') loadRegistrationsTab();
     }
     // ============================================================
     // 📤 นำเข้ารายชื่อนักเรียนจาก Excel
