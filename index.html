@@ -3162,8 +3162,9 @@
         await applyPendingScoresOnRegistration(student.student_id, scope.subjectName);
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('✅ ลงทะเบียนสำเร็จ');
-        refreshCurrentView();
         renderSubAdminStudents();
+        refreshCurrentView();
+        delayedRefresh(1500);
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
       }
@@ -3892,6 +3893,19 @@
       if (page) page.classList.remove('hidden');
       _currentPage = pageName;
     }
+    function delayedRefresh(ms = 1500) {
+      // Fetch รอบที่ 2 หลัง delay — เผื่อ Google Apps Script ยังไม่ commit ข้อมูลทัน
+      setTimeout(async () => {
+        try {
+          const fresh = await window.dataSdk._fetchAll();
+          if (fresh) {
+            window.dataSdk._cache = fresh;
+            window.dataSdk._handler.onDataChanged(fresh);
+          }
+        } catch(e) {}
+      }, ms);
+    }
+
     function refreshCurrentView() {
       try {
         const subadminVisible = !document.getElementById('page-subadmin')?.classList.contains('hidden');
@@ -7709,6 +7723,7 @@
         showToast('🗑️ ลบการลงทะเบียนสำเร็จ');
         updateRegistrationsTable();
         refreshCurrentView();
+        delayedRefresh(1500);
       } else {
         showToast('ไม่สามารถลบได้', 'error');
       }
