@@ -902,8 +902,8 @@
         <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
          <button onclick="showStudentsSubTab('import')" id="students-subtab-btn-import" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📤 นำเข้ารายชื่อ</button>
          <button onclick="showStudentsSubTab('applicants')" id="students-subtab-btn-applicants" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📋 นักเรียนที่สมัคร</button>
-         <button onclick="showStudentsSubTab('registrations')" id="students-subtab-btn-registrations" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 นักเรียนที่ลงทะเบียนแล้ว</button>
          <button onclick="showStudentsSubTab('noenroll')" id="students-subtab-btn-noenroll" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📋 ยังไม่ลงทะเบียน</button>
+         <button onclick="showStudentsSubTab('registrations')" id="students-subtab-btn-registrations" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 นักเรียนที่ลงทะเบียนแล้ว</button>
         </div>
 
         <!-- โหมด 0: นำเข้ารายชื่อนักเรียนจาก Excel -->
@@ -5628,7 +5628,7 @@
       document.getElementById('tab-' + tabName).classList.add('bg-blue-500', 'text-white');
       
       if (tabName === 'students') {
-        showStudentsSubTab('import');
+        showStudentsSubTab('applicants');
       } else if (tabName === 'admins') {
         updateAdminList();
         populateNewAdminClassOptions();
@@ -6544,7 +6544,7 @@
         countLabel.textContent = `แสดง ${students.length} จาก ${allStudents.length} คน`;
       }
       if (students.length === 0) {
-        container.innerHTML = `<tr><td colspan="9" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนลงทะเบียน' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
+        container.innerHTML = `<tr><td colspan="9" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนในระบบ' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
         return;
       }
       container.innerHTML = students.map(s => {
