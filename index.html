@@ -6583,13 +6583,15 @@
     const THAI_PREFIXES = ['นางสาว', 'นาง', 'นาย', 'เด็กชาย', 'เด็กหญิง', 'ด.ช.', 'ด.ญ.', 'Mr.', 'Mrs.', 'Ms.'];
 
     function detectSplittableColumns(headers, rows) {
-      // หาคอลัมน์ที่น่าจะมีคำนำหน้า+ชื่อ รวมกัน เช่น "นายสมชาย ใจดี"
       const sampleSize = Math.min(rows.length, 10);
       return headers.map((h, i) => {
-        let matchCount = 0;
+        let matchCount = 0, sepType = 'space';
         for (let r = 0; r < sampleSize; r++) {
           const val = String(rows[r][i] || '').trim();
-          if (THAI_PREFIXES.some(p => val.startsWith(p))) matchCount++;
+          // ตรวจหาคำนำหน้าไทย
+          if (THAI_PREFIXES.some(p => val.startsWith(p))) { matchCount++; continue; }
+          // ตรวจหา separator: comma หรือ slash ที่แบ่งชื่อ-สกุล
+          if (val.includes(',') || val.includes('/')) matchCount++;
         }
         return { colIdx: i, header: h, matchRatio: matchCount / sampleSize };
       }).filter(c => c.matchRatio >= 0.5);
@@ -6598,51 +6600,130 @@
     function splitThaiName(value) {
       const val = String(value || '').trim();
       let prefix = '', rest = val;
+      // ตรวจหาคำนำหน้า
       for (const p of THAI_PREFIXES) {
         if (val.startsWith(p)) { prefix = p; rest = val.slice(p.length).trim(); break; }
       }
-      const parts = rest.split(/\s+/);
-      const firstName = parts[0] || '';
-      const lastName = parts.slice(1).join(' ') || '';
+      // แยกชื่อ-สกุลด้วย separator: , หรือ / หรือ วรรค
+      let firstName = '', lastName = '';
+      if (rest.includes(',')) {
+        const parts = rest.split(',').map(s => s.trim());
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ').trim();
+      } else if (rest.includes('/')) {
+        const parts = rest.split('/').map(s => s.trim());
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ').trim();
+      } else {
+        const parts = rest.split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ') || '';
+      }
       return { prefix, firstName, lastName };
     }
 
     function showImportSplitSection(splittableCols) {
-      // แสดง popup ให้ยืนยันการแยกคอลัมน์
       const popup = document.createElement('div');
-      popup.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
-      const colList = splittableCols.map(c => `<li class="text-sm"><strong>"${c.header || 'คอลัมน์ '+(c.colIdx+1)}"</strong> — ตัวอย่าง: "${String(_importRows[0]?.[c.colIdx] || '').trim()}"</li>`).join('');
+      popup.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
+      const colList = splittableCols.map(c => {
+        const sample = String(_importRows[0]?.[c.colIdx] || '').trim();
+        const { prefix, firstName, lastName } = splitThaiName(sample);
+        return `<li class="text-sm mb-1">
+          <strong>"${c.header || 'คอลัมน์ '+(c.colIdx+1)}"</strong><br>
+          <span class="text-gray-500 text-xs">ตัวอย่าง: "${sample}"</span><br>
+          <span class="text-green-600 text-xs">→ คำนำหน้า: "${prefix}" | ชื่อ: "${firstName}" | นามสกุล: "${lastName}"</span>
+        </li>`;
+      }).join('');
       popup.innerHTML = `
-        <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-4 relative">
           <h3 class="text-lg font-bold text-gray-800 mb-2">🔍 พบคอลัมน์ที่มีชื่อรวมกัน</h3>
-          <p class="text-sm text-gray-600 mb-3">ระบบพบคอลัมน์ที่น่าจะมี คำนำหน้า + ชื่อ + นามสกุล รวมอยู่ด้วยกัน:</p>
-          <ul class="mb-4 pl-4 list-disc">${colList}</ul>
-          <p class="text-sm text-gray-600 mb-4">ต้องการให้ระบบแยกอัตโนมัติเป็น 3 คอลัมน์ (คำนำหน้า / ชื่อ / นามสกุล) ก่อนระบุ mapping ไหม?</p>
+          <p class="text-sm text-gray-600 mb-3">ระบบพบคอลัมน์ที่น่าจะมี คำนำหน้า/ชื่อ/นามสกุล รวมกัน (ตรวจจากวรรค , /):</p>
+          <ul class="mb-3 pl-4 list-disc space-y-1">${colList}</ul>
+
+          <!-- เพิ่ม separator เพิ่มเติม -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+           <p class="text-xs font-semibold text-blue-800 mb-2">⚙️ ระบุ separator เพิ่มเติม (ถ้ามีรูปแบบพิเศษ)</p>
+           <p class="text-xs text-gray-500 mb-2">ระบบใช้ วรรค / , เป็น separator อัตโนมัติแล้ว หากข้อมูลมีรูปแบบอื่นเพิ่ม เช่น - | · หรือข้อความอื่น ให้พิมพ์ลงไป คั่นด้วยวรรค</p>
+           <input type="text" id="import-custom-sep" placeholder='เช่น: - | · "และ" หรือปล่อยว่างถ้าไม่มี'
+             class="w-full px-3 py-2 border-2 border-blue-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"
+             oninput="updateImportSplitPreview(${JSON.stringify(splittableCols[0]?.colIdx ?? 0)})">
+           <!-- Preview แบบ real-time -->
+           <div id="import-split-preview" class="mt-2 text-xs text-gray-600 min-h-[20px]"></div>
+          </div>
+
+          <p class="text-xs text-blue-600 mb-4">💡 คอลัมน์เดิมจะยังคงอยู่ครบ — เพิ่มคอลัมน์แยก 3 คอลัมน์ต่อท้าย</p>
           <div class="flex gap-3">
            <button onclick="this.closest('.fixed').remove(); showImportMappingSection();" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm">ไม่แยก ระบุเอง</button>
-           <button onclick="this.closest('.fixed').remove(); applyImportSplit(${JSON.stringify(splittableCols.map(c=>c.colIdx))});" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ แยกให้เลย</button>
+           <button onclick="const seps=document.getElementById('import-custom-sep')?.value||''; this.closest('.fixed').remove(); applyImportSplit(${JSON.stringify(splittableCols.map(c=>c.colIdx))}, seps);" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ แยกเพิ่มให้เลย</button>
           </div>
         </div>
       `;
       document.body.appendChild(popup);
     }
 
-    function applyImportSplit(colIdxs) {
-      // เพิ่มคอลัมน์ใหม่ 3 คอลัมน์แทนคอลัมน์เดิม (แยก prefix/firstName/lastName)
-      // ทำทีละคอลัมน์ (ตั้งแต่ colIdx สูงสุดก่อนเพื่อไม่ให้ index เลื่อน)
-      const sortedIdxs = [...colIdxs].sort((a, b) => b - a);
-      for (const idx of sortedIdxs) {
+    function parseCustomSeps(sepsStr) {
+      // แยก separator ที่ผู้ใช้พิมพ์ (คั่นด้วยวรรค แต่รองรับการใส่เครื่องหมายในเครื่องหมายคำพูดด้วย)
+      if (!sepsStr.trim()) return [];
+      // หา quoted strings ก่อน
+      const quoted = [];
+      const cleaned = sepsStr.replace(/"([^"]+)"/g, (_, m) => { quoted.push(m); return '\x00'; })
+                              .replace(/'([^']+)'/g, (_, m) => { quoted.push(m); return '\x00'; });
+      const parts = cleaned.split(/[\s]+/).filter(Boolean).map(p => p === '\x00' ? quoted.shift() : p);
+      return [...new Set(parts.filter(p => p.length > 0))];
+    }
+
+    function updateImportSplitPreview(colIdx) {
+      const sepsStr = document.getElementById('import-custom-sep')?.value || '';
+      const customSeps = parseCustomSeps(sepsStr);
+      const sample = String(_importRows[0]?.[colIdx] || '').trim();
+      const { prefix, firstName, lastName } = splitThaiNameWithSeps(sample, customSeps);
+      const el = document.getElementById('import-split-preview');
+      if (el) {
+        el.innerHTML = `<span class="font-medium">ตัวอย่างผลลัพธ์:</span> คำนำหน้า: <strong>"${prefix}"</strong> | ชื่อ: <strong>"${firstName}"</strong> | นามสกุล: <strong>"${lastName}"</strong>`;
+      }
+    }
+
+    function splitThaiNameWithSeps(value, customSeps = []) {
+      const val = String(value || '').trim();
+      let prefix = '', rest = val;
+      for (const p of THAI_PREFIXES) {
+        if (val.startsWith(p)) { prefix = p; rest = val.slice(p.length).trim(); break; }
+      }
+      // ลอง custom separators ก่อน
+      for (const sep of customSeps) {
+        if (rest.includes(sep)) {
+          const parts = rest.split(sep).map(s => s.trim()).filter(Boolean);
+          return { prefix, firstName: parts[0] || '', lastName: parts.slice(1).join(sep).trim() };
+        }
+      }
+      // ลอง comma
+      if (rest.includes(',')) {
+        const parts = rest.split(',').map(s => s.trim());
+        return { prefix, firstName: parts[0] || '', lastName: parts.slice(1).join(' ').trim() };
+      }
+      // ลอง slash
+      if (rest.includes('/')) {
+        const parts = rest.split('/').map(s => s.trim());
+        return { prefix, firstName: parts[0] || '', lastName: parts.slice(1).join(' ').trim() };
+      }
+      // default: วรรค
+      const parts = rest.split(/\s+/);
+      return { prefix, firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
+    }
+
+    function applyImportSplit(colIdxs, sepsStr = '') {
+      const customSeps = parseCustomSeps(sepsStr);
+      for (const idx of colIdxs) {
         const origHeader = _importHeaders[idx] || `คอลัมน์ ${idx + 1}`;
-        // แทนที่คอลัมน์เดิมด้วย 3 คอลัมน์ใหม่
-        _importHeaders.splice(idx, 1, `${origHeader}_คำนำหน้า`, `${origHeader}_ชื่อ`, `${origHeader}_นามสกุล`);
+        _importHeaders.push(`[แยก] ${origHeader}_คำนำหน้า`);
+        _importHeaders.push(`[แยก] ${origHeader}_ชื่อ`);
+        _importHeaders.push(`[แยก] ${origHeader}_นามสกุล`);
         _importRows = _importRows.map(row => {
-          const { prefix, firstName, lastName } = splitThaiName(row[idx]);
-          const newRow = [...row];
-          newRow.splice(idx, 1, prefix, firstName, lastName);
-          return newRow;
+          const { prefix, firstName, lastName } = splitThaiNameWithSeps(row[idx], customSeps);
+          return [...row, prefix, firstName, lastName];
         });
       }
-      showToast(`✅ แยกคอลัมน์สำเร็จ — ระบุ mapping ได้เลย`);
+      showToast(`✅ เพิ่มคอลัมน์แยกแล้ว ${colIdxs.length * 3} คอลัมน์`);
       showImportMappingSection();
     }
 
