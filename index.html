@@ -661,123 +661,137 @@
       </div>
       <!-- 📤 อัพโหลดคะแนน -->
       <!-- 📤 อัพโหลดคะแนน -->
+      <!-- 📤 อัพโหลดคะแนน -->
       <div id="admin-tab-uploadscore" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-6">📤 อัพโหลดคะแนนจาก Excel</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-6">📤 อัพโหลดคะแนนสอบจาก Excel</h3>
 
-        <!-- ① อัพโหลดไฟล์ -->
+        <!-- ① อัพโหลดไฟล์ + ระบุคอลัมน์ -->
         <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4">
          <p class="text-sm font-semibold text-gray-800 mb-3">① อัพโหลดไฟล์ Excel (.xlsx / .xls / .csv)</p>
-         <input type="file" id="us-file-input" accept=".xlsx,.xls,.csv" onchange="handleUploadScoreFile(event)" class="w-full text-sm mb-2">
-         <p class="text-xs text-gray-400">ระบบจะตรวจสอบรูปแบบการแยกข้อมูล แสดง Preview และให้ยืนยันคอลัมน์ก่อนนำเข้า</p>
-        </div>
-
-        <!-- ② ตรวจสอบและระบุคอลัมน์ -->
-        <div id="us-preview-section" class="hidden">
-         <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
-          <p class="text-sm font-semibold text-yellow-800 mb-3">② ระบุคอลัมน์รหัสนักเรียนและคะแนน</p>
-          <div class="grid grid-cols-2 gap-4 mb-3">
-           <div>
-            <label class="block text-xs text-gray-600 mb-1">คอลัมน์ที่เป็น <strong>รหัสนักเรียน</strong></label>
-            <select id="us-col-id" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></select>
+         <input type="file" id="us-file-input" accept=".xlsx,.xls,.csv" onchange="handleUploadScoreFile(event)" class="w-full text-sm mb-3">
+         <!-- ระบุคอลัมน์ (แสดงหลังอัพโหลด) -->
+         <div id="us-preview-section" class="hidden">
+          <div class="border border-yellow-200 bg-yellow-50 rounded-lg p-3 mb-3">
+           <p class="text-xs font-semibold text-yellow-800 mb-2">📋 ระบุว่าคอลัมน์ไหนคืออะไร</p>
+           <div class="grid grid-cols-2 gap-3 mb-2">
+            <div>
+             <label class="block text-xs text-gray-600 mb-1">รหัสนักเรียน</label>
+             <select id="us-col-id" class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:outline-none"></select>
+            </div>
+            <div>
+             <label class="block text-xs text-gray-600 mb-1">คะแนน</label>
+             <select id="us-col-score" class="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:border-blue-500 focus:outline-none"></select>
+            </div>
            </div>
-           <div>
-            <label class="block text-xs text-gray-600 mb-1">คอลัมน์ที่เป็น <strong>คะแนน</strong></label>
-            <select id="us-col-score" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></select>
+           <div class="overflow-x-auto border border-gray-200 rounded mb-2">
+            <table id="us-preview-table" class="w-full text-xs"></table>
            </div>
+           <!-- รูปแบบแยกข้อมูล -->
+           <div class="bg-white border border-yellow-200 rounded-lg p-2 mb-2">
+            <p class="text-xs font-semibold text-gray-700 mb-1">🔪 รูปแบบการแยกข้อมูล (ถ้ารหัส+คะแนนอยู่ในคอลัมน์เดียว)</p>
+            <p class="text-[10px] text-gray-400 mb-1.5">เช่น "64001,85" หรือ "64001/85" หรือ "64001|85" — ระบุ separator ที่ใช้</p>
+            <div class="flex items-center gap-2">
+             <input type="text" id="us-sep-custom" placeholder='เช่น , หรือ / หรือ | หรือ -' class="flex-1 px-2 py-1.5 border border-gray-300 rounded text-xs" oninput="updateScoreSepPreviewFromInput()">
+             <button onclick="applyScoreSplitFromInput()" class="px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded text-xs whitespace-nowrap">✂️ แยกข้อมูล</button>
+            </div>
+            <p id="us-sep-preview" class="text-[10px] text-green-600 mt-1"></p>
+           </div>
+           <button onclick="confirmColumnsShowAll()" class="px-5 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ ยืนยัน — ดูรายชื่อทั้งหมด</button>
           </div>
-          <div class="overflow-x-auto border border-gray-200 rounded-lg mb-3">
-           <table id="us-preview-table" class="w-full text-xs"></table>
-          </div>
-          <button onclick="confirmColumnsShowAll()" class="px-5 py-2 btn-primary text-white rounded-lg text-sm font-medium">✅ ยืนยันคอลัมน์ — ดูข้อมูลทั้งหมด</button>
          </div>
         </div>
 
-        <!-- ③ ตารางรายชื่อ + กรอง + เลือก -->
+        <!-- ② เลือกวิชา ประเภทคะแนน และเงื่อนไข (block เดียวกัน) -->
+        <div id="us-settings-block" class="hidden bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+         <p class="text-sm font-semibold text-green-800 mb-4">② เลือกวิชาและประเภทคะแนน + กำหนดเงื่อนไข</p>
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
+           <select id="us-subject" onchange="updateUploadScoreSubjectInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
+            <option value="">-- เลือกวิชา --</option>
+           </select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📝 ประเภทการสอบ</label>
+           <select id="us-examtype" onchange="updateUploadScoreRounds()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
+            <option value="mid">กลางภาค (M)</option>
+            <option value="final">ปลายภาค (F)</option>
+            <option value="k">K (1–10 ครั้ง)</option>
+           </select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🔢 ครั้งที่</label>
+           <select id="us-round" onchange="loadExistingFullScoreFromForm()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
+            <option value="1">ครั้งที่ 1 — ปรนัย</option>
+            <option value="2">ครั้งที่ 2 — อัตนัย</option>
+           </select>
+          </div>
+         </div>
+         <p id="us-subject-info" class="text-xs text-gray-500 mb-4"></p>
+         <!-- 3 เงื่อนไข: คะแนนเต็ม + โหมดคะแนนเต็ม + โหมดคะแนนดิบ (บล็อคเดียวกัน) -->
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- คะแนนเต็ม -->
+          <div class="bg-white border border-green-200 rounded-lg p-3">
+           <p class="text-xs font-semibold text-gray-700 mb-2">① คะแนนเต็มของครั้งนี้</p>
+           <p id="us-existing-full" class="text-[10px] text-gray-400 mb-2">เลือกวิชาและครั้งที่ก่อน...</p>
+           <input type="number" id="us-new-full" min="0" step="0.5" placeholder="ระบุคะแนนเต็มใหม่" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-sm focus:border-green-500 focus:outline-none">
+          </div>
+          <!-- โหมดคะแนนเต็ม -->
+          <div class="bg-white border border-green-200 rounded-lg p-3">
+           <p class="text-xs font-semibold text-gray-700 mb-2">② เงื่อนไขคะแนนเต็ม</p>
+           <div class="space-y-1.5">
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="overwrite" checked> 🔄 ทับเดิมครั้งนี้</label>
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="max"> 📈 ใช้ค่าที่มากกว่า</label>
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="add"> ➕ บวกเพิ่มจากเดิม</label>
+           </div>
+          </div>
+          <!-- โหมดคะแนนดิบ -->
+          <div class="bg-white border border-green-200 rounded-lg p-3">
+           <p class="text-xs font-semibold text-gray-700 mb-2">③ เงื่อนไขคะแนนดิบ</p>
+           <div class="space-y-1.5">
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="overwrite" checked> 🔄 ทับเดิมครั้งนี้</label>
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="max"> 📈 ใช้ค่าที่มากกว่า</label>
+            <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="add"> ➕ บวกเพิ่มจากเดิม</label>
+           </div>
+          </div>
+         </div>
+        </div>
+
+        <!-- ④ เลือกรายการที่ต้องการนำเข้า -->
         <div id="us-allrows-section" class="hidden">
          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
           <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-           <p class="text-sm font-semibold text-blue-800">③ เลือกรายการที่ต้องการนำเข้าระบบ</p>
+           <p class="text-sm font-semibold text-blue-800">④ เลือกรายการที่ต้องการนำเข้าระบบ</p>
            <div class="flex gap-2 flex-wrap">
             <button onclick="toggleSelectAllRows(true)" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">เลือกทั้งหมด</button>
-            <button onclick="toggleSelectAllRows(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">ยกเลิกทั้งหมด</button>
+            <button onclick="toggleSelectAllRows(false)" class="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">ยกเลิก</button>
            </div>
           </div>
-          <!-- Filter ชั่วคราวจาก Excel headers -->
           <div id="us-temp-filters" class="flex items-center gap-2 flex-wrap mb-3"></div>
-          <!-- Multi class/room checkbox panel (จาก Excel) -->
+          <!-- ชั้น/ห้อง checkboxes -->
           <div class="bg-white border border-blue-200 rounded-lg p-3 mb-3">
            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <p class="text-xs font-semibold text-gray-700">🏫 เลือกชั้น/ห้อง (จากไฟล์ Excel)</p>
+            <p class="text-xs font-semibold text-gray-700">🏫 เลือกชั้น/ห้อง</p>
             <div class="flex gap-2">
-             <button onclick="toggleScoreRoomAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">เลือกทั้งหมด</button>
+             <button onclick="toggleScoreRoomAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">ทั้งหมด</button>
              <button onclick="toggleScoreRoomAll(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">ยกเลิก</button>
+             <button onclick="selectRowsByCheckedRooms()" class="px-2 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs">✅ เลือกนักเรียนในชั้น/ห้องที่เลือก</button>
             </div>
            </div>
            <div id="us-room-checkboxes" class="flex flex-wrap gap-2"></div>
           </div>
-          <button onclick="selectRowsByCheckedRooms()" class="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs font-medium mb-3">✅ เลือกนักเรียนในชั้น/ห้องที่เลือก</button>
-          <div class="overflow-x-auto border border-blue-200 rounded-lg" style="max-height:360px;overflow-y:auto;">
+          <div class="overflow-x-auto border border-blue-200 rounded-lg mb-4" style="max-height:360px;overflow-y:auto;">
            <table class="w-full text-xs">
-            <thead class="bg-blue-100 sticky top-0">
-             <tr id="us-allrows-thead"></tr>
-            </thead>
+            <thead class="bg-blue-100 sticky top-0"><tr id="us-allrows-thead"></tr></thead>
             <tbody id="us-allrows-tbody"></tbody>
            </table>
           </div>
-         </div>
-
-         <!-- ④ กำหนด วิชา / K-M-F / ครั้งที่ / เงื่อนไข -->
-         <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-          <p class="text-sm font-semibold text-green-800 mb-4">④ กำหนดวิชาและเงื่อนไขคะแนน</p>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-           <div>
-            <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
-            <select id="us-subject" onchange="updateUploadScoreSubjectInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
-             <option value="">-- เลือกวิชา --</option>
-            </select>
-           </div>
-           <div>
-            <label class="block text-xs text-gray-600 mb-1">📝 ประเภทการสอบ</label>
-            <select id="us-examtype" onchange="updateUploadScoreRounds()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
-             <option value="mid">กลางภาค (M)</option>
-             <option value="final">ปลายภาค (F)</option>
-             <option value="k">K (1–10 ครั้ง)</option>
-            </select>
-           </div>
-           <div>
-            <label class="block text-xs text-gray-600 mb-1">🔢 ครั้งที่</label>
-            <select id="us-round" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none">
-             <option value="1">ครั้งที่ 1 — ปรนัย</option>
-             <option value="2">ครั้งที่ 2 — อัตนัย</option>
-            </select>
-           </div>
+          <!-- ปุ่มนำเข้า -->
+          <div class="flex gap-3 flex-wrap">
+           <button onclick="importSelectedRows()" class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">📥 นำเข้าคะแนนลงระบบ (<span id="us-selected-count">0</span> รายการ)</button>
+           <button onclick="importSelectedAsPending()" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium">📋 เก็บสำรองรอลงทะเบียน</button>
           </div>
-          <div id="us-subject-info" class="text-xs text-gray-500 mb-4"></div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-           <!-- คะแนนเต็ม -->
-           <div class="bg-white border border-green-200 rounded-lg p-3">
-            <p class="text-xs font-semibold text-gray-700 mb-2">📊 คะแนนเต็มของครั้งนี้</p>
-            <p id="us-existing-full" class="text-xs text-gray-400 mb-2">เลือกวิชาและครั้งที่ก่อน...</p>
-            <input type="number" id="us-new-full" min="0" step="0.5" placeholder="ระบุคะแนนเต็มใหม่" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-green-500 focus:outline-none mb-2" onchange="loadExistingFullScoreFromForm()">
-            <p class="text-xs font-semibold text-gray-600 mb-1">วิธีจัดการคะแนนเต็ม:</p>
-            <div class="space-y-1">
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="overwrite" checked> 🔄 ทับคะแนนเต็มเดิมครั้งนี้</label>
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="max"> 📈 ใช้คะแนนเต็มที่มากกว่า</label>
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-full-mode" value="add"> ➕ บวกคะแนนเต็มใหม่เพิ่มจากเดิม</label>
-            </div>
-           </div>
-           <!-- คะแนนดิบ -->
-           <div class="bg-white border border-green-200 rounded-lg p-3">
-            <p class="text-xs font-semibold text-gray-700 mb-2">📝 วิธีจัดการคะแนนดิบ</p>
-            <div class="space-y-1">
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="overwrite" checked> 🔄 ทับคะแนนดิบเดิมครั้งนี้</label>
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="max"> 📈 ใช้คะแนนที่มากกว่า</label>
-             <label class="flex items-center gap-2 text-xs"><input type="radio" name="us-score-mode" value="add"> ➕ บวกคะแนนใหม่เพิ่มจากเดิม</label>
-            </div>
-           </div>
-          </div>
-          <button onclick="importSelectedRows()" class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">📥 นำเข้าระบบ (<span id="us-selected-count">0</span> รายการ)</button>
          </div>
         </div>
 
@@ -795,8 +809,8 @@
            <div class="overflow-x-auto border border-green-200 rounded-lg">
             <table class="w-full text-xs"><thead class="bg-green-100"><tr>
              <th class="px-2 py-2 text-left">รหัส</th><th class="px-2 py-2 text-left">ชื่อ-นามสกุล</th>
-             <th class="px-2 py-2 text-center">ชั้น/ห้อง</th><th class="px-2 py-2 text-center">คะแนนเดิม</th>
-             <th class="px-2 py-2 text-center">คะแนนใหม่</th><th class="px-2 py-2 text-center">โหมด</th>
+             <th class="px-2 py-2 text-center">ชั้น/ห้อง</th><th class="px-2 py-2 text-center">เดิม</th>
+             <th class="px-2 py-2 text-center">ใหม่</th><th class="px-2 py-2 text-center">โหมด</th>
             </tr></thead><tbody id="us-matched-tbody"></tbody></table>
            </div>
           </div>
@@ -804,7 +818,7 @@
          <div id="us-pending-section" class="hidden">
           <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <p class="text-sm font-semibold text-amber-800">⏳ พบรหัสในระบบ แต่ยังไม่ลงทะเบียนวิชา — เก็บ pending แล้ว</p>
+            <p class="text-sm font-semibold text-amber-800">⏳ พบรหัสในระบบ แต่ยังไม่ลงทะเบียนวิชา — เก็บ pending</p>
             <div class="flex gap-2">
              <button onclick="exportResultPdf('not_registered')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📄 PDF</button>
              <button onclick="exportResultExcel('not_registered')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">📊 Excel</button>
@@ -821,7 +835,7 @@
          <div id="us-notfound-section" class="hidden">
           <div class="bg-red-50 border border-red-200 rounded-xl p-4">
            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-            <p class="text-sm font-semibold text-red-800">❌ ไม่พบรหัสในระบบ (ยังไม่สมัคร) — เก็บ pending แล้ว</p>
+            <p class="text-sm font-semibold text-red-800">❌ ไม่พบรหัสในระบบ — เก็บ pending</p>
             <div class="flex gap-2">
              <button onclick="exportResultPdf('not_found')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">📄 PDF</button>
              <button onclick="exportResultExcel('not_found')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs">📊 Excel</button>
@@ -834,20 +848,21 @@
            </div>
           </div>
          </div>
+         <button onclick="document.getElementById('us-result-section').classList.add('hidden'); document.getElementById('us-allrows-section').classList.remove('hidden');" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm">← กลับไปเลือกรายการ</button>
         </div>
 
         <hr class="my-6">
-        <!-- คะแนนสำรองรอนักเรียนลงทะเบียน -->
+        <!-- คะแนนสำรอง -->
         <h4 class="text-lg font-bold text-gray-800 mb-4">📋 คะแนนสำรองรอนักเรียนลงทะเบียน</h4>
         <div class="flex items-center gap-3 flex-wrap mb-4">
-         <select id="us-pending-filter-subject" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><option value="">ทุกวิชา</option></select>
-         <select id="us-pending-filter-class-main" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><option value="">ทุกชั้น</option></select>
-         <select id="us-pending-filter-room-main" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><option value="">ทุกห้อง</option></select>
-         <select id="us-pending-filter-examtype" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <select id="us-pending-filter-subject" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกวิชา</option></select>
+         <select id="us-pending-filter-class-main" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select>
+         <select id="us-pending-filter-room-main" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select>
+         <select id="us-pending-filter-examtype" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
           <option value="">ทุกประเภท</option><option value="mid">กลางภาค</option>
           <option value="final">ปลายภาค</option><option value="k">K</option>
          </select>
-         <select id="us-pending-filter-round" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <select id="us-pending-filter-round" onchange="renderPendingScoreTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
           <option value="">ทุกครั้ง</option>
           <option value="1">ครั้งที่ 1</option><option value="2">ครั้งที่ 2</option>
           <option value="3">ครั้งที่ 3</option><option value="4">ครั้งที่ 4</option>
@@ -859,19 +874,17 @@
         </div>
         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
          <table class="w-full text-sm">
-          <thead class="bg-gray-100">
-           <tr>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700"><input type="checkbox" id="us-pending-select-all" onchange="toggleSelectAllPending(this)" class="w-4 h-4"></th>
-            <th class="px-2 py-3 text-left font-semibold text-gray-700">รหัสนักเรียน</th>
-            <th class="px-2 py-3 text-left font-semibold text-gray-700">ชื่อ-นามสกุล</th>
-            <th class="px-2 py-3 text-left font-semibold text-gray-700">วิชา</th>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700">ชั้น/ห้อง</th>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700">ประเภท</th>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700">ครั้งที่</th>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700">คะแนน</th>
-            <th class="px-2 py-3 text-center font-semibold text-gray-700">สถานะ</th>
-           </tr>
-          </thead>
+          <thead class="bg-gray-100"><tr>
+           <th class="px-2 py-3 text-center"><input type="checkbox" id="us-pending-select-all" onchange="toggleSelectAllPending(this)" class="w-4 h-4"></th>
+           <th class="px-2 py-3 text-left font-semibold text-gray-700">รหัสนักเรียน</th>
+           <th class="px-2 py-3 text-left font-semibold text-gray-700">ชื่อ-นามสกุล</th>
+           <th class="px-2 py-3 text-left font-semibold text-gray-700">วิชา</th>
+           <th class="px-2 py-3 text-center font-semibold text-gray-700">ชั้น/ห้อง</th>
+           <th class="px-2 py-3 text-center font-semibold text-gray-700">ประเภท</th>
+           <th class="px-2 py-3 text-center font-semibold text-gray-700">ครั้งที่</th>
+           <th class="px-2 py-3 text-center font-semibold text-gray-700">คะแนน</th>
+           <th class="px-2 py-3 text-center font-semibold text-gray-700">สถานะ</th>
+          </tr></thead>
           <tbody id="us-pending-score-tbody"></tbody>
          </table>
         </div>
@@ -4891,33 +4904,56 @@
     }
 
     // ---------- ③ Column mapping confirmed → show all rows ----------
+    let usAllRowsData = [];
+    let usTempFilterValues = {};
+
     function showUploadScorePreview() {
-      const section = document.getElementById('us-preview-section');
-      if (!section) return;
-      section.classList.remove('hidden');
+      document.getElementById('us-preview-section')?.classList.remove('hidden');
+      document.getElementById('us-settings-block')?.classList.remove('hidden');
       document.getElementById('us-allrows-section')?.classList.add('hidden');
       document.getElementById('us-result-section')?.classList.add('hidden');
-
-      const idGuess = guessColumn(usCurrentHeaders, ['รหัสประจำตัว', 'รหัสนักเรียน', 'student_id', 'รหัส', 'id']);
-      const scoreGuess = guessColumn(usCurrentHeaders, ['คะแนนรวม', 'คะแนน', 'score', 'total', 'รวม']);
-
-      const options = usCurrentHeaders.map((h, i) => `<option value="${i}">${h || `คอลัมน์ ${i + 1}`}</option>`).join('');
+      const idGuess = guessColumn(usCurrentHeaders, ['รหัสประจำตัว','รหัสนักเรียน','student_id','รหัส','id']);
+      const scoreGuess = guessColumn(usCurrentHeaders, ['คะแนนรวม','คะแนน','score','total','รวม']);
+      const options = usCurrentHeaders.map((h,i) => `<option value="${i}">${h||`คอลัมน์ ${i+1}`}</option>`).join('');
       document.getElementById('us-col-id').innerHTML = options;
       document.getElementById('us-col-score').innerHTML = options;
       document.getElementById('us-col-id').value = idGuess;
       document.getElementById('us-col-score').value = scoreGuess;
-
       const table = document.getElementById('us-preview-table');
-      const previewRows = usCurrentRows.slice(0, 8);
-      table.innerHTML = `
-        <thead class="bg-gray-100"><tr>${usCurrentHeaders.map((h, i) => `<th class="px-2 py-2 text-left text-xs font-semibold whitespace-nowrap">${h || `คอลัมน์ ${i + 1}`}</th>`).join('')}</tr></thead>
-        <tbody>${previewRows.map(row => `<tr class="border-t border-gray-100">${usCurrentHeaders.map((_, i) => `<td class="px-2 py-1 text-xs whitespace-nowrap">${row[i] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody>
-      `;
+      const prev = usCurrentRows.slice(0,6);
+      table.innerHTML = `<thead class="bg-gray-100"><tr>${usCurrentHeaders.map((h,i)=>`<th class="px-2 py-1.5 text-left text-xs font-semibold whitespace-nowrap">${h||`คอลัมน์ ${i+1}`}</th>`).join('')}</tr></thead>
+        <tbody>${prev.map(row=>`<tr class="border-t border-gray-100">${usCurrentHeaders.map((_,i)=>`<td class="px-2 py-1 text-xs whitespace-nowrap">${row[i]??''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      updateScoreSepPreviewFromInput();
     }
 
-    // ---------- ④ Show all rows with temp filters + checkboxes ----------
-    let usAllRowsData = []; // { rowIndex, values (all cols), studentId, score }
-    let usTempFilterValues = {}; // { colIdx: selectedValue }
+    function updateScoreSepPreviewFromInput() {
+      const sep = document.getElementById('us-sep-custom')?.value?.trim();
+      const el = document.getElementById('us-sep-preview');
+      if (!el || !usCurrentRows.length) return;
+      const colId = parseInt(document.getElementById('us-col-id')?.value || '0');
+      const sample = String(usCurrentRows[0]?.[colId] || '').trim();
+      if (!sep || !sample.includes(sep)) { el.textContent = sep ? `"${sep}" ไม่พบใน "${sample}"` : ''; return; }
+      const parts = sample.split(sep).map(s => s.trim());
+      el.textContent = parts.length >= 2 ? `→ รหัส: "${parts[0]}" | คะแนน: "${parts[1]}"` : 'ไม่สามารถแยกได้';
+    }
+
+    function applyScoreSplitFromInput() {
+      const sep = document.getElementById('us-sep-custom')?.value?.trim();
+      if (!sep) { showToast('กรุณาระบุ separator', 'error'); return; }
+      const colId = parseInt(document.getElementById('us-col-id')?.value || '0');
+      const sample = String(usCurrentRows[0]?.[colId] || '').trim();
+      if (!sample.includes(sep)) { showToast(`ไม่พบ "${sep}" ในข้อมูล`, 'error'); return; }
+      const origHeader = usCurrentHeaders[colId] || `คอลัมน์ ${colId+1}`;
+      usCurrentHeaders.splice(colId, 1, `${origHeader}_รหัส`, `${origHeader}_คะแนน`);
+      usCurrentRows = usCurrentRows.map(row => {
+        const parts = String(row[colId]||'').split(sep).map(s=>s.trim());
+        const newRow = [...row];
+        newRow.splice(colId, 1, parts[0]||'', parts[1]||'');
+        return newRow;
+      });
+      showToast('✅ แยกข้อมูลสำเร็จ');
+      showUploadScorePreview();
+    }
 
     function confirmColumnsShowAll() {
       const colId = parseInt(document.getElementById('us-col-id')?.value);
@@ -5055,6 +5091,26 @@
     let usLastMatchedList = [];
     let usLastPendingNotRegList = [];
     let usLastNotFoundList = [];
+
+    async function importSelectedAsPending() {
+      // เก็บคะแนนสำรองสำหรับทุกรายการที่เลือก โดยไม่ตรวจสอบการลงทะเบียน
+      const subjectName = document.getElementById('us-subject')?.value;
+      const examType = document.getElementById('us-examtype')?.value;
+      const round = parseInt(document.getElementById('us-round')?.value);
+      if (!subjectName) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
+      const selectedIdxs = new Set(Array.from(document.querySelectorAll('.us-row-cb:checked')).map(cb => parseInt(cb.dataset.idx)));
+      if (selectedIdxs.size === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
+      const selected = usAllRowsData.filter(r => selectedIdxs.has(r.rowIndex));
+      let saved = 0;
+      for (const item of selected) {
+        if (!item.studentId || !item.score) continue;
+        const ex = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round);
+        if (!ex) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, source: 'manual', created_at: new Date().toISOString() });
+        saved++;
+      }
+      showToast(`✅ เก็บสำรอง ${saved} รายการสำหรับวิชา ${subjectName}`);
+      renderPendingScoreTable();
+    }
 
     async function importSelectedRows() {
       const subjectName = document.getElementById('us-subject')?.value;
