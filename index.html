@@ -120,8 +120,8 @@
        </div>
       </div>
      </div>
-     <!-- ปุ่มปิดเว็บ × (ขวา) -->
-     <button onclick="window.close()" title="ปิดหน้าต่าง" class="pointer-events-auto w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-base font-bold shadow-lg transition leading-none">×</button>
+     <!-- ปุ่มย่อ/ปิดเว็บ (ขวา) -->
+     <button onclick="try { window.blur(); } catch(e) { window.close(); }" title="ย่อหน้าต่าง (คลิกค้างเพื่อปิด)" oncontextmenu="window.close(); return false;" class="pointer-events-auto w-8 h-8 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center text-base font-bold shadow-lg transition leading-none select-none">−</button>
     </div>
     <div class="max-w-6xl mx-auto py-4 px-3 md:py-8 md:px-4">
      <div class="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 items-start">
