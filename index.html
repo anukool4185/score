@@ -185,16 +185,13 @@
       background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
       border-top: 1px solid rgba(255,255,255,0.15);
       z-index: 9999;
-      /* swipeable */
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       box-shadow: 0 -3px 18px rgba(0,0,0,0.35);
     }
-    #mobile-bottom-nav::-webkit-scrollbar { display: none; }
-    @media (max-width: 640px) {
-      #mobile-bottom-nav { display: flex; align-items: center; }
-    }
+    /* ซ่อนถ้าว่าง — ไม่ให้แถบสีน้ำเงินปรากฏ */
+    #mobile-bottom-nav:empty { display: none !important; }
     #mobile-bottom-nav button {
       display: flex !important;
       flex-direction: column !important;
@@ -13021,13 +13018,27 @@
     'mnav-profile': [{ icon:'👤', label:'ข้อมูล', fn:"showStudentTab('profile')" }],
   };
 
+  let _activeTrayNavId = null;
+
   function openMobileTray(navBtnId) {
-    const items = NAV_SUBTABS[navBtnId] || [];
     const tray = document.getElementById('mobile-subtab-tray');
     const inner = document.getElementById('mobile-subtab-tray-inner');
     const backdrop = document.getElementById('mobile-tray-backdrop');
-    if (!tray || !inner) return;
-    if (items.length === 0) { closeMobileTray(); return; }
+
+    // Toggle: กดซ้ำปิด tray
+    if (_activeTrayNavId === navBtnId && tray?.classList.contains('visible')) {
+      closeMobileTray();
+      return;
+    }
+
+    const items = NAV_SUBTABS[navBtnId] || [];
+    if (!tray || !inner || items.length === 0) {
+      // ถ้าไม่มี sub-items ให้ทำ default action ตัวแรก
+      closeMobileTray();
+      return;
+    }
+
+    _activeTrayNavId = navBtnId;
     inner.innerHTML = items.map(item =>
       `<button onclick="closeMobileTray(); ${item.fn}; updateMobileNavActive();">
         <span class="tray-icon">${item.icon}</span>
@@ -13036,11 +13047,11 @@
     ).join('');
     tray.classList.add('visible');
     backdrop?.classList.add('visible');
-    // highlight current
     updateMobileNavActive();
   }
 
   function closeMobileTray() {
+    _activeTrayNavId = null;
     document.getElementById('mobile-subtab-tray')?.classList.remove('visible');
     document.getElementById('mobile-tray-backdrop')?.classList.remove('visible');
   }
@@ -13053,12 +13064,18 @@
 
     function showNav(html) {
       nav.innerHTML = html;
-      nav.style.display = window.innerWidth <= 640 ? 'flex' : 'none';
+      if (window.innerWidth <= 640) {
+        nav.style.display = 'flex';
+        nav.style.alignItems = 'center';
+      } else {
+        nav.style.display = 'none';
+      }
       allPages.forEach(id => { document.getElementById(id)?.classList.add('has-nav'); });
       updateMobileNavActive();
     }
     function hideNav() {
-      nav.innerHTML = ''; nav.style.display = 'none';
+      nav.innerHTML = '';
+      nav.style.display = 'none';
       allPages.forEach(id => { document.getElementById(id)?.classList.remove('has-nav'); });
       closeMobileTray();
     }
