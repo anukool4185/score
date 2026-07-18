@@ -80,14 +80,14 @@
       .mb-4 { margin-bottom: 8px  !important; }
       /* ── ปุ่ม ── */
       /* ── ปุ่ม: กว้างตามข้อความเสมอบน mobile ── */
-      button, input[type="submit"], input[type="button"] {
+      button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
         width: fit-content !important;
         min-width: 0 !important;
         white-space: nowrap;
         max-width: 100%;
       }
-      /* ยกเว้น bottom nav และ tray */
-      #mobile-bottom-nav button, #mobile-subtab-tray button { width: auto !important; }
+      /* ปุ่มวงกลม: คง w/h เดิม */
+      button.rounded-full { width: auto !important; min-width: 0 !important; }
       /* ── ตาราง ── */
       table { table-layout: auto; width: 100%; }
       th, td { white-space: normal !important; padding: 3px 4px !important; word-break: break-word; max-width: 90px; }
@@ -390,13 +390,15 @@
       .text-3xl  { font-size: clamp(14px, 4.2vw, 18px) !important; }
 
       /* ปุ่มทั่วไป: ข้อความ scale ตามจอ + กว้างตามข้อความ */
-      button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button) {
+      button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
         font-size: clamp(9px, 2.4vw, 12px) !important;
         width: fit-content !important;
         min-width: 0 !important;
         white-space: nowrap;
         max-width: 100%;
       }
+      /* ปุ่มวงกลม scale font แต่ไม่เปลี่ยน width */
+      button.rounded-full { font-size: clamp(9px, 2.4vw, 12px) !important; }
 
       /* input / select */
       input, select, textarea { font-size: clamp(10px, 2.6vw, 13px) !important; }
