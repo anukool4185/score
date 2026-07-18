@@ -654,14 +654,12 @@
         </div>
        </div>
        <p id="login-error" class="text-red-500 text-sm mb-4 hidden"></p>
-       <div class="flex gap-3 mb-3">
-        <button type="submit" class="flex-1 btn-primary text-white px-4 py-3 rounded-xl font-medium hover:shadow-lg transition">✅ เข้าสู่ระบบ</button>
-        <button type="button" onclick="showRegisterPage()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-xl font-medium transition">📋 ขอใช้ระบบ</button>
-       </div>
       </form>
       <div class="grid grid-cols-2 gap-3 mt-2">
-       <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">👨‍💼 รายชื่อผู้ประเมิน</button>
-       <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition text-sm md:text-base">📝 ประเมินครูผู้สอน</button>
+       <button onclick="document.querySelector('#page-login form').requestSubmit()" class="btn-primary text-white px-4 py-3 rounded-xl font-medium hover:shadow-lg transition">✅ เข้าสู่ระบบ</button>
+       <button type="button" onclick="showRegisterPage()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-xl font-medium transition">📋 ขอใช้ระบบ</button>
+       <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition">👨‍💼 รายชื่อผู้ประเมิน</button>
+       <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
       </div>
       </div>
      </div>
