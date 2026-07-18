@@ -67,30 +67,36 @@
     /* ============================================================
        📱 MOBILE STYLES — Portrait phone
     ============================================================ */
-    @media (max-width: 640px) {
+    
       /* ── ป้องกันหน้ากว้างเกิน ── */
-      html, body { overflow-x: hidden !important; max-width: 100vw; }
-      img, video, iframe, table { max-width: 100%; }
+      html,
+          body { overflow-x: hidden !important; max-width: 100vw; }
+      body.is-mobile img,
+          body.is-mobile video,
+          body.is-mobile iframe,
+          body.is-mobile table { max-width: 100%; }
       /* ── padding ── */
-      .p-8, .md\:p-8 { padding: 10px !important; }
-      .p-6  { padding: 10px !important; }
-      .p-4  { padding: 8px  !important; }
-      .p-3  { padding: 6px  !important; }
-      .mb-6 { margin-bottom: 10px !important; }
-      .mb-4 { margin-bottom: 8px  !important; }
+      body.is-mobile .p-8,
+          body.is-mobile .md\:p-8 { padding: 10px !important; }
+      body.is-mobile .p-6 { padding: 10px !important; }
+      body.is-mobile .p-4 { padding: 8px  !important; }
+      body.is-mobile .p-3 { padding: 6px  !important; }
+      body.is-mobile .mb-6 { margin-bottom: 10px !important; }
+      body.is-mobile .mb-4 { margin-bottom: 8px  !important; }
       /* ── ปุ่ม ── */
       /* ── ปุ่ม: กว้างตามข้อความเสมอบน mobile ── */
-      button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
+      body.is-mobile button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
         width: fit-content !important;
         min-width: 0 !important;
         white-space: nowrap;
         max-width: 100%;
       }
       /* ── ปุ่มวงกลม: คง w/h เดิม */
-      button.rounded-full { width: auto !important; min-width: 0 !important; }
+      body.is-mobile button.rounded-full { width: auto !important; min-width: 0 !important; }
 
       /* ── กระดิ่ง: บังคับวงกลมสมบูรณ์ ── */
-      button.bell-button, .bell-button {
+      body.is-mobile button.bell-button,
+          body.is-mobile .bell-button {
         width: 22px !important;
         height: 22px !important;
         min-width: 22px !important;
@@ -110,70 +116,82 @@
         font-size: 11px !important;
       }
       /* กระดิ่ง container ไม่ stretch ลูก */
-      .bell-button + .bell-button { }
-      div.flex.items-start.gap-2.pointer-events-auto {
+      body.is-mobile .bell-button + .bell-button { }
+      body.is-mobile div.flex.items-start.gap-2.pointer-events-auto {
         align-items: center !important;
       }
       /* ── ตาราง ── */
-      table { table-layout: auto; width: 100%; }
-      th, td { white-space: normal !important; padding: 3px 4px !important; word-break: break-word; max-width: 90px; }
-      .overflow-x-auto { overflow-x: hidden !important; max-width: 100%; }
+      body.is-mobile table { table-layout: auto; width: 100%; }
+      body.is-mobile th,
+          body.is-mobile td { white-space: normal !important; padding: 3px 4px !important; word-break: break-word; max-width: 90px; }
+      body.is-mobile .overflow-x-auto { overflow-x: hidden !important; max-width: 100%; }
       /* ── Admin tab buttons: scroll แนวนอน ── */
-      #admin-tab-buttons { overflow-x: auto !important; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; scrollbar-width: none; max-width: 100vw; }
-      #admin-tab-buttons::-webkit-scrollbar { display: none; }
-      #admin-tab-buttons > button { white-space: nowrap !important; flex-shrink: 0; }
+      body.is-mobile #admin-tab-buttons { overflow-x: auto !important; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; scrollbar-width: none; max-width: 100vw; }
+      body.is-mobile #admin-tab-buttons::-webkit-scrollbar { display: none; }
+      body.is-mobile #admin-tab-buttons > button { white-space: nowrap !important; flex-shrink: 0; }
       /* ── เว้นล่างสุด ── */
       #page-home.has-nav, #page-student-management.has-nav, #page-subadmin.has-nav,
-      #page-admin.has-nav, #page-register.has-nav, #page-login.has-nav { padding-bottom: 68px !important; }
-    }edia (max-width: 640px) {
+      body.is-mobile #page-admin.has-nav,
+          body.is-mobile #page-register.has-nav,
+          body.is-mobile #page-login.has-nav { padding-bottom: 68px !important; }
+    
+    
       /* ── ป้องกันหน้ากว้างเกิน ── */
-      html, body { 
+      html,
+          body {
         overflow-x: hidden !important; 
         max-width: 100vw;
       }
-      img, video, iframe, table { max-width: 100%; box-sizing: border-box; }
+      body.is-mobile img,
+          body.is-mobile video,
+          body.is-mobile iframe,
+          body.is-mobile table { max-width: 100%; box-sizing: border-box; }
 
       /* ── ฟ้อนต์ ── */
       body { font-size: 11px; }
-      .text-xs   { font-size: 9px  !important; }
-      .text-sm   { font-size: 10px !important; }
-      .text-base { font-size: 11px !important; }
-      .text-lg   { font-size: 12px !important; }
-      .text-xl   { font-size: 13px !important; }
-      .text-2xl  { font-size: 14px !important; }
-      .text-3xl  { font-size: 16px !important; }
+      body.is-mobile .text-xs { font-size: 9px  !important; }
+      body.is-mobile .text-sm { font-size: 10px !important; }
+      body.is-mobile .text-base { font-size: 11px !important; }
+      body.is-mobile .text-lg { font-size: 12px !important; }
+      body.is-mobile .text-xl { font-size: 13px !important; }
+      body.is-mobile .text-2xl { font-size: 14px !important; }
+      body.is-mobile .text-3xl { font-size: 16px !important; }
 
       /* ── padding ── */
-      .p-8, .md\:p-8 { padding: 10px !important; }
-      .p-6  { padding: 10px !important; }
-      .p-4  { padding: 8px  !important; }
-      .p-3  { padding: 6px  !important; }
-      .mb-6 { margin-bottom: 10px !important; }
-      .mb-4 { margin-bottom: 8px  !important; }
+      body.is-mobile .p-8,
+          body.is-mobile .md\:p-8 { padding: 10px !important; }
+      body.is-mobile .p-6 { padding: 10px !important; }
+      body.is-mobile .p-4 { padding: 8px  !important; }
+      body.is-mobile .p-3 { padding: 6px  !important; }
+      body.is-mobile .mb-6 { margin-bottom: 10px !important; }
+      body.is-mobile .mb-4 { margin-bottom: 8px  !important; }
 
       /* ── ปุ่ม: กว้างตามข้อความ ไม่บังคับเต็มจอ ── */
-      button { 
+      body.is-mobile button {
         font-size: 10px !important; 
         white-space: nowrap;
       }
       /* ห้าม button ขยายเต็มจอถ้าไม่ได้กำหนด w-full */
-      button:not([class*="w-full"]):not([class*="w-"]) {
+      body.is-mobile button:not([class*="w-full"]):not([class*="w-"]) {
         width: auto !important;
         min-width: 0 !important;
       }
       /* flex container ที่มีปุ่มหลายอัน ให้ wrap ลงมา */
-      .flex.gap-2.flex-wrap, .flex.gap-3.flex-wrap {
+      body.is-mobile .flex.gap-2.flex-wrap,
+          body.is-mobile .flex.gap-3.flex-wrap {
         flex-wrap: wrap !important;
       }
 
       /* ── input/select ── */
-      input:not([class*="w-"]), select:not([class*="w-"]) {
+      body.is-mobile input:not([class*="w-"]),
+          body.is-mobile select:not([class*="w-"]) {
         width: auto !important;
       }
 
       /* ── ตาราง ── */
-      table { table-layout: auto; width: 100%; }
-      th, td {
+      body.is-mobile table { table-layout: auto; width: 100%; }
+      body.is-mobile th,
+          body.is-mobile td {
         white-space: normal !important;
         font-size: 9px !important;
         padding: 3px 4px !important;
@@ -181,21 +199,21 @@
         max-width: 90px;
       }
       /* ป้องกัน container ล้น */
-      .overflow-x-auto { 
+      body.is-mobile .overflow-x-auto {
         overflow-x: hidden !important;
         max-width: 100%;
       }
 
       /* ── Admin tab buttons: scroll แนวนอน ── */
-      #admin-tab-buttons {
+      body.is-mobile #admin-tab-buttons {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
         flex-wrap: nowrap !important;
         scrollbar-width: none;
         max-width: 100vw;
       }
-      #admin-tab-buttons::-webkit-scrollbar { display: none; }
-      #admin-tab-buttons > button {
+      body.is-mobile #admin-tab-buttons::-webkit-scrollbar { display: none; }
+      body.is-mobile #admin-tab-buttons > button {
         white-space: nowrap !important;
         font-size: 9px !important;
         padding: 5px 7px !important;
@@ -204,18 +222,20 @@
 
       /* ── เว้นล่างสุดให้ bottom nav — เฉพาะเมื่อ nav แสดงอยู่ ── */
       #page-home.has-nav, #page-student-management.has-nav, #page-subadmin.has-nav,
-      #page-admin.has-nav, #page-register.has-nav, #page-login.has-nav {
+      body.is-mobile #page-admin.has-nav,
+          body.is-mobile #page-register.has-nav,
+          body.is-mobile #page-login.has-nav {
         padding-bottom: 68px !important;
       }
-    }
+    
 
-    /* ── Bottom Nav Bar — ซ่อนตั้งแต่เริ่ม ── */
+    /* ── Bottom Nav Bar — ซ่อนตั้งแต่เริ่ม JS controls ── */
     #mobile-bottom-nav {
-      display: none;      /* JS เปิด-ปิดเองทั้งหมด */
+      display: none;
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 62px;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      background: linear-gradient(135deg, #2a4a6a 0%, #3d6080 100%) !important;
       border-top: 1px solid rgba(255,255,255,0.15);
       z-index: 9999;
       overflow-x: auto;
@@ -225,6 +245,7 @@
       align-items: center;
     }
     #mobile-bottom-nav::-webkit-scrollbar { display: none; }
+    #mobile-bottom-nav:empty { display: none !important; }
     #mobile-bottom-nav button {
       display: flex !important;
       flex-direction: column !important;
@@ -404,19 +425,19 @@
     #mobile-subtab-tray .tray-inner {
       background: #3a6890 !important;
     }
-    @media (max-width: 640px) {
+    
       /* ตัวอักษรทั่วไปบน mobile ใช้ vw ให้ scale ตามจอ */
       body { font-size: clamp(9px, 2.8vw, 13px); }
-      .text-xs   { font-size: clamp(8px, 2.2vw, 11px) !important; }
-      .text-sm   { font-size: clamp(9px, 2.6vw, 12px) !important; }
-      .text-base { font-size: clamp(10px, 2.8vw, 13px) !important; }
-      .text-lg   { font-size: clamp(11px, 3.2vw, 14px) !important; }
-      .text-xl   { font-size: clamp(12px, 3.5vw, 15px) !important; }
-      .text-2xl  { font-size: clamp(13px, 3.8vw, 16px) !important; }
-      .text-3xl  { font-size: clamp(14px, 4.2vw, 18px) !important; }
+      body.is-mobile .text-xs { font-size: clamp(8px, 2.2vw, 11px) !important; }
+      body.is-mobile .text-sm { font-size: clamp(9px, 2.6vw, 12px) !important; }
+      body.is-mobile .text-base { font-size: clamp(10px, 2.8vw, 13px) !important; }
+      body.is-mobile .text-lg { font-size: clamp(11px, 3.2vw, 14px) !important; }
+      body.is-mobile .text-xl { font-size: clamp(12px, 3.5vw, 15px) !important; }
+      body.is-mobile .text-2xl { font-size: clamp(13px, 3.8vw, 16px) !important; }
+      body.is-mobile .text-3xl { font-size: clamp(14px, 4.2vw, 18px) !important; }
 
       /* ปุ่มทั่วไป: ข้อความ scale ตามจอ + กว้างตามข้อความ */
-      button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
+      body.is-mobile button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
         font-size: clamp(9px, 2.4vw, 12px) !important;
         width: fit-content !important;
         min-width: 0 !important;
@@ -424,10 +445,11 @@
         max-width: 100%;
       }
       /* ปุ่มวงกลม scale font แต่ไม่เปลี่ยน width */
-      button.rounded-full { font-size: clamp(9px, 2.4vw, 12px) !important; }
+      body.is-mobile button.rounded-full { font-size: clamp(9px, 2.4vw, 12px) !important; }
 
       /* กระดิ่ง: วงกลมสมบูรณ์ */
-      button.bell-button, .bell-button {
+      body.is-mobile button.bell-button,
+          body.is-mobile .bell-button {
         width: 22px !important; height: 22px !important;
         min-width: 22px !important; max-width: 22px !important;
         aspect-ratio: 1 / 1 !important;
@@ -440,11 +462,14 @@
       }
 
       /* input / select */
-      input, select, textarea { font-size: clamp(10px, 2.6vw, 13px) !important; }
+      body.is-mobile input,
+          body.is-mobile select,
+          body.is-mobile textarea { font-size: clamp(10px, 2.6vw, 13px) !important; }
 
       /* ตาราง */
-      th, td { font-size: clamp(8px, 2.0vw, 10px) !important; padding: 3px 4px !important; }
-    }
+      body.is-mobile th,
+          body.is-mobile td { font-size: clamp(8px, 2.0vw, 10px) !important; padding: 3px 4px !important; }
+    
 
     /* Tray label scale ตามจอด้วย */
     #mobile-subtab-tray button .tray-label {
@@ -471,9 +496,9 @@
        display: block;
        line-height: 1;
      }
-     @media (max-width: 640px) {
+     
        /* Admin tab container: swipe แนวนอน */
-       .flex.flex-wrap.gap-2.mb-6.border-b-2 {
+       body.is-mobile .flex.flex-wrap.gap-2.mb-6.border-b-2 {
          flex-wrap: nowrap !important;
          overflow-x: auto !important;
          -webkit-overflow-scrolling: touch;
@@ -481,12 +506,22 @@
          padding-bottom: 4px !important;
          max-width: 100%;
        }
-       .flex.flex-wrap.gap-2.mb-6.border-b-2::-webkit-scrollbar { display: none; }
-     }
+       body.is-mobile .flex.flex-wrap.gap-2.mb-6.border-b-2::-webkit-scrollbar { display: none; }
+     
   <style>body { box-sizing: border-box; }</style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
  </head>
  <body class="h-full bg-gray-100 overflow-auto">
+  <script>
+  (function() {
+    function applyMobile() {
+      var m = window.innerWidth <= 640 || /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      document.body.classList.toggle('is-mobile', m);
+    }
+    applyMobile();
+    window.addEventListener('resize', applyMobile);
+  })();
+  </script>
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
     <!-- แถบปุ่มบนสุด: กระดิ่ง 3 ใบ (ซ้าย) + ปุ่มปิด × (ขวา) ระดับเดียวกัน -->
@@ -588,7 +623,7 @@
        <!-- 🔍 ช่องค้นหานักเรียน + แจ้ง KPAC ไปยังผู้ช่วยแอดมิน -->
        <div class="border-2 border-gray-200 rounded-xl p-3 mb-4">
         <p class="text-xs font-semibold text-gray-700 mb-2">🔍 ค้นหาสถานะ</p>
-        <div class="flex gap-3 flex-wrap mb-2">
+        <div class="hidden md:flex gap-3 flex-wrap mb-2">
          <span class="text-[10px]"><span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>สมัครแล้ว</span>
          <span class="text-[10px]"><span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>ยังไม่สมัคร</span>
          <span class="text-[10px]"><span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>ลงทะเบียนแล้ว</span>
@@ -13068,7 +13103,7 @@
   <script>
   // ── แปลงแท็บบนหน้าเพจให้แสดงเฉพาะไอคอนบนมือถือ ──
   function mobileTabIconify() {
-    const isMobile = window.innerWidth <= 640;
+    const isMobile = document.body.classList.contains('is-mobile');
     // selectors ทุก tab button ที่ต้องการแปลง
     const tabSelectors = [
       '[id^="tab-"]',
@@ -13197,7 +13232,7 @@
 
     function showNav(html) {
       nav.innerHTML = html;
-      if (window.innerWidth <= 640) {
+      if (document.body.classList.contains('is-mobile')) {
         nav.style.display = 'flex';
         nav.style.alignItems = 'center';
       } else {
@@ -13213,7 +13248,7 @@
       closeMobileTray();
     }
 
-    if (window.innerWidth > 640 || !currentUser) { hideNav(); return; }
+    if (!document.body.classList.contains('is-mobile') || !currentUser) { hideNav(); return; }
 
     const type = currentUser.user_type;
     const pendingKpac = (allData||[]).filter(d=>d.type==='kpac_request'&&d.status==='pending').length;
