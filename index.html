@@ -86,8 +86,22 @@
         white-space: nowrap;
         max-width: 100%;
       }
-      /* ปุ่มวงกลม: คง w/h เดิม */
+      /* ── ปุ่มวงกลม: คง w/h เดิม */
       button.rounded-full { width: auto !important; min-width: 0 !important; }
+
+      /* ── กระดิ่ง: บังคับวงกลมสมบูรณ์ ── */
+      .bell-button {
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        min-height: 44px !important;
+        max-width: 44px !important;
+        max-height: 44px !important;
+        border-radius: 50% !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        white-space: normal !important;
+      }
       /* ── ตาราง ── */
       table { table-layout: auto; width: 100%; }
       th, td { white-space: normal !important; padding: 3px 4px !important; word-break: break-word; max-width: 90px; }
@@ -399,6 +413,16 @@
       }
       /* ปุ่มวงกลม scale font แต่ไม่เปลี่ยน width */
       button.rounded-full { font-size: clamp(9px, 2.4vw, 12px) !important; }
+
+      /* กระดิ่ง: วงกลมสมบูรณ์ */
+      .bell-button {
+        width: 44px !important; height: 44px !important;
+        min-width: 44px !important; max-width: 44px !important;
+        border-radius: 50% !important;
+        flex-shrink: 0 !important;
+        padding: 0 !important;
+        font-size: 20px !important;
+      }
 
       /* input / select */
       input, select, textarea { font-size: clamp(10px, 2.6vw, 13px) !important; }
