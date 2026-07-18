@@ -509,6 +509,16 @@
        body.is-mobile .flex.flex-wrap.gap-2.mb-6.border-b-2::-webkit-scrollbar { display: none; }
      
   <style>body { box-sizing: border-box; }</style>
+  <style>
+    /* โทรศัพท์: รวมแก้ไขทั้งหมด */
+    body.is-mobile .grid button { width: 100% !important; min-width: 0 !important; }
+    body.is-mobile #admin-tab-buttons,
+    body.is-mobile #students-subtab-buttons { display: none !important; }
+    body.is-mobile .bell-top-bar-left { 
+      position: fixed; top: 8px; right: 8px; z-index: 9990; 
+      flex-direction: row; gap: 6px;
+    }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
  </head>
  <body class="h-full bg-gray-100 overflow-auto">
@@ -527,7 +537,7 @@
     <!-- แถบปุ่มบนสุด: กระดิ่ง 3 ใบ (ซ้าย) + ปุ่มปิด × (ขวา) ระดับเดียวกัน -->
     <div class="fixed top-2 left-2 right-2 z-50 flex items-start justify-between pointer-events-none">
      <!-- กระดิ่งทั้งสาม (ซ้าย) -->
-     <div class="flex items-start gap-2 pointer-events-auto">
+     <div class="bell-top-bar-left flex items-start gap-2 pointer-events-auto bell-top-bar">
       <!-- กระดิ่ง 1: ผู้สมัคร (ส้ม) -->
       <div class="relative flex flex-col items-center">
        <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-orange-400 hover:bg-orange-500 shadow-lg rounded-full w-11 h-11 flex items-center justify-center text-xl hover:scale-105 transition">
@@ -4401,6 +4411,10 @@
       const page = document.getElementById('page-' + pageName);
       if (page) page.classList.remove('hidden');
       _currentPage = pageName;
+      // คง nav บนมือถือ
+      if (document.body.classList.contains('is-mobile')) {
+        setTimeout(buildMobileNav, 50);
+      }
     }
     function delayedRefresh(ms = 1500) {
       // Fetch รอบที่ 2 หลัง delay — เผื่อ Google Apps Script ยังไม่ commit ข้อมูลทัน
