@@ -198,11 +198,11 @@
       color: #fbbf24 !important;
     }
     #mobile-bottom-nav button .nav-icon {
-      font-size: 26px !important;
+      font-size: 23px !important;
       line-height: 1;
     }
     #mobile-bottom-nav button .nav-label {
-      font-size: 8px !important;
+      font-size: 7px !important;
       line-height: 1;
       white-space: nowrap;
     }
@@ -217,6 +217,70 @@
       display: flex; align-items: center; justify-content: center;
       padding: 0 3px;
       font-weight: bold;
+    }
+
+    /* ── Mobile: Tab buttons → icon only ── */
+    @media (max-width: 640px) {
+      /* Admin tabs */
+      #tab-import::after     { content: '📥'; }
+      #tab-settings::after   { content: '⚙️'; }
+      #tab-hours::after      { content: '⏰'; }
+      #tab-scores::after     { content: '📊'; }
+      #tab-schedule::after   { content: '📅'; }
+      #tab-timekeeping::after { content: '⏱️'; }
+      #tab-homework::after   { content: '📝'; }
+      #tab-grading::after    { content: '🎓'; }
+      #tab-uploadscore::after { content: '📤'; }
+      #tab-admins::after     { content: '👥'; }
+      #tab-students::after   { content: '👨‍🎓'; }
+      #tab-evaltopics::after { content: '📋'; }
+      #tab-studentdata::after { content: '📊'; }
+      #tab-gradereport::after { content: '📑'; }
+
+      /* ซ่อน text ใน admin tab แสดงแค่ icon */
+      #tab-import, #tab-settings, #tab-hours, #tab-scores, #tab-schedule,
+      #tab-timekeeping, #tab-homework, #tab-grading, #tab-uploadscore,
+      #tab-admins, #tab-students, #tab-evaltopics, #tab-studentdata, #tab-gradereport {
+        font-size: 0 !important;
+        padding: 6px 10px !important;
+      }
+      #tab-import::after, #tab-settings::after, #tab-hours::after, #tab-scores::after,
+      #tab-schedule::after, #tab-timekeeping::after, #tab-homework::after, #tab-grading::after,
+      #tab-uploadscore::after, #tab-admins::after, #tab-students::after, #tab-evaltopics::after,
+      #tab-studentdata::after, #tab-gradereport::after {
+        font-size: 18px;
+      }
+
+      /* Sub-admin tabs */
+      #subadmin-tab-homework, #subadmin-tab-timekeeping,
+      #subadmin-tab-grading, #subadmin-tab-students { font-size: 0 !important; padding: 6px 10px !important; }
+      #subadmin-tab-homework::after   { content: '📝'; font-size: 18px; }
+      #subadmin-tab-timekeeping::after { content: '⏱️'; font-size: 18px; }
+      #subadmin-tab-grading::after    { content: '🎓'; font-size: 18px; }
+      #subadmin-tab-students::after   { content: '👥'; font-size: 18px; }
+
+      /* Students sub-tabs */
+      #students-subtab-btn-import, #students-subtab-btn-applicants,
+      #students-subtab-btn-noenroll, #students-subtab-btn-registrations { font-size: 0 !important; padding: 6px 10px !important; }
+      #students-subtab-btn-import::after       { content: '📤'; font-size: 18px; }
+      #students-subtab-btn-applicants::after   { content: '📋'; font-size: 18px; }
+      #students-subtab-btn-noenroll::after     { content: '⏳'; font-size: 18px; }
+      #students-subtab-btn-registrations::after { content: '📚'; font-size: 18px; }
+
+      /* Director tabs */
+      #director-tab-btn-score::after   { content: '📊'; font-size: 18px; }
+      #director-tab-btn-evaluate::after { content: '📝'; font-size: 18px; }
+      #director-tab-btn-score, #director-tab-btn-evaluate { font-size: 0 !important; padding: 6px 10px !important; }
+
+      /* Admin tab container: swipe ได้ */
+      .flex.flex-wrap.gap-2.mb-6.border-b-2 {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 4px !important;
+        max-width: 100%;
+      }
     }
   <style>body { box-sizing: border-box; }</style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
