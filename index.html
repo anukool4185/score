@@ -176,9 +176,9 @@
       }
     }
 
-    /* ── Bottom Nav Bar ── */
+    /* ── Bottom Nav Bar — ซ่อนตั้งแต่เริ่ม ── */
     #mobile-bottom-nav {
-      display: none;
+      display: none;      /* JS เปิด-ปิดเองทั้งหมด */
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 62px;
@@ -189,9 +189,9 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
       box-shadow: 0 -3px 18px rgba(0,0,0,0.35);
+      align-items: center;
     }
-    /* ซ่อนถ้าว่าง — ไม่ให้แถบสีน้ำเงินปรากฏ */
-    #mobile-bottom-nav:empty { display: none !important; }
+    #mobile-bottom-nav::-webkit-scrollbar { display: none; }
     #mobile-bottom-nav button {
       display: flex !important;
       flex-direction: column !important;
@@ -12929,8 +12929,8 @@
   <!-- 📱 Mobile Sub-tab Tray -->
   <div id="mobile-tray-backdrop" onclick="closeMobileTray()"></div>
   <div id="mobile-subtab-tray"><div class="tray-inner" id="mobile-subtab-tray-inner"></div></div>
-  <!-- 📱 Mobile Bottom Navigation Bar -->
-  <div id="mobile-bottom-nav"></div>
+  <!-- 📱 Mobile Bottom Nav (JS controls show/hide) -->
+  <div id="mobile-bottom-nav" style="display:none"></div>
 
   <script>
   // ── แปลงแท็บบนหน้าเพจให้แสดงเฉพาะไอคอนบนมือถือ ──
