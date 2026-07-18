@@ -144,9 +144,9 @@
         flex-shrink: 0;
       }
 
-      /* ── เว้นล่างสุดให้ bottom nav ── */
-      #page-home, #page-student-management, #page-subadmin,
-      #page-admin, #page-register, #page-login {
+      /* ── เว้นล่างสุดให้ bottom nav — เฉพาะเมื่อ nav แสดงอยู่ ── */
+      #page-home.has-nav, #page-student-management.has-nav, #page-subadmin.has-nav,
+      #page-admin.has-nav, #page-register.has-nav, #page-login.has-nav {
         padding-bottom: 68px !important;
       }
     }
@@ -12792,39 +12792,55 @@
   <script>
   function buildMobileNav() {
     const nav = document.getElementById('mobile-bottom-nav');
-    if (!nav || window.innerWidth > 640) { if (nav) nav.innerHTML = ''; return; }
-    if (!currentUser) { nav.innerHTML = ''; return; }
+    if (!nav) return;
+    const allPages = ['page-home','page-student-management','page-subadmin',
+                      'page-admin','page-register','page-login'];
+
+    function showNav(html) {
+      nav.innerHTML = html;
+      nav.style.display = window.innerWidth <= 640 ? 'flex' : 'none';
+      allPages.forEach(id => { document.getElementById(id)?.classList.add('has-nav'); });
+      updateMobileNavActive();
+    }
+    function hideNav() {
+      nav.innerHTML = ''; nav.style.display = 'none';
+      allPages.forEach(id => { document.getElementById(id)?.classList.remove('has-nav'); });
+    }
+
+    if (window.innerWidth > 640 || !currentUser) { hideNav(); return; }
+
     const type = currentUser.user_type;
-    const pendingKpac = allData ? allData.filter(d => d.type === 'kpac_request' && d.status === 'pending').length : 0;
+    const pendingKpac = (allData||[]).filter(d=>d.type==='kpac_request'&&d.status==='pending').length;
 
     if (type === 'student') {
-      nav.innerHTML = `
+      showNav(`
         <button onclick="showStudentTab('register')" id="mnav-reg"><span class="nav-icon">📋</span><span class="nav-label">ลงทะเบียน</span></button>
         <button onclick="showStudentTab('homework')" id="mnav-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
         <button onclick="showStudentTab('grades')" id="mnav-grade"><span class="nav-icon">📊</span><span class="nav-label">คะแนน</span></button>
         <button onclick="showStudentTab('profile')" id="mnav-profile"><span class="nav-icon">👤</span><span class="nav-label">ข้อมูล</span></button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`;
+        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'subadmin') {
-      nav.innerHTML = `
+      showNav(`
         <button onclick="showSubAdminTab('homework')" id="mnav-sa-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
         <button onclick="showSubAdminTab('timekeeping')" id="mnav-sa-time"><span class="nav-icon">⏱️</span><span class="nav-label">ลงเวลา</span></button>
         <button onclick="showSubAdminTab('grading')" id="mnav-sa-grade"><span class="nav-icon">🎓</span><span class="nav-label">คะแนน</span></button>
         <button onclick="showSubAdminTab('students')" id="mnav-sa-stu" class="relative">
           <span class="nav-icon">👥</span><span class="nav-label">นักเรียน</span>
-          ${pendingKpac > 0 ? `<span class="nav-badge">${pendingKpac}</span>` : ''}
+          ${pendingKpac>0?`<span class="nav-badge">${pendingKpac}</span>`:''}
         </button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`;
+        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'admin') {
-      nav.innerHTML = `
+      showNav(`
         <button onclick="showAdminTab('students')" id="mnav-ad-stu"><span class="nav-icon">👥</span><span class="nav-label">นักเรียน</span></button>
         <button onclick="showAdminTab('scores')" id="mnav-ad-score"><span class="nav-icon">📊</span><span class="nav-label">คะแนน</span></button>
         <button onclick="showAdminTab('homework')" id="mnav-ad-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
         <button onclick="showAdminTab('uploadscore')" id="mnav-ad-up"><span class="nav-icon">📤</span><span class="nav-label">อัพโหลด</span></button>
+        <button onclick="showAdminTab('gradereport')" id="mnav-ad-gr"><span class="nav-icon">📋</span><span class="nav-label">รายงาน</span></button>
         <button onclick="showAdminTab('admins')" id="mnav-ad-adm"><span class="nav-icon">⚙️</span><span class="nav-label">ตั้งค่า</span></button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`;
-    }
-    updateMobileNavActive();
+        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
+    } else { hideNav(); }
   }
+
 
   function updateMobileNavActive() {
     document.querySelectorAll('#mobile-bottom-nav button').forEach(b => b.classList.remove('active-nav'));
