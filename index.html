@@ -198,7 +198,7 @@
       color: #fbbf24 !important;
     }
     #mobile-bottom-nav button .nav-icon {
-      font-size: 23px !important;
+      font-size: 21px !important;
       line-height: 1;
     }
     #mobile-bottom-nav button .nav-label {
@@ -218,6 +218,63 @@
       padding: 0 3px;
       font-weight: bold;
     }
+
+    /* ── Sub-tab tray popup ── */
+    #mobile-subtab-tray {
+      position: fixed;
+      bottom: 66px;
+      left: 0; right: 0;
+      z-index: 9998;
+      display: none;
+      justify-content: center;
+      padding: 0 8px;
+    }
+    #mobile-subtab-tray.visible { display: flex; }
+    #mobile-subtab-tray .tray-inner {
+      background: #0f2a4a;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 10px 12px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 340px;
+    }
+    #mobile-subtab-tray button {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 3px !important;
+      background: rgba(255,255,255,0.08) !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      border-radius: 10px !important;
+      color: rgba(255,255,255,0.85) !important;
+      font-size: 7px !important;
+      padding: 7px 10px !important;
+      cursor: pointer;
+      min-width: 48px;
+      width: auto !important;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    #mobile-subtab-tray button:active,
+    #mobile-subtab-tray button.tray-active {
+      background: rgba(251,191,36,0.25) !important;
+      color: #fbbf24 !important;
+      border-color: #fbbf24 !important;
+    }
+    #mobile-subtab-tray button .tray-icon { font-size: 20px; line-height: 1; }
+    #mobile-subtab-tray button .tray-label { font-size: 7px; }
+
+    /* ── Tray backdrop ── */
+    #mobile-tray-backdrop {
+      position: fixed; inset: 0; z-index: 9997;
+      display: none;
+    }
+    #mobile-tray-backdrop.visible { display: block; }
 
      /* ── Mobile: Tab buttons → icon only via JS ── */
      .tab-icon-only {
@@ -12811,6 +12868,9 @@
     }
   </script>
 
+  <!-- 📱 Mobile Sub-tab Tray -->
+  <div id="mobile-tray-backdrop" onclick="closeMobileTray()"></div>
+  <div id="mobile-subtab-tray"><div class="tray-inner" id="mobile-subtab-tray-inner"></div></div>
   <!-- 📱 Mobile Bottom Navigation Bar -->
   <div id="mobile-bottom-nav"></div>
 
@@ -12856,6 +12916,74 @@
   // เรียกหลัง DOM พร้อม
   document.addEventListener('DOMContentLoaded', () => setTimeout(mobileTabIconify, 300));
 
+  // ── Sub-tab tray definitions ──
+  const NAV_SUBTABS = {
+    // admin
+    'mnav-ad-stu': [
+      { icon:'📤', label:'นำเข้า', fn:"showAdminTab('students'); showStudentsSubTab('import')" },
+      { icon:'📋', label:'สมัคร', fn:"showAdminTab('students'); showStudentsSubTab('applicants')" },
+      { icon:'⏳', label:'ยังไม่ลง', fn:"showAdminTab('students'); showStudentsSubTab('noenroll')" },
+      { icon:'📚', label:'ลงทะเบียน', fn:"showAdminTab('students'); showStudentsSubTab('registrations')" },
+    ],
+    'mnav-ad-score': [
+      { icon:'📊', label:'คะแนนเต็ม', fn:"showAdminTab('scores')" },
+      { icon:'⏰', label:'หน่วยกิต', fn:"showAdminTab('hours')" },
+      { icon:'📅', label:'ตารางเรียน', fn:"showAdminTab('schedule')" },
+    ],
+    'mnav-ad-hw': [
+      { icon:'📝', label:'การบ้าน', fn:"showAdminTab('homework')" },
+      { icon:'⏱️', label:'ลงเวลา', fn:"showAdminTab('timekeeping')" },
+      { icon:'🎓', label:'ให้คะแนน', fn:"showAdminTab('grading')" },
+    ],
+    'mnav-ad-up': [
+      { icon:'📤', label:'อัพโหลดคะแนน', fn:"showAdminTab('uploadscore')" },
+      { icon:'📥', label:'นำเข้า', fn:"showAdminTab('import')" },
+    ],
+    'mnav-ad-gr': [
+      { icon:'📋', label:'สรุปเกรด', fn:"showAdminTab('gradereport')" },
+      { icon:'📊', label:'ผลการเรียน', fn:"showAdminTab('studentdata')" },
+      { icon:'📑', label:'หัวข้อประเมิน', fn:"showAdminTab('evaltopics')" },
+    ],
+    'mnav-ad-adm': [
+      { icon:'⚙️', label:'ตั้งค่า', fn:"showAdminTab('settings')" },
+      { icon:'👥', label:'ผู้ช่วยแอดมิน', fn:"showAdminTab('admins')" },
+    ],
+    // subadmin
+    'mnav-sa-hw':   [{ icon:'📝', label:'การบ้าน', fn:"showSubAdminTab('homework')" }],
+    'mnav-sa-time': [{ icon:'⏱️', label:'ลงเวลา', fn:"showSubAdminTab('timekeeping')" }],
+    'mnav-sa-grade':[{ icon:'🎓', label:'คะแนน', fn:"showSubAdminTab('grading')" }],
+    'mnav-sa-stu':  [{ icon:'👥', label:'นักเรียน', fn:"showSubAdminTab('students')" }],
+    // student
+    'mnav-reg':     [{ icon:'📋', label:'ลงทะเบียน', fn:"showStudentTab('register')" }],
+    'mnav-hw':      [{ icon:'📝', label:'การบ้าน', fn:"showStudentTab('homework')" }],
+    'mnav-grade':   [{ icon:'📊', label:'คะแนน', fn:"showStudentTab('grades')" }],
+    'mnav-profile': [{ icon:'👤', label:'ข้อมูล', fn:"showStudentTab('profile')" }],
+  };
+
+  function openMobileTray(navBtnId) {
+    const items = NAV_SUBTABS[navBtnId] || [];
+    const tray = document.getElementById('mobile-subtab-tray');
+    const inner = document.getElementById('mobile-subtab-tray-inner');
+    const backdrop = document.getElementById('mobile-tray-backdrop');
+    if (!tray || !inner) return;
+    if (items.length === 0) { closeMobileTray(); return; }
+    inner.innerHTML = items.map(item =>
+      `<button onclick="closeMobileTray(); ${item.fn}; updateMobileNavActive();">
+        <span class="tray-icon">${item.icon}</span>
+        <span class="tray-label">${item.label}</span>
+       </button>`
+    ).join('');
+    tray.classList.add('visible');
+    backdrop?.classList.add('visible');
+    // highlight current
+    updateMobileNavActive();
+  }
+
+  function closeMobileTray() {
+    document.getElementById('mobile-subtab-tray')?.classList.remove('visible');
+    document.getElementById('mobile-tray-backdrop')?.classList.remove('visible');
+  }
+
   function buildMobileNav() {
     const nav = document.getElementById('mobile-bottom-nav');
     if (!nav) return;
@@ -12871,6 +12999,7 @@
     function hideNav() {
       nav.innerHTML = ''; nav.style.display = 'none';
       allPages.forEach(id => { document.getElementById(id)?.classList.remove('has-nav'); });
+      closeMobileTray();
     }
 
     if (window.innerWidth > 640 || !currentUser) { hideNav(); return; }
@@ -12878,34 +13007,42 @@
     const type = currentUser.user_type;
     const pendingKpac = (allData||[]).filter(d=>d.type==='kpac_request'&&d.status==='pending').length;
 
+    function navBtn(id, icon, label, extra='') {
+      return `<button id="${id}" onclick="closeMobileTray(); openMobileTray('${id}')" class="relative">
+        <span class="nav-icon">${icon}</span><span class="nav-label">${label}</span>${extra}
+      </button>`;
+    }
+
     if (type === 'student') {
-      showNav(`
-        <button onclick="showStudentTab('register')" id="mnav-reg"><span class="nav-icon">📋</span><span class="nav-label">ลงทะเบียน</span></button>
-        <button onclick="showStudentTab('homework')" id="mnav-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
-        <button onclick="showStudentTab('grades')" id="mnav-grade"><span class="nav-icon">📊</span><span class="nav-label">คะแนน</span></button>
-        <button onclick="showStudentTab('profile')" id="mnav-profile"><span class="nav-icon">👤</span><span class="nav-label">ข้อมูล</span></button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
+      showNav(
+        navBtn('mnav-reg','📋','ลงทะเบียน') +
+        navBtn('mnav-hw','📝','การบ้าน') +
+        navBtn('mnav-grade','📊','คะแนน') +
+        navBtn('mnav-profile','👤','ข้อมูล') +
+        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'subadmin') {
-      showNav(`
-        <button onclick="showSubAdminTab('homework')" id="mnav-sa-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
-        <button onclick="showSubAdminTab('timekeeping')" id="mnav-sa-time"><span class="nav-icon">⏱️</span><span class="nav-label">ลงเวลา</span></button>
-        <button onclick="showSubAdminTab('grading')" id="mnav-sa-grade"><span class="nav-icon">🎓</span><span class="nav-label">คะแนน</span></button>
-        <button onclick="showSubAdminTab('students')" id="mnav-sa-stu" class="relative">
-          <span class="nav-icon">👥</span><span class="nav-label">นักเรียน</span>
-          ${pendingKpac>0?`<span class="nav-badge">${pendingKpac}</span>`:''}
-        </button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
+      showNav(
+        navBtn('mnav-sa-hw','📝','การบ้าน') +
+        navBtn('mnav-sa-time','⏱️','ลงเวลา') +
+        navBtn('mnav-sa-grade','🎓','คะแนน') +
+        navBtn('mnav-sa-stu','👥','นักเรียน',
+          pendingKpac>0?`<span class="nav-badge">${pendingKpac}</span>`:'') +
+        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'admin') {
-      showNav(`
-        <button onclick="showAdminTab('students')" id="mnav-ad-stu"><span class="nav-icon">👥</span><span class="nav-label">นักเรียน</span></button>
-        <button onclick="showAdminTab('scores')" id="mnav-ad-score"><span class="nav-icon">📊</span><span class="nav-label">คะแนน</span></button>
-        <button onclick="showAdminTab('homework')" id="mnav-ad-hw"><span class="nav-icon">📝</span><span class="nav-label">การบ้าน</span></button>
-        <button onclick="showAdminTab('uploadscore')" id="mnav-ad-up"><span class="nav-icon">📤</span><span class="nav-label">อัพโหลด</span></button>
-        <button onclick="showAdminTab('gradereport')" id="mnav-ad-gr"><span class="nav-icon">📋</span><span class="nav-label">รายงาน</span></button>
-        <button onclick="showAdminTab('admins')" id="mnav-ad-adm"><span class="nav-icon">⚙️</span><span class="nav-label">ตั้งค่า</span></button>
-        <button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important"><span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
+      showNav(
+        navBtn('mnav-ad-stu','👥','นักเรียน') +
+        navBtn('mnav-ad-score','📊','คะแนน') +
+        navBtn('mnav-ad-hw','📝','กิจกรรม') +
+        navBtn('mnav-ad-up','📤','อัพโหลด') +
+        navBtn('mnav-ad-gr','📋','รายงาน') +
+        navBtn('mnav-ad-adm','⚙️','ตั้งค่า') +
+        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else { hideNav(); }
   }
+
 
 
   function updateMobileNavActive() {
