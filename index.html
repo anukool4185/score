@@ -510,6 +510,37 @@
      
   <style>body { box-sizing: border-box; }</style>
   <style>
+  /* ==================== MOBILE ONLY (phone) ==================== */
+  @media (max-width:640px) {
+    /* 4 ปุ่ม login เท่ากัน */
+    .grid button { width:100%!important; min-width:0!important; }
+
+    /* ซ่อน tab bar (ใช้ tray แทน) */
+    #admin-tab-buttons,
+    #students-subtab-buttons { display:none!important; }
+
+    /* Nav button พื้นใส */
+    #mobile-bottom-nav button { background:transparent!important; border:none!important; }
+    #mobile-bottom-nav button.active-nav { background:rgba(255,255,255,0.1)!important; }
+
+    /* กระดิ่งลอยบนขวา */
+    .bell-top-bar-left {
+      position:fixed!important;
+      top:8px!important; right:8px!important; left:auto!important;
+      z-index:9990!important;
+      flex-direction:row!important;
+      gap:6px!important;
+    }
+
+    /* ซ่อน left side ของ top bar (ไม่มีของอยู่แล้ว) */
+    .fixed.top-2.left-2.right-2 { pointer-events:none; }
+
+    /* nav แสดงตลอด ไม่หาย */
+    #mobile-bottom-nav { display:flex!important; }
+    #mobile-bottom-nav:empty { display:none!important; }
+  }
+  </style>
+  <style>
     /* โทรศัพท์: รวมแก้ไขทั้งหมด */
     body.is-mobile .grid button { width: 100% !important; min-width: 0 !important; }
     body.is-mobile #admin-tab-buttons,
@@ -673,25 +704,42 @@
       <!-- ขวา: ฟอร์ม login -->
       <div class="bg-white rounded-2xl card-shadow p-5 md:p-8 fade-in w-full">
       <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-5 text-center">🔐 เข้าสู่ระบบ</h2>
-      <form onsubmit="handleLogin(event)">
-       <div class="flex gap-2 mb-4">
-        <div class="flex-1">
-         <label class="block text-sm font-medium text-gray-700 mb-2">👤 Username *</label>
-         <input type="text" id="login-username" placeholder="username" class="w-full px-3 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+
+       <!-- Login form — inputs ชุดเดียว CSS ควบคุม layout -->
+       <form onsubmit="handleLogin(event)">
+        <!-- wrapper: flex บน mobile, block บน desktop -->
+        <div class="flex sm:block gap-2 mb-3">
+         <div class="flex-1 sm:mb-4">
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">👤 Username *</label>
+          <input type="text" id="login-username" placeholder="username" class="w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
+         </div>
+         <div class="flex-1">
+          <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">🔐 Password *</label>
+          <input type="password" id="login-password" placeholder="password" class="w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
+         </div>
         </div>
-        <div class="flex-1">
-         <label class="block text-sm font-medium text-gray-700 mb-2">🔐 Password *</label>
-         <input type="password" id="login-password" placeholder="password" class="w-full px-3 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" required>
+        <p id="login-error" class="text-red-500 text-sm mb-3 hidden"></p>
+        <!-- Desktop: ปุ่มเดี่ยว submit -->
+        <div class="hidden sm:block">
+         <button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ เข้าสู่ระบบ</button>
+        </div>
+        <!-- Mobile: 4 ปุ่ม grid -->
+        <div class="sm:hidden grid grid-cols-2 gap-2">
+         <button type="submit" class="w-full btn-primary text-white px-2 py-2.5 rounded-xl text-sm font-medium transition">✅ เข้าสู่ระบบ</button>
+         <button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-2 py-2.5 rounded-xl text-sm font-medium transition">📋 ขอใช้ระบบ</button>
+         <button type="button" onclick="goToEvaluatorsListPage()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-2 py-2.5 rounded-xl text-sm font-medium transition">👨‍💼 ผู้ประเมิน</button>
+         <button type="button" onclick="goToPublicEvaluationPage()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-2 py-2.5 rounded-xl text-sm font-medium transition">📝 ประเมินครู</button>
+        </div>
+       </form>
+       <!-- Desktop only: ขอใช้ระบบ + ผู้ประเมิน -->
+       <div class="hidden sm:block mt-3">
+        <button onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-6">📋 ขอใช้ระบบเก็บคะแนน/ตัดเกรด</button>
+        <hr class="my-4">
+        <div class="grid grid-cols-2 gap-3">
+         <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition">👨‍💼 รายชื่อผู้ประเมิน</button>
+         <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
         </div>
        </div>
-       <p id="login-error" class="text-red-500 text-sm mb-4 hidden"></p>
-      </form>
-      <div class="grid grid-cols-2 gap-3 mt-2">
-       <button onclick="document.querySelector('#page-login form').requestSubmit()" class="w-full btn-primary text-white px-4 py-3 rounded-xl font-medium hover:shadow-lg transition">✅ เข้าสู่ระบบ</button>
-       <button type="button" onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-xl font-medium transition">📋 ขอใช้ระบบ</button>
-       <button onclick="goToEvaluatorsListPage()" class="w-full bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition">👨‍💼 รายชื่อผู้ประเมิน</button>
-       <button onclick="goToPublicEvaluationPage()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
-      </div>
       </div>
      </div>
     </div>
@@ -13325,6 +13373,9 @@
           <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else { hideNav(); }
   }
+
+
+
   function updateMobileNavActive() {
     document.querySelectorAll('#mobile-bottom-nav button').forEach(b => b.classList.remove('active-nav'));
     const tab = _currentAdminTab || _currentSubAdminTab || (typeof currentStudentTab !== 'undefined' ? currentStudentTab : '');
