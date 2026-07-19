@@ -13901,35 +13901,38 @@
   }
 
   function mRenderTodayHomework() {
-    var today = new Date().toLocaleDateString('th-TH');
-    var hws = (allData||[]).filter(d=>d.type==='homework');
+    var todayStr = typeof getTodayDateStr==='function' ? getTodayDateStr() : new Date().toISOString().split('T')[0];
+    var hws = (allData||[]).filter(d=>d.type==='homework'&&(d.study_date===todayStr||d.due_date===todayStr));
     var count = hws.length;
     var el = document.getElementById('m-today-hw-count');
     if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
     var container = document.getElementById('m-hw-track-container');
     if (!container) return;
-    if (!hws.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ไม่มีการบ้านวันนี้</div>'; return; }
-    var itemHtml = hws.map(h=>
-      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#92400e;white-space:nowrap">
-        📝 ${h.title||'การบ้าน'} — ${h.subject_name||''}
+    if (!hws.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">วันนี้ไม่มีการบ้าน</div>'; return; }
+    var rowHtml = hws.map(hw=>
+      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#92400e;white-space:nowrap;gap:6px">
+        <span style="font-weight:600">${hw.study_date===todayStr?'📖 เรียนวันนี้':'⏰ ส่งวันนี้'}</span>
+        <span>${hw.subject_name||''}</span>
+        <span style="color:#a16207">ครั้งที่ ${hw.work_number||'-'}</span>
        </div>`).join('');
-    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,hws.length*2)}s linear infinite">${itemHtml}${itemHtml}</div>`;
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,hws.length*1.5)}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
 
   function mRenderApprovedRequests() {
-    var approved = (allData||[]).filter(d=>d.type==='registration_request'&&d.status==='approved');
+    var approved = (allData||[]).filter(d=>d.type==='registration_request'&&typeof isRequestApprovedToday==='function'&&isRequestApprovedToday(d));
     var count = approved.length;
     var el = document.getElementById('m-approved-count');
     if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
     var container = document.getElementById('m-approved-track-container');
     if (!container) return;
-    if (!approved.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ไม่มีคำขออนุมัติ</div>'; return; }
-    var itemHtml = approved.map(r=>
+    if (!approved.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">ไม่มีคำขออนุมัติวันนี้</div>'; return; }
+    var rowHtml = approved.map(r=>
       `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#065f46;white-space:nowrap">
-        ✅ ${r.student_id||''} อนุมัติแล้ว กรุณาลงทะเบียนกับผู้ช่วยแอดมิน
+        ✅ ${r.student_id||''} — ${r.subject_name||''} กรุณาลงทะเบียนกับผู้ช่วยแอดมิน
        </div>`).join('');
-    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,approved.length*2)}s linear infinite">${itemHtml}${itemHtml}</div>`;
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,approved.length*2)}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
+
 
   function mToggleHomework() {
     var s = document.getElementById('m-hw-section');
@@ -13951,25 +13954,83 @@
     mRenderApprovedRequests();
   }
 
-  // ── Mobile Search Status ──
+  // ── Mobile wrappers สำหรับปุ่ม login page ──
+  // เมื่อกดบน mobile → แสดง desktop-root ชั่วคราว แล้วเรียก desktop function
+  function mShowDesktopPageTemp(fn) {
+    // สลับไป desktop-root ชั่วคราวเพื่อแสดงหน้าที่ต้องการ
+    document.getElementById('desktop-root').style.display = '';
+    document.getElementById('mobile-root').style.display = 'none';
+    if (typeof fn === 'function') fn();
+    // เพิ่มปุ่มกลับไปหน้าโมบาย
+    var backBtn = document.createElement('button');
+    backBtn.textContent = '← กลับหน้าโมบาย';
+    backBtn.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:#1e3a5f;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
+    backBtn.onclick = function() {
+      document.getElementById('desktop-root').style.display = 'none';
+      document.getElementById('mobile-root').style.display = '';
+      backBtn.remove();
+      // กลับหน้า login ของ mobile
+      document.getElementById('m-page-login').style.display = '';
+      document.getElementById('m-page-main').style.display = 'none';
+    };
+    document.body.appendChild(backBtn);
+  }
+
+  // Override สำหรับ mobile
+  var _origShowRegisterPage = null;
+  var _origGoToEvaluatorsListPage = null;
+  var _origGoToPublicEvaluationPage = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    _origShowRegisterPage = window.showRegisterPage;
+    _origGoToEvaluatorsListPage = window.goToEvaluatorsListPage;
+    _origGoToPublicEvaluationPage = window.goToPublicEvaluationPage;
+
+    window.showRegisterPage = function() {
+      if (IS_MOBILE) { mShowDesktopPageTemp(_origShowRegisterPage); }
+      else { _origShowRegisterPage && _origShowRegisterPage(); }
+    };
+    window.goToEvaluatorsListPage = function() {
+      if (IS_MOBILE) { mShowDesktopPageTemp(_origGoToEvaluatorsListPage); }
+      else { _origGoToEvaluatorsListPage && _origGoToEvaluatorsListPage(); }
+    };
+    window.goToPublicEvaluationPage = function() {
+      if (IS_MOBILE) { mShowDesktopPageTemp(_origGoToPublicEvaluationPage); }
+      else { _origGoToPublicEvaluationPage && _origGoToPublicEvaluationPage(); }
+    };
+  });
+
+  // ── Mobile Search ── ใช้ข้อมูลเดียวกับ desktop
   function mobileSearchStatus() {
-    var q = document.getElementById('m-search-input')?.value?.trim();
+    var q = (document.getElementById('m-search-input')?.value||'').trim();
     var result = document.getElementById('m-search-result');
     if (!q || !result) return;
     var students = (allData||[]).filter(d=>d.type==='student');
-    var found = students.filter(s=>s.student_id===q||(s.first_name+' '+s.last_name).includes(q));
-    if (!found.length) { result.innerHTML = '<span style="color:#f0b040">⚠️ ไม่พบข้อมูล</span>'; return; }
+    var found = students.filter(s=>
+      s.student_id===q ||
+      (s.first_name+' '+s.last_name).includes(q) ||
+      (s.last_name).includes(q) ||
+      (s.first_name).includes(q));
+    if (!found.length) { result.innerHTML = '<span style="color:#f0b040;font-size:11px">⚠️ ไม่พบข้อมูล</span>'; return; }
     var regs = (allData||[]).filter(d=>d.type==='student_registration');
-    result.innerHTML = found.slice(0,3).map(s=>{
+    var requests = (allData||[]).filter(d=>d.type==='registration_request');
+    result.innerHTML = found.slice(0,5).map(s=>{
       var reg = regs.find(r=>r.student_id===s.student_id);
-      return `<div style="background:#f8fafc;border-radius:8px;padding:8px;margin-top:4px">
-        <p style="font-size:11px;font-weight:600;color:#1e3a5f;margin:0">${s.prefix||''}${s.first_name} ${s.last_name}</p>
-        <p style="font-size:10px;color:#64748b;margin:2px 0">${s.student_id}</p>
-        <span style="font-size:10px;color:${reg?'#16a34a':'#dc2626'}">${reg?'🟢 ลงทะเบียนแล้ว':'🔴 ยังไม่ลงทะเบียน'}</span>
+      var req = requests.find(r=>r.student_backend_id===s.__backendId&&r.status==='pending');
+      var approved = requests.find(r=>r.student_backend_id===s.__backendId&&typeof isRequestApprovedToday==='function'&&isRequestApprovedToday(r));
+      var statusText = reg
+        ? '<span style="color:#16a34a">🟢 ลงทะเบียนแล้ว</span>'
+        : approved ? '<span style="color:#0284c7">🔵 อนุมัติแล้ว รอลงทะเบียน</span>'
+        : req ? '<span style="color:#d97706">🟡 รอการอนุมัติ</span>'
+        : '<span style="color:#dc2626">🔴 ยังไม่สมัคร</span>';
+      return `<div style="background:#f8fafc;border-radius:8px;padding:8px;margin-top:6px">
+        <p style="font-size:11px;font-weight:600;color:#1e3a5f;margin:0">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</p>
+        <p style="font-size:10px;color:#64748b;margin:2px 0">${s.student_id} · ${s.class_name||'?'}/${s.room_number||'?'}</p>
+        <p style="font-size:10px;margin:0">${statusText}</p>
       </div>`;}).join('');
   }
 
-  // Hook allData changes to re-render if on mobile
+  </script>
   var _origOnDataChanged = null;
   document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
