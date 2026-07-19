@@ -13430,7 +13430,7 @@
   <div id="mobile-root" style="display:none;height:100vh;overflow:hidden;background:#edf2f8;font-family:inherit;position:relative">
 
     <!-- Mobile Login Page -->
-    <div id="m-page-login" style="height:100vh;overflow-y:auto;padding:16px;padding-bottom:24px">
+    <div id="m-page-login" style="height:100vh;overflow-y:auto;padding:50px 16px 40px;box-sizing:border-box">
       <!-- Bells floating top-right -->
       <div style="position:fixed;top:10px;right:10px;z-index:999;display:flex;gap:5px">
         <button onclick="toggleBellDropdown('applicants')" class="bell-button" style="width:26px;height:26px;border-radius:50%;background:#f97316;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative">
@@ -13445,7 +13445,7 @@
       </div>
 
       <!-- Logo & Title -->
-      <div style="text-align:center;padding-top:40px;padding-bottom:20px">
+      <div style="text-align:center;padding-bottom:12px">
         <div style="font-size:40px;margin-bottom:8px">📊</div>
         <h1 style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0">KPAC Score</h1>
         <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
@@ -13487,10 +13487,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-
-
       <!-- Login Card -->
       <div style="background:white;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:12px">
         <form onsubmit="handleLogin(event)">
@@ -13525,11 +13521,9 @@
         </div>
         <div id="m-search-result" style="margin-top:8px;font-size:11px"></div>
       </div>
+    </div><!-- /m-page-login -->
 
-      <!-- Announcements -->
-
-    <!-- Mobile Main App (after login) -->
-    <div id="m-page-main" style="display:none;height:100vh;overflow:hidden;display:flex;flex-direction:column">
+    <div id="m-page-main" style="display:none;height:100vh;overflow:hidden;flex-direction:column">
       <!-- Header bar -->
       <div id="m-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div>
