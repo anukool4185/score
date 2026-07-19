@@ -13876,22 +13876,28 @@
       </div>`).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่มีข้อมูลคะแนน</p></div>'}`;
   }
 
-  // ── Mobile Marquee Announcements ──
+  // ── Mobile Marquee — ใช้ข้อมูลเดียวกับ desktop ──
   function mRenderAnnouncements() {
-    var announcements = (allData||[]).filter(d=>d.type==='announcement');
     var container = document.getElementById('m-marquee-track-container');
     if (!container) return;
-    if (!announcements.length) {
-      container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ยังไม่มีประกาศ</div>';
+
+    // ใช้ computeNewApplicants เหมือน desktop
+    var applicants = typeof computeNewApplicants === 'function' ? computeNewApplicants() : [];
+
+    if (!applicants.length) {
+      container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</div>';
       return;
     }
-    var itemHtml = announcements.map(a=>
-      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-        <span style="color:#7c3aed;font-weight:600;margin-right:6px">📢</span>${a.title||'ประกาศ'}
+
+    var rowH = 28;
+    var rowHtml = applicants.map(s =>
+      `<div style="height:${rowH}px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#334155;white-space:nowrap">
+        👤 ${s.prefix||''}${s.first_name||''} ${s.last_name||''} — ${s.class_name||''}/${s.room_number||''}
        </div>`).join('');
-    var totalH = announcements.length * 28;
-    var speed = Math.max(4, announcements.length * 2);
-    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${speed}s linear infinite">${itemHtml}${itemHtml}</div>`;
+    var spacer = `<div style="height:${rowH}px"></div>`;
+    var unit = spacer + rowHtml;
+    var totalSec = Math.max(4, applicants.length * 1.5);
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${totalSec}s linear infinite">${unit}${unit}</div>`;
   }
 
   function mRenderTodayHomework() {
