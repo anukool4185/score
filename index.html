@@ -636,11 +636,9 @@
        </div>
       </div>
      </div>
-     <!-- ปุ่มย่อ/ปิดเว็บ (ขวา) -->
-     <button onclick="try { window.blur(); } catch(e) { window.close(); }" title="ย่อหน้าต่าง (คลิกค้างเพื่อปิด)" oncontextmenu="window.close(); return false;" class="pointer-events-auto w-8 h-8 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center text-base font-bold shadow-lg transition leading-none select-none">−</button>
     </div>
     <!-- Mobile: กระดิ่งลอย 3 ใบ บนขวา -->
-    <div class="sm:hidden" style="position:fixed;top:8px;right:8px;z-index:9990;display:flex;gap:6px;pointer-events:auto">
+    <div class="flex sm:hidden" style="position:fixed;top:8px;right:8px;z-index:9990;gap:6px;pointer-events:auto">
      <button onclick="toggleBellDropdown('applicants')" class="bell-button relative bg-orange-400 shadow-lg rounded-full flex items-center justify-center" style="width:28px;height:28px;font-size:13px;border:none;cursor:pointer">
       🔔<span class="bell-applicants-count hidden absolute -top-1 -right-1 bg-red-600 text-white font-bold rounded-full flex items-center justify-center" style="font-size:7px;min-width:12px;height:12px;padding:0 2px">0</span>
      </button>
@@ -743,15 +741,7 @@
          <button type="button" onclick="goToPublicEvaluationPage()" style="width:100%;min-width:0" class="bg-indigo-500 text-white py-3 rounded-xl text-sm font-medium transition">📝 ประเมินครู</button>
         </div>
        </form>
-       <!-- Desktop only: ขอใช้ระบบ + ผู้ประเมิน -->
-       <div class="hidden sm:block mt-3">
-        <button onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-6">📋 ขอใช้ระบบเก็บคะแนน/ตัดเกรด</button>
-        <hr class="my-4">
-        <div class="grid grid-cols-2 gap-3">
-         <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition">👨‍💼 รายชื่อผู้ประเมิน</button>
-         <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
-        </div>
-       </div>
+
       </div>
      </div>
     </div>
