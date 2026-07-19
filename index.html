@@ -2391,6 +2391,13 @@
         setTimeout(buildMobileNav, 200);
       setTimeout(mobileTabIconify, 400);
         
+        // Mobile: แสดง mobile UI แทน
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+          showToast('✅ เข้าสู่ระบบแอดมินสำเร็จ!');
+          return;
+        }
+        
         // 📋 ขั้นที่ 6: ปรับปรุง UI เพื่อแสดงข้อมูล admin (ชื่อ ปุ่ม ออกจากระบบ เป็นต้น)
         showLoggedInUI();
         
@@ -2449,6 +2456,11 @@
         document.getElementById('page-register').classList.add('hidden');
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+          showToast('เข้าสู่ระบบผู้ช่วยแอดมินสำเร็จ ✅');
+          return;
+        }
         goToSubAdminPage();
         showToast('เข้าสู่ระบบผู้ช่วยแอดมินสำเร็จ ✅');
         document.getElementById('login-username').value = '';
@@ -2516,6 +2528,10 @@
         console.log('📋 Step 7: Showing announcements home page');
         
         showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`); setTimeout(buildMobileNav, 100);;
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+          return;
+        }
         console.log('✅ Student login COMPLETE');
         return;
       }
@@ -4439,6 +4455,11 @@
       // ล้าง bottom nav
       const nav = document.getElementById('mobile-bottom-nav');
       if (nav) nav.innerHTML = '';
+      // Mobile: กลับหน้า login ของ mobile
+      if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+        document.getElementById('m-page-main').style.display = 'none';
+        document.getElementById('m-page-login').style.display = '';
+      }
 
       // ลบข้อมูล user หลังจากซ่อน UI
       currentUser = null;
