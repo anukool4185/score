@@ -14022,50 +14022,31 @@
   }
 
   // เมื่อกดบน mobile → แสดง desktop-root ชั่วคราว แล้วเรียก desktop function
-  function mShowDesktopPageTemp(fn) {
-    // สลับไป desktop-root ชั่วคราวเพื่อแสดงหน้าที่ต้องการ
-    document.getElementById('desktop-root').style.display = '';
-    document.getElementById('mobile-root').style.display = 'none';
-    if (typeof fn === 'function') fn();
-    // เพิ่มปุ่มกลับไปหน้าโมบาย
-    var backBtn = document.createElement('button');
-    backBtn.textContent = '← กลับหน้าโมบาย';
-    backBtn.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:#1e3a5f;color:white;border:none;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
-    backBtn.onclick = function() {
-      document.getElementById('desktop-root').style.display = 'none';
-      document.getElementById('mobile-root').style.display = '';
-      backBtn.remove();
-      // กลับหน้า login ของ mobile
-      document.getElementById('m-page-login').style.display = '';
-      document.getElementById('m-page-main').style.display = 'none';
+  // ── Mobile wrappers ──
+  document.addEventListener('DOMContentLoaded', function() {
+    var _orig_register = window.showRegisterPage;
+    var _orig_evaluators = window.goToEvaluatorsListPage;
+    var _orig_evalpage = window.goToPublicEvaluationPage;
+
+    window.showRegisterPage = function() {
+      if (!IS_MOBILE) { _orig_register && _orig_register(); return; }
+      mShowRegisterPage();
     };
-    document.body.appendChild(backBtn);
-  }
+    window.goToEvaluatorsListPage = function() {
+      if (!IS_MOBILE) { _orig_evaluators && _orig_evaluators(); return; }
+      mShowEvaluatorsList();
+    };
+    window.goToPublicEvaluationPage = function() {
+      if (!IS_MOBILE) { _orig_evalpage && _orig_evalpage(); return; }
+      mShowPublicEvalPage();
+    };
+  });
+
 
   // Override สำหรับ mobile
   var _origShowRegisterPage = null;
   var _origGoToEvaluatorsListPage = null;
   var _origGoToPublicEvaluationPage = null;
-
-  document.addEventListener('DOMContentLoaded', function() {
-    _origShowRegisterPage = window.showRegisterPage;
-    _origGoToEvaluatorsListPage = window.goToEvaluatorsListPage;
-    _origGoToPublicEvaluationPage = window.goToPublicEvaluationPage;
-
-    window.showRegisterPage = function() {
-      if (IS_MOBILE) { mShowDesktopPageTemp(_origShowRegisterPage); }
-      else { _origShowRegisterPage && _origShowRegisterPage(); }
-    };
-    window.goToEvaluatorsListPage = function() {
-      if (!IS_MOBILE) { _origGoToEvaluatorsListPage && _origGoToEvaluatorsListPage(); return; }
-      // Mobile: แสดง overlay รายชื่อผู้ประเมิน
-      mShowEvaluatorsList();
-    };
-    window.goToPublicEvaluationPage = function() {
-      if (IS_MOBILE) { mShowDesktopPageTemp(_origGoToPublicEvaluationPage); }
-      else { _origGoToPublicEvaluationPage && _origGoToPublicEvaluationPage(); }
-    };
-  });
 
   // ── Mobile Search ── ใช้ข้อมูลเดียวกับ desktop
   function mobileSearchStatus() {
