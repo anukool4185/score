@@ -13483,9 +13483,41 @@
       </div>
 
       <!-- Announcements -->
+      <!-- Mobile Announcements Marquee -->
       <div id="m-login-announcements" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
         <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">📢 ประกาศ</p>
-        <div id="m-announcements-list" style="font-size:11px;color:#94a3b8">ยังไม่มีประกาศ</div>
+        <!-- marquee scroll -->
+        <div style="position:relative;overflow:hidden;border-radius:8px;background:#f8fafc;height:80px;margin-bottom:10px">
+          <div id="m-marquee-band" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:28px;background:rgba(167,130,220,0.15);pointer-events:none;border-radius:4px"></div>
+          <div id="m-marquee-viewport" style="overflow:hidden;height:80px">
+            <div id="m-marquee-track-container"></div>
+          </div>
+        </div>
+        <!-- ปุ่มการบ้าน + สถานะอนุมัติ -->
+        <div style="display:flex;gap:8px">
+          <button onclick="mToggleHomework()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer">
+            📝 การบ้านวันนี้
+            <span id="m-today-hw-count" style="background:#dc2626;color:white;font-size:8px;font-weight:700;border-radius:999px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 3px">0</span>
+          </button>
+          <button onclick="mToggleApproved()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;background:#10b981;color:white;border:none;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer">
+            ✅ สถานะอนุมัติ
+            <span id="m-approved-count" style="background:#dc2626;color:white;font-size:8px;font-weight:700;border-radius:999px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 3px">0</span>
+          </button>
+        </div>
+        <!-- homework expand -->
+        <div id="m-hw-section" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <p style="font-size:10px;font-weight:600;color:#d97706;margin:0 0 6px">📝 การบ้านวันนี้</p>
+          <div style="overflow:hidden;border-radius:8px;background:#fffbeb;height:80px">
+            <div id="m-hw-track-container"></div>
+          </div>
+        </div>
+        <!-- approved expand -->
+        <div id="m-approved-section" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <p style="font-size:10px;font-weight:600;color:#059669;margin:0 0 6px">✅ อนุมัติคำขอ กรุณากลับไปลงทะเบียนกับผู้ช่วยแอดมิน</p>
+          <div style="overflow:hidden;border-radius:8px;background:#ecfdf5;height:80px">
+            <div id="m-approved-track-container"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -13532,7 +13564,7 @@
         catch(e) { mShowLoginPage(); }
       } else {
         mShowLoginPage();
-        setTimeout(mRenderAnnouncements, 2000);
+        setTimeout(mobileRenderLoginData, 2000);
       }
     }
   }
@@ -13843,15 +13875,73 @@
       </div>`).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่มีข้อมูลคะแนน</p></div>'}`;
   }
 
-  // ── Announcements on login ──
+  // ── Mobile Marquee Announcements ──
   function mRenderAnnouncements() {
-    var list = (allData||[]).filter(d=>d.type==='announcement');
-    var el = document.getElementById('m-announcements-list');
-    if (!el) return;
-    el.innerHTML = list.length ? list.slice(0,3).map(a=>`<div style="padding:6px 0;border-bottom:1px solid #f1f5f9">
-      <p style="font-size:11px;font-weight:600;color:#1e3a5f;margin:0">${a.title||'ประกาศ'}</p>
-      <p style="font-size:10px;color:#64748b;margin:2px 0 0">${(a.content||'').slice(0,80)}</p>
-    </div>`).join('') : '<p style="font-size:11px;color:#94a3b8;margin:0">ยังไม่มีประกาศ</p>';
+    var announcements = (allData||[]).filter(d=>d.type==='announcement');
+    var container = document.getElementById('m-marquee-track-container');
+    if (!container) return;
+    if (!announcements.length) {
+      container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ยังไม่มีประกาศ</div>';
+      return;
+    }
+    var itemHtml = announcements.map(a=>
+      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        <span style="color:#7c3aed;font-weight:600;margin-right:6px">📢</span>${a.title||'ประกาศ'}
+       </div>`).join('');
+    var totalH = announcements.length * 28;
+    var speed = Math.max(4, announcements.length * 2);
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${speed}s linear infinite">${itemHtml}${itemHtml}</div>`;
+  }
+
+  function mRenderTodayHomework() {
+    var today = new Date().toLocaleDateString('th-TH');
+    var hws = (allData||[]).filter(d=>d.type==='homework');
+    var count = hws.length;
+    var el = document.getElementById('m-today-hw-count');
+    if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
+    var container = document.getElementById('m-hw-track-container');
+    if (!container) return;
+    if (!hws.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ไม่มีการบ้านวันนี้</div>'; return; }
+    var itemHtml = hws.map(h=>
+      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#92400e;white-space:nowrap">
+        📝 ${h.title||'การบ้าน'} — ${h.subject_name||''}
+       </div>`).join('');
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,hws.length*2)}s linear infinite">${itemHtml}${itemHtml}</div>`;
+  }
+
+  function mRenderApprovedRequests() {
+    var approved = (allData||[]).filter(d=>d.type==='registration_request'&&d.status==='approved');
+    var count = approved.length;
+    var el = document.getElementById('m-approved-count');
+    if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
+    var container = document.getElementById('m-approved-track-container');
+    if (!container) return;
+    if (!approved.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8">ไม่มีคำขออนุมัติ</div>'; return; }
+    var itemHtml = approved.map(r=>
+      `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#065f46;white-space:nowrap">
+        ✅ ${r.student_id||''} อนุมัติแล้ว กรุณาลงทะเบียนกับผู้ช่วยแอดมิน
+       </div>`).join('');
+    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,approved.length*2)}s linear infinite">${itemHtml}${itemHtml}</div>`;
+  }
+
+  function mToggleHomework() {
+    var s = document.getElementById('m-hw-section');
+    if (!s) return;
+    s.style.display = s.style.display === 'none' ? 'block' : 'none';
+    if (s.style.display !== 'none') mRenderTodayHomework();
+  }
+
+  function mToggleApproved() {
+    var s = document.getElementById('m-approved-section');
+    if (!s) return;
+    s.style.display = s.style.display === 'none' ? 'block' : 'none';
+    if (s.style.display !== 'none') mRenderApprovedRequests();
+  }
+
+  function mobileRenderLoginData() {
+    mRenderAnnouncements();
+    mRenderTodayHomework();
+    mRenderApprovedRequests();
   }
 
   // ── Mobile Search Status ──
@@ -13881,7 +13971,9 @@
         dataSdk._handler.onDataChanged = function(data) {
           orig(data);
           if (IS_MOBILE && document.getElementById('m-page-main')?.style.display !== 'none') {
-            mRenderAnnouncements();
+            mobileRenderLoginData();
+          } else if (IS_MOBILE) {
+            mobileRenderLoginData();
           }
         };
       }
