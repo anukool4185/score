@@ -2150,6 +2150,10 @@
     const dataHandler = {
       onDataChanged(data) {
         allData = data;
+        // Mobile: render login data ทันทีเมื่อ data มาถึง
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mobileRenderLoginData === 'function') {
+          mobileRenderLoginData();
+        }
         // อัปเดตจำนวนแจ้งเตือนกระดิ่งแบบสด (เป็นแค่ตัวเลข+รายการอ่านอย่างเดียว ไม่มีฟอร์มให้กรอก จึงอัปเดตสดได้ปลอดภัย)
         renderNotificationBells();
         // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
@@ -13447,42 +13451,6 @@
         <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
       </div>
 
-      <!-- Login Card -->
-      <div style="background:white;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:12px">
-        <form onsubmit="handleLogin(event)">
-          <!-- Username + Password แถวเดียว -->
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <div style="flex:1">
-              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">👤 Username</label>
-              <input type="text" id="m-login-username" placeholder="username" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
-            </div>
-            <div style="flex:1">
-              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">🔐 Password</label>
-              <input type="password" id="m-login-password" placeholder="password" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
-            </div>
-          </div>
-          <p id="m-login-error" style="display:none;color:#dc2626;font-size:11px;margin-bottom:8px"></p>
-          <!-- 4 ปุ่ม แถวเดียว flex:1 เท่ากัน -->
-          <div style="display:flex;gap:6px">
-            <button type="submit" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#4da6e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">✅<br>เข้าสู่ระบบ</button>
-            <button type="button" onclick="showRegisterPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#d1d5db;color:#374151;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📋<br>ขอใช้ระบบ</button>
-            <button type="button" onclick="goToEvaluatorsListPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#a87ee8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">👨‍💼<br>ผู้ประเมิน</button>
-            <button type="button" onclick="goToPublicEvaluationPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#6888e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📝<br>ประเมินครู</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- Search Status -->
-      <div id="m-login-search" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:12px">
-        <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">🔍 ค้นหาสถานะ</p>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="m-search-input" placeholder="รหัส/ชื่อ/นามสกุล" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:11px;outline:none">
-          <button onclick="mobileSearchStatus()" style="padding:8px 12px;background:#4da6e8;color:white;border:none;border-radius:10px;font-size:11px;cursor:pointer">ค้นหา</button>
-        </div>
-        <div id="m-search-result" style="margin-top:8px;font-size:11px"></div>
-      </div>
-
-      <!-- Announcements -->
       <!-- Mobile Announcements Marquee -->
       <div id="m-login-announcements" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
         <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">📢 ประกาศ</p>
@@ -13520,6 +13488,45 @@
         </div>
       </div>
     </div>
+
+
+
+      <!-- Login Card -->
+      <div style="background:white;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:12px">
+        <form onsubmit="handleLogin(event)">
+          <!-- Username + Password แถวเดียว -->
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <div style="flex:1">
+              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">👤 Username</label>
+              <input type="text" id="m-login-username" placeholder="username" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">🔐 Password</label>
+              <input type="password" id="m-login-password" placeholder="password" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+            </div>
+          </div>
+          <p id="m-login-error" style="display:none;color:#dc2626;font-size:11px;margin-bottom:8px"></p>
+          <!-- 4 ปุ่ม แถวเดียว flex:1 เท่ากัน -->
+          <div style="display:flex;gap:6px">
+            <button type="submit" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#4da6e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">✅<br>เข้าสู่ระบบ</button>
+            <button type="button" onclick="showRegisterPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#d1d5db;color:#374151;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📋<br>ขอใช้ระบบ</button>
+            <button type="button" onclick="goToEvaluatorsListPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#a87ee8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">👨‍💼<br>ผู้ประเมิน</button>
+            <button type="button" onclick="goToPublicEvaluationPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#6888e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📝<br>ประเมินครู</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Search Status -->
+      <div id="m-login-search" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:12px">
+        <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">🔍 ค้นหาสถานะ</p>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="m-search-input" placeholder="รหัส/ชื่อ/นามสกุล" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:11px;outline:none">
+          <button onclick="mobileSearchStatus()" style="padding:8px 12px;background:#4da6e8;color:white;border:none;border-radius:10px;font-size:11px;cursor:pointer">ค้นหา</button>
+        </div>
+        <div id="m-search-result" style="margin-top:8px;font-size:11px"></div>
+      </div>
+
+      <!-- Announcements -->
 
     <!-- Mobile Main App (after login) -->
     <div id="m-page-main" style="display:none;height:100vh;overflow:hidden;display:flex;flex-direction:column">
