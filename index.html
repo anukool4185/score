@@ -551,6 +551,14 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
+  <script>
+    (function() {
+      var isMob = window.innerWidth <= 640 || /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      var s = document.createElement('style');
+      s.textContent = isMob ? '#desktop-root{display:none!important}' : '#mobile-root{display:none!important}';
+      document.head.appendChild(s);
+    })();
+  </script>
  </head>
  <body class="h-full bg-gray-100 overflow-auto">
   <script>
@@ -584,7 +592,7 @@
     document.addEventListener('DOMContentLoaded', applyMobile);
   })();
   </script>
-  <div id="desktop-root">
+  <div id="desktop-root" style="display:none">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
     <!-- แถบปุ่มบนสุด: กระดิ่ง 3 ใบ (ซ้าย) + ปุ่มปิด × (ขวา) ระดับเดียวกัน -->
@@ -13555,7 +13563,7 @@
   // Route to correct root on load
   function routeDevice() {
     IS_MOBILE = window.innerWidth <= 640 || /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    document.getElementById('desktop-root').style.display = IS_MOBILE ? 'none' : '';
+    document.getElementById('desktop-root').style.display = IS_MOBILE ? 'none' : 'block';
     document.getElementById('mobile-root').style.display = IS_MOBILE ? '' : 'none';
     if (IS_MOBILE) {
       // Restore session if logged in
@@ -13954,7 +13962,65 @@
     mRenderApprovedRequests();
   }
 
-  // ── Mobile wrappers สำหรับปุ่ม login page ──
+  function mShowEvaluatorsList() {
+    // ลบ overlay เก่าถ้ามี
+    var old = document.getElementById('m-evaluators-overlay');
+    if (old) old.remove();
+
+    var levels = (allData||[]).filter(d=>d.type==='evaluation_level');
+    var levelValueMap = {};
+    levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
+    var maxLevel = levels.length > 0 ? Math.max(...levels.map(l=>l.percent_value||0)) : 0;
+
+    var submissions = (allData||[]).filter(d=>d.type==='evaluation_submission')
+      .sort((a,b) => new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at));
+
+    var typeBadge = function(t) {
+      if (t==='committee') return '<span style="background:#ede9fe;color:#7c3aed;font-size:9px;padding:2px 6px;border-radius:999px">กรรมการนิเทศ</span>';
+      if (t==='student')   return '<span style="background:#dbeafe;color:#1d4ed8;font-size:9px;padding:2px 6px;border-radius:999px">นักเรียน</span>';
+      return '<span style="background:#f1f5f9;color:#64748b;font-size:9px;padding:2px 6px;border-radius:999px">บุคคลทั่วไป</span>';
+    };
+
+    var cardsHtml = submissions.length === 0
+      ? '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:30px 0">ยังไม่มีผู้ประเมินการสอน</p>'
+      : submissions.map((sub,i) => {
+          var ratings = [];
+          try { ratings = JSON.parse(sub.ratings_json||'[]'); } catch(e) {}
+          var rawVals = ratings.map(r=>levelValueMap[r.level_id]).filter(v=>v!==undefined);
+          var avg = rawVals.length > 0 ? rawVals.reduce((a,b)=>a+b,0)/rawVals.length : null;
+          var pct = (avg!==null && maxLevel>0) ? ((avg/maxLevel)*100).toFixed(1)+'%' : '-';
+          var dateStr = sub.updated_at||sub.created_at;
+          var dateDisplay = dateStr ? new Date(dateStr).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'}) : '-';
+          var scoreColor = avg===null ? '#94a3b8' : avg/maxLevel>=0.8 ? '#16a34a' : avg/maxLevel>=0.6 ? '#d97706' : '#dc2626';
+          return `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <div>
+                <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0">${i+1}. ${sub.evaluator_name||'-'}</p>
+                <div style="margin-top:4px">${typeBadge(sub.evaluator_type)}</div>
+                <p style="font-size:10px;color:#94a3b8;margin:4px 0 0">${dateDisplay}</p>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <p style="font-size:18px;font-weight:700;color:${scoreColor};margin:0">${pct}</p>
+                <p style="font-size:9px;color:#94a3b8;margin:2px 0 0">คะแนนเฉลี่ย</p>
+              </div>
+            </div>
+          </div>`;}).join('');
+
+    var overlay = document.createElement('div');
+    overlay.id = 'm-evaluators-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#edf2f8;display:flex;flex-direction:column;overflow:hidden';
+    overlay.innerHTML = `
+      <div style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <button onclick="document.getElementById('m-evaluators-overlay').remove()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer">← กลับ</button>
+        <div>
+          <p style="font-size:13px;font-weight:700;margin:0">👥 รายชื่อผู้ประเมิน</p>
+          <p style="font-size:10px;opacity:0.7;margin:0">ทั้งหมด ${submissions.length} คน</p>
+        </div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:12px">${cardsHtml}</div>`;
+    document.body.appendChild(overlay);
+  }
+
   // เมื่อกดบน mobile → แสดง desktop-root ชั่วคราว แล้วเรียก desktop function
   function mShowDesktopPageTemp(fn) {
     // สลับไป desktop-root ชั่วคราวเพื่อแสดงหน้าที่ต้องการ
@@ -13991,8 +14057,9 @@
       else { _origShowRegisterPage && _origShowRegisterPage(); }
     };
     window.goToEvaluatorsListPage = function() {
-      if (IS_MOBILE) { mShowDesktopPageTemp(_origGoToEvaluatorsListPage); }
-      else { _origGoToEvaluatorsListPage && _origGoToEvaluatorsListPage(); }
+      if (!IS_MOBILE) { _origGoToEvaluatorsListPage && _origGoToEvaluatorsListPage(); return; }
+      // Mobile: แสดง overlay รายชื่อผู้ประเมิน
+      mShowEvaluatorsList();
     };
     window.goToPublicEvaluationPage = function() {
       if (IS_MOBILE) { mShowDesktopPageTemp(_origGoToPublicEvaluationPage); }
