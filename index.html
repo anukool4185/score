@@ -584,6 +584,7 @@
     document.addEventListener('DOMContentLoaded', applyMobile);
   })();
   </script>
+  <div id="desktop-root">
   <div id="auth-container" class="h-full">
    <div id="page-login" class="h-full overflow-auto">
     <!-- แถบปุ่มบนสุด: กระดิ่ง 3 ใบ (ซ้าย) + ปุ่มปิด × (ขวา) ระดับเดียวกัน -->
@@ -734,7 +735,7 @@
          <button type="submit" class="w-full btn-primary text-white px-6 py-3 rounded-xl font-medium hover:shadow-lg transition mb-3">✅ เข้าสู่ระบบ</button>
         </div>
         <!-- Mobile: 4 ปุ่ม แถวเดียว เท่ากัน -->
-        <div class="sm:hidden" style="display:flex;gap:6px;margin-top:6px">
+        <div class="flex sm:hidden" style="gap:6px;margin-top:6px">
          <button type="submit" style="flex:1;min-width:0;white-space:normal;text-align:center;font-size:9px;padding:8px 2px;line-height:1.3" class="btn-primary text-white rounded-xl font-medium transition">✅<br>เข้าสู่ระบบ</button>
          <button type="button" onclick="showRegisterPage()" style="flex:1;min-width:0;white-space:normal;text-align:center;font-size:9px;padding:8px 2px;line-height:1.3" class="bg-gray-300 text-gray-700 rounded-xl font-medium transition">📋<br>ขอใช้ระบบ</button>
          <button type="button" onclick="goToEvaluatorsListPage()" style="flex:1;min-width:0;white-space:normal;text-align:center;font-size:9px;padding:8px 2px;line-height:1.3" class="bg-purple-500 text-white rounded-xl font-medium transition">👨‍💼<br>ผู้ประเมิน</button>
@@ -13391,6 +13392,496 @@
     (map[tab]||[]).forEach(id => document.getElementById(id)?.classList.add('active-nav'));
   }
   window.addEventListener('resize', buildMobileNav);
+  </script>
+
+  <!-- ========== MOBILE ROOT ========== -->
+  </div><!-- /desktop-root -->
+  <div id="mobile-root" style="display:none;height:100vh;overflow:hidden;background:#edf2f8;font-family:inherit;position:relative">
+
+    <!-- Mobile Login Page -->
+    <div id="m-page-login" style="height:100vh;overflow-y:auto;padding:16px;padding-bottom:24px">
+      <!-- Bells floating top-right -->
+      <div style="position:fixed;top:10px;right:10px;z-index:999;display:flex;gap:5px">
+        <button onclick="toggleBellDropdown('applicants')" class="bell-button" style="width:26px;height:26px;border-radius:50%;background:#f97316;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative">
+          🔔<span class="bell-applicants-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;font-size:7px;border-radius:999px;min-width:12px;height:12px;align-items:center;justify-content:center;padding:0 2px;font-weight:bold">0</span>
+        </button>
+        <button onclick="toggleBellDropdown('requests')" class="bell-button" style="width:26px;height:26px;border-radius:50%;background:#0ea5e9;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative">
+          🔔<span class="bell-requests-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;font-size:7px;border-radius:999px;min-width:12px;height:12px;align-items:center;justify-content:center;padding:0 2px;font-weight:bold">0</span>
+        </button>
+        <button onclick="toggleBellDropdown('registrations')" class="bell-button" style="width:26px;height:26px;border-radius:50%;background:#22c55e;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative">
+          🔔<span class="bell-registrations-count" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;font-size:7px;border-radius:999px;min-width:12px;height:12px;align-items:center;justify-content:center;padding:0 2px;font-weight:bold">0</span>
+        </button>
+      </div>
+
+      <!-- Logo & Title -->
+      <div style="text-align:center;padding-top:40px;padding-bottom:20px">
+        <div style="font-size:40px;margin-bottom:8px">📊</div>
+        <h1 style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0">KPAC Score</h1>
+        <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
+      </div>
+
+      <!-- Login Card -->
+      <div style="background:white;border-radius:16px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.1);margin-bottom:12px">
+        <form onsubmit="handleLogin(event)">
+          <!-- Username + Password แถวเดียว -->
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <div style="flex:1">
+              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">👤 Username</label>
+              <input type="text" id="m-login-username" placeholder="username" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">🔐 Password</label>
+              <input type="password" id="m-login-password" placeholder="password" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+            </div>
+          </div>
+          <p id="m-login-error" style="display:none;color:#dc2626;font-size:11px;margin-bottom:8px"></p>
+          <!-- 4 ปุ่ม แถวเดียว flex:1 เท่ากัน -->
+          <div style="display:flex;gap:6px">
+            <button type="submit" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#4da6e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">✅<br>เข้าสู่ระบบ</button>
+            <button type="button" onclick="showRegisterPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#d1d5db;color:#374151;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📋<br>ขอใช้ระบบ</button>
+            <button type="button" onclick="goToEvaluatorsListPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#a87ee8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">👨‍💼<br>ผู้ประเมิน</button>
+            <button type="button" onclick="goToPublicEvaluationPage()" style="flex:1;padding:10px 2px;border:none;border-radius:10px;background:#6888e8;color:white;font-size:10px;font-weight:600;cursor:pointer;white-space:normal;text-align:center;line-height:1.3">📝<br>ประเมินครู</button>
+          </div>
+        </form>
+       <!-- Desktop: ปุ่มขอใช้ระบบ + ผู้ประเมิน -->
+       <div class="hidden sm:block mt-3">
+        <button onclick="showRegisterPage()" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-xl font-medium transition mb-4">📋 ขอใช้ระบบเก็บคะแนน/ตัดเกรด</button>
+        <div class="grid grid-cols-2 gap-3">
+         <button onclick="goToEvaluatorsListPage()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-xl font-medium transition">👨‍💼 รายชื่อผู้ประเมิน</button>
+         <button onclick="goToPublicEvaluationPage()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-3 rounded-xl font-medium transition">📝 ประเมินครูผู้สอน</button>
+        </div>
+       </div>
+      </div>
+
+      <!-- Search Status -->
+      <div id="m-login-search" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:12px">
+        <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">🔍 ค้นหาสถานะ</p>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="m-search-input" placeholder="รหัส/ชื่อ/นามสกุล" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:11px;outline:none">
+          <button onclick="mobileSearchStatus()" style="padding:8px 12px;background:#4da6e8;color:white;border:none;border-radius:10px;font-size:11px;cursor:pointer">ค้นหา</button>
+        </div>
+        <div id="m-search-result" style="margin-top:8px;font-size:11px"></div>
+      </div>
+
+      <!-- Announcements -->
+      <div id="m-login-announcements" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+        <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">📢 ประกาศ</p>
+        <div id="m-announcements-list" style="font-size:11px;color:#94a3b8">ยังไม่มีประกาศ</div>
+      </div>
+    </div>
+
+    <!-- Mobile Main App (after login) -->
+    <div id="m-page-main" style="display:none;height:100vh;overflow:hidden;display:flex;flex-direction:column">
+      <!-- Header bar -->
+      <div id="m-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+        <div>
+          <p id="m-header-title" style="font-size:13px;font-weight:700;margin:0">KPAC Score</p>
+          <p id="m-header-user" style="font-size:10px;opacity:0.7;margin:0"></p>
+        </div>
+        <button onclick="handleLogout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:10px;cursor:pointer">🚪 ออก</button>
+      </div>
+
+      <!-- Scrollable content area -->
+      <div id="m-content" style="flex:1;overflow-y:auto;padding:12px;padding-bottom:72px"></div>
+
+      <!-- Bottom Nav -->
+      <div id="m-bottom-nav" style="position:fixed;bottom:0;left:0;right:0;height:60px;background:linear-gradient(135deg,#1e3a5f,#2d5a87);display:flex;align-items:center;z-index:100;overflow-x:auto;scrollbar-width:none"></div>
+    </div>
+
+    <!-- Mobile Sub-tab Tray -->
+    <div id="m-tray-backdrop" onclick="mCloseTray()" style="display:none;position:fixed;inset:0;z-index:998"></div>
+    <div id="m-tray" style="display:none;position:fixed;bottom:64px;left:0;right:0;z-index:999;padding:0 12px;justify-content:center">
+      <div id="m-tray-inner" style="background:#0f2a4a;border:1px solid rgba(255,255,255,0.2);border-radius:16px;padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:340px;box-shadow:0 -4px 20px rgba(0,0,0,0.4)"></div>
+    </div>
+  </div>
+  <!-- /mobile-root -->
+
+  <script>
+  // ==================== MOBILE SYSTEM ====================
+  var IS_MOBILE = window.innerWidth <= 640 || /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Route to correct root on load
+  function routeDevice() {
+    IS_MOBILE = window.innerWidth <= 640 || /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    document.getElementById('desktop-root').style.display = IS_MOBILE ? 'none' : '';
+    document.getElementById('mobile-root').style.display = IS_MOBILE ? '' : 'none';
+    if (IS_MOBILE) {
+      // Restore session if logged in
+      var saved = localStorage.getItem('currentUser');
+      if (saved) {
+        try { currentUser = JSON.parse(saved); mobileAfterLogin(); }
+        catch(e) { mShowLoginPage(); }
+      } else {
+        mShowLoginPage();
+        setTimeout(mRenderAnnouncements, 2000);
+      }
+    }
+  }
+  document.addEventListener('DOMContentLoaded', routeDevice);
+  window.addEventListener('resize', function() {
+    var wasMobile = IS_MOBILE;
+    IS_MOBILE = window.innerWidth <= 640;
+    if (wasMobile !== IS_MOBILE) routeDevice();
+  });
+
+  // ── Login (Mobile) ──
+  function mShowLoginPage() {
+    document.getElementById('m-page-login').style.display = '';
+    document.getElementById('m-page-main').style.display = 'none';
+  }
+
+  function mobileAfterLogin() {
+    document.getElementById('m-page-login').style.display = 'none';
+    var main = document.getElementById('m-page-main');
+    main.style.display = 'flex';
+    // Header
+    var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : '🎓 นักเรียน';
+    document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
+    document.getElementById('m-header-user').textContent = (currentUser.prefix||'') + (currentUser.first_name||currentUser.username||'');
+    mBuildNav();
+    mShowSection('home');
+  }
+
+  // Override handleLogin to detect mobile
+  var _origHandleLogin = null;
+  document.addEventListener('DOMContentLoaded', function() {
+    var mForm = document.querySelector('#m-page-login form');
+    if (mForm) {
+      mForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        // Copy values to desktop inputs so handleLogin can read them
+        var un = document.getElementById('m-login-username').value;
+        var pw = document.getElementById('m-login-password').value;
+        var desktopUn = document.getElementById('login-username');
+        var desktopPw = document.getElementById('login-password');
+        if (desktopUn) desktopUn.value = un;
+        if (desktopPw) desktopPw.value = pw;
+        // Trigger desktop login
+        handleLogin(e);
+      });
+    }
+  });
+
+  // Hook into handleLogin success for mobile
+  var _mOrigShowPage = null;
+  function mHookLoginSuccess() {
+    // Called by routeDevice after session restore
+    // For login form submit, we intercept showPage()
+  }
+
+  // ── Navigation ──
+  var M_NAV_SUBTABS = {
+    'mn-stu': [{icon:'👥',label:'นักเรียน',fn:"mShowSection('students')"},
+               {icon:'📋',label:'ลงทะเบียน',fn:"mShowSection('enrollments')"}],
+    'mn-score': [{icon:'📊',label:'คะแนนเต็ม',fn:"mShowSection('scores')"},
+                 {icon:'📤',label:'อัพโหลด',fn:"mShowSection('uploadscore')"}],
+    'mn-hw':   [{icon:'📝',label:'การบ้าน',fn:"mShowSection('homework')"},
+                {icon:'⏱️',label:'ลงเวลา',fn:"mShowSection('timekeeping')"},
+                {icon:'🎓',label:'ให้คะแนน',fn:"mShowSection('grading')"}],
+    'mn-report':[{icon:'📑',label:'เกรด',fn:"mShowSection('gradereport')"},
+                 {icon:'📋',label:'ประเมิน',fn:"mShowSection('evaltopics')"}],
+    'mn-sa-hw': [{icon:'📝',label:'การบ้าน',fn:"mShowSection('sa_homework')"}],
+    'mn-sa-stu':[{icon:'👥',label:'นักเรียน',fn:"mShowSection('sa_students')"}],
+    'mn-sa-gr': [{icon:'🎓',label:'คะแนน',fn:"mShowSection('sa_grading')"}],
+  };
+  var _mActiveTray = null;
+
+  function mBuildNav() {
+    var nav = document.getElementById('m-bottom-nav');
+    if (!nav || !currentUser) return;
+    var type = currentUser.user_type;
+    var btns = [];
+    if (type === 'admin') {
+      btns = [
+        {id:'mn-stu',   icon:'👥', label:'นักเรียน'},
+        {id:'mn-score', icon:'📊', label:'คะแนน'},
+        {id:'mn-hw',    icon:'📝', label:'กิจกรรม'},
+        {id:'mn-report',icon:'📑', label:'รายงาน'},
+        {id:'mn-up',    icon:'📤', label:'อัพโหลด', fn:"mShowSection('uploadscore')"},
+      ];
+    } else if (type === 'subadmin') {
+      btns = [
+        {id:'mn-sa-hw',  icon:'📝', label:'การบ้าน'},
+        {id:'mn-sa-stu', icon:'👥', label:'นักเรียน'},
+        {id:'mn-sa-gr',  icon:'🎓', label:'คะแนน'},
+      ];
+    } else {
+      btns = [
+        {id:'mn-reg',   icon:'📋', label:'ลงทะเบียน', fn:"mShowSection('my_register')"},
+        {id:'mn-hw',    icon:'📝', label:'การบ้าน',   fn:"mShowSection('my_homework')"},
+        {id:'mn-grade', icon:'📊', label:'คะแนน',    fn:"mShowSection('my_grades')"},
+      ];
+    }
+    nav.innerHTML = btns.map(b => `
+      <button id="${b.id}" onclick="${b.fn ? b.fn : "mOpenTray('"+b.id+"')"}"
+        style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:rgba(255,255,255,0.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
+        <span style="font-size:20px;line-height:1">${b.icon}</span>
+        <span>${b.label}</span>
+      </button>`).join('') +
+      `<button onclick="handleLogout()" style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:rgba(255,120,120,0.8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
+        <span style="font-size:20px;line-height:1">🚪</span><span>ออก</span>
+      </button>`;
+  }
+
+  function mOpenTray(navId) {
+    var items = M_NAV_SUBTABS[navId] || [];
+    var tray = document.getElementById('m-tray');
+    var inner = document.getElementById('m-tray-inner');
+    var bd = document.getElementById('m-tray-backdrop');
+    if (_mActiveTray === navId && tray.style.display !== 'none') { mCloseTray(); return; }
+    _mActiveTray = navId;
+    inner.innerHTML = items.map(item =>
+      `<button onclick="mCloseTray();${item.fn}" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;color:rgba(255,255,255,0.85);font-size:7px;padding:7px 10px;cursor:pointer;min-width:48px">
+        <span style="font-size:20px">${item.icon}</span><span>${item.label}</span>
+       </button>`).join('');
+    tray.style.display = 'flex';
+    bd.style.display = 'block';
+  }
+  function mCloseTray() {
+    _mActiveTray = null;
+    document.getElementById('m-tray').style.display = 'none';
+    document.getElementById('m-tray-backdrop').style.display = 'none';
+  }
+
+  // ── Section Renderer ──
+  function mShowSection(section) {
+    mCloseTray();
+    var content = document.getElementById('m-content');
+    if (!content) return;
+    content.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8"><div style="font-size:30px;margin-bottom:8px">⏳</div><p style="font-size:12px">กำลังโหลด...</p></div>';
+    switch(section) {
+      case 'home':        mRenderHome(); break;
+      case 'students':    mRenderStudents(); break;
+      case 'enrollments': mRenderEnrollments(); break;
+      case 'scores':      mRenderScoreSettings(); break;
+      case 'uploadscore': mRenderUploadScore(); break;
+      case 'homework':    mRenderHomework(); break;
+      case 'gradereport': mRenderGradeReport(); break;
+      case 'sa_students': mRenderSaStudents(); break;
+      case 'sa_grading':  mRenderSaGrading(); break;
+      case 'my_register': mRenderMyRegister(); break;
+      case 'my_grades':   mRenderMyGrades(); break;
+      default: content.innerHTML = '<p style="padding:20px;font-size:12px;color:#64748b">หน้า: ' + section + ' (กำลังพัฒนา)</p>';
+    }
+  }
+
+  // ── HOME Dashboard ──
+  function mRenderHome() {
+    var c = document.getElementById('m-content');
+    var type = currentUser?.user_type;
+    var students = (allData||[]).filter(d=>d.type==='student');
+    var regs = (allData||[]).filter(d=>d.type==='student_registration');
+    var pending = (allData||[]).filter(d=>d.type==='kpac_request'&&d.status==='pending');
+    var announcements = (allData||[]).filter(d=>d.type==='announcement').slice(0,3);
+
+    var cards = [];
+    if (type === 'admin' || type === 'subadmin') {
+      cards = [
+        {color:'#4da6e8',icon:'👥',label:'นักเรียนทั้งหมด',value:students.length,fn:"mShowSection('students')"},
+        {color:'#48c87a',icon:'📚',label:'ลงทะเบียนแล้ว',value:regs.length,fn:"mShowSection('enrollments')"},
+        {color:'#f0b040',icon:'⏳',label:'คำขอรอดำเนินการ',value:pending.length,fn:"mShowSection('students')"},
+        {color:'#a87ee8',icon:'📝',label:'การบ้าน',value:(allData||[]).filter(d=>d.type==='homework').length,fn:"mShowSection('homework')"},
+      ];
+    } else {
+      var myRegs = regs.filter(r=>r.student_id===currentUser?.student_id);
+      cards = [
+        {color:'#4da6e8',icon:'📚',label:'วิชาที่ลงทะเบียน',value:myRegs.length,fn:"mShowSection('my_register')"},
+        {color:'#48c87a',icon:'📊',label:'คะแนน',value:'-',fn:"mShowSection('my_grades')"},
+        {color:'#f0b040',icon:'📝',label:'การบ้าน',value:(allData||[]).filter(d=>d.type==='homework').length,fn:"mShowSection('my_homework')"},
+      ];
+    }
+
+    c.innerHTML = `
+      <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 ภาพรวม</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        ${cards.map(card=>`
+          <button onclick="${card.fn}" style="background:${card.color};border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15)">
+            <div style="font-size:22px;margin-bottom:6px">${card.icon}</div>
+            <div style="font-size:20px;font-weight:700;color:white;line-height:1">${card.value}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.85);margin-top:3px">${card.label}</div>
+          </button>`).join('')}
+      </div>
+      ${announcements.length ? `
+      <h3 style="font-size:12px;font-weight:700;color:#475569;margin:0 0 8px">📢 ประกาศล่าสุด</h3>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${announcements.map(a=>`
+          <div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0 0 4px">${a.title||'ประกาศ'}</p>
+            <p style="font-size:11px;color:#64748b;margin:0">${(a.content||'').slice(0,60)}${(a.content||'').length>60?'...':''}</p>
+          </div>`).join('')}
+      </div>` : ''}`;
+  }
+
+  // ── Students List ──
+  function mRenderStudents() {
+    var c = document.getElementById('m-content');
+    var students = (allData||[]).filter(d=>d.type==='student');
+    var regs = (allData||[]).filter(d=>d.type==='student_registration');
+    c.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0">👥 นักเรียน (${students.length})</h2>
+        <input oninput="mFilterStudents(this.value)" placeholder="🔍 ค้นหา" style="padding:6px 10px;border:2px solid #e2e8f0;border-radius:8px;font-size:11px;width:120px;outline:none">
+      </div>
+      <div id="m-students-list" style="display:flex;flex-direction:column;gap:8px">
+        ${students.slice(0,50).map(s=>{
+          var reg = regs.find(r=>r.student_id===s.student_id);
+          return `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:${reg?'#48c87a':'#e2e8f0'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${reg?'✅':'⏳'}</div>
+            <div style="flex:1;min-width:0">
+              <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</p>
+              <p style="font-size:10px;color:#64748b;margin:2px 0 0">${s.student_id} · ${s.class_name||'?'}/${s.room_number||'?'}</p>
+            </div>
+            <span style="font-size:10px;color:${reg?'#22c55e':'#94a3b8'};white-space:nowrap">${reg?'ลงทะเบียนแล้ว':'ยังไม่ลง'}</span>
+          </div>`;}).join('')}
+        ${students.length > 50 ? '<p style="text-align:center;font-size:11px;color:#94a3b8;padding:8px">...และอีก '+(students.length-50)+' คน (ใช้ช่องค้นหา)</p>' : ''}
+      </div>`;
+  }
+
+  function mFilterStudents(q) {
+    var regs = (allData||[]).filter(d=>d.type==='student_registration');
+    var filtered = (allData||[]).filter(d=>d.type==='student' && (
+      !q || d.student_id.includes(q) || (d.first_name||'').includes(q) || (d.last_name||'').includes(q)));
+    document.getElementById('m-students-list').innerHTML = filtered.slice(0,50).map(s=>{
+      var reg = regs.find(r=>r.student_id===s.student_id);
+      return `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:${reg?'#48c87a':'#e2e8f0'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">${reg?'✅':'⏳'}</div>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</p>
+          <p style="font-size:10px;color:#64748b;margin:2px 0 0">${s.student_id} · ${s.class_name||'?'}/${s.room_number||'?'}</p>
+        </div>
+        <span style="font-size:10px;color:${reg?'#22c55e':'#94a3b8'}">${reg?'ลงทะเบียนแล้ว':'ยังไม่ลง'}</span>
+      </div>`;}).join('') || '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:20px">ไม่พบ</p>';
+  }
+
+  // ── Enrollment List ──
+  function mRenderEnrollments() {
+    var c = document.getElementById('m-content');
+    var regs = (allData||[]).filter(d=>d.type==='student_registration');
+    c.innerHTML = `
+      <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📚 ลงทะเบียนแล้ว (${regs.length})</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${regs.slice(0,60).map(r=>{
+          var s = (allData||[]).find(d=>d.type==='student'&&d.student_id===r.student_id);
+          return `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0">${s?s.prefix+s.first_name+' '+s.last_name:r.student_id}</p>
+                <p style="font-size:10px;color:#64748b;margin:2px 0 0">${r.subject_name||'?'} · ${r.class_name||'?'}</p>
+              </div>
+              <span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:3px 8px;border-radius:999px">✅ ลงทะเบียน</span>
+            </div>
+          </div>`;}).join('')}
+      </div>`;
+  }
+
+  // ── Score Settings placeholder ──
+  function mRenderScoreSettings() {
+    document.getElementById('m-content').innerHTML = '<div style="padding:20px;text-align:center"><p style="font-size:24px;margin:0 0 8px">📊</p><p style="font-size:12px;color:#64748b">กรุณาใช้งานฝั่งคอมพิวเตอร์สำหรับจัดการคะแนนเต็ม</p></div>';
+  }
+  function mRenderUploadScore() {
+    document.getElementById('m-content').innerHTML = '<div style="padding:20px;text-align:center"><p style="font-size:24px;margin:0 0 8px">📤</p><p style="font-size:12px;color:#64748b">กรุณาใช้งานฝั่งคอมพิวเตอร์สำหรับอัพโหลดคะแนน</p></div>';
+  }
+  function mRenderHomework() {
+    var c = document.getElementById('m-content');
+    var hws = (allData||[]).filter(d=>d.type==='homework').slice(0,20);
+    c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📝 การบ้าน</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${hws.length ? hws.map(h=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+          <p style="font-size:12px;font-weight:600;color:#1e3a5f;margin:0">${h.title||'การบ้าน'}</p>
+          <p style="font-size:10px;color:#64748b;margin:3px 0 0">${h.subject_name||''} · ${h.due_date||''}</p>
+        </div>`).join('') : '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:20px">ไม่มีการบ้าน</p>'}
+      </div>`;
+  }
+  function mRenderGradeReport() {
+    document.getElementById('m-content').innerHTML = '<div style="padding:20px;text-align:center"><p style="font-size:24px;margin:0 0 8px">📑</p><p style="font-size:12px;color:#64748b">กรุณาใช้งานฝั่งคอมพิวเตอร์สำหรับรายงานเกรด</p></div>';
+  }
+  function mRenderSaStudents() {
+    mRenderStudents();
+  }
+  function mRenderSaGrading() {
+    document.getElementById('m-content').innerHTML = '<div style="padding:20px;text-align:center"><p style="font-size:24px;margin:0 0 8px">🎓</p><p style="font-size:12px;color:#64748b">กรุณาใช้งานฝั่งคอมพิวเตอร์สำหรับให้คะแนน</p></div>';
+  }
+  function mRenderMyRegister() {
+    var c = document.getElementById('m-content');
+    var myRegs = (allData||[]).filter(d=>d.type==='student_registration'&&d.student_id===currentUser?.student_id);
+    c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📚 วิชาที่ลงทะเบียน</h2>
+      ${myRegs.length ? myRegs.map(r=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
+        <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${r.subject_name||'วิชา'}</p>
+        <p style="font-size:10px;color:#64748b;margin:3px 0 0">${r.class_name||''} ${r.room_number||''}</p>
+      </div>`).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่ลงทะเบียนวิชา</p></div>'}`;
+  }
+  function mRenderMyGrades() {
+    var c = document.getElementById('m-content');
+    var grades = (allData||[]).filter(d=>d.type==='grade'&&d.student_id===currentUser?.student_id);
+    c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
+      ${grades.length ? grades.map(g=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
+        <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
+        <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+          ${g.m_scores?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:999px">กลางภาค: ${g.m_scores}</span>`:''}
+          ${g.f_scores?`<span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px">ปลายภาค: ${g.f_scores}</span>`:''}
+          ${g.k_scores?`<span style="font-size:10px;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:999px">K: ${g.k_scores}</span>`:''}
+        </div>
+      </div>`).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่มีข้อมูลคะแนน</p></div>'}`;
+  }
+
+  // ── Announcements on login ──
+  function mRenderAnnouncements() {
+    var list = (allData||[]).filter(d=>d.type==='announcement');
+    var el = document.getElementById('m-announcements-list');
+    if (!el) return;
+    el.innerHTML = list.length ? list.slice(0,3).map(a=>`<div style="padding:6px 0;border-bottom:1px solid #f1f5f9">
+      <p style="font-size:11px;font-weight:600;color:#1e3a5f;margin:0">${a.title||'ประกาศ'}</p>
+      <p style="font-size:10px;color:#64748b;margin:2px 0 0">${(a.content||'').slice(0,80)}</p>
+    </div>`).join('') : '<p style="font-size:11px;color:#94a3b8;margin:0">ยังไม่มีประกาศ</p>';
+  }
+
+  // ── Mobile Search Status ──
+  function mobileSearchStatus() {
+    var q = document.getElementById('m-search-input')?.value?.trim();
+    var result = document.getElementById('m-search-result');
+    if (!q || !result) return;
+    var students = (allData||[]).filter(d=>d.type==='student');
+    var found = students.filter(s=>s.student_id===q||(s.first_name+' '+s.last_name).includes(q));
+    if (!found.length) { result.innerHTML = '<span style="color:#f0b040">⚠️ ไม่พบข้อมูล</span>'; return; }
+    var regs = (allData||[]).filter(d=>d.type==='student_registration');
+    result.innerHTML = found.slice(0,3).map(s=>{
+      var reg = regs.find(r=>r.student_id===s.student_id);
+      return `<div style="background:#f8fafc;border-radius:8px;padding:8px;margin-top:4px">
+        <p style="font-size:11px;font-weight:600;color:#1e3a5f;margin:0">${s.prefix||''}${s.first_name} ${s.last_name}</p>
+        <p style="font-size:10px;color:#64748b;margin:2px 0">${s.student_id}</p>
+        <span style="font-size:10px;color:${reg?'#16a34a':'#dc2626'}">${reg?'🟢 ลงทะเบียนแล้ว':'🔴 ยังไม่ลงทะเบียน'}</span>
+      </div>`;}).join('');
+  }
+
+  // Hook allData changes to re-render if on mobile
+  var _origOnDataChanged = null;
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      if (window.dataSdk && dataSdk._handler) {
+        var orig = dataSdk._handler.onDataChanged.bind(dataSdk._handler);
+        dataSdk._handler.onDataChanged = function(data) {
+          orig(data);
+          if (IS_MOBILE && document.getElementById('m-page-main')?.style.display !== 'none') {
+            mRenderAnnouncements();
+          }
+        };
+      }
+    }, 3000);
+  });
+
+  // Override showPage to also handle mobile routing
+  var _origShowPageFn = null;
+  document.addEventListener('DOMContentLoaded', function() {
+    _origShowPageFn = window.showPage;
+    window.showPage = function(pageName) {
+      if (IS_MOBILE) {
+        mobileAfterLogin();
+      } else {
+        if (_origShowPageFn) _origShowPageFn(pageName);
+      }
+    };
+  });
+
   </script>
 </body>
 </html>
