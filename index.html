@@ -14034,6 +14034,7 @@
     if (type === 'admin') {
       btns = [
         {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopAnnouncementManagement()"},
+        {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
         {id:'mn-score',    icon:'📊', label:'คะแนน'},
         {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
         {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
@@ -14049,6 +14050,7 @@
     } else if (type === 'director') {
       btns = [
         {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
+        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDesktopDirectorTab('score','📊 ตารางผลการเรียน/เวลาเรียน')"},
         {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDesktopDirectorTab('evaluate','📝 ประเมินผู้สอน')"},
       ];
     } else {
