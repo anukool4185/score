@@ -2496,10 +2496,16 @@
         document.getElementById('page-register').classList.add('hidden');
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
-        showPage('home');
-        showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+          showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
+          console.log('✅ Director login success (mobile)');
+          return;
+        }
+        showPage('home');
+        showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
         console.log('✅ Director login success');
         return;
       }
@@ -7572,6 +7578,11 @@
         document.getElementById('page-register').classList.add('hidden');
         document.getElementById('app-main').classList.remove('hidden');
         showLoggedInUI();
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+          showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
+          return;
+        }
         showPage('home');
         showToast('เข้าสู่ระบบกรรมการนิเทศสำเร็จ ✅');
         refreshCurrentView();
