@@ -989,6 +989,26 @@
          <p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลนำเข้า</p>
         </div>
        </div>
+       <!-- 💾 ระบบสำรองข้อมูล -->
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">💾 ระบบสำรองข้อมูล (Backup &amp; Restore)</h3>
+        <p class="text-gray-600 text-sm mb-1">สำรองข้อมูลทั้งระบบเป็นไฟล์ .json เก็บไว้ในเครื่อง และสามารถกู้คืนรายการที่หายไปในภายหลังได้</p>
+        <p id="backup-last-info" class="text-xs text-amber-600 font-medium mb-4"></p>
+        <div class="flex flex-wrap gap-3">
+         <button onclick="downloadFullBackup()" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium">📥 ดาวน์โหลดข้อมูลสำรองทั้งหมด</button>
+         <button onclick="document.getElementById('backup-restore-file').click()" class="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium">📤 กู้คืนจากไฟล์สำรอง</button>
+         <input type="file" id="backup-restore-file" accept=".json" onchange="handleBackupFileUpload(event)" class="hidden">
+        </div>
+        <div id="backup-restore-preview" class="hidden mt-4 border-2 border-amber-200 rounded-xl p-4 bg-amber-50">
+         <p class="font-semibold text-amber-800 mb-2">📋 พบรายการที่หายไปจากระบบปัจจุบัน (<span id="backup-missing-count">0</span> รายการ)</p>
+         <div id="backup-missing-list" class="max-h-64 overflow-y-auto text-sm mb-4 bg-white rounded-lg p-2"></div>
+         <p class="text-xs text-gray-500 mb-3">⚠️ ระบบจะสร้างเฉพาะรายการที่ "หายไป" เท่านั้น (เทียบจากเนื้อหาข้อมูล) จะไม่ทับหรือลบข้อมูลปัจจุบัน</p>
+         <div class="flex gap-3">
+          <button onclick="confirmRestoreBackup()" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl font-medium">✅ ยืนยันกู้คืนรายการที่หายไป</button>
+          <button onclick="cancelRestoreBackup()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-xl font-medium">❌ ยกเลิก</button>
+         </div>
+        </div>
+       </div>
       </div><!-- ⚙️ ตั้งค่า M/F -->
       <div id="admin-tab-settings" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -9409,7 +9429,102 @@
         `;
       }).join('');
     }
+    // ==================== ระบบสำรองข้อมูล (Backup & Restore) ====================
+    function downloadFullBackup() {
+      const backup = { exported_at: new Date().toISOString(), record_count: allData.length, data: allData };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `kpac_backup_${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      localStorage.setItem('kpac_last_backup', new Date().toISOString());
+      updateBackupLastInfo();
+      showToast(`✅ ดาวน์โหลดข้อมูลสำรองสำเร็จ (${allData.length} รายการ)`);
+    }
+
+    function updateBackupLastInfo() {
+      const el = document.getElementById('backup-last-info');
+      if (!el) return;
+      const last = localStorage.getItem('kpac_last_backup');
+      el.textContent = last
+        ? `🕐 สำรองข้อมูลล่าสุด: ${new Date(last).toLocaleString('th-TH')} (${allData.length.toLocaleString()} รายการในระบบตอนนี้)`
+        : `⚠️ ยังไม่เคยสำรองข้อมูลบนเครื่องนี้ แนะนำให้กดดาวน์โหลดข้อมูลสำรองเป็นประจำ`;
+    }
+
+    // สร้าง signature ของ record จากเนื้อหาข้อมูล (ไม่รวม __backendId/created_at/updated_at) เพื่อเทียบว่ามีอยู่แล้วหรือหายไป
+    function backupSignature(rec) {
+      const keys = Object.keys(rec).filter(k => k !== '__backendId' && k !== 'created_at' && k !== 'updated_at').sort();
+      return keys.map(k => `${k}=${rec[k]}`).join('|');
+    }
+
+    let _backupPendingMissing = [];
+
+    function handleBackupFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const backupData = Array.isArray(parsed) ? parsed : (parsed.data || []);
+          if (!Array.isArray(backupData) || backupData.length === 0) {
+            showToast('ไฟล์สำรองไม่ถูกต้องหรือไม่มีข้อมูล', 'error');
+            return;
+          }
+          const currentSigs = new Set(allData.map(backupSignature));
+          const missing = backupData.filter(rec => rec && rec.type && !currentSigs.has(backupSignature(rec)));
+          _backupPendingMissing = missing;
+          const preview = document.getElementById('backup-restore-preview');
+          const countEl = document.getElementById('backup-missing-count');
+          const listEl = document.getElementById('backup-missing-list');
+          if (missing.length === 0) {
+            showToast('✅ ไม่มีรายการที่หายไป ข้อมูลปัจจุบันครบถ้วนตรงกับไฟล์สำรองแล้ว');
+            preview?.classList.add('hidden');
+            event.target.value = '';
+            return;
+          }
+          countEl.textContent = missing.length;
+          const typeCounts = {};
+          missing.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+          listEl.innerHTML = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).map(([t, c]) =>
+            `<div class="flex justify-between py-1 border-b border-gray-100"><span class="text-gray-700">${t}</span><span class="font-bold text-amber-600">${c} รายการ</span></div>`
+          ).join('');
+          preview.classList.remove('hidden');
+        } catch (err) {
+          showToast('ไม่สามารถอ่านไฟล์ได้: ' + err.message, 'error');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    async function confirmRestoreBackup() {
+      if (_backupPendingMissing.length === 0) return;
+      const total = _backupPendingMissing.length;
+      let done = 0, failed = 0;
+      for (const rec of _backupPendingMissing) {
+        const clone = { ...rec };
+        delete clone.__backendId; // ให้ระบบสร้างรหัสใหม่ ป้องกันชนกับข้อมูลเดิม
+        const result = await window.dataSdk.create(clone);
+        if (result.isOk) done++; else failed++;
+      }
+      showToast(`✅ กู้คืนสำเร็จ ${done}/${total} รายการ${failed > 0 ? ` (ล้มเหลว ${failed})` : ''}`);
+      cancelRestoreBackup();
+      refreshCurrentView();
+    }
+
+    function cancelRestoreBackup() {
+      _backupPendingMissing = [];
+      document.getElementById('backup-restore-preview')?.classList.add('hidden');
+    }
+
     function updateImportedData() {
+      updateBackupLastInfo();
       const container = document.getElementById('imported-data');
       if (!container) return;
       const classSubjectRecords = allData.filter(d => d.type === 'class_subject');
