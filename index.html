@@ -13976,17 +13976,17 @@
       {color:'#f0b040',icon:'⏳',label:'รอการอนุมัติ',value:pending.length,fn:"mShowSection('pending_requests')"},
       {color:'#f07070',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('homework')"},
     ] : [
-      {color:'#4da6e8',icon:'📚',label:'วิชาที่ลงทะเบียน',value:(regs.filter(function(r){return r.student_id===currentUser.student_id;})).length,fn:"mShowSection('my_register')"},
+      {color:'#4da6e8',icon:'📚',label:'วิชาที่ลงทะเบียน',value:(regs.filter(function(r){return r.student_id===currentUser.student_id;})).length,fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"},
       {color:'#48c87a',icon:'📊',label:'คะแนนของฉัน',value:'-',fn:"mShowSection('my_grades')"},
       {color:'#f0b040',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('my_homework')"},
     ];
     c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 ภาพรวม</h2>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
       cards.map(function(card){
-        return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);box-sizing:border-box;min-height:110px;display:flex;flex-direction:column;justify-content:center">' +
-          '<div style="font-size:22px;margin-bottom:6px">'+card.icon+'</div>' +
-          '<div style="font-size:20px;font-weight:700;color:white;line-height:1">'+card.value+'</div>' +
-          '<div style="font-size:10px;color:rgba(255,255,255,0.85);margin-top:3px">'+card.label+'</div></button>';
+        return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);box-sizing:border-box;aspect-ratio:1/1;width:100%;display:flex;flex-direction:column;justify-content:center">' +
+          '<div style="font-size:24px;margin-bottom:8px">'+card.icon+'</div>' +
+          '<div style="font-size:22px;font-weight:700;color:white;line-height:1">'+card.value+'</div>' +
+          '<div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:4px">'+card.label+'</div></button>';
       }).join('') + '</div>';
   }
 
