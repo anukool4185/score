@@ -2443,8 +2443,7 @@
         document.getElementById('page-home').classList.add('hidden');
         document.getElementById('page-admin').classList.remove('hidden');
         document.getElementById('app-main').classList.remove('hidden');
-        setTimeout(buildMobileNav, 200);
-      setTimeout(mobileTabIconify, 400);
+        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mBuildNav === 'function') { setTimeout(mBuildNav, 100); }
         
         // Mobile: แสดง mobile UI แทน
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
@@ -2583,7 +2582,7 @@
         // ซึ่งถูกตั้งไว้แล้วโดย showLoggedInUI() ด้านบน (เรียก goToHomePage() ให้แล้ว)
         console.log('📋 Step 7: Showing announcements home page');
         
-        showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`); setTimeout(buildMobileNav, 100);;
+        showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
           if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
           return;
@@ -4586,8 +4585,8 @@
       if (page) page.classList.remove('hidden');
       _currentPage = pageName;
       // คง nav บนมือถือ
-      if (document.body.classList.contains('is-mobile')) {
-        setTimeout(buildMobileNav, 50);
+      if (document.body.classList.contains('is-mobile') && typeof mBuildNav === 'function') {
+        setTimeout(mBuildNav, 50);
       }
     }
     function delayedRefresh(ms = 1500) {
@@ -6779,9 +6778,9 @@
     }
     function showAdminTab(tabName) {
       _currentAdminTab = tabName;
-      if (document.body.classList.contains('is-mobile')) {
-        updateMobileNavActive?.();
-        closeMobileTray?.();
+      if (document.body.classList.contains('is-mobile') && typeof mBuildNav === 'function') {
+        mBuildNav();
+        if (typeof mCloseTray === 'function') mCloseTray();
       }
       // ถ้ากำลังแสดงทั้งหมด ให้ปิดโหมดนั้นก่อน
       if (isShowingAllTabs) {
@@ -13426,217 +13425,6 @@
     }
   </script>
 
-  <!-- 📱 Mobile Sub-tab Tray -->
-  <div id="mobile-tray-backdrop" onclick="closeMobileTray()"></div>
-  <div id="mobile-subtab-tray"><div class="tray-inner" id="mobile-subtab-tray-inner"></div></div>
-  <!-- 📱 Mobile Bottom Nav (JS controls show/hide) -->
-  <div id="mobile-bottom-nav" style="display:none"></div>
-
-  <script>
-  // ── แปลงแท็บบนหน้าเพจให้แสดงเฉพาะไอคอนบนมือถือ ──
-  function mobileTabIconify() {
-    const isMobile = document.body.classList.contains('is-mobile');
-    // selectors ทุก tab button ที่ต้องการแปลง
-    const tabSelectors = [
-      '[id^="tab-"]',
-      '[id^="subadmin-tab-"]',
-      '[id^="students-subtab-btn-"]',
-      '[id^="director-tab-btn-"]',
-    ];
-    tabSelectors.forEach(sel => {
-      document.querySelectorAll(sel).forEach(btn => {
-        if (isMobile) {
-          if (!btn.dataset.originalHtml) {
-            btn.dataset.originalHtml = btn.innerHTML;
-          }
-          // แยก emoji (Unicode) ออกจากข้อความ
-          const text = btn.dataset.originalHtml || btn.innerHTML;
-          const emojiMatch = text.match(/^\s*([\p{Emoji_Presentation}\p{Extended_Pictographic}][\uFE0F\u20E3]?(?:[\u200D][\p{Emoji_Presentation}\p{Extended_Pictographic}][\uFE0F]?)*)/u);
-          if (emojiMatch) {
-            const icon = emojiMatch[1];
-            const label = text.replace(emojiMatch[0], '').replace(/<[^>]+>/g, '').trim();
-            btn.innerHTML = `<span class="tab-icon-span">${icon}</span>`;
-            btn.classList.add('tab-icon-only');
-            btn.title = label; // tooltip เมื่อกดค้าง
-          }
-        } else {
-          // คืนค่าเดิมบน desktop
-          if (btn.dataset.originalHtml) {
-            btn.innerHTML = btn.dataset.originalHtml;
-            btn.classList.remove('tab-icon-only');
-          }
-        }
-      });
-    });
-  }
-
-  window.addEventListener('resize', mobileTabIconify);
-  // เรียกหลัง DOM พร้อม
-  document.addEventListener('DOMContentLoaded', () => setTimeout(mobileTabIconify, 300));
-
-  // ── Sub-tab tray definitions ──
-  const NAV_SUBTABS = {
-    // admin
-    'mnav-ad-stu': [
-      { icon:'📤', label:'นำเข้า', fn:"showAdminTab('students'); showStudentsSubTab('import')" },
-      { icon:'📋', label:'สมัคร', fn:"showAdminTab('students'); showStudentsSubTab('applicants')" },
-      { icon:'⏳', label:'ยังไม่ลง', fn:"showAdminTab('students'); showStudentsSubTab('noenroll')" },
-      { icon:'📚', label:'ลงทะเบียน', fn:"showAdminTab('students'); showStudentsSubTab('registrations')" },
-    ],
-    'mnav-ad-score': [
-      { icon:'📊', label:'คะแนนเต็ม', fn:"showAdminTab('scores')" },
-      { icon:'⏰', label:'หน่วยกิต', fn:"showAdminTab('hours')" },
-      { icon:'📅', label:'ตารางเรียน', fn:"showAdminTab('schedule')" },
-    ],
-    'mnav-ad-hw': [
-      { icon:'📝', label:'การบ้าน', fn:"showAdminTab('homework')" },
-      { icon:'⏱️', label:'ลงเวลา', fn:"showAdminTab('timekeeping')" },
-      { icon:'🎓', label:'ให้คะแนน', fn:"showAdminTab('grading')" },
-    ],
-    'mnav-ad-up': [
-      { icon:'📤', label:'อัพโหลดคะแนน', fn:"showAdminTab('uploadscore')" },
-      { icon:'📥', label:'นำเข้า', fn:"showAdminTab('import')" },
-    ],
-    'mnav-ad-gr': [
-      { icon:'📋', label:'สรุปเกรด', fn:"showAdminTab('gradereport')" },
-      { icon:'📊', label:'ผลการเรียน', fn:"showAdminTab('studentdata')" },
-      { icon:'📑', label:'หัวข้อประเมิน', fn:"showAdminTab('evaltopics')" },
-    ],
-    'mnav-ad-adm': [
-      { icon:'⚙️', label:'ตั้งค่า', fn:"showAdminTab('settings')" },
-      { icon:'👥', label:'ผู้ช่วยแอดมิน', fn:"showAdminTab('admins')" },
-    ],
-    // subadmin
-    'mnav-sa-hw':   [{ icon:'📝', label:'การบ้าน', fn:"showSubAdminTab('homework')" }],
-    'mnav-sa-time': [{ icon:'⏱️', label:'ลงเวลา', fn:"showSubAdminTab('timekeeping')" }],
-    'mnav-sa-grade':[{ icon:'🎓', label:'คะแนน', fn:"showSubAdminTab('grading')" }],
-    'mnav-sa-stu':  [{ icon:'👥', label:'นักเรียน', fn:"showSubAdminTab('students')" }],
-    // student
-    'mnav-reg':     [{ icon:'📋', label:'ลงทะเบียน', fn:"showStudentTab('register')" }],
-    'mnav-hw':      [{ icon:'📝', label:'การบ้าน', fn:"showStudentTab('homework')" }],
-    'mnav-grade':   [{ icon:'📊', label:'คะแนน', fn:"showStudentTab('grades')" }],
-    'mnav-profile': [{ icon:'👤', label:'ข้อมูล', fn:"showStudentTab('profile')" }],
-  };
-
-  let _activeTrayNavId = null;
-
-  function openMobileTray(navBtnId) {
-    const tray = document.getElementById('mobile-subtab-tray');
-    const inner = document.getElementById('mobile-subtab-tray-inner');
-    const backdrop = document.getElementById('mobile-tray-backdrop');
-
-    // Toggle: กดซ้ำปิด tray
-    if (_activeTrayNavId === navBtnId && tray?.classList.contains('visible')) {
-      closeMobileTray();
-      return;
-    }
-
-    const items = NAV_SUBTABS[navBtnId] || [];
-    if (!tray || !inner || items.length === 0) {
-      // ถ้าไม่มี sub-items ให้ทำ default action ตัวแรก
-      closeMobileTray();
-      return;
-    }
-
-    _activeTrayNavId = navBtnId;
-    inner.innerHTML = items.map(item =>
-      `<button onclick="closeMobileTray(); ${item.fn}; updateMobileNavActive();">
-        <span class="tray-icon">${item.icon}</span>
-        <span class="tray-label">${item.label}</span>
-       </button>`
-    ).join('');
-    tray.classList.add('visible');
-    backdrop?.classList.add('visible');
-    updateMobileNavActive();
-  }
-
-  function closeMobileTray() {
-    _activeTrayNavId = null;
-    document.getElementById('mobile-subtab-tray')?.classList.remove('visible');
-    document.getElementById('mobile-tray-backdrop')?.classList.remove('visible');
-  }
-
-  function buildMobileNav() {
-    const nav = document.getElementById('mobile-bottom-nav');
-    if (!nav) return;
-    const allPages = ['page-home','page-student-management','page-subadmin',
-                      'page-admin','page-register','page-login'];
-
-    function showNav(html) {
-      nav.innerHTML = html;
-      if (document.body.classList.contains('is-mobile')) {
-        nav.style.display = 'flex';
-        nav.style.alignItems = 'center';
-      } else {
-        nav.style.display = 'none';
-      }
-      allPages.forEach(id => { document.getElementById(id)?.classList.add('has-nav'); });
-      updateMobileNavActive();
-    }
-    function hideNav() {
-      nav.innerHTML = '';
-      nav.style.display = 'none';
-      allPages.forEach(id => { document.getElementById(id)?.classList.remove('has-nav'); });
-      closeMobileTray();
-    }
-
-    if (!document.body.classList.contains('is-mobile') || !currentUser) { hideNav(); return; }
-
-    const type = currentUser.user_type;
-    const pendingKpac = (allData||[]).filter(d=>d.type==='kpac_request'&&d.status==='pending').length;
-
-    function navBtn(id, icon, label, extra='') {
-      return `<button id="${id}" onclick="closeMobileTray(); openMobileTray('${id}')" class="relative">
-        <span class="nav-icon">${icon}</span><span class="nav-label">${label}</span>${extra}
-      </button>`;
-    }
-
-    if (type === 'student') {
-      showNav(
-        navBtn('mnav-reg','📋','ลงทะเบียน') +
-        navBtn('mnav-hw','📝','การบ้าน') +
-        navBtn('mnav-grade','📊','คะแนน') +
-        navBtn('mnav-profile','👤','ข้อมูล') +
-        `<button onclick="handleLogout()" style="color:#dc2626!important">
-          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
-    } else if (type === 'subadmin') {
-      showNav(
-        navBtn('mnav-sa-hw','📝','การบ้าน') +
-        navBtn('mnav-sa-time','⏱️','ลงเวลา') +
-        navBtn('mnav-sa-grade','🎓','คะแนน') +
-        navBtn('mnav-sa-stu','👥','นักเรียน',
-          pendingKpac>0?`<span class="nav-badge">${pendingKpac}</span>`:'') +
-        `<button onclick="handleLogout()" style="color:#dc2626!important">
-          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
-    } else if (type === 'admin') {
-      showNav(
-        navBtn('mnav-ad-stu','👥','นักเรียน') +
-        navBtn('mnav-ad-score','📊','คะแนน') +
-        navBtn('mnav-ad-hw','📝','กิจกรรม') +
-        navBtn('mnav-ad-up','📤','อัพโหลด') +
-        navBtn('mnav-ad-gr','📋','รายงาน') +
-        navBtn('mnav-ad-adm','⚙️','ตั้งค่า') +
-        `<button onclick="handleLogout()" style="color:#dc2626!important">
-          <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
-    } else { hideNav(); }
-  }
-
-
-
-  function updateMobileNavActive() {
-    document.querySelectorAll('#mobile-bottom-nav button').forEach(b => b.classList.remove('active-nav'));
-    const tab = _currentAdminTab || _currentSubAdminTab || (typeof currentStudentTab !== 'undefined' ? currentStudentTab : '');
-    const map = {
-      students:['mnav-ad-stu','mnav-sa-stu'], scores:['mnav-ad-score'],
-      homework:['mnav-ad-hw','mnav-sa-hw'], uploadscore:['mnav-ad-up'],
-      admins:['mnav-ad-adm'], timekeeping:['mnav-sa-time'],
-      grading:['mnav-sa-grade'], register:['mnav-reg'],
-      grades:['mnav-grade'], profile:['mnav-profile'],
-    };
-    (map[tab]||[]).forEach(id => document.getElementById(id)?.classList.add('active-nav'));
-  }
-  window.addEventListener('resize', buildMobileNav);
-  </script>
 
   <!-- ========== MOBILE ROOT ========== -->
   </div><!-- /desktop-root -->
