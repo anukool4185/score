@@ -551,6 +551,8 @@
     body.is-mobile #admin-tab-buttons,
     body.is-mobile #subadmin-tab-buttons,
     body.is-mobile #student-tabs { display: none !important; }
+    /* แถบเมนูบนสุดของเดสก์ท็อป (🏠หน้าหลัก/⚙️แอดมิน ฯลฯ) ถูกแทนที่ด้วยเมนูไอคอน+แถบกลับของมือถือแล้ว จึงซ่อน */
+    body.is-mobile #desktop-top-nav { display: none !important; }
     /* เว้นพื้นที่ด้านล่างให้เนื้อหาไม่ถูกเมนูไอคอนบัง เมื่อยืมหน้าเดสก์ท็อปมาแสดง */
     body.is-mobile #desktop-root { padding-bottom: 64px !important; box-sizing: border-box; }
     body.is-mobile #admin-tab-buttons,
@@ -900,7 +902,7 @@
     </div>
    </div>
    <div id="app-main" class="h-full overflow-auto flex flex-col hidden">
-    <nav class="gradient-bg text-white p-4 z-50">
+    <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
       <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToSubAdminPageFromStudent()" id="student-subadmin-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">🧑‍💼 ผู้ช่วยแอดมิน</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
@@ -4341,6 +4343,15 @@
     function showAnnouncementManagementPage() {
       const content = document.getElementById('home-content');
       if (!content) return;
+      // ป้องกันอีกชั้น: หน้านี้เป็นสิทธิ์แอดมินเท่านั้น ไม่ว่าจะถูกเรียกจากช่องทางใด
+      if (!currentUser || currentUser.user_type !== 'admin') {
+        content.innerHTML = `
+          <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in text-center">
+            <p class="text-4xl mb-3">🚫</p>
+            <p class="text-gray-600">คุณไม่มีสิทธิ์เข้าถึงหน้านี้ (เฉพาะแอดมินเท่านั้น)</p>
+          </div>`;
+        return;
+      }
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📢 จัดการประชาสัมพันธ์</h2>
@@ -13784,7 +13795,7 @@
     document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
     document.getElementById('m-header-user').textContent = (currentUser.prefix||'') + (currentUser.first_name||currentUser.username||'');
     mBuildNav();
-    mShowSection('announcements');
+    mShowSection('home');
   }
 
   // Override handleLogin to detect mobile
@@ -13958,7 +13969,7 @@
         {id:'mn-score',    icon:'📊', label:'คะแนน'},
         {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
         {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
-        {id:'mn-overview', icon:'📈', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
       ];
     } else if (type === 'subadmin') {
       btns = [
@@ -13966,7 +13977,7 @@
         {id:'mn-sa-time', icon:'⏱️', label:'ลงเวลา'},
         {id:'mn-sa-gr',   icon:'🎓', label:'คะแนน'},
         {id:'mn-sa-stu',  icon:'👥', label:'นักเรียน'},
-        {id:'mn-overview',icon:'📈', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
+        {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
       ];
     } else {
       btns = [
@@ -13974,7 +13985,7 @@
         {id:'mn-hw',       icon:'📝', label:'การบ้าน'},
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
         {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
-        {id:'mn-overview', icon:'📈', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
       ];
     }
     nav.innerHTML = btns.map(b => `
