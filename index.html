@@ -3912,7 +3912,7 @@
           : announcements.map(a => `
               <div class="mb-2">
                 ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-32 object-cover rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
-                <p class="text-gray-700 text-sm whitespace-pre-wrap">${a.text}</p>
+                <p class="text-gray-700 text-sm whitespace-pre-wrap">${escHtml(a.text)}</p>
               </div>
             `).join('');
       }
@@ -4272,7 +4272,7 @@
             ${announcements.map(a => `
               <div class="border-2 border-gray-200 rounded-xl p-5">
                 ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-80 object-cover rounded-lg mb-4" onerror="this.style.display='none'">` : ''}
-                <p class="text-gray-700 whitespace-pre-wrap">${a.text}</p>
+                <p class="text-gray-700 whitespace-pre-wrap">${escHtml(a.text)}</p>
               </div>
             `).join('')}
           </div>
@@ -4280,6 +4280,7 @@
       `;
     }
     function buildAnnouncementsFeedHtml(target) {
+      const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
@@ -4288,7 +4289,7 @@
       return announcements.map(a => `
         <div class="border-2 border-gray-200 rounded-xl p-4 mb-4">
           ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-60 object-cover rounded-lg mb-3" onerror="this.style.display='none'">` : ''}
-          <p class="text-gray-700 whitespace-pre-wrap text-sm">${a.text}</p>
+          <p class="text-gray-700 whitespace-pre-wrap text-sm">${escHtml(a.text)}</p>
         </div>
       `).join('');
     }
@@ -4370,7 +4371,7 @@
           <div class="flex justify-between items-start gap-3">
             <div class="flex-1 min-w-0">
               ${a.image_url ? `<img src="${a.image_url}" alt="" class="max-h-32 rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
-              <p class="text-gray-700 whitespace-pre-wrap text-sm">${a.text}</p>
+              <p class="text-gray-700 whitespace-pre-wrap text-sm">${escHtml(a.text)}</p>
             </div>
             <div class="flex gap-2 flex-shrink-0">
               <button onclick="editAnnouncementPopup('${a.__backendId}')" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
@@ -14169,34 +14170,19 @@
       </div>`;}).join('');
   }
 
-  var _origOnDataChanged = null;
+  // Hook allData เมื่อ dataSdk พร้อม — ให้ mobile re-render ด้วย
   document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
       if (window.dataSdk && dataSdk._handler) {
         var orig = dataSdk._handler.onDataChanged.bind(dataSdk._handler);
         dataSdk._handler.onDataChanged = function(data) {
           orig(data);
-          if (IS_MOBILE && document.getElementById('m-page-main')?.style.display !== 'none') {
-            mobileRenderLoginData();
-          } else if (IS_MOBILE) {
+          if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mobileRenderLoginData === 'function') {
             mobileRenderLoginData();
           }
         };
       }
     }, 3000);
-  });
-
-  // Override showPage to also handle mobile routing
-  var _origShowPageFn = null;
-  document.addEventListener('DOMContentLoaded', function() {
-    _origShowPageFn = window.showPage;
-    window.showPage = function(pageName) {
-      if (IS_MOBILE) {
-        mobileAfterLogin();
-      } else {
-        if (_origShowPageFn) _origShowPageFn(pageName);
-      }
-    };
   });
 
   </script>
