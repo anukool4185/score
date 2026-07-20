@@ -13799,7 +13799,13 @@
     document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
     document.getElementById('m-header-user').textContent = (currentUser.prefix||'') + (currentUser.first_name||currentUser.username||'');
     mBuildNav();
-    mShowSection('home');
+    if (currentUser.user_type === 'student') {
+      mShowDesktopHomeFeed('student', '📢 ประกาศจากแอดมิน');
+    } else if (currentUser.user_type === 'director') {
+      mShowDesktopHomeFeed('director', '📢 ประกาศจากแอดมิน');
+    } else {
+      mShowSection('home');
+    }
   }
 
   // Override handleLogin to detect mobile
@@ -13925,6 +13931,15 @@
       if (typeof showDirectorTab === 'function') showDirectorTab(tabName);
     });
   }
+  // หน้าแรกของนักเรียน/ผู้นิเทศ = ประกาศที่แอดมินโพสต์ให้ (ใช้หน้าเดสก์ท็อปจริง)
+  function mShowDesktopHomeFeed(target, title) {
+    mShowDesktopView(title, function() {
+      mHideAllDesktopPages('page-home');
+      document.getElementById('app-main')?.classList.remove('hidden');
+      document.getElementById('page-home')?.classList.remove('hidden');
+      if (typeof renderAnnouncementsFeed === 'function') renderAnnouncementsFeed(target);
+    });
+  }
 
   // ── เมนูย่อย: รวมทุกแท็บที่มีบนเดสก์ท็อป ครบทุกอันตามสิทธิ์ผู้ใช้ ──
   var M_NAV_SUBTABS = {
@@ -13993,13 +14008,12 @@
       ];
     } else if (type === 'director') {
       btns = [
-        {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
-        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDesktopDirectorTab('score','📊 ตารางผลการเรียน/เวลาเรียน')"},
+        {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
         {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDesktopDirectorTab('evaluate','📝 ประเมินผู้สอน')"},
       ];
     } else {
       btns = [
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
         {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
         {id:'mn-hw',       icon:'📝', label:'การบ้าน'},
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
