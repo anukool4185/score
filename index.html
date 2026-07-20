@@ -13803,6 +13803,8 @@
       mShowDesktopHomeFeed('student', '📢 ประกาศจากแอดมิน');
     } else if (currentUser.user_type === 'director') {
       mShowDesktopHomeFeed('director', '📢 ประกาศจากแอดมิน');
+    } else if (currentUser.user_type === 'admin') {
+      mShowDesktopAnnouncementManagement();
     } else {
       mShowSection('home');
     }
@@ -13908,6 +13910,11 @@
   // แสดงแท็บผู้ช่วยแอดมิน
   function mShowDesktopSubAdminTab(tabName, title) {
     mShowDesktopView(title, function() {
+      // นักเรียนที่ได้รับสิทธิ์เป็นผู้ช่วยแอดมิน (linked_admin_id) ต้องเปิดโหมดผู้ช่วยแอดมินก่อน
+      // ไม่เช่นนั้น getSubAdminScope() จะใช้ __backendId ของนักเรียนผิดตัว ทำให้ดึงขอบเขตวิชาไม่ได้
+      if (currentUser?.user_type === 'student' && currentUser?.linked_admin_id) {
+        if (typeof goToSubAdminPageFromStudent === 'function') goToSubAdminPageFromStudent();
+      }
       mHideAllDesktopPages('page-subadmin');
       document.getElementById('app-main')?.classList.remove('hidden');
       document.getElementById('page-subadmin')?.classList.remove('hidden');
@@ -13938,6 +13945,15 @@
       document.getElementById('app-main')?.classList.remove('hidden');
       document.getElementById('page-home')?.classList.remove('hidden');
       if (typeof renderAnnouncementsFeed === 'function') renderAnnouncementsFeed(target);
+    });
+  }
+  // หน้าแรกของแอดมิน = จัดการประชาสัมพันธ์ (ตรงกับพฤติกรรมฝั่งเดสก์ท็อป)
+  function mShowDesktopAnnouncementManagement() {
+    mShowDesktopView('📢 จัดการประชาสัมพันธ์', function() {
+      mHideAllDesktopPages('page-home');
+      document.getElementById('app-main')?.classList.remove('hidden');
+      document.getElementById('page-home')?.classList.remove('hidden');
+      if (typeof showAnnouncementManagementPage === 'function') showAnnouncementManagementPage();
     });
   }
 
@@ -13971,6 +13987,12 @@
     'mn-sa-time': [{icon:'⏱️',label:'ลงเวลา',fn:"mShowDesktopSubAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"}],
     'mn-sa-gr':   [{icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopSubAdminTab('grading','🎓 ให้คะแนน')"}],
     'mn-sa-stu':  [{icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"}],
+    'mn-stu-sa': [
+      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"},
+      {icon:'⏱️',label:'ลงเวลา',fn:"mShowDesktopSubAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"},
+      {icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopSubAdminTab('grading','🎓 ให้คะแนน')"},
+      {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
+    ],
     // นักเรียน — ใช้หน้าเดสก์ท็อปจริงทุกอย่าง (ทำได้ทุกอย่างเหมือนคอม)
     'mn-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"}],
     'mn-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTab('homework','📝 การบ้าน')"}],
@@ -13992,8 +14014,7 @@
     var btns = [];
     if (type === 'admin') {
       btns = [
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
-        {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopAnnouncementManagement()"},
         {id:'mn-score',    icon:'📊', label:'คะแนน'},
         {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
         {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
@@ -14019,6 +14040,10 @@
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
         {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
       ];
+      // นักเรียนที่ได้รับสิทธิ์เป็นผู้ช่วยแอดมินด้วย → เพิ่มไอคอนเข้าถึงเมนูผู้ช่วยแอดมิน
+      if (currentUser.linked_admin_id) {
+        btns.push({id:'mn-stu-sa', icon:'👤', label:'ผู้ช่วยแอดมิน'});
+      }
     }
     nav.innerHTML = btns.map(b => `
       <button id="${b.id}" onclick="mCloseAllOverlays();${b.fn ? b.fn : "mOpenTray('"+b.id+"')"}"
