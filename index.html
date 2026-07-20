@@ -2503,7 +2503,8 @@
           user_type: 'subadmin',
           username: username,
           __backendId: adminRecord.__backendId,
-          is_main_admin: false
+          is_main_admin: false,
+          linked_student_id: adminRecord.linked_student_id || null
         };
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
         errorDiv.classList.add('hidden');
@@ -13805,6 +13806,8 @@
       mShowDesktopHomeFeed('director', '📢 ประกาศจากแอดมิน');
     } else if (currentUser.user_type === 'admin') {
       mShowDesktopAnnouncementManagement();
+    } else if (currentUser.user_type === 'subadmin') {
+      mShowSubAdminHome();
     } else {
       mShowSection('home');
     }
@@ -13954,6 +13957,15 @@
       if (typeof renderAnnouncementsFeed === 'function') renderAnnouncementsFeed(target);
     });
   }
+  // หน้าแรกของผู้ช่วยแอดมิน — ถ้าบัญชีนี้ผูกกับนักเรียนคนใดคนหนึ่งไว้ (linked_student_id)
+  // ให้แสดงประกาศฝั่งนักเรียนของคนนั้นด้วย (เพราะเป็นคนเดียวกัน เพียงแค่คนละบัญชี login)
+  function mShowSubAdminHome() {
+    if (currentUser && currentUser.linked_student_id) {
+      mShowDesktopHomeFeed('student', '📢 ประกาศจากแอดมิน');
+    } else {
+      mShowSection('home');
+    }
+  }
   // หน้าแรกของแอดมิน = จัดการประชาสัมพันธ์ (ตรงกับพฤติกรรมฝั่งเดสก์ท็อป)
   function mShowDesktopAnnouncementManagement() {
     mShowDesktopView('📢 จัดการประชาสัมพันธ์', function() {
@@ -14028,7 +14040,7 @@
       ];
     } else if (type === 'subadmin') {
       btns = [
-        {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
+        {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSubAdminHome()"},
         {id:'mn-sa-hw',   icon:'📝', label:'การบ้าน'},
         {id:'mn-sa-time', icon:'⏱️', label:'ลงเวลา'},
         {id:'mn-sa-gr',   icon:'🎓', label:'คะแนน'},
