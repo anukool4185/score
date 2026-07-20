@@ -13633,6 +13633,10 @@
   function mCloseAllOverlays() {
     document.getElementById('m-eval-overlay')?.remove();
     document.getElementById('m-evaluators-overlay')?.remove();
+    if (currentUser && currentUser.__fromSubAdmin && _subAdminOriginalUser) {
+      currentUser = _subAdminOriginalUser;
+      _subAdminOriginalUser = null;
+    }
     var header = document.getElementById('m-desktop-back-header');
     if (header) {
       header.remove();
@@ -13672,6 +13676,11 @@
     document.body.appendChild(header);
     document.getElementById('m-desktop-back-btn').onclick = function() {
       header.remove();
+      // ถ้าตอนนี้เป็นสถานะ "สลับตัวตนชั่วคราวจากผู้ช่วยแอดมิน" ให้กลับไปเป็นผู้ช่วยแอดมินตามเดิม
+      if (currentUser && currentUser.__fromSubAdmin && _subAdminOriginalUser) {
+        currentUser = _subAdminOriginalUser;
+        _subAdminOriginalUser = null;
+      }
       desktop.setAttribute('style', 'display:none!important');
       mobile.style.display = '';
       var mMain = document.getElementById('m-page-main');
@@ -13721,6 +13730,30 @@
   }
   // แสดงแท็บนักเรียน
   function mShowDesktopStudentTab(tabName, title) {
+    mShowDesktopView(title, function() {
+      mHideAllDesktopPages('page-student-management');
+      document.getElementById('app-main')?.classList.remove('hidden');
+      document.getElementById('page-student-management')?.classList.remove('hidden');
+      if (typeof showStudentTab === 'function') showStudentTab(tabName);
+    });
+  }
+  // ── ผู้ช่วยแอดมินที่ผูกกับนักเรียนคนหนึ่งไว้ (linked_student_id) ──
+  // สลับตัวตนชั่วคราวเป็นนักเรียนคนนั้น เพื่อเข้าดูเมนูฝั่งนักเรียนได้ (สถานะยังเป็นทั้งสองอย่างพร้อมกัน)
+  var _subAdminOriginalUser = null;
+  function mShowDesktopStudentTabFromSubAdmin(tabName, title) {
+    var student = (allData||[]).find(function(s){ return s.type==='student' && s.__backendId === currentUser.linked_student_id; });
+    if (!student) { if (typeof mToast === 'function') mToast('ไม่พบข้อมูลนักเรียนที่ผูกไว้','#dc2626'); return; }
+    _subAdminOriginalUser = Object.assign({}, currentUser);
+    currentUser = {
+      user_type: 'student',
+      student_id: student.student_id,
+      prefix: student.prefix,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      __backendId: student.__backendId,
+      __fromSubAdmin: true,
+      linked_admin_id: _subAdminOriginalUser.__backendId
+    };
     mShowDesktopView(title, function() {
       mHideAllDesktopPages('page-student-management');
       document.getElementById('app-main')?.classList.remove('hidden');
@@ -13800,6 +13833,15 @@
       {icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopSubAdminTab('grading','🎓 ให้คะแนน')"},
       {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
     ],
+    // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง
+    'mn-sa-stuview': [
+      {icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
+      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
+      {icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
+      {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
+      {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
+      {icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
+    ],
     // นักเรียน — ใช้หน้าเดสก์ท็อปจริงทุกอย่าง (ทำได้ทุกอย่างเหมือนคอม)
     'mn-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"}],
     'mn-stu-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTab('homework','📝 การบ้าน')"}],
@@ -13822,6 +13864,7 @@
     if (type === 'admin') {
       btns = [
         {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopAnnouncementManagement()"},
+        {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
         {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
         {id:'mn-score',    icon:'📊', label:'คะแนน'},
         {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
@@ -13830,11 +13873,17 @@
     } else if (type === 'subadmin') {
       btns = [
         {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSubAdminHome()"},
+        {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
         {id:'mn-sa-hw',   icon:'📝', label:'การบ้าน'},
         {id:'mn-sa-time', icon:'⏱️', label:'ลงเวลา'},
         {id:'mn-sa-gr',   icon:'🎓', label:'คะแนน'},
         {id:'mn-sa-stu',  icon:'👥', label:'นักเรียน'},
       ];
+      // ผู้ช่วยแอดมินคนนี้เป็นนักเรียนอยู่ด้วย (ถูกแต่งตั้ง) → สถานะยังเป็นทั้งนักเรียนและผู้ช่วยแอดมิน
+      // ต้องมีเมนูฝั่งนักเรียนให้ใช้เหมือนนักเรียนทั่วไปด้วย
+      if (currentUser.linked_student_id) {
+        btns.push({id:'mn-sa-stuview', icon:'👨‍🎓', label:'มุมมองนักเรียน'});
+      }
     } else if (type === 'director') {
       btns = [
         {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
@@ -13855,7 +13904,7 @@
       }
     }
     nav.innerHTML = btns.map(b => `
-      <button id="${b.id}" onclick="mCloseAllOverlays();${b.fn ? b.fn : "mOpenTray('"+b.id+"')"}"
+      <button id="${b.id}" onclick="${b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')"}"
         style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">${b.icon}</span>
         <span>${b.label}</span>
@@ -13932,9 +13981,9 @@
       {color:'#f0b040',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('my_homework')"},
     ];
     c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 ภาพรวม</h2>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch">' +
       cards.map(function(card){
-        return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15)">' +
+        return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);box-sizing:border-box;min-height:110px;display:flex;flex-direction:column;justify-content:center">' +
           '<div style="font-size:22px;margin-bottom:6px">'+card.icon+'</div>' +
           '<div style="font-size:20px;font-weight:700;color:white;line-height:1">'+card.value+'</div>' +
           '<div style="font-size:10px;color:rgba(255,255,255,0.85);margin-top:3px">'+card.label+'</div></button>';
