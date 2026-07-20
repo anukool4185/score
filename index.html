@@ -543,6 +543,12 @@
   <style>
     /* โทรศัพท์: รวมแก้ไขทั้งหมด */
     body.is-mobile .grid button { width: 100% !important; min-width: 0 !important; }
+    /* แท็บแบบแถวปุ่มของเดสก์ท็อป ถูกแทนที่ด้วยเมนูไอคอนแล้ว จึงซ่อนบนมือถือ */
+    body.is-mobile #admin-tab-buttons,
+    body.is-mobile #subadmin-tab-buttons,
+    body.is-mobile #student-tabs { display: none !important; }
+    /* เว้นพื้นที่ด้านล่างให้เนื้อหาไม่ถูกเมนูไอคอนบัง เมื่อยืมหน้าเดสก์ท็อปมาแสดง */
+    body.is-mobile #desktop-root { padding-bottom: 64px !important; box-sizing: border-box; }
     body.is-mobile #admin-tab-buttons,
     body.is-mobile #students-subtab-buttons { display: none !important; }
     body.is-mobile .bell-top-bar-left { 
@@ -974,7 +980,7 @@
     <div id="page-admin" class="page h-full overflow-auto flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
-      <div class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
+      <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -3370,7 +3376,7 @@
           }
           <div id="subadmin-task-messages" class="mb-6"></div>
           ${hasScope ? `
-            <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+            <div id="subadmin-tab-buttons" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
               <button onclick="showSubAdminTab('homework')" id="subadmin-tab-homework" class="px-4 py-2 bg-blue-500 text-white rounded-t-lg font-medium text-sm">📝 การบ้าน</button>
               <button onclick="showSubAdminTab('timekeeping')" id="subadmin-tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">⏱️ ลงเวลาเรียน ${getSubAdminPermission('timekeeping') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
               <button onclick="showSubAdminTab('grading')" id="subadmin-tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-t-lg font-medium text-sm hover:bg-gray-400">🎓 ให้คะแนน ${getSubAdminPermission('grading') === 'view' ? '(ดูอย่างเดียว)' : ''}</button>
@@ -4493,13 +4499,23 @@
       safeHide('app-main');
       safeShow('page-login');
       ['page-register','page-home','page-student-management','page-director-management','page-subadmin','page-admin'].forEach(safeHide);
-      // ล้าง bottom nav
-      const nav = document.getElementById('mobile-bottom-nav');
-      if (nav) nav.innerHTML = '';
+      // ล้างเมนูไอคอนด้านล่าง (ของจริงที่ใช้งานอยู่)
+      const nav = document.getElementById('m-bottom-nav');
+      if (nav) { nav.innerHTML = ''; nav.style.display = 'none'; }
+      document.getElementById('m-tray')?.style && (document.getElementById('m-tray').style.display = 'none');
+      document.getElementById('m-tray-backdrop')?.style && (document.getElementById('m-tray-backdrop').style.display = 'none');
+      // เผื่อออกจากระบบขณะกำลังดูหน้าที่ยืมมาจากเดสก์ท็อป ให้ล้าง header กลับด้วย
+      document.getElementById('m-desktop-back-header')?.remove();
+      const injectedStyle = document.getElementById('mobile-override-style');
+      if (injectedStyle) injectedStyle.remove();
       // Mobile: กลับหน้า login ของ mobile
       if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
         const mMain = document.getElementById('m-page-main');
         const mLogin = document.getElementById('m-page-login');
+        const desktopRoot = document.getElementById('desktop-root');
+        const mobileRoot = document.getElementById('mobile-root');
+        if (desktopRoot) desktopRoot.setAttribute('style', 'display:none!important');
+        if (mobileRoot) mobileRoot.style.display = '';
         if (mMain) mMain.style.display = 'none';
         if (mLogin) mLogin.style.display = '';
       }
@@ -13704,18 +13720,17 @@
 
       <!-- Scrollable content area -->
       <div id="m-content" style="flex:1;overflow-y:auto;padding:12px;padding-bottom:72px"></div>
-
-      <!-- Bottom Nav -->
-      <div id="m-bottom-nav" style="position:fixed;bottom:0;left:0;right:0;height:60px;background:#ffffff;border-top:1px solid #e5e7eb;box-shadow:0 -3px 12px rgba(0,0,0,0.08);display:flex;align-items:center;z-index:100;overflow-x:auto;scrollbar-width:none"></div>
-    </div>
-
-    <!-- Mobile Sub-tab Tray -->
-    <div id="m-tray-backdrop" onclick="mCloseTray()" style="display:none;position:fixed;inset:0;z-index:998"></div>
-    <div id="m-tray" style="display:none;position:fixed;bottom:64px;left:0;right:0;z-index:999;padding:0 12px;justify-content:center">
-      <div id="m-tray-inner" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:340px;box-shadow:0 -4px 20px rgba(0,0,0,0.15)"></div>
     </div>
   </div>
   <!-- /mobile-root -->
+
+  <!-- เมนูไอคอนด้านล่าง + เมนูย่อย: อยู่นอก mobile-root ตั้งใจ เพื่อให้แสดงค้างอยู่ทุกหน้าหลัง login
+       ไม่ว่าจะกำลังดูหน้าที่ยืมมาจากเดสก์ท็อปอยู่หรือไม่ก็ตาม (ยกเว้นหน้า login ซึ่ง mBuildNav จะเคลียร์ไว้ว่าง) -->
+  <div id="m-bottom-nav" style="position:fixed;bottom:0;left:0;right:0;height:60px;background:#ffffff;border-top:1px solid #e5e7eb;box-shadow:0 -3px 12px rgba(0,0,0,0.08);display:none;align-items:center;z-index:100000;overflow-x:auto;scrollbar-width:none"></div>
+  <div id="m-tray-backdrop" onclick="mCloseTray()" style="display:none;position:fixed;inset:0;z-index:99998"></div>
+  <div id="m-tray" style="display:none;position:fixed;bottom:64px;left:0;right:0;z-index:99999;padding:0 12px;justify-content:center">
+    <div id="m-tray-inner" style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:340px;box-shadow:0 -4px 20px rgba(0,0,0,0.15)"></div>
+  </div>
 
   <script>
   // ==================== MOBILE SYSTEM ====================
@@ -13791,6 +13806,22 @@
   }
 
   // ── Navigation ──
+  // ปิด overlay/หน้าที่ยืมมาจากเดสก์ท็อปทั้งหมด ก่อนเปลี่ยนเมนู กันเมนูกดแล้วไม่ขยับเพราะโดน overlay บังอยู่
+  function mCloseAllOverlays() {
+    document.getElementById('m-eval-overlay')?.remove();
+    document.getElementById('m-evaluators-overlay')?.remove();
+    var header = document.getElementById('m-desktop-back-header');
+    if (header) {
+      header.remove();
+      var desktop = document.getElementById('desktop-root');
+      var mobile = document.getElementById('mobile-root');
+      if (desktop) desktop.setAttribute('style', 'display:none!important');
+      if (mobile) mobile.style.display = '';
+      var mMain = document.getElementById('m-page-main');
+      if (mMain) mMain.style.display = 'flex';
+    }
+  }
+
   // ── Wrapper: ยืม UI ฝั่งเดสก์ท็อปมาแสดงบนมือถือ (ทำได้ทุกอย่างเหมือนคอม 100%) ──
   function mShowDesktopView(title, setupFn) {
     var desktop = document.getElementById('desktop-root');
@@ -13904,7 +13935,9 @@
 
   function mBuildNav() {
     var nav = document.getElementById('m-bottom-nav');
-    if (!nav || !currentUser) return;
+    if (!nav) return;
+    if (!currentUser) { nav.style.display = 'none'; nav.innerHTML = ''; return; }
+    nav.style.display = 'flex';
     var type = currentUser.user_type;
     var btns = [];
     if (type === 'admin') {
@@ -13930,7 +13963,7 @@
       ];
     }
     nav.innerHTML = btns.map(b => `
-      <button id="${b.id}" onclick="${b.fn ? b.fn : "mOpenTray('"+b.id+"')"}"
+      <button id="${b.id}" onclick="mCloseAllOverlays();${b.fn ? b.fn : "mOpenTray('"+b.id+"')"}"
         style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">${b.icon}</span>
         <span>${b.label}</span>
@@ -13948,7 +13981,7 @@
     if (_mActiveTray === navId && tray.style.display !== 'none') { mCloseTray(); return; }
     _mActiveTray = navId;
     inner.innerHTML = items.map(item =>
-      `<button onclick="mCloseTray();${item.fn}" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;color:#334155;font-size:7px;padding:7px 10px;cursor:pointer;min-width:48px">
+      `<button onclick="mCloseTray();mCloseAllOverlays();${item.fn}" style="display:flex;flex-direction:column;align-items:center;gap:3px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;color:#334155;font-size:7px;padding:7px 10px;cursor:pointer;min-width:48px">
         <span style="font-size:20px">${item.icon}</span><span>${item.label}</span>
        </button>`).join('');
     tray.style.display = 'flex';
@@ -14274,7 +14307,7 @@
       '<div style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">' +
       '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer">← กลับ</button>' +
       '<p style="font-size:13px;font-weight:700;margin:0">' + title + '</p></div>' +
-      '<div style="flex:1;overflow-y:auto;padding:12px">' + contentHtml + '</div>';
+      '<div style="flex:1;overflow-y:auto;padding:12px;padding-bottom:76px">' + contentHtml + '</div>';
     document.body.appendChild(overlay);
     return overlay;
   }
