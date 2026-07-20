@@ -3304,8 +3304,9 @@
 
       // เข้าหน้าหลัก (ประชาสัมพันธ์) เป็นหน้าแรกเสมอหลัง login — เฉพาะนักเรียน/ผู้นิเทศ
       // (แอดมินมีการจัดการหน้าของตัวเองอยู่แล้วในแต่ละจุดที่ login จึงไม่ override ตรงนี้)
+      // ครอบด้วย try/catch: กันไม่ให้ error จากการ render หน้านี้ไปบล็อกขั้นตอนถัดไป (เช่นการสลับไปมือถือ)
       if (currentUser.user_type === 'student' || isDirector) {
-        goToHomePage();
+        try { goToHomePage(); } catch (e) { console.error('goToHomePage error:', e); }
       }
       
       // ตั้งค่า isMainAdmin
@@ -4166,6 +4167,10 @@
         section.classList.add('hidden');
       }
     }
+    // ป้องกัน HTML/JS แปลกปลอมที่อาจถูกพิมพ์ไว้ในข้อความประกาศ (ใช้ร่วมกันทุกฟังก์ชันที่ render ประกาศ)
+    function escHtml(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
     function getTodayDateStr() {
       const today = new Date();
       return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -4324,7 +4329,6 @@
       `;
     }
     function buildAnnouncementsFeedHtml(target) {
-      const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       // กรองประกาศที่มีโค้ด JS ออก (ป้องกัน injection)
       const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
       const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text))
@@ -13791,7 +13795,7 @@
     var main = document.getElementById('m-page-main');
     main.style.display = 'flex';
     // Header
-    var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : '🎓 นักเรียน';
+    var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : currentUser.user_type === 'director' ? '🎓 ผู้นิเทศการสอน' : '🎓 นักเรียน';
     document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
     document.getElementById('m-header-user').textContent = (currentUser.prefix||'') + (currentUser.first_name||currentUser.username||'');
     mBuildNav();
@@ -13879,7 +13883,7 @@
 
   function mHideAllDesktopPages(except) {
     ['page-login','page-register','page-public-evaluation','page-evaluators-list',
-     'page-home','page-admin','page-subadmin','page-student-management'].forEach(function(id) {
+     'page-home','page-admin','page-subadmin','page-student-management','page-director-management'].forEach(function(id) {
       if (id === except) return;
       var el = document.getElementById(id);
       if (el) el.classList.add('hidden');
@@ -13911,6 +13915,14 @@
       document.getElementById('app-main')?.classList.remove('hidden');
       document.getElementById('page-student-management')?.classList.remove('hidden');
       if (typeof showStudentTab === 'function') showStudentTab(tabName);
+    });
+  }
+  function mShowDesktopDirectorTab(tabName, title) {
+    mShowDesktopView(title, function() {
+      mHideAllDesktopPages('page-director-management');
+      document.getElementById('app-main')?.classList.remove('hidden');
+      document.getElementById('page-director-management')?.classList.remove('hidden');
+      if (typeof showDirectorTab === 'function') showDirectorTab(tabName);
     });
   }
 
@@ -13965,27 +13977,33 @@
     var btns = [];
     if (type === 'admin') {
       btns = [
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
         {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
         {id:'mn-score',    icon:'📊', label:'คะแนน'},
         {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
         {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
       ];
     } else if (type === 'subadmin') {
       btns = [
+        {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
         {id:'mn-sa-hw',   icon:'📝', label:'การบ้าน'},
         {id:'mn-sa-time', icon:'⏱️', label:'ลงเวลา'},
         {id:'mn-sa-gr',   icon:'🎓', label:'คะแนน'},
         {id:'mn-sa-stu',  icon:'👥', label:'นักเรียน'},
-        {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
+      ];
+    } else if (type === 'director') {
+      btns = [
+        {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
+        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDesktopDirectorTab('score','📊 ตารางผลการเรียน/เวลาเรียน')"},
+        {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDesktopDirectorTab('evaluate','📝 ประเมินผู้สอน')"},
       ];
     } else {
       btns = [
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
         {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
         {id:'mn-hw',       icon:'📝', label:'การบ้าน'},
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
         {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowSection('home')"},
       ];
     }
     nav.innerHTML = btns.map(b => `
