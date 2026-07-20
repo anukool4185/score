@@ -439,6 +439,17 @@
       body.is-mobile .text-xl { font-size: clamp(12px, 3.5vw, 15px) !important; }
       body.is-mobile .text-2xl { font-size: clamp(13px, 3.8vw, 16px) !important; }
       body.is-mobile .text-3xl { font-size: clamp(14px, 4.2vw, 18px) !important; }
+      /* ปุ่มปิด popup (×) ต้องใหญ่พอมองเห็น/แตะง่าย ไม่โดนกฎ .text-2xl ตัวเล็กด้านบนบีบ */
+      body.is-mobile .absolute.top-4.right-4.text-2xl.leading-none {
+        font-size: 28px !important;
+        width: 36px !important;
+        height: 36px !important;
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        top: 8px !important;
+        right: 8px !important;
+      }
 
       /* ปุ่มทั่วไป: ข้อความ scale ตามจอ + กว้างตามข้อความ */
       body.is-mobile button:not(#mobile-bottom-nav button):not(#mobile-subtab-tray button):not(.rounded-full) {
@@ -13107,6 +13118,7 @@
     function updateStudentRegistrationsList() {
       const container = document.getElementById('student-registrations');
       if (!container) return;
+      const regOpen = isRegistrationOpen();
       const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === currentUser.student_id);
       if (registrations.length === 0) {
         container.innerHTML = '';
@@ -13132,8 +13144,12 @@
               </div>
             </div>
             <div class="flex gap-2">
-              <button onclick="studentEditRegistration('${reg.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
-              <button onclick="studentDeleteRegistration('${reg.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+              ${regOpen ? `
+                <button onclick="studentEditRegistration('${reg.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
+                <button onclick="studentDeleteRegistration('${reg.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
+              ` : `
+                <span class="px-3 py-2 bg-gray-100 text-gray-400 rounded text-xs" title="ปิดช่วงเวลาลงทะเบียนแล้ว ดูได้อย่างเดียว">🔒 ดูอย่างเดียว</span>
+              `}
             </div>
           </div>
         `;
@@ -13152,6 +13168,7 @@
       existingItems.forEach(el => el.remove());
     }
     function studentEditRegistration(regId) {
+      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถแก้ไขได้', 'error'); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const mfData = allData.find(d => d.type === 'class_subject' && d.class_subject_id === reg.class_subject_id);
@@ -13211,6 +13228,7 @@
       }
     }
     async function studentConfirmEditRegistration(regId, kpacLimit) {
+      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถแก้ไขได้', 'error'); document.querySelectorAll('.fixed').forEach(el => el.remove()); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const k = parseFloat(document.getElementById('student-edit-k').value) || 0;
@@ -13239,6 +13257,7 @@
       }
     }
     function studentDeleteRegistration(regId) {
+      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถลบได้', 'error'); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const confirmDiv = document.createElement('div');
@@ -13255,6 +13274,7 @@
       document.body.appendChild(confirmDiv);
     }
     async function studentConfirmDeleteRegistration(regId) {
+      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถลบได้', 'error'); document.querySelectorAll('.fixed').forEach(el => el.remove()); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const result = await window.dataSdk.delete(reg);
