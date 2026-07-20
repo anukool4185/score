@@ -4465,48 +4465,40 @@
       }
     }
     function handleLogout() {
+      const safeHide = id => { const el=document.getElementById(id); if(el) el.classList.add('hidden'); };
+      const safeShow = id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); };
+      const safeAddClass = (id,...cls) => { const el=document.getElementById(id); if(el) el.classList.add(...cls); };
+      const safeRemoveClass = (id,...cls) => { const el=document.getElementById(id); if(el) el.classList.remove(...cls); };
       // ซ่อน UI หลักก่อน
-      document.getElementById('app-main').classList.add('hidden');
-      document.getElementById('page-login').classList.remove('hidden');
-      document.getElementById('page-register').classList.add('hidden');
-      document.getElementById('page-home').classList.add('hidden');
-      document.getElementById('page-student-management').classList.add('hidden');
-      document.getElementById('page-director-management').classList.add('hidden');
-      document.getElementById('page-subadmin').classList.add('hidden');
-      document.getElementById('page-admin').classList.add('hidden');
+      safeHide('app-main');
+      safeShow('page-login');
+      ['page-register','page-home','page-student-management','page-director-management','page-subadmin','page-admin'].forEach(safeHide);
       // ล้าง bottom nav
       const nav = document.getElementById('mobile-bottom-nav');
       if (nav) nav.innerHTML = '';
       // Mobile: กลับหน้า login ของ mobile
       if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
-        document.getElementById('m-page-main').style.display = 'none';
-        document.getElementById('m-page-login').style.display = '';
+        const mMain = document.getElementById('m-page-main');
+        const mLogin = document.getElementById('m-page-login');
+        if (mMain) mMain.style.display = 'none';
+        if (mLogin) mLogin.style.display = '';
       }
-
       // ลบข้อมูล user หลังจากซ่อน UI
       currentUser = null;
       currentStudentTab = null;
-      localStorage.removeItem('currentUser'); // ลบเฉพาะ currentUser
-      
+      localStorage.removeItem('currentUser');
       // รีเซ็ตฟอร์ม login
-      document.getElementById('login-username').value = '';
-      document.getElementById('login-password').value = '';
-      document.getElementById('login-error').classList.add('hidden');
-      
-      // รีเซ็ตปุ่มเมนูตามบทบาท (ซ่อนทั้งหมด รอ login รอบถัดไปมาเปิดใหม่)
-      document.getElementById('student-mgmt-nav-btn').classList.add('hidden');
-      document.getElementById('director-mgmt-nav-btn').classList.add('hidden');
-      document.getElementById('admin-nav-btn').classList.add('hidden');
-      document.getElementById('logout-btn').classList.add('hidden');
-      document.getElementById('user-display').classList.add('hidden');
-      
+      ['login-username','login-password'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+      safeHide('login-error');
+      // รีเซ็ตปุ่มเมนูตามบทบาท
+      ['student-mgmt-nav-btn','director-mgmt-nav-btn','admin-nav-btn','student-subadmin-nav-btn','logout-btn','user-display'].forEach(safeHide);
       // รีเซ็ตแท็บนักเรียน
-      document.getElementById('tab-profile').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-register').classList.remove('bg-blue-500', 'text-white');
-      document.getElementById('tab-profile').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-register').classList.add('bg-gray-300', 'text-gray-700');
-      document.getElementById('student-content').innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in"><h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2><p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p></div>';
-      
+      ['tab-profile','tab-register','tab-grades','tab-homework-student','tab-evaluate','tab-attendance'].forEach(id => {
+        safeRemoveClass(id,'bg-blue-500','text-white');
+        safeAddClass(id,'bg-gray-300','text-gray-700');
+      });
+      const sc = document.getElementById('student-content');
+      if(sc) sc.innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in"><h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2><p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p></div>';
       // รีเซ็ตแท็บแอดมิน
       document.querySelectorAll('[id^="admin-tab-"]').forEach(tab => tab.classList.add('hidden'));
       const adminTabs = document.querySelectorAll('[id^="tab-"][class*="bg-blue-500"], [id^="tab-"][class*="bg-gray-300"]');
@@ -6012,6 +6004,24 @@
     function removeUploadNotFoundRow(idx) {}
     async function confirmWriteScores() {}
 
+    async function reconcilePendingScores() {
+      // สแกนคะแนนสำรองทั้งหมด — ถ้านักเรียนลงทะเบียนวิชานั้นแล้วแต่คะแนนยังค้างอยู่ ให้ดึงเข้าอัตโนมัติ
+      const pendings = allData.filter(d => d.type === 'pending_score');
+      let fixed = 0;
+      for (const p of pendings) {
+        const reg = allData.find(r => r.type === 'student_registration' && r.student_id === p.student_id && r.subject_name === p.subject_name);
+        if (reg) {
+          const ok = await applyPendingScore(p);
+          if (ok) fixed++;
+        }
+      }
+      if (fixed > 0) {
+        showToast(`🔄 ดึงคะแนนสำรองที่ค้างอยู่เข้าระบบอัตโนมัติ ${fixed} รายการ`);
+        refreshCurrentView();
+      }
+      return fixed;
+    }
+
     function renderPendingScoreTable() {
       const tbody = document.getElementById('us-pending-score-tbody');
       if (!tbody) return;
@@ -6035,19 +6045,9 @@
         const examLabel = p.exam_type === 'mid' ? 'กลางภาค' : p.exam_type === 'final' ? 'ปลายภาค' : 'K';
         const scoreMode = modeLabelMap[p.score_mode] || '🔄 ทับ';
         const fullMode = modeLabelMap[p.full_mode] ? `คะแนนเต็ม: ${modeLabelMap[p.full_mode]}` : '';
-        // สถานะ: ไม่มีในระบบ / สมัครแล้วแต่ยังไม่ลงทะเบียน / ลงทะเบียนแล้ว
-        let statusBadge;
-        if (!student) statusBadge = '<span class="text-xs text-red-600 font-semibold">❌ ยังไม่สมัคร</span>';
-        else if (!reg) statusBadge = '<span class="text-xs text-amber-600">⏳ สมัครแล้ว รอลงทะเบียน</span>';
-        else statusBadge = '<span class="text-xs text-green-600 font-semibold">✅ ลงทะเบียนแล้ว</span>';
-        // รหัส + สถานะย่อ
-        const idStatus = `${p.student_id}${student ? '' : ' <span class="text-[9px] text-red-400">ยังไม่สมัคร</span>'}`;
         return `<tr class="hover:bg-gray-50 border-t border-gray-100">
           <td class="px-2 py-2 text-center"><input type="checkbox" class="us-pending-cb w-4 h-4" data-id="${p.__backendId}"></td>
-          <td class="px-2 py-2 whitespace-nowrap text-xs">
-            <span class="font-mono">${p.student_id}</span><br>
-            ${statusBadge}
-          </td>
+          <td class="px-2 py-2 whitespace-nowrap text-xs"><span class="font-mono">${p.student_id}</span></td>
           <td class="px-2 py-2 whitespace-nowrap text-xs">${student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : '<span class="text-gray-400">-</span>'}</td>
           <td class="px-2 py-2 whitespace-nowrap text-xs">${p.subject_name}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap text-xs">${examLabel}</td>
@@ -6057,6 +6057,8 @@
           <td class="px-2 py-2 text-center text-xs">${reg ? '<span class="text-green-600">✅ ลงทะเบียนแล้ว</span>' : student ? '<span class="text-amber-500">⏳ รอลงทะเบียน</span>' : '<span class="text-red-400">❌ ยังไม่สมัคร</span>'}</td>
         </tr>`;
       }).join('');
+      // ตรวจสอบอัตโนมัติ: ถ้ามีรายการที่ลงทะเบียนแล้วแต่ยังค้างเป็น pending ให้ดึงเข้าทันที
+      reconcilePendingScores();
     }
 
     function toggleSelectAllPending(cb) {
@@ -6226,17 +6228,23 @@
           const absent2 = (hoursData.actual_hours_taught || 0) - (part2.attended_hours_real || 0);
           if (absent2 > (hoursData.actual_hours_can_absent || 0)) special2 = 'มส.';
         }
-        // เกรดพิเศษ(3): ร. จากภาพรวมคะแนน A (รายครั้งต้องเท่ากับคะแนนเต็มรายครั้งของ A ทุกครั้งที่มีข้อมูล)
+        // เกรดพิเศษ(3): ร. จากภาพรวมคะแนน A
+        // เงื่อนไข: ตรวจเฉพาะช่องที่ "กำหนดคะแนนเต็มไว้แล้ว" เท่านั้น
+        //   - ถ้ากำหนดคะแนนเต็มไว้ แต่ไม่มีคะแนนกรอกเลย (ช่องว่าง) → ติด ร. (ถือว่ายังไม่ส่งงาน)
+        //   - ถ้ากำหนดคะแนนเต็มไว้ และกรอกคะแนนแล้ว แต่ไม่เท่ากับคะแนนเต็ม → ติด ร.
+        //   - ถ้าไม่ได้กำหนดคะแนนเต็มไว้ (ช่องนั้นยังไม่เปิดใช้งาน) → ไม่นับ ไม่ติด ร.
         let special3 = '-';
-        if (grade && scoresConfig) {
-          const aScoresArr = (grade.a_scores || '').split(',');
+        if (scoresConfig) {
+          const aScoresArr = (grade?.a_scores || '').split(',');
           const aFullArr = parseFullScoresArray(scoresConfig.a_full_scores, 3);
           let anyChecked = false, anyFail = false;
           for (let i = 0; i < 3; i++) {
-            const enteredStr = aScoresArr[i] ? aScoresArr[i].trim() : '';
             const fullStr = aFullArr[i];
-            if (enteredStr === '' || fullStr === '') continue;
+            const isConfigured = fullStr !== '' && fullStr !== undefined && fullStr !== null;
+            if (!isConfigured) continue; // ช่องนี้ยังไม่กำหนดคะแนนเต็ม → ไม่นับ
             anyChecked = true;
+            const enteredStr = aScoresArr[i] ? aScoresArr[i].trim() : '';
+            if (enteredStr === '') { anyFail = true; continue; } // กำหนดคะแนนเต็มแล้วแต่ไม่มีคะแนน → ติด ร.
             if ((parseFloat(enteredStr) || 0) !== (parseFloat(fullStr) || 0)) anyFail = true;
           }
           if (anyChecked) special3 = anyFail ? 'ร.' : '-';
@@ -9273,6 +9281,9 @@
           const req = allData.find(d => d.__backendId === requestId);
           if (req) await window.dataSdk.update({ ...req, status: 'done' });
         }
+        // ดึงคะแนน pending ที่เก็บสำรองไว้มาใส่อัตโนมัติ (ถ้ามี) — ป้องกันคะแนนสำรองตกค้าง
+        if (!existingReg) await applyPendingScoresOnRegistration(student.student_id, subjectName);
+        refreshCurrentView();
       } else {
         showToast('ไม่สามารถลงทะเบียนได้', 'error');
       }
@@ -10750,11 +10761,18 @@
         if (!input || !statusEl) continue;
         const fullScoreStr = input.getAttribute('data-full');
         const hasFullScore = fullScoreStr !== '' && fullScoreStr !== null;
-        if (!hasFullScore || input.value === '') {
+        if (!hasFullScore) {
           statusEl.textContent = '';
-          continue;
+          continue; // ยังไม่กำหนดคะแนนเต็ม → ไม่นับ ไม่ติด ร.
         }
         anyChecked = true;
+        if (input.value === '') {
+          // กำหนดคะแนนเต็มแล้วแต่ยังไม่กรอกคะแนน → ติด ร.
+          statusEl.textContent = '❌ติด ร.';
+          statusEl.className = 'text-[10px] block text-center text-red-600 font-semibold';
+          anyFail = true;
+          continue;
+        }
         const entered = parseFloat(input.value) || 0;
         const fullScoreForThis = parseFloat(fullScoreStr) || 0;
         if (entered === fullScoreForThis) {
@@ -10820,8 +10838,10 @@
         const scores = [];
         for (let i = 1; i <= times; i++) {
           const value = document.getElementById(`${type}-${regId}-${i}`)?.value || '';
-          if (value) scores.push(value);
+          scores.push(value); // เก็บตำแหน่งเสมอ แม้ว่างก็ต้องเก็บช่องว่างไว้ ไม่เช่นนั้นคะแนนครั้งถัดไปจะเลื่อนตำแหน่งผิด
         }
+        // ตัดช่องว่างท้ายอาร์เรย์ออก (ไม่ตัดช่องว่างตรงกลาง เพื่อรักษาตำแหน่ง)
+        while (scores.length > 0 && scores[scores.length - 1] === '') scores.pop();
         return scores.join(',');
       };
       const pretest_scores = getScores('pretest', 10);
@@ -11687,15 +11707,21 @@
         if (type === 'a') {
           let statusText = '';
           let statusClass = 'text-[10px] block text-center';
-          if (isConfigured && value !== '') {
-            const entered = parseFloat(value) || 0;
-            const fullVal = parseFloat(fullScoreForThis) || 0;
-            if (entered === fullVal) {
-              statusText = '✅ ผ่าน';
-              statusClass += ' text-green-600 font-semibold';
-            } else {
+          if (isConfigured) {
+            if (value === '') {
+              // กำหนดคะแนนเต็มแล้วแต่ยังไม่มีคะแนน → ติด ร.
               statusText = '❌ติด ร.';
               statusClass += ' text-red-600 font-semibold';
+            } else {
+              const entered = parseFloat(value) || 0;
+              const fullVal = parseFloat(fullScoreForThis) || 0;
+              if (entered === fullVal) {
+                statusText = '✅ ผ่าน';
+                statusClass += ' text-green-600 font-semibold';
+              } else {
+                statusText = '❌ติด ร.';
+                statusClass += ' text-red-600 font-semibold';
+              }
             }
           }
           html += `<span class="${statusClass}">${statusText}</span>`;
@@ -13533,10 +13559,7 @@
       <!-- Search Status -->
       <div id="m-login-search" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);margin-bottom:12px">
         <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">🔍 ค้นหาสถานะ</p>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="m-search-input" placeholder="รหัส/ชื่อ/นามสกุล" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:11px;outline:none">
-          <button onclick="mobileSearchStatus()" style="padding:8px 12px;background:#4da6e8;color:white;border:none;border-radius:10px;font-size:11px;cursor:pointer">ค้นหา</button>
-        </div>
+        <input type="text" id="m-search-input" placeholder="รหัส/ชื่อ/นามสกุล" oninput="mobileSearchStatus()" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:11px;box-sizing:border-box;outline:none">
         <div id="m-search-result" style="margin-top:8px;font-size:11px"></div>
       </div>
     </div><!-- /m-page-login -->
@@ -14156,7 +14179,8 @@
   function mobileSearchStatus() {
     var q = (document.getElementById('m-search-input')?.value||'').trim();
     var result = document.getElementById('m-search-result');
-    if (!q || !result) return;
+    if (!result) return;
+    if (q.length < 2) { result.innerHTML = ''; return; }
     var students = (allData||[]).filter(d=>d.type==='student');
     var found = students.filter(s=>
       s.student_id===q ||
