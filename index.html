@@ -14036,6 +14036,9 @@
   function mShowRegisterPage() {
     var desktop = document.getElementById('desktop-root');
     var mobile = document.getElementById('mobile-root');
+    // ลบ CSS !important ที่ block desktop-root ก่อน
+    var injected = document.getElementById('mobile-override-style');
+    if (injected) injected.remove();
     // ซ่อนทุก page ใน desktop ก่อน
     ['page-login','page-register','page-public-evaluation','page-evaluators-list',
      'page-home','page-admin','page-subadmin','page-student-management'].forEach(function(id) {
@@ -14045,7 +14048,7 @@
     var appMain = document.getElementById('app-main');
     if (appMain) appMain.classList.add('hidden');
     // แสดง desktop-root + page-register เท่านั้น
-    desktop.style.display = 'block';
+    desktop.setAttribute('style','display:block!important');
     mobile.style.display = 'none';
     var regPage = document.getElementById('page-register');
     if (regPage) regPage.classList.remove('hidden');
@@ -14058,7 +14061,7 @@
     btn.textContent = '← กลับ';
     btn.style.cssText = 'position:fixed;top:10px;left:10px;z-index:99999;background:#1e3a5f;color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3)';
     btn.onclick = function() {
-      desktop.style.display = 'none';
+      desktop.setAttribute('style','display:none!important');
       mobile.style.display = '';
       btn.remove();
     };
@@ -14070,7 +14073,8 @@
     var topics = (allData||[]).filter(function(d){return d.type==='evaluation_topic';}).sort(function(a,b){return (a.order||0)-(b.order||0);});
     var levels = (allData||[]).filter(function(d){return d.type==='evaluation_level';}).sort(function(a,b){return (a.percent_value||0)-(b.percent_value||0);});
     if (!topics.length || !levels.length) {
-      mCreateOverlay('m-eval-overlay','📝 ประเมินครูผู้สอน','<div style="text-align:center;padding:40px"><p style="font-size:13px;color:#94a3b8">ยังไม่มีหัวข้อประเมิน กรุณาติดต่อแอดมิน</p></div>');
+      var msg = !topics.length ? 'ยังไม่มีหัวข้อประเมิน ('+levels.length+' ระดับ)' : 'ยังไม่มีระดับการประเมิน ('+topics.length+' หัวข้อ)';
+      mCreateOverlay('m-eval-overlay','📝 ประเมินครูผู้สอน','<div style="text-align:center;padding:40px"><p style="font-size:24px;margin:0 0 8px">📋</p><p style="font-size:13px;color:#64748b">'+msg+'</p><p style="font-size:11px;color:#94a3b8;margin-top:8px">กรุณาติดต่อแอดมินเพื่อตั้งค่าหัวข้อประเมิน</p></div>');
       return;
     }
     var topicsHtml = topics.map(function(t){
