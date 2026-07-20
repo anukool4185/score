@@ -235,13 +235,13 @@
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 62px;
-      background: linear-gradient(135deg, #2a4a6a 0%, #3d6080 100%) !important;
-      border-top: 1px solid rgba(255,255,255,0.15);
+      background: #ffffff !important;
+      border-top: 1px solid #e5e7eb;
       z-index: 9999;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
-      box-shadow: 0 -3px 18px rgba(0,0,0,0.35);
+      box-shadow: 0 -3px 12px rgba(0,0,0,0.08);
       align-items: center;
     }
     #mobile-bottom-nav::-webkit-scrollbar { display: none; }
@@ -257,7 +257,7 @@
       height: 100%;
       background: none !important;
       border: none !important;
-      color: rgba(255,255,255,0.5) !important;
+      color: #64748b !important;
       font-size: 8px !important;
       padding: 4px 8px !important;
       gap: 3px !important;
@@ -268,10 +268,10 @@
       white-space: nowrap;
     }
     #mobile-bottom-nav button:active {
-      background: rgba(255,255,255,0.08) !important;
+      background: #f1f5f9 !important;
     }
     #mobile-bottom-nav button.active-nav {
-      color: #fbbf24 !important;
+      color: #2563eb !important;
     }
     #mobile-bottom-nav button .nav-icon {
       font-size: 21px !important;
@@ -420,7 +420,7 @@
     .card-shadow { box-shadow: 0 4px 20px rgba(60,100,140,0.10) !important; }
 
     #mobile-bottom-nav {
-      background: linear-gradient(135deg, #4a80b0 0%, #6098c8 100%) !important;
+      background: #ffffff !important;
     }
     #mobile-subtab-tray .tray-inner {
       background: #3a6890 !important;
@@ -8948,8 +8948,21 @@
       // ลบ popup ที่ลอยอยู่ทั้งหมด (เผื่อมีหลายอันซ้อนกัน) ไม่ใช่ลบแค่อันแรกที่เจอ
       document.querySelectorAll('.fixed').forEach(el => el.remove());
       document.getElementById('page-register').classList.add('hidden');
-      document.getElementById('page-login').classList.remove('hidden');
       document.getElementById('app-main').classList.add('hidden');
+      // มือถือ: กลับไปแสดง mobile-root + หน้า login ของมือถือ (ไม่ใช่หน้า login ฝั่งคอม)
+      if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+        var mBackBtn = document.getElementById('m-back-btn');
+        if (mBackBtn) mBackBtn.remove();
+        document.getElementById('desktop-root').setAttribute('style', 'display:none!important');
+        var mobileRoot = document.getElementById('mobile-root');
+        if (mobileRoot) mobileRoot.style.display = '';
+        var mLogin = document.getElementById('m-page-login');
+        if (mLogin) mLogin.style.display = '';
+        var mMain = document.getElementById('m-page-main');
+        if (mMain) mMain.style.display = 'none';
+        return;
+      }
+      document.getElementById('page-login').classList.remove('hidden');
     }
     async function editStudent(studentId) {
       const student = allData.find(s => s.__backendId === studentId);
@@ -13543,7 +13556,7 @@
         navBtn('mnav-hw','📝','การบ้าน') +
         navBtn('mnav-grade','📊','คะแนน') +
         navBtn('mnav-profile','👤','ข้อมูล') +
-        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+        `<button onclick="handleLogout()" style="color:#dc2626!important">
           <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'subadmin') {
       showNav(
@@ -13552,7 +13565,7 @@
         navBtn('mnav-sa-grade','🎓','คะแนน') +
         navBtn('mnav-sa-stu','👥','นักเรียน',
           pendingKpac>0?`<span class="nav-badge">${pendingKpac}</span>`:'') +
-        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+        `<button onclick="handleLogout()" style="color:#dc2626!important">
           <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else if (type === 'admin') {
       showNav(
@@ -13562,7 +13575,7 @@
         navBtn('mnav-ad-up','📤','อัพโหลด') +
         navBtn('mnav-ad-gr','📋','รายงาน') +
         navBtn('mnav-ad-adm','⚙️','ตั้งค่า') +
-        `<button onclick="handleLogout()" style="color:rgba(255,120,120,0.9)!important">
+        `<button onclick="handleLogout()" style="color:#dc2626!important">
           <span class="nav-icon">🚪</span><span class="nav-label">ออก</span></button>`);
     } else { hideNav(); }
   }
@@ -13826,7 +13839,7 @@
         <span style="font-size:20px;line-height:1">${b.icon}</span>
         <span>${b.label}</span>
       </button>`).join('') +
-      `<button onclick="handleLogout()" style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:rgba(255,120,120,0.8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
+      `<button onclick="handleLogout()" style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#dc2626;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">🚪</span><span>ออก</span>
       </button>`;
   }
