@@ -2162,6 +2162,12 @@
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mobileRenderLoginData === 'function') {
           mobileRenderLoginData();
         }
+        // ลบประกาศที่มีโค้ด JS ออกจาก DB อัตโนมัติ (cleanup)
+        const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
+        const badAnnouncements = allData.filter(d => d.type === 'announcement' && isJsCode(d.text));
+        badAnnouncements.forEach(async ann => {
+          try { await window.dataSdk.delete(ann); console.log('🧹 ลบประกาศโค้ด JS ออกแล้ว'); } catch(e) {}
+        });
         // อัปเดตจำนวนแจ้งเตือนกระดิ่งแบบสด (เป็นแค่ตัวเลข+รายการอ่านอย่างเดียว ไม่มีฟอร์มให้กรอก จึงอัปเดตสดได้ปลอดภัย)
         renderNotificationBells();
         // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
@@ -4254,7 +4260,8 @@
           `;
         }
       }
-      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
+      const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text))
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
         content.innerHTML = warningHtml + `
@@ -4281,7 +4288,9 @@
     }
     function buildAnnouncementsFeedHtml(target) {
       const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target)
+      // กรองประกาศที่มีโค้ด JS ออก (ป้องกัน injection)
+      const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text))
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
         return '<p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>';
@@ -13874,9 +13883,8 @@
   function mRenderAnnouncements() {
     var container = document.getElementById('m-marquee-track-container');
     if (!container) return;
-
-    // ใช้ computeNewApplicants เหมือน desktop
-    var applicants = typeof computeNewApplicants === 'function' ? computeNewApplicants() : [];
+    var isJsCode = function(s){ return /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||''); };
+    var applicants = typeof computeNewApplicants === 'function' ? computeNewApplicants().filter(function(s){ return !isJsCode(s.first_name); }) : [];
 
     if (!applicants.length) {
       container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</div>';
