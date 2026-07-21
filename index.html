@@ -7434,20 +7434,49 @@
         const scopeDisplay = (!admin.isDefault && (admin.scope_class_name || admin.scope_subject_name))
           ? `<span class="text-xs text-gray-500 block">${admin.scope_class_name || ''}/${admin.scope_room_number || ''} | ${admin.scope_subject_name || ''}</span>`
           : '';
+        const permCheckboxes = (!admin.isDefault && isMainAdmin) ? `
+          <div class="flex flex-wrap gap-3 mt-2">
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_timekeeping === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_timekeeping',this.checked)" class="w-4 h-4">
+              ⏱️ ลงเวลาเรียน
+            </label>
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_grading === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_grading',this.checked)" class="w-4 h-4">
+              🎓 ให้คะแนน
+            </label>
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_students === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_students',this.checked)" class="w-4 h-4">
+              👨‍🎓 นักเรียน
+            </label>
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1">✅ ติ๊ก = จัดการได้ (ทำแทนแอดมิน) | ⬜ ไม่ติ๊ก = ดูอย่างเดียว</p>
+        ` : '';
         return `
           <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
-           <div>
+           <div class="flex-1">
             <p class="font-semibold text-gray-800">👤 ${admin.username} ${nameDisplay}</p>
             ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : '<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>'}
             ${scopeDisplay}
+            ${permCheckboxes}
            </div>
-           ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2">
+           ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2 flex-shrink-0">
             <button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
             <button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
            </div>` : ''}
           </div>
         `;
       }).join('');
+    }
+    async function toggleSubAdminPerm(adminId, permField, isChecked) {
+      const admin = allAdmins.find(a => a.__backendId === adminId);
+      if (!admin) return;
+      const result = await window.dataSdk.update({ ...admin, [permField]: isChecked ? 'manage' : 'view' });
+      if (result.isOk) {
+        showToast(isChecked ? '✅ ให้สิทธิ์จัดการแล้ว' : '👁️ เปลี่ยนเป็นดูอย่างเดียวแล้ว');
+        refreshCurrentView();
+      } else {
+        showToast('ไม่สามารถบันทึกสิทธิ์ได้', 'error');
+      }
     }
     let registeredStudentsFilter = { className: '', roomNumber: '' };
     function populateRegFilterOptions(allStudents) {
@@ -9488,14 +9517,32 @@
         const scopeDisplay = (!admin.isDefault && (admin.scope_class_name || admin.scope_subject_name))
           ? `<p class="text-xs text-gray-500 mt-0.5">📌 ${admin.scope_class_name || '-'}/${admin.scope_room_number || '-'} | ${admin.scope_subject_name || '-'}</p>`
           : (!admin.isDefault ? '<p class="text-xs text-red-400 mt-0.5">⚠️ ยังไม่ระบุขอบเขต</p>' : '');
+        const permCheckboxes = (!admin.isDefault && isMainAdmin) ? `
+          <div class="flex flex-wrap gap-3 mt-2">
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_timekeeping === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_timekeeping',this.checked)" class="w-4 h-4">
+              ⏱️ ลงเวลาเรียน
+            </label>
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_grading === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_grading',this.checked)" class="w-4 h-4">
+              🎓 ให้คะแนน
+            </label>
+            <label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">
+              <input type="checkbox" ${admin.perm_students === 'manage' ? 'checked' : ''} onchange="toggleSubAdminPerm('${admin.__backendId}','perm_students',this.checked)" class="w-4 h-4">
+              👨‍🎓 นักเรียน
+            </label>
+          </div>
+          <p class="text-[10px] text-gray-400 mt-1">✅ ติ๊ก = จัดการได้ (ทำแทนแอดมิน) | ⬜ ไม่ติ๊ก = ดูอย่างเดียว</p>
+        ` : '';
         return `
         <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200">
-          <div>
+          <div class="flex-1">
             <p class="font-semibold text-gray-800">👤 ${admin.username}${nameDisplay}</p>
             ${admin.isDefault ? '<span class="text-xs text-gray-500">แอดมินหลัก</span>' : '<span class="text-xs text-amber-600">ผู้ช่วยแอดมิน</span>'}
             ${scopeDisplay}
+            ${permCheckboxes}
           </div>
-          ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2">
+          ${!admin.isDefault && isMainAdmin ? `<div class="flex gap-2 flex-shrink-0">
             <button onclick="editSubAdmin('${admin.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
             <button onclick="deleteAdmin('${admin.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
           </div>` : ''}
