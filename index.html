@@ -13981,13 +13981,16 @@
       {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
     ],
     // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง
-    'mn-sa-more': [
-      {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
+    // ไอคอน "การเรียน" รวมลงทะเบียน/เวลาเรียน/การบ้าน/ผลการเรียน ของนักเรียน
+    'mn-sa-study': [
+      {icon:'📚',label:'ลงทะเบียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
       {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
-      {icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
+      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
+      {icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
     ],
-    // ไอคอน "ผู้ช่วยแอดมิน" รวมทุกฟังก์ชันผู้ช่วยแอดมินไว้ที่เดียว (สำหรับนักเรียนที่ได้รับสิทธิ์)
+    // ไอคอน "ผู้ช่วยแอดมิน" รวมทุกฟังก์ชันผู้ช่วยแอดมินไว้ที่เดียว (สำหรับนักเรียนที่ได้รับสิทธิ์) รวมข้อมูลระบบไว้ด้วย
     'mn-sa-admin': [
+      {icon:'📊',label:'ข้อมูลระบบ',fn:"mShowSection('home')"},
       {icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"},
       {icon:'⏱️',label:'ลงเวลา',fn:"mShowSubAdminTimekeepingSearch()"},
       {icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"},
@@ -14024,14 +14027,12 @@
     } else if (type === 'subadmin') {
       if (currentUser.linked_student_id) {
         // ผู้ช่วยแอดมินคนนี้คือนักเรียนที่ถูกแต่งตั้ง → login แล้วให้เจอโหมดนักเรียนปกติก่อน
-        // เมนูผู้ช่วยแอดมินทั้งหมดถูกรวบไว้ในไอคอนเดียว "👤 ผู้ช่วยแอดมิน"
+        // เมนูผู้ช่วยแอดมินทั้งหมดถูกรวบไว้ในไอคอนเดียว "👤 ผู้ช่วยแอดมิน" (รวม ข้อมูลระบบ ไว้ในนี้ด้วย)
         btns = [
           {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
-          {id:'mn-datainfo',  icon:'📊', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
-          {id:'mn-sa-reg',    icon:'📚', label:'ลงทะเบียน', fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
-          {id:'mn-sa-stuhw',  icon:'📝', label:'การบ้าน', fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
-          {id:'mn-sa-stugr',  icon:'📊', label:'ผลการเรียน', fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
-          {id:'mn-sa-more',   icon:'⚙️', label:'อื่นๆ'},
+          {id:'mn-sa-profile',icon:'👤', label:'ข้อมูลส่วนตัว', fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
+          {id:'mn-sa-study',  icon:'📖', label:'การเรียน'},
+          {id:'mn-sa-eval',   icon:'📝', label:'ประเมินการสอน', fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
           {id:'mn-sa-admin',  icon:'👤', label:'ผู้ช่วยแอดมิน'},
         ];
       } else {
