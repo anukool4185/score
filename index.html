@@ -13844,7 +13844,10 @@
 
   // ── ⏱️ ลงเวลาเรียน: แสดงรายชื่อทั้งหมด + ค้นหา + กดชื่อ = popup ──
   function mShowSubAdminTimekeepingSearch() {
+    const permTk = typeof getSubAdminPermission === 'function' ? getSubAdminPermission('timekeeping') : 'manage';
+    const noticeTk = permTk === 'view' ? '<p style="font-size:11px;color:#d97706;margin:0 0 8px">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : '';
     mCreateOverlay('m-sa-tk-overlay', '⏱️ ลงเวลาเรียน',
+      noticeTk +
       '<input type="text" id="m-sa-tk-search" placeholder="🔍 ค้นหาชื่อ/รหัสนักเรียน (เว้นว่าง = แสดงทั้งหมด)" oninput="mFilterSubAdminTk()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none">' +
       '<div id="m-sa-tk-results"></div>');
     mFilterSubAdminTk();
@@ -13872,12 +13875,18 @@
     const s = (allData||[]).find(st => st.type==='student' && st.student_id===reg?.student_id);
     const title = '⏱️ ' + (s ? `${s.prefix||''}${s.first_name||''} ${s.last_name||''}` : (reg?.student_id||''));
     const html = typeof buildTimekeepingCardHtml === 'function' ? buildTimekeepingCardHtml(reg) : '';
-    mShowStudentDetailPopup(title, html);
+    const perm = typeof getSubAdminPermission === 'function' ? getSubAdminPermission('timekeeping') : 'manage';
+    const viewNotice = perm === 'view' ? '<p style="font-size:11px;color:#d97706;margin:0 0 10px">👁️ คุณมีสิทธิ์ดูอย่างเดียวในส่วนนี้</p>' : '';
+    const wrapped = viewNotice + '<div style="' + (perm === 'view' ? 'pointer-events:none;opacity:0.7' : '') + '">' + html + '</div>';
+    mShowStudentDetailPopup(title, wrapped);
   };
 
   // ── 🎓 ให้คะแนน: แสดงรายชื่อทั้งหมด + ค้นหา + กดชื่อ = popup ──
   function mShowSubAdminGradingSearch() {
+    const permGr = typeof getSubAdminPermission === 'function' ? getSubAdminPermission('grading') : 'manage';
+    const noticeGr = permGr === 'view' ? '<p style="font-size:11px;color:#d97706;margin:0 0 8px">👁️ คุณมีสิทธิ์ดูอย่างเดียวในแท็บนี้</p>' : '';
     mCreateOverlay('m-sa-gr-overlay', '🎓 ให้คะแนน',
+      noticeGr +
       '<input type="text" id="m-sa-gr-search" placeholder="🔍 ค้นหาชื่อ/รหัสนักเรียน (เว้นว่าง = แสดงทั้งหมด)" oninput="mFilterSubAdminGr()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none">' +
       '<div id="m-sa-gr-results"></div>');
     mFilterSubAdminGr();
@@ -13908,7 +13917,11 @@
     const scoresData = (allData||[]).find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
     const title = '🎓 ' + (s ? `${s.prefix||''}${s.first_name||''} ${s.last_name||''}` : (reg?.student_id||''));
     const html = typeof buildGradingCardHtml === 'function' ? buildGradingCardHtml(reg, scoresData, scope.className, scope.subjectName) : '';
-    mShowStudentDetailPopup(title, html);
+    const perm = typeof getSubAdminPermission === 'function' ? getSubAdminPermission('grading') : 'manage';
+    const viewNotice = perm === 'view' ? '<p style="font-size:11px;color:#d97706;margin:0 0 10px">👁️ คุณมีสิทธิ์ดูอย่างเดียวในส่วนนี้</p>' : '';
+    const wrapped = viewNotice + '<div id="m-sa-gr-lockwrap" style="' + (perm === 'view' ? 'pointer-events:none;opacity:0.7' : '') + '">' + html + '</div>';
+    mShowStudentDetailPopup(title, wrapped);
+    if (perm === 'view') return; // ดูอย่างเดียว ไม่ผูก event แก้ไขคะแนน
     var bodyEl = document.getElementById('m-detail-popup-body');
     bodyEl?.querySelectorAll('input[type="number"].score-input').forEach(input => {
       input.addEventListener('focus', function() { this.select(); });
