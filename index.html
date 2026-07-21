@@ -2450,36 +2450,27 @@
         console.log('📌 Transitioning to admin dashboard...');
         document.getElementById('page-login').classList.add('hidden');
         document.getElementById('page-register').classList.add('hidden');
-        document.getElementById('page-home').classList.add('hidden');
-        document.getElementById('page-admin').classList.remove('hidden');
         document.getElementById('app-main').classList.remove('hidden');
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mBuildNav === 'function') { setTimeout(mBuildNav, 100); }
         
+        // 📋 ขั้นที่ 6: ปรับปรุง UI ให้ครบ (ปุ่มแอดมิน/ออกจากระบบ/ชื่อผู้ใช้/กระดิ่งแจ้งเตือน)
+        showLoggedInUI();
+
         // Mobile: แสดง mobile UI แทน
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
           if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
           showToast('✅ เข้าสู่ระบบแอดมินสำเร็จ!');
           return;
         }
-        
-        // 📋 ขั้นที่ 6: ปรับปรุง UI เพื่อแสดงข้อมูล admin (ชื่อ ปุ่ม ออกจากระบบ เป็นต้น)
-        showLoggedInUI();
-        
-        // 📋 ขั้นที่ 7: แสดง tab แรก = "📥 นำเข้า" (import)
-        // ⚙️ ในส่วนนี้ admin จะเห็น:
-        //    - ช่องอัพโหลดไฟล์ .txt
-        //    - ตัวอย่างข้อมูลที่จะนำเข้า
-        //    - ปุ่ม "✅ ยืนยันนำเข้า"
-        //    - เมื่อนำเข้าข้อมูลแล้ว ระบบจะ:
-        //      1️⃣ ลบข้อมูลเก่าทั้งหมด (รายวิชา, M/F, หน่วยกิต)
-        //      2️⃣ สร้าง class records ใหม่ (อ.1, อ.2, ม.1, ม.2 เป็นต้น)
-        //      3️⃣ สร้าง room records ใหม่ (1, 2, 3 เป็นต้น)
-        //      4️⃣ สร้าง subject records ใหม่ (วิชาทั้งหมดจากไฟล์)
-        //      5️⃣ สร้าง class_subject records (เพื่อเชื่อมโยงชั้น-ห้อง-วิชา)
-        showAdminTab('import');
+
+        // 📋 ขั้นที่ 7: แสดง "หน้าหลัก" (จัดการประชาสัมพันธ์) เป็นหน้าแรกเสมอ ตรงกับฝั่งมือถือ
+        showPage('home');
+        document.getElementById('page-admin').classList.add('hidden');
+        document.getElementById('page-home').classList.remove('hidden');
+        if (typeof showAnnouncementManagementPage === 'function') showAnnouncementManagementPage();
         
         showToast('✅ เข้าสู่ระบบแอดมินสำเร็จ!');
-        console.log('✅✅✅ Admin login COMPLETE - now at admin panel');
+        console.log('✅✅✅ Admin login COMPLETE - now at home page');
         return;
       }
       
@@ -4673,6 +4664,8 @@
       document.getElementById('page-admin').classList.remove('hidden');
       document.getElementById('page-home').classList.add('hidden');
       showAdminTab('import');
+      // กันแท็บไม่ขึ้นข้อมูลจนกว่าจะรีเฟรช: รีเฟรชข้อมูลปัจจุบันซ้ำอีกครั้งหลัง DOM แสดงผลเสร็จ
+      setTimeout(() => { refreshCurrentView(); }, 50);
     }
     let isShowingAllTabs = false;
     const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport'];
