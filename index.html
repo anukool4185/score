@@ -13663,6 +13663,8 @@
   function mCloseAllOverlays() {
     document.getElementById('m-eval-overlay')?.remove();
     document.getElementById('m-evaluators-overlay')?.remove();
+    document.getElementById('m-sa-tk-overlay')?.remove();
+    document.getElementById('m-sa-gr-overlay')?.remove();
     if (currentUser && currentUser.__fromSubAdmin && _subAdminOriginalUser) {
       currentUser = _subAdminOriginalUser;
       _subAdminOriginalUser = null;
@@ -13758,6 +13760,100 @@
       if (typeof showSubAdminTab === 'function') showSubAdminTab(tabName);
     });
   }
+
+  // ── มือถือ: ลงเวลา/ให้คะแนน ของผู้ช่วยแอดมิน ใช้ "ค้นหา" แทนรายชื่อทั้งห้อง ──
+  function mGetSubAdminScopeRegs() {
+    if (currentUser?.user_type === 'student' && currentUser?.linked_admin_id) {
+      if (typeof goToSubAdminPageFromStudent === 'function') goToSubAdminPageFromStudent();
+    }
+    const scope = typeof getSubAdminScope === 'function' ? getSubAdminScope() : null;
+    if (!scope) return { scope: null, regs: [] };
+    const regs = (allData||[]).filter(d =>
+      d.type === 'student_registration' && d.class_name === scope.className &&
+      d.room_number === scope.roomNumber && d.subject_name === scope.subjectName
+    );
+    return { scope, regs };
+  }
+
+  function mShowSubAdminTimekeepingSearch() {
+    mCreateOverlay('m-sa-tk-overlay', '⏱️ ลงเวลาเรียน (ค้นหานักเรียน)',
+      '<input type="text" id="m-sa-tk-search" placeholder="🔍 ค้นหาชื่อ/รหัสนักเรียน" oninput="mFilterSubAdminTk()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none">' +
+      '<div id="m-sa-tk-results"></div>' +
+      '<div id="m-sa-tk-detail" style="margin-top:12px"></div>');
+    mFilterSubAdminTk();
+  }
+  window.mFilterSubAdminTk = function() {
+    const q = (document.getElementById('m-sa-tk-search')?.value||'').trim();
+    const resultsEl = document.getElementById('m-sa-tk-results');
+    if (!resultsEl) return;
+    const { regs } = mGetSubAdminScopeRegs();
+    if (!regs.length) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:16px">ไม่มีนักเรียนลงทะเบียนในขอบเขตนี้</p>'; return; }
+    const filtered = q.length < 1 ? [] : regs.filter(reg => {
+      const s = (allData||[]).find(st => st.type==='student' && st.student_id===reg.student_id);
+      if (!s) return false;
+      const full = `${s.prefix||''}${s.first_name||''} ${s.last_name||''} ${s.student_id||''}`;
+      return full.includes(q);
+    });
+    if (q.length < 1) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:12px">พิมพ์ชื่อหรือรหัสนักเรียนเพื่อค้นหา</p>'; return; }
+    if (!filtered.length) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:12px">ไม่พบนักเรียน</p>'; return; }
+    resultsEl.innerHTML = filtered.slice(0,20).map(reg => {
+      const s = (allData||[]).find(st => st.type==='student' && st.student_id===reg.student_id);
+      return `<button onclick="mSelectSubAdminTk('${reg.__backendId}')" style="width:100%;text-align:left;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:white;margin-bottom:6px;font-size:13px;cursor:pointer">👤 #${s?.student_number||'-'} ${s?.prefix||''}${s?.first_name||''} ${s?.last_name||''}</button>`;
+    }).join('');
+  };
+  window.mSelectSubAdminTk = function(regId) {
+    const detailEl = document.getElementById('m-sa-tk-detail');
+    if (!detailEl) return;
+    const reg = (allData||[]).find(d => d.__backendId === regId);
+    detailEl.innerHTML = typeof buildTimekeepingCardHtml === 'function' ? buildTimekeepingCardHtml(reg) : '';
+  };
+
+  function mShowSubAdminGradingSearch() {
+    mCreateOverlay('m-sa-gr-overlay', '🎓 ให้คะแนน (ค้นหานักเรียน)',
+      '<input type="text" id="m-sa-gr-search" placeholder="🔍 ค้นหาชื่อ/รหัสนักเรียน" oninput="mFilterSubAdminGr()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:10px;outline:none">' +
+      '<div id="m-sa-gr-results"></div>' +
+      '<div id="m-sa-gr-detail" style="margin-top:12px"></div>');
+    mFilterSubAdminGr();
+  }
+  window.mFilterSubAdminGr = function() {
+    const q = (document.getElementById('m-sa-gr-search')?.value||'').trim();
+    const resultsEl = document.getElementById('m-sa-gr-results');
+    if (!resultsEl) return;
+    const { regs } = mGetSubAdminScopeRegs();
+    if (!regs.length) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:16px">ไม่มีนักเรียนลงทะเบียนในขอบเขตนี้</p>'; return; }
+    const filtered = q.length < 1 ? [] : regs.filter(reg => {
+      const s = (allData||[]).find(st => st.type==='student' && st.student_id===reg.student_id);
+      if (!s) return false;
+      const full = `${s.prefix||''}${s.first_name||''} ${s.last_name||''} ${s.student_id||''}`;
+      return full.includes(q);
+    });
+    if (q.length < 1) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:12px">พิมพ์ชื่อหรือรหัสนักเรียนเพื่อค้นหา</p>'; return; }
+    if (!filtered.length) { resultsEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:12px">ไม่พบนักเรียน</p>'; return; }
+    resultsEl.innerHTML = filtered.slice(0,20).map(reg => {
+      const s = (allData||[]).find(st => st.type==='student' && st.student_id===reg.student_id);
+      return `<button onclick="mSelectSubAdminGr('${reg.__backendId}')" style="width:100%;text-align:left;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:white;margin-bottom:6px;font-size:13px;cursor:pointer">👤 #${s?.student_number||'-'} ${s?.prefix||''}${s?.first_name||''} ${s?.last_name||''}</button>`;
+    }).join('');
+  };
+  window.mSelectSubAdminGr = function(regId) {
+    const detailEl = document.getElementById('m-sa-gr-detail');
+    if (!detailEl) return;
+    const { scope } = mGetSubAdminScopeRegs();
+    const reg = (allData||[]).find(d => d.__backendId === regId);
+    const classSubjectId = `${scope.className}_${scope.roomNumber}_${scope.subjectName}`;
+    const scoresData = (allData||[]).find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+    detailEl.innerHTML = typeof buildGradingCardHtml === 'function' ? buildGradingCardHtml(reg, scoresData, scope.className, scope.subjectName) : '';
+    detailEl.querySelectorAll('input[type="number"].score-input').forEach(input => {
+      input.addEventListener('focus', function() { this.select(); });
+      input.addEventListener('input', function() {
+        if (typeof validateScores === 'function') validateScores(this);
+        if (this.id.startsWith('a-')) {
+          const m = this.id.match(/^a-(.+)-\d+$/);
+          if (m && typeof updateAPassFailStatus === 'function') updateAPassFailStatus(m[1]);
+        }
+      });
+    });
+  };
+
   // แสดงแท็บนักเรียน
   function mShowDesktopStudentTab(tabName, title) {
     mShowDesktopView(title, function() {
@@ -13854,13 +13950,13 @@
     ],
     // Sub-admin — ครบ 4 แท็บของเดสก์ท็อป
     'mn-sa-hw':   [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"}],
-    'mn-sa-time': [{icon:'⏱️',label:'ลงเวลา',fn:"mShowDesktopSubAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"}],
-    'mn-sa-gr':   [{icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopSubAdminTab('grading','🎓 ให้คะแนน')"}],
+    'mn-sa-time': [{icon:'⏱️',label:'ลงเวลา',fn:"mShowSubAdminTimekeepingSearch()"}],
+    'mn-sa-gr':   [{icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"}],
     'mn-sa-stu':  [{icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"}],
     'mn-stu-sa': [
       {icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"},
-      {icon:'⏱️',label:'ลงเวลา',fn:"mShowDesktopSubAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"},
-      {icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopSubAdminTab('grading','🎓 ให้คะแนน')"},
+      {icon:'⏱️',label:'ลงเวลา',fn:"mShowSubAdminTimekeepingSearch()"},
+      {icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"},
       {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
     ],
     // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง
