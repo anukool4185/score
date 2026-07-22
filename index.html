@@ -1577,11 +1577,12 @@
            </div>
           </div>
           <!-- Filters -->
+          <p class="text-xs text-gray-500 mb-1">💡 ค่าเริ่มต้นจะซ่อนนักเรียนที่สมัครแล้วออกจากรายชื่อ (เหลือเฉพาะรายชื่อใหม่รอยืนยัน) เปลี่ยนตัวกรองด้านล่างเพื่อดูรายชื่อที่สมัครแล้วได้</p>
           <div class="flex items-center gap-2 flex-wrap mb-2" id="import-filter-bar">
            <select id="import-filter-reg" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm">
             <option value="">ทุกสถานะสมัคร</option>
             <option value="yes">สมัครแล้ว</option>
-            <option value="no">ยังไม่สมัคร</option>
+            <option value="no" selected>ยังไม่สมัคร</option>
            </select>
            <select id="import-filter-enroll" onchange="renderImportTable()" class="px-2 py-1 border border-gray-300 rounded text-sm">
             <option value="">ทุกสถานะลงทะเบียน</option>
