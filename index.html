@@ -2202,6 +2202,7 @@
     const dataHandler = {
       onDataChanged(data) {
         allData = data;
+        window.__dataReady = true;
         // Mobile: render login data ทันทีเมื่อ data มาถึง
         if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE && typeof mobileRenderLoginData === 'function') {
           mobileRenderLoginData();
@@ -4661,13 +4662,29 @@
         showToast('คุณไม่มีสิทธิ์เข้าถึงแผงควบคุมแอดมิน', 'error');
         return;
       }
-      // ไปที่หน้า admin แล้วแสดงแท็บแรก
       showPage('home');
       document.getElementById('page-admin').classList.remove('hidden');
       document.getElementById('page-home').classList.add('hidden');
+
+      // ⚠️ สาเหตุจริงของอาการ "ต้องรีเฟรชก่อนแท็บถึงจะขึ้น": แอดมิน login ด้วยรหัสคงที่ (ไม่ต้องรอข้อมูล)
+      // จึงกดปุ่มนี้ได้เร็วมาก ก่อนที่ allData จะโหลดจาก Google Sheets เสร็จ (เป็น async fetch)
+      // ทำให้แท็บแรกที่ render ออกมาว่างเปล่า เพราะ allData ยังไม่มา — พอรีเฟรชซึ่งใช้เวลานานกว่า ข้อมูลเลยมาทันพอดี
+      if (!window.__dataReady) {
+        document.getElementById('admin-tab-import').innerHTML = '<div class="text-center py-10"><p class="text-2xl mb-2">⏳</p><p class="text-gray-500">กำลังโหลดข้อมูล กรุณารอสักครู่...</p></div>';
+        showAdminTab('import');
+        let waited = 0;
+        const waitForData = setInterval(() => {
+          waited += 100;
+          if (window.__dataReady || waited > 8000) {
+            clearInterval(waitForData);
+            showAdminTab('import');
+            refreshCurrentView();
+          }
+        }, 100);
+        return;
+      }
+
       showAdminTab('import');
-      // กันแท็บไม่ขึ้นข้อมูลจนกว่าจะรีเฟรช: รอให้ browser วาด DOM ที่เพิ่ง unhide เสร็จก่อน (2 เฟรม)
-      // แล้วเรียกแสดงแท็บซ้ำอีกครั้ง เหมือนที่การรีเฟรชหน้าเว็บทำให้เกิดผลลัพธ์ถูกต้อง
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           showAdminTab('import');
@@ -10980,10 +10997,11 @@
         const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
         const disabledAttr = isConfigured ? '' : 'disabled';
-        html += `<input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" placeholder="${i}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">`;
-        if (type === 'a') {
-          html += `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>`;
-        }
+        html += `<span class="inline-flex flex-col items-center mr-0.5">
+          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">ครั้งที่ ${i}</span>
+          <input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">
+          ${type === 'a' ? `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>` : ''}
+        </span>`;
       }
       return html;
     }
@@ -11940,7 +11958,9 @@
         const fullScoreForThis = fullScoresArr ? fullScoresArr[i - 1] : '';
         const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
-        html += `<input type="number" value="${value}" placeholder="${i}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">`;
+        html += `<span class="inline-flex flex-col items-center mr-0.5">
+          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">ครั้งที่ ${i}</span>
+          <input type="number" value="${value}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">`;
         if (type === 'a') {
           let statusText = '';
           let statusClass = 'text-[10px] block text-center';
@@ -11963,6 +11983,7 @@
           }
           html += `<span class="${statusClass}">${statusText}</span>`;
         }
+        html += `</span>`;
       }
       return html;
     }
