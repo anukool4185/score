@@ -10998,7 +10998,7 @@
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
         const disabledAttr = isConfigured ? '' : 'disabled';
         html += `<span class="inline-flex flex-col items-center mr-0.5">
-          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">ครั้งที่ ${i}</span>
+          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">${(type==='m'||type==='f')?(i===1?'ปรนัย':i===2?'อัตนัย':'ครั้งที่ '+i):'ครั้งที่ '+i}</span>
           <input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">
           ${type === 'a' ? `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>` : ''}
         </span>`;
@@ -11959,7 +11959,7 @@
         const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
         html += `<span class="inline-flex flex-col items-center mr-0.5">
-          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">ครั้งที่ ${i}</span>
+          <span class="text-[9px] font-bold text-gray-500 leading-none mb-0.5">${(type==='m'||type==='f')?(i===1?'ปรนัย':i===2?'อัตนัย':'ครั้งที่ '+i):'ครั้งที่ '+i}</span>
           <input type="number" value="${value}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">`;
         if (type === 'a') {
           let statusText = '';
