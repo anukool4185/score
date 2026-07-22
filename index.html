@@ -1467,7 +1467,7 @@
          <table class="w-full text-sm">
           <thead class="bg-gray-100"><tr>
            <th class="px-2 py-3 text-center"><input type="checkbox" id="us-pending-select-all" onchange="toggleSelectAllPending(this)" class="w-4 h-4"></th>
-           <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัส + สถานะ</th>
+           <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัส</th>
            <th class="px-2 py-3 text-left font-semibold text-gray-700">ชื่อ-นามสกุล</th>
            <th class="px-2 py-3 text-left font-semibold text-gray-700">วิชา</th>
            <th class="px-2 py-3 text-center font-semibold text-gray-700">ประเภท</th>
@@ -2221,6 +2221,9 @@
         });
         // อัปเดตจำนวนแจ้งเตือนกระดิ่งแบบสด (เป็นแค่ตัวเลข+รายการอ่านอย่างเดียว ไม่มีฟอร์มให้กรอก จึงอัปเดตสดได้ปลอดภัย)
         renderNotificationBells();
+        // ตรวจสอบและดึงคะแนนสำรองที่ลงทะเบียนแล้วเข้าระบบ — ทำงานตลอดเวลาทุกครั้งที่ข้อมูลรีเฟรช ไม่ว่าจะเปิดแท็บไหนอยู่
+        // (เดิมทำงานเฉพาะตอนเปิดแท็บ "อัพโหลดคะแนน" เท่านั้น ตอนนี้ทำงานเป็นพื้นหลังต่อเนื่องแล้ว)
+        if (typeof reconcilePendingScores === 'function') reconcilePendingScores();
         // อัปเดตรายชื่อในแถบเลื่อนถ้าเปลี่ยนจริง (มี signature กันไม่ให้รีสตาร์ทแอนิเมชันโดยไม่จำเป็น)
         updateMarqueeApplicantsList();
         // อัปเดตตัวเลขจำนวนการบ้านวันนี้ + จำนวนคำขอที่อนุมัติแล้ว บนปุ่มแบบสด
@@ -6110,22 +6113,61 @@
     function removeUploadNotFoundRow(idx) {}
     async function confirmWriteScores() {}
 
+    let _reconcileRunning = false; // ล็อกกันไม่ให้ตรวจสอบซ้อนกัน (มีหลายจุดเรียกฟังก์ชันนี้พร้อมกันได้)
     async function reconcilePendingScores() {
-      // สแกนคะแนนสำรองทั้งหมด — ถ้านักเรียนลงทะเบียนวิชานั้นแล้วแต่คะแนนยังค้างอยู่ ให้ดึงเข้าอัตโนมัติ
-      const pendings = allData.filter(d => d.type === 'pending_score');
-      let fixed = 0;
-      for (const p of pendings) {
-        const reg = allData.find(r => r.type === 'student_registration' && r.student_id === p.student_id && r.subject_name === p.subject_name);
-        if (reg) {
-          const ok = await applyPendingScore(p);
-          if (ok) fixed++;
+      if (_reconcileRunning) return 0; // มีรอบตรวจอยู่แล้ว ไม่ต้องเริ่มซ้อน ป้องกันคะแนนถูกใส่ซ้ำ
+      _reconcileRunning = true;
+      try {
+        // สแกนคะแนนสำรองทั้งหมด — ถ้านักเรียนลงทะเบียนวิชานั้นแล้วแต่คะแนนยังค้างอยู่ ให้ดึงเข้าอัตโนมัติ
+        const pendings = allData.filter(d => d.type === 'pending_score');
+        let fixed = 0;
+        for (const p of pendings) {
+          const reg = allData.find(r => r.type === 'student_registration' && r.student_id === p.student_id && r.subject_name === p.subject_name);
+          if (reg) {
+            const ok = await applyPendingScore(p);
+            if (ok) fixed++;
+          }
         }
+        if (fixed > 0) {
+          showToast(`🔄 ดึงคะแนนสำรองที่ค้างอยู่เข้าระบบอัตโนมัติ ${fixed} รายการ`);
+          refreshCurrentView();
+        }
+        // เช็คเงียบๆ ว่ามีคะแนนสำรองที่ "ดูเหมือน" ควรจะเข้าได้แล้วแต่ชื่อวิชาไม่ตรงเป๊ะหรือไม่ (log ไว้ช่วยดีบัก ไม่รบกวนผู้ใช้)
+        const stillPending = allData.filter(d => d.type === 'pending_score');
+        stillPending.forEach(p => {
+          const sameStudentRegs = allData.filter(r => r.type === 'student_registration' && r.student_id === p.student_id);
+          if (sameStudentRegs.length > 0 && !sameStudentRegs.some(r => r.subject_name === p.subject_name)) {
+            console.warn(`⚠️ คะแนนสำรองค้าง: รหัส ${p.student_id} รอวิชา "${p.subject_name}" แต่ลงทะเบียนวิชา "${sameStudentRegs.map(r=>r.subject_name).join('", "')}" (ชื่อวิชาอาจไม่ตรงกัน)`);
+          }
+        });
+        // ปรับความถี่การเช็คให้เร็วขึ้นอัตโนมัติ ถ้ายังมีคะแนนสำรองเหลืออยู่ในระบบ (เผื่อมีการลงทะเบียนจากเครื่อง/บัญชีอื่น)
+        updatePendingScoresFastPoll();
+        return fixed;
+      } finally {
+        _reconcileRunning = false;
       }
-      if (fixed > 0) {
-        showToast(`🔄 ดึงคะแนนสำรองที่ค้างอยู่เข้าระบบอัตโนมัติ ${fixed} รายการ`);
-        refreshCurrentView();
+    }
+
+    // ── ตรวจสอบถี่ขึ้นอัตโนมัติเมื่อยังมีคะแนนสำรองค้างอยู่ (จับการลงทะเบียนจากที่อื่นได้เร็วขึ้น) ──
+    let _pendingFastPollTimer = null;
+    function updatePendingScoresFastPoll() {
+      const hasPending = allData.some(d => d.type === 'pending_score');
+      if (hasPending && !_pendingFastPollTimer) {
+        // มีคะแนนสำรองค้างอยู่ → เช็คถี่ขึ้นทุก 1.5 วินาที (เร็วกว่ารอบ polling หลักที่ 4 วินาที)
+        _pendingFastPollTimer = setInterval(async () => {
+          try {
+            const fresh = await window.dataSdk._fetchAll();
+            if (fresh) {
+              window.dataSdk._cache = fresh;
+              window.dataSdk._handler.onDataChanged(fresh); // ผ่าน path มาตรฐาน อัปเดตทุกอย่างให้ตรงกันหมด (กระดิ่ง/แถบเลื่อน/ฯลฯ)
+            }
+          } catch (e) { /* เงียบไว้ ไม่ต้องรบกวนผู้ใช้ */ }
+        }, 1500);
+      } else if (!hasPending && _pendingFastPollTimer) {
+        // ไม่มีคะแนนสำรองเหลือแล้ว → หยุดเช็คถี่ กลับไปใช้รอบ polling ปกติ ประหยัดทรัพยากร
+        clearInterval(_pendingFastPollTimer);
+        _pendingFastPollTimer = null;
       }
-      return fixed;
     }
 
     function renderPendingScoreTable() {
@@ -6163,8 +6205,8 @@
           <td class="px-2 py-2 text-center text-xs">${reg ? '<span class="text-green-600">✅ ลงทะเบียนแล้ว</span>' : student ? '<span class="text-amber-500">⏳ รอลงทะเบียน</span>' : '<span class="text-red-400">❌ ยังไม่สมัคร</span>'}</td>
         </tr>`;
       }).join('');
-      // ตรวจสอบอัตโนมัติ: ถ้ามีรายการที่ลงทะเบียนแล้วแต่ยังค้างเป็น pending ให้ดึงเข้าทันที
-      reconcilePendingScores();
+      // หมายเหตุ: ไม่ต้องเรียก reconcilePendingScores() ตรงนี้อีกแล้ว
+      // เพราะระบบพื้นหลังใน onDataChanged() ทำงานต่อเนื่องตลอดเวลาอยู่แล้ว ไม่ว่าจะเปิดแท็บนี้อยู่หรือไม่
     }
 
     function toggleSelectAllPending(cb) {
@@ -6246,17 +6288,25 @@
     }
 
     async function applyPendingScoresOnRegistration(studentId, subjectName) {
-      // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ แล้วลบออก
-      const pendings = allData.filter(d => d.type === 'pending_score' && d.student_id === studentId && d.subject_name === subjectName);
-      let applied = 0;
-      for (const p of pendings) {
-        const ok = await applyPendingScore(p);
-        if (ok) applied++;
+      // รอถ้ามีรอบตรวจสอบพื้นหลังกำลังทำงานอยู่พอดี (กันชนกัน ไม่ให้ใส่คะแนนซ้ำ)
+      let waitCount = 0;
+      while (_reconcileRunning && waitCount < 50) { await new Promise(r => setTimeout(r, 100)); waitCount++; }
+      _reconcileRunning = true;
+      try {
+        // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ แล้วลบออก
+        const pendings = allData.filter(d => d.type === 'pending_score' && d.student_id === studentId && d.subject_name === subjectName);
+        let applied = 0;
+        for (const p of pendings) {
+          const ok = await applyPendingScore(p);
+          if (ok) applied++;
+        }
+        if (applied > 0) {
+          renderPendingScoreTable?.();
+        }
+        return applied;
+      } finally {
+        _reconcileRunning = false;
       }
-      if (applied > 0) {
-        renderPendingScoreTable?.();
-      }
-      return applied;
     }
     function loadGradeReportTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
