@@ -12970,17 +12970,21 @@
       const isOpen = isRegistrationOpen();
       const statusMessage = getRegistrationStatusMessage();
       // ดึงวิชาทั้งหมด แล้วค้นหา class_subject ที่ตรงกับ class_name และ room_number
+      // หมายเหตุ: ใช้ subject_name จากตาราง class_subject เป็นค่าจริงเสมอ (ไม่ใช่จากตาราง subject)
+      // เพราะอัพโหลดคะแนน/แอดมินลงทะเบียนใช้ class_subject เป็นแหล่งอ้างอิงหลัก ถ้าใช้คนละตารางกัน
+      // ชื่อวิชาอาจไม่ตรงกันแม้เป็นวิชาเดียวกัน ทำให้คะแนนสำรองดึงเข้าไม่ได้
       const allSubjects = allData.filter(d => d.type === 'subject');
-      const availableSubjects = allSubjects.filter(subj => {
-        // ตรวจสอบว่ามี class_subject record สำหรับชั้นเรียนและห้องนี้หรือไม่
-        const hasClassSubject = allData.some(d => 
-          d.type === 'class_subject' && 
-          d.class_name === student.class_name &&
-          d.room_number === student.room_number &&
-          d.subject_name === subj.subject_name
-        );
-        return hasClassSubject;
-      });
+      const availableSubjects = allSubjects
+        .map(subj => {
+          const matchedClassSubject = allData.find(d =>
+            d.type === 'class_subject' &&
+            d.class_name === student.class_name &&
+            d.room_number === student.room_number &&
+            d.subject_name === subj.subject_name
+          );
+          return matchedClassSubject ? { ...subj, subject_name: matchedClassSubject.subject_name } : null;
+        })
+        .filter(Boolean);
       // แสดงเฉพาะวิชาที่ตรงกับชั้นเรียนและห้องของผู้สมัครเท่านั้น (ไม่ fallback ไปแสดงทุกวิชา)
       const availableSubjectsToShow = availableSubjects;
       // แสดงวิชาทั้งหมด (ทั้งลงทะเบียนแล้วและยังไม่ลงทะเบียน)
