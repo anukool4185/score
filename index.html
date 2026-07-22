@@ -590,6 +590,7 @@
     function applyMobile() {
       var m = window.innerWidth <= 640 ||
               /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      var wasMobile = document.body.classList.contains('is-mobile');
       document.body.classList.toggle('is-mobile', m);
       // inject/remove extra style for overrides
       var styleId = 'mobile-override-style';
@@ -609,6 +610,19 @@
         document.head.appendChild(s);
       } else if (!m && existing) {
         existing.remove();
+      }
+      // ⚠️ กันบั๊ก: ถ้าเพิ่งเปลี่ยนมาเป็น is-mobile (เช่น ย่อ/ซูมหน้าต่างคอมจนแคบ) ขณะกำลังดูแผงแอดมิน
+      // ผ่าน desktop-root ตรงๆ (ไม่ได้ผ่าน wrapper มือถือ) แถบปุ่มแท็บจะถูกซ่อนด้วย CSS ด้านบนทันที
+      // ทำให้ไม่มีทางสลับแท็บเลย — ต้องสลับไปใช้ wrapper มือถือ (มีเมนูไอคอน+ปุ่มกลับ) แทนทันที
+      if (m && !wasMobile) {
+        setTimeout(function() {
+          var pageAdmin = document.getElementById('page-admin');
+          var hasBackHeader = document.getElementById('m-desktop-back-header');
+          if (pageAdmin && !pageAdmin.classList.contains('hidden') && !hasBackHeader && typeof mShowDesktopAdminTab === 'function') {
+            var tab = (typeof _currentAdminTab !== 'undefined' && _currentAdminTab) ? _currentAdminTab : 'import';
+            mShowDesktopAdminTab(tab, '📥 นำเข้าข้อมูลวิชา');
+          }
+        }, 50);
       }
     }
     applyMobile();
@@ -4664,6 +4678,14 @@
       // ตรวจสอบว่าเป็นแอดมินจริง (ใช้ user_type ไม่ใช่ type)
       if (!currentUser || currentUser.user_type !== 'admin') {
         showToast('คุณไม่มีสิทธิ์เข้าถึงแผงควบคุมแอดมิน', 'error');
+        return;
+      }
+      // ⚠️ ป้องกันบั๊ก: ถ้าเบราว์เซอร์ถูกจัดเป็น "is-mobile" ณ ขณะนี้ (เช่น ย่อ/ซูมหน้าต่างคอมจนแคบ)
+      // แถบปุ่มแท็บของเดสก์ท็อป (#admin-tab-buttons) จะถูกซ่อนด้วย CSS เสมอ (ใช้ระบบเมนูไอคอนแทน)
+      // ถ้าเรียก showAdminPanel() ตรงๆ แบบเดิม จะเห็นแค่เนื้อหาแท็บโดยไม่มีทางสลับแท็บอื่นเลย (ปุ่มหาย)
+      // จึงต้องเปลี่ยนไปใช้ mShowDesktopAdminTab() แทน ซึ่งมีเมนูไอคอน + แถบ "← กลับ" ให้นำทางแทน
+      if (document.body.classList.contains('is-mobile') && typeof mShowDesktopAdminTab === 'function') {
+        mShowDesktopAdminTab('import', '📥 นำเข้าข้อมูลวิชา');
         return;
       }
       showPage('home');
