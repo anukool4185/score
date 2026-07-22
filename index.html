@@ -1982,7 +1982,7 @@
     // ตั้งค่า URL ที่ได้จากการ Deploy Apps Script (ดูไฟล์ google_apps_script_backend.gs)
     // ============================================================
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
-    const POLL_INTERVAL_MS = 4000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time
+    const POLL_INTERVAL_MS = 3000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time — ตั้งไว้ระดับที่ปลอดภัยจากโควต้า Google Apps Script
 
     // ============================================================
     // 🖼️ ระบบอัปโหลด/ลบรูปการบ้านใน Google Drive (เก็บแยกโฟลเดอร์ ห้อง>วิชา>วันที่)
@@ -6153,7 +6153,7 @@
     function updatePendingScoresFastPoll() {
       const hasPending = allData.some(d => d.type === 'pending_score');
       if (hasPending && !_pendingFastPollTimer) {
-        // มีคะแนนสำรองค้างอยู่ → เช็คถี่ขึ้นทุก 1.5 วินาที (เร็วกว่ารอบ polling หลักที่ 4 วินาที)
+        // มีคะแนนสำรองค้างอยู่ → เช็คถี่ขึ้นทุก 1.5 วินาที (เร็วกว่ารอบ polling หลักที่ 3 วินาที แต่ยังปลอดภัยจากโควต้า)
         _pendingFastPollTimer = setInterval(async () => {
           try {
             const fresh = await window.dataSdk._fetchAll();
