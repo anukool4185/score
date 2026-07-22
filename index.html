@@ -563,6 +563,8 @@
     body.is-mobile #student-tabs { display: none !important; }
     /* แถบเมนูบนสุดของเดสก์ท็อป (🏠หน้าหลัก/⚙️แอดมิน ฯลฯ) ถูกแทนที่ด้วยเมนูไอคอน+แถบกลับของมือถือแล้ว จึงซ่อน */
     body.is-mobile #desktop-top-nav { display: none !important; }
+    /* ปุ่มกลับซ้ำซ้อนของเดสก์ท็อป (ใช้ไม่ได้ถูกต้องบนมือถือ) — ซ่อนเพราะมีปุ่ม "← กลับ" ของมือถือแล้ว */
+    body.is-mobile #exit-subadmin-mode-btn { display: none !important; }
     /* เว้นพื้นที่ด้านล่างให้เนื้อหาไม่ถูกเมนูไอคอนบัง เมื่อยืมหน้าเดสก์ท็อปมาแสดง */
     body.is-mobile #desktop-root { padding-bottom: 64px !important; box-sizing: border-box; }
     body.is-mobile #admin-tab-buttons,
@@ -3387,7 +3389,7 @@
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
            <h2 class="text-2xl font-bold text-gray-800">🧑‍💼 หน้าผู้ช่วยแอดมิน</h2>
-           ${currentUser?._subadminMode ? `<button onclick="exitSubAdminMode()" class="px-3 py-1.5 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm">← กลับหน้านักเรียน</button>` : ''}
+           ${currentUser?._subadminMode ? `<button id="exit-subadmin-mode-btn" onclick="exitSubAdminMode()" class="px-3 py-1.5 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm">← กลับหน้านักเรียน</button>` : ''}
           </div>
           ${hasScope
             ? `<p class="text-sm text-gray-500 mb-4">ขอบเขตที่รับผิดชอบ: <strong>${scope.className} / ${scope.roomNumber} / ${scope.subjectName}</strong></p>`
@@ -14186,10 +14188,32 @@
   function mRenderHome() {
     var c = document.getElementById('m-content');
     var type = currentUser && currentUser.user_type;
-    var students = (allData||[]).filter(function(d){return d.type==='student';});
-    var regs = (allData||[]).filter(function(d){return d.type==='student_registration';});
-    var pending = (allData||[]).filter(function(d){return d.type==='registration_request'&&d.status==='pending';});
-    var hws = (allData||[]).filter(function(d){return d.type==='homework';});
+    var students, regs, pending, hws;
+
+    if (type === 'subadmin') {
+      // ผู้ช่วยแอดมิน: จำกัดเฉพาะขอบเขตชั้น/ห้อง/วิชาของตนเองเท่านั้น
+      var scope = typeof getSubAdminScope === 'function' ? getSubAdminScope() : {className:'',roomNumber:'',subjectName:''};
+      regs = (allData||[]).filter(function(d){
+        return d.type==='student_registration' && d.class_name===scope.className &&
+               d.room_number===scope.roomNumber && d.subject_name===scope.subjectName;
+      });
+      var studentIdsInScope = regs.map(function(r){ return r.student_id; });
+      students = (allData||[]).filter(function(d){ return d.type==='student' && studentIdsInScope.indexOf(d.student_id) >= 0; });
+      pending = (allData||[]).filter(function(d){
+        return d.type==='registration_request' && d.status==='pending' &&
+               d.class_name===scope.className && d.room_number===scope.roomNumber && d.subject_name===scope.subjectName;
+      });
+      hws = (allData||[]).filter(function(d){
+        return d.type==='homework' && d.class_name===scope.className &&
+               d.room_number===scope.roomNumber && d.subject_name===scope.subjectName;
+      });
+    } else {
+      students = (allData||[]).filter(function(d){return d.type==='student';});
+      regs = (allData||[]).filter(function(d){return d.type==='student_registration';});
+      pending = (allData||[]).filter(function(d){return d.type==='registration_request'&&d.status==='pending';});
+      hws = (allData||[]).filter(function(d){return d.type==='homework';});
+    }
+
     var cards = type==='admin'||type==='subadmin' ? [
       {color:'#4da6e8',icon:'👥',label:'นักเรียน',value:students.length,fn:"mShowSection('students')"},
       {color:'#48c87a',icon:'📚',label:'ลงทะเบียนแล้ว',value:regs.length,fn:"mShowSection('enrollments')"},
@@ -14200,7 +14224,10 @@
       {color:'#48c87a',icon:'📊',label:'คะแนนของฉัน',value:'-',fn:"mShowSection('my_grades')"},
       {color:'#f0b040',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('my_homework')"},
     ];
-    c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 ภาพรวม</h2>' +
+    var scopeNote = (type==='subadmin' && scope && scope.className)
+      ? '<p style="font-size:11px;color:#64748b;margin:0 0 10px">📌 ขอบเขต: '+scope.className+'/'+scope.roomNumber+' | '+scope.subjectName+'</p>'
+      : (type==='subadmin' ? '<p style="font-size:11px;color:#dc2626;margin:0 0 10px">⚠️ ยังไม่ได้ระบุขอบเขต กรุณาติดต่อแอดมิน</p>' : '');
+    c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 4px">📊 ภาพรวม</h2>' + scopeNote +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
       cards.map(function(card){
         return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);box-sizing:border-box;aspect-ratio:1/1;width:100%;display:flex;flex-direction:column;justify-content:center">' +
