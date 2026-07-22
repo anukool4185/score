@@ -4666,19 +4666,30 @@
       document.getElementById('page-admin').classList.remove('hidden');
       document.getElementById('page-home').classList.add('hidden');
 
-      // ⚠️ สาเหตุจริงของอาการ "ต้องรีเฟรชก่อนแท็บถึงจะขึ้น": แอดมิน login ด้วยรหัสคงที่ (ไม่ต้องรอข้อมูล)
-      // จึงกดปุ่มนี้ได้เร็วมาก ก่อนที่ allData จะโหลดจาก Google Sheets เสร็จ (เป็น async fetch)
-      // ทำให้แท็บแรกที่ render ออกมาว่างเปล่า เพราะ allData ยังไม่มา — พอรีเฟรชซึ่งใช้เวลานานกว่า ข้อมูลเลยมาทันพอดี
+      // ⚠️ แอดมิน login ด้วยรหัสคงที่ (ไม่ต้องรอข้อมูล) จึงกดปุ่มนี้ได้เร็วมาก
+      // ก่อนที่ allData จะโหลดจาก Google Sheets เสร็จ (เป็น async fetch) — ต้องรอให้ข้อมูลพร้อมก่อนค่อย render แท็บ
       if (!window.__dataReady) {
-        document.getElementById('admin-tab-import').innerHTML = '<div class="text-center py-10"><p class="text-2xl mb-2">⏳</p><p class="text-gray-500">กำลังโหลดข้อมูล กรุณารอสักครู่...</p></div>';
-        showAdminTab('import');
+        // ต้องกำหนดแท็บที่ active ไว้ก่อน แต่ "ไม่เรียก" showAdminTab('import') ตรงนี้
+        // เพราะมันจะไปเรียก updateImportedData() ทันที ซึ่งจะเขียนทับข้อความ "กำลังโหลด" ที่เพิ่งใส่ไปทิ้งทันที (บั๊กเดิม)
+        ADMIN_TAB_NAMES.forEach(name => {
+          const panel = document.getElementById('admin-tab-' + name);
+          if (panel) panel.classList.add('hidden');
+        });
+        const importPanel = document.getElementById('admin-tab-import');
+        importPanel.classList.remove('hidden');
+        importPanel.innerHTML = '<div class="text-center py-10"><p class="text-2xl mb-2">⏳</p><p class="text-gray-500">กำลังโหลดข้อมูล กรุณารอสักครู่...</p></div>';
+        _currentAdminTab = 'import';
+
         let waited = 0;
         const waitForData = setInterval(() => {
           waited += 100;
-          if (window.__dataReady || waited > 8000) {
+          if (window.__dataReady) {
             clearInterval(waitForData);
-            showAdminTab('import');
-            refreshCurrentView();
+            showAdminTab('import'); // ตอนนี้ allData พร้อมแล้ว เรียกได้เลยครั้งเดียว
+          } else if (waited > 15000) {
+            // เกิน 15 วินาทีแล้วข้อมูลยังไม่มา น่าจะมีปัญหาการเชื่อมต่อจริงๆ แจ้งผู้ใช้แทนที่จะค้างเงียบๆ
+            clearInterval(waitForData);
+            importPanel.innerHTML = '<div class="text-center py-10"><p class="text-2xl mb-2">⚠️</p><p class="text-red-500 mb-3">โหลดข้อมูลไม่สำเร็จ อาจมีปัญหาการเชื่อมต่อ</p><button onclick="showAdminPanel()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">🔄 ลองใหม่</button></div>';
           }
         }, 100);
         return;
@@ -10999,7 +11010,7 @@
         const disabledAttr = isConfigured ? '' : 'disabled';
         const roundLabel = (type==='m'||type==='f') ? (i===1?'ป':i===2?'อ':i) : i;
         html += `<span class="relative inline-flex flex-col items-center mr-0.5">
-          <span class="absolute -top-1.5 -left-1.5 z-10 bg-gray-500 text-white rounded-full flex items-center justify-center" style="width:14px;height:14px;font-size:8px;line-height:1;font-weight:700" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
+          <span class="absolute -top-1 -left-1 z-10 text-gray-500 font-bold" style="font-size:9px;line-height:1" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
           <input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">
           ${type === 'a' ? `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>` : ''}
         </span>`;
@@ -11961,7 +11972,7 @@
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
         const roundLabel = (type==='m'||type==='f') ? (i===1?'ป':i===2?'อ':i) : i;
         html += `<span class="relative inline-flex flex-col items-center mr-0.5">
-          <span class="absolute -top-1.5 -left-1.5 z-10 bg-gray-500 text-white rounded-full flex items-center justify-center" style="width:14px;height:14px;font-size:8px;line-height:1;font-weight:700" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
+          <span class="absolute -top-1 -left-1 z-10 text-gray-500 font-bold" style="font-size:9px;line-height:1" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
           <input type="number" value="${value}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">`;
         if (type === 'a') {
           let statusText = '';
