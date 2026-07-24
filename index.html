@@ -530,9 +530,8 @@
     /* 4 ปุ่ม login เท่ากัน */
     body.is-mobile .grid button { width:100%!important; min-width:0!important; }
 
-    /* ซ่อน tab bar (ใช้ tray แทน) */
-    body.is-mobile #admin-tab-buttons,
-    body.is-mobile #students-subtab-buttons { display:none!important; }
+    /* หมายเหตุ: เลิกซ่อนแถวปุ่มแท็บแล้ว ให้แสดงเสมอเป็น fallback นำทางที่รับประกันว่าใช้ได้แน่นอน
+       (ป้องกันบั๊กซ้ำๆ ที่ผ่านมา ถ้าระบบตรวจจับมือถือพลาด/เมนูไอคอนไม่ขึ้นด้วยเหตุผลใดก็ตาม) */
 
     /* Nav button พื้นใส */
     body.is-mobile #mobile-bottom-nav button { background:transparent!important; border:none!important; }
@@ -557,18 +556,14 @@
   <style>
     /* โทรศัพท์: รวมแก้ไขทั้งหมด */
     body.is-mobile .grid button { width: 100% !important; min-width: 0 !important; }
-    /* แท็บแบบแถวปุ่มของเดสก์ท็อป ถูกแทนที่ด้วยเมนูไอคอนแล้ว จึงซ่อนบนมือถือ */
-    body.is-mobile #admin-tab-buttons,
-    body.is-mobile #subadmin-tab-buttons,
-    body.is-mobile #student-tabs { display: none !important; }
+    /* หมายเหตุ: เลิกซ่อนแถวปุ่มแท็บแล้ว (ดูคอมเมนต์ด้านบน) — เมนูไอคอนยังใช้งานได้ตามปกติคู่กัน */
     /* แถบเมนูบนสุดของเดสก์ท็อป (🏠หน้าหลัก/⚙️แอดมิน ฯลฯ) ถูกแทนที่ด้วยเมนูไอคอน+แถบกลับของมือถือแล้ว จึงซ่อน */
     body.is-mobile #desktop-top-nav { display: none !important; }
     /* ปุ่มกลับซ้ำซ้อนของเดสก์ท็อป (ใช้ไม่ได้ถูกต้องบนมือถือ) — ซ่อนเพราะมีปุ่ม "← กลับ" ของมือถือแล้ว */
     body.is-mobile #exit-subadmin-mode-btn { display: none !important; }
     /* เว้นพื้นที่ด้านล่างให้เนื้อหาไม่ถูกเมนูไอคอนบัง เมื่อยืมหน้าเดสก์ท็อปมาแสดง */
     body.is-mobile #desktop-root { padding-bottom: 64px !important; box-sizing: border-box; }
-    body.is-mobile #admin-tab-buttons,
-    body.is-mobile #students-subtab-buttons { display: none !important; }
+    /* หมายเหตุ: เลิกซ่อนแถวปุ่มแท็บแล้ว (ดูคอมเมนต์ด้านบน) */
     body.is-mobile .bell-top-bar-left { 
       position: fixed; top: 8px; right: 8px; z-index: 9990; 
       flex-direction: row; gap: 6px;
@@ -600,9 +595,6 @@
         s.id = styleId;
         s.textContent = [
           'body.is-mobile .grid button{width:100%!important;min-width:0!important}',
-          'body.is-mobile #admin-tab-buttons{display:none!important}',
-          'body.is-mobile #students-subtab-buttons{display:none!important}',
-          'body.is-mobile .subadmin-tabs-row{display:none!important}',
           'body.is-mobile #mobile-bottom-nav button{background:transparent!important;border:none!important}',
           'body.is-mobile #mobile-bottom-nav button.active-nav{background:rgba(255,255,255,0.12)!important}',
           'body.is-mobile .bell-top-bar-left{position:fixed!important;top:8px!important;right:8px!important;z-index:9990!important;left:auto!important}',
