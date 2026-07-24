@@ -1001,7 +1001,7 @@
       <div id="subadmin-content" class="flex-1 overflow-auto"></div>
      </div>
     </div>
-    <div id="page-admin" class="page h-full overflow-auto flex-col hidden">
+    <div id="page-admin" class="page h-full overflow-auto flex flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
       <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button> <button onclick="showAdminTab('examquestions')" id="tab-examquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗂️ คลังข้อสอบ</button> <button onclick="showAdminTab('examassign')" id="tab-examassign" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดสอบ</button> <button onclick="showAdminTab('examgrading')" id="tab-examgrading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ ตรวจข้ออัตนัย</button>
@@ -6944,66 +6944,94 @@
 
     // แสดงปุ่ม "เข้าสอบ/แก้ไข" ใต้ช่องคะแนน K แต่ละวิชาที่นักเรียนลงทะเบียน
     function generateExamButtonsForRegistration(reg) {
+      const norm = v => String(v == null ? '' : v).trim();
       const examSets = allData.filter(d => d.type === 'exam_set' &&
-        d.class_name === reg.class_name && d.room_number === reg.room_number && d.subject_name === reg.subject_name);
-      if (examSets.length === 0) return '';
+        norm(d.class_name) === norm(reg.class_name) && norm(d.room_number) === norm(reg.room_number) && norm(d.subject_name) === norm(reg.subject_name));
+      if (examSets.length === 0) {
+        // ช่วยดีบัก: log เหตุผลที่ไม่พบชุดสอบตรงกันเลย เผื่อยังมีปัญหาข้อมูลไม่ตรงกัน
+        const allExamSets = allData.filter(d => d.type === 'exam_set');
+        if (allExamSets.length > 0) {
+          console.log(`[Exam Debug] วิชา "${reg.subject_name}" ชั้น "${reg.class_name}" ห้อง "${reg.room_number}" ไม่พบชุดสอบตรงกัน. ชุดสอบทั้งหมดในระบบ:`,
+            allExamSets.map(s => ({ class: s.class_name, room: s.room_number, subject: s.subject_name, k_round: s.k_round })));
+        }
+        return '';
+      }
+      // ถ้า K ครั้งเดียวกันมีหลายชุดสอบ (เช่น 1 บทสอบได้หลายเรื่อง) ให้เลขกำกับ "ชุด 1, ชุด 2" แยกให้ชัดเจน
+      const sortedSets = [...examSets].sort((a, b) => (a.created_at || a.__backendId).localeCompare(b.created_at || b.__backendId));
+      const roundCounts = {};
+      const setLabels = new Map();
+      sortedSets.forEach(s => {
+        roundCounts[s.k_round] = (roundCounts[s.k_round] || 0) + 1;
+        setLabels.set(s.__backendId, roundCounts[s.k_round]);
+      });
+      const roundTotals = {};
+      sortedSets.forEach(s => { roundTotals[s.k_round] = (roundTotals[s.k_round] || 0) + 1; });
+
+      const btnBase = 'padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;border:none;cursor:pointer';
+      const spanBase = 'padding:3px 8px;border-radius:6px;font-size:10px;white-space:nowrap;display:inline-block';
+
       return examSets.map(examSet => {
+        const kLabel = roundTotals[examSet.k_round] > 1 ? `K.${examSet.k_round} ชุด ${setLabels.get(examSet.__backendId)}` : `K.${examSet.k_round}`;
         const submission = allData.find(d => d.type === 'exam_submission' &&
           d.exam_set_id === examSet.__backendId && d.student_id === currentUser.student_id);
         const isOpen = isExamSetOpen(examSet);
         let btnHtml = '';
         if (!submission) {
           btnHtml = isOpen
-            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-[11px] font-semibold">📝 เข้าสอบ K.${examSet.k_round}</button>`
-            : `<span class="px-2 py-1 bg-gray-200 text-gray-400 rounded text-[11px]">🔒 ยังไม่ถึงเวลาสอบ K.${examSet.k_round}</span>`;
+            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white">📝 เข้าสอบ ${kLabel}</button>`
+            : `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ยังไม่ถึงเวลา ${kLabel}</span>`;
         } else if (submission.status === 'in_progress') {
           if (isOpen) {
-            btnHtml = `<button onclick="resumeExamAttempt('${submission.__backendId}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-[11px] font-semibold">✏️ ทำต่อ K.${examSet.k_round}</button>`;
+            btnHtml = `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white">✏️ ทำต่อ ${kLabel}</button>`;
           } else {
             // ปิดสอบแล้วแต่ยังทำไม่เสร็จ (in_progress) → เสนอทางขออนุญาต/เช็คสถานะคำขอสอบแก้
-            btnHtml = renderRetryRequestButton(examSet, submission);
+            btnHtml = renderRetryRequestButton(examSet, submission, kLabel);
           }
         } else if (submission.status === 'submitted') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          btnHtml = `<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-[11px]">✅ ส่งแล้ว K.${examSet.k_round} (${scoreText}/${examSet.total_score})</span>`;
+          btnHtml = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>`;
         } else if (submission.status === 'terminated') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          btnHtml = `<span class="px-2 py-1 bg-red-100 text-red-700 rounded text-[11px]">🚫 ถูกยุติ K.${examSet.k_round} (${scoreText}/${examSet.total_score})</span> ` + renderRetryRequestButton(examSet, submission);
+          btnHtml = `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${kLabel} (${scoreText}/${examSet.total_score})</span> ` + renderRetryRequestButton(examSet, submission, kLabel);
         }
         return btnHtml;
       }).join(' ');
     }
 
     // ปุ่มขออนุญาต/สถานะคำขอสอบแก้ — ครอบคลุมทั้ง exam_retry_request (นักเรียนขอเอง) และ exam_retry_permission (แอดมินอนุมัติจาก popup แจ้งเตือน)
-    function renderRetryRequestButton(examSet, submission) {
+    function renderRetryRequestButton(examSet, submission, kLabel) {
+      kLabel = kLabel || `K.${examSet.k_round}`;
+      const btnBase = 'padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;border:none;cursor:pointer';
+      const spanBase = 'padding:3px 8px;border-radius:6px;font-size:10px;white-space:nowrap;display:inline-block';
       const now = new Date();
       // เช็คสิทธิ์จาก popup แจ้งเตือนก่อน (exam_retry_permission) — อนุญาตแบบทั่วไป ไม่จำกัดเวลาเฉพาะ
       const perm = allData.filter(d => d.type === 'exam_retry_permission' && d.student_id === currentUser.student_id && d.exam_id === examSet.__backendId)
         .sort((a,b) => new Date(b.granted_at) - new Date(a.granted_at))[0];
       if (perm?.allowed) {
-        return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" class="px-2 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-[11px] font-semibold">🔁 สอบแก้ (ได้รับอนุญาตแล้ว) K.${examSet.k_round}</button>`;
+        return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 สอบแก้ (ได้รับอนุญาต) ${kLabel}</button>`;
       }
       // เช็คคำขอที่นักเรียนส่งเอง (exam_retry_request)
       const request = allData.filter(d => d.type === 'exam_retry_request' && d.student_id === currentUser.student_id && d.exam_set_id === examSet.__backendId)
         .sort((a,b) => new Date(b.requested_at) - new Date(a.requested_at))[0];
       if (request) {
-        if (request.status === 'pending') return `<span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-[11px]">⏳ รอแอดมินอนุมัติคำขอสอบแก้ K.${examSet.k_round}</span>`;
-        if (request.status === 'denied') return `<span class="px-2 py-1 bg-red-100 text-red-500 rounded text-[11px]">🚫 คำขอสอบแก้ไม่ได้รับอนุญาต K.${examSet.k_round}</span>`;
+        if (request.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ รออนุมัติสอบแก้ ${kLabel}</span>`;
+        if (request.status === 'denied') return `<span style="${spanBase};background:#fee2e2;color:#dc2626">🚫 ไม่อนุญาตสอบแก้ ${kLabel}</span>`;
         if (request.status === 'approved') {
           const start = new Date(request.approved_start_time);
           const end = new Date(request.approved_end_time);
           if (now >= start && now <= end) {
-            return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" class="px-2 py-1 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-[11px] font-semibold">🔁 สอบแก้ (ช่วง ${start.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit'})}-${end.toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit'})}) K.${examSet.k_round}</button>`;
+            return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 สอบแก้ ${kLabel}</button>`;
           }
-          if (now < start) return `<span class="px-2 py-1 bg-blue-100 text-blue-600 rounded text-[11px]">🟢 ได้รับอนุญาตแล้ว รอถึง ${start.toLocaleString('th-TH')}</span>`;
-          return `<span class="px-2 py-1 bg-gray-200 text-gray-400 rounded text-[11px]">⏰ หมดเวลาที่ได้รับอนุญาตแล้ว K.${examSet.k_round}</span>`;
+          if (now < start) return `<span style="${spanBase};background:#dbeafe;color:#2563eb">🟢 อนุญาตแล้ว รอถึง ${start.toLocaleString('th-TH',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>`;
+          return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาสอบแก้ ${kLabel}</span>`;
         }
       }
       // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต
-      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" class="px-2 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-[11px] font-semibold">🙋 ขออนุญาตสอบแก้ K.${examSet.k_round}</button>`;
+      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white">🙋 ขอสอบแก้ ${kLabel}</button>`;
     }
 
     function openRetryRequestForm(examSetId, submissionId) {
+      document.getElementById('retry-request-panel')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'retry-request-panel';
       wrap.style.cssText = 'position:fixed;inset:0;z-index:999996;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -7385,6 +7413,7 @@
     function openApproveRetryForm(requestId) {
       const req = allData.find(d => d.__backendId === requestId && d.type === 'exam_retry_request');
       if (!req) return;
+      document.getElementById('approve-retry-panel')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'approve-retry-panel';
       wrap.style.cssText = 'position:fixed;inset:0;z-index:999996;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -7455,6 +7484,7 @@
       const answers = JSON.parse(submission.answers || '{}');
       const writtenQuestions = orderedIds.map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question')).filter(q => q && q.question_type === 'written');
 
+      document.getElementById('eg-grading-panel')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'eg-grading-panel';
       wrap.style.cssText = 'position:fixed;inset:0;z-index:999997;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
@@ -7571,6 +7601,7 @@
       const currentScore = submission?.manual_score !== undefined && submission?.manual_score !== null ? submission.manual_score : '';
       const activityLogHtml = renderExamActivityLogHtml(submission);
 
+      document.getElementById('exam-alert-panel')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'exam-alert-panel';
       wrap.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
