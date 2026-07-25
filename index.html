@@ -3478,6 +3478,8 @@
     // สร้างเมนูแนวตั้งฝั่งซ้าย ตามบทบาทของผู้ใช้ปัจจุบัน
     function buildDesktopSidebar() {
       if (!currentUser) return;
+      // ถ้ากำลังสวมตัวตนเป็นนักเรียนชั่วคราวอยู่ (มาจากบัญชีผู้ช่วยแอดมิน) ให้สร้างเมนูจากตัวตนจริง ไม่ใช่ตัวตนที่สวมอยู่ชั่วคราว
+      const effectiveUser = (currentUser.__fromSubAdminDesktop && _deskSubAdminOriginalUser) ? _deskSubAdminOriginalUser : currentUser;
       const sidebar = document.getElementById('desktop-sidebar');
       const content = document.getElementById('sidebar-content');
       if (!sidebar || !content) return;
@@ -3486,7 +3488,7 @@
       const section = (label) => `<div class="sb-section">${label}</div>`;
       let html = '';
 
-      if (currentUser.user_type === 'student') {
+      if (effectiveUser.user_type === 'student') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += btn('📚', 'ลงทะเบียน', "showPage('student-management');showStudentTab('register')");
         html += btn('📊', 'ผลการเรียน', "showPage('student-management');showStudentTab('grades')");
@@ -3494,21 +3496,21 @@
         html += btn('⏱️', 'เวลาเรียน', "showPage('student-management');showStudentTab('attendance')");
         html += btn('📝', 'ประเมินการสอน', "showPage('student-management');showStudentTab('evaluate')");
         html += btn('👤', 'ข้อมูลส่วนตัว', "showPage('student-management');showStudentTab('profile')");
-        if (currentUser.linked_admin_id) {
+        if (effectiveUser.linked_admin_id) {
           html += section('ผู้ช่วยแอดมิน');
           html += btn('📝', 'การบ้าน(ผู้ช่วยฯ)', "goToSubAdminTabDirect('homework')");
           html += btn('⏱️', 'ลงเวลาเรียน', "goToSubAdminTabDirect('timekeeping')");
           html += btn('🎓', 'ให้คะแนน', "goToSubAdminTabDirect('grading')");
           html += btn('👥', 'นักเรียน(ผู้ช่วยฯ)', "goToSubAdminTabDirect('students')");
         }
-      } else if (currentUser.user_type === 'subadmin') {
+      } else if (effectiveUser.user_type === 'subadmin') {
         html += section('ผู้ช่วยแอดมิน');
         html += btn('📝', 'การบ้าน', "goToSubAdminTabDirect('homework')");
         html += btn('⏱️', 'ลงเวลาเรียน', "goToSubAdminTabDirect('timekeeping')");
         html += btn('🎓', 'ให้คะแนน', "goToSubAdminTabDirect('grading')");
         html += btn('👥', 'นักเรียน', "goToSubAdminTabDirect('students')");
         // บัญชีผู้ช่วยแอดมินนี้ ถูกผูกกับนักเรียนคนหนึ่งด้วย (คนละทิศทางจากที่เช็คไว้ข้างบน) → ต้องมีเมนูนักเรียนให้ครบด้วย
-        if (currentUser.linked_student_id) {
+        if (effectiveUser.linked_student_id) {
           html += section('เมนูนักเรียน');
           html += btn('📚', 'ลงทะเบียน', "goToStudentTabFromSubAdmin('register')");
           html += btn('📊', 'ผลการเรียน', "goToStudentTabFromSubAdmin('grades')");
@@ -3517,10 +3519,10 @@
           html += btn('📝', 'ประเมินการสอน', "goToStudentTabFromSubAdmin('evaluate')");
           html += btn('👤', 'ข้อมูลส่วนตัว', "goToStudentTabFromSubAdmin('profile')");
         }
-      } else if (currentUser.user_type === 'director') {
+      } else if (effectiveUser.user_type === 'director') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += btn('📂', 'เมนูการจัดการ(นิเทศ)', "goToDirectorManagementPage()");
-      } else if (currentUser.user_type === 'admin') {
+      } else if (effectiveUser.user_type === 'admin') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += section('ข้อมูลพื้นฐาน');
         html += btn('📥', 'นำเข้าข้อมูลวิชา', "goToAdminTabDirect('import')");
@@ -3682,12 +3684,18 @@
     }
     // สำหรับบัญชีผู้ช่วยแอดมินที่ผูกกับนักเรียนคนหนึ่ง — สวมตัวตนชั่วคราวเพื่อดูเมนูนักเรียนของตัวเอง
     function goToStudentTabFromSubAdmin(tabName) {
-      if (!currentUser || !currentUser.linked_student_id) { showToast('บัญชีนี้ไม่ได้เชื่อมโยงกับนักเรียนคนใด', 'error'); return; }
+      console.log('[SubAdmin-Student Debug] called with tabName:', tabName, '| currentUser.__fromSubAdminDesktop:', currentUser?.__fromSubAdminDesktop, '| currentUser.user_type:', currentUser?.user_type, '| currentUser.linked_student_id:', currentUser?.linked_student_id, '| _deskSubAdminOriginalUser:', _deskSubAdminOriginalUser);
+      if (!currentUser) return;
+      // ถ้าสวมตัวตนเป็นนักเรียนอยู่แล้ว (จากการกดเมนูนักเรียนครั้งก่อนหน้า) แค่สลับแท็บ ไม่ต้องเช็ค/สวมซ้ำ
+      if (currentUser.__fromSubAdminDesktop) {
+        showPage('student-management');
+        showStudentTab(tabName);
+        return;
+      }
+      if (!currentUser.linked_student_id) { showToast('บัญชีนี้ไม่ได้เชื่อมโยงกับนักเรียนคนใด', 'error'); return; }
       const student = allData.find(s => s.__backendId === currentUser.linked_student_id);
       if (!student) { showToast('ไม่พบข้อมูลนักเรียนที่เชื่อมโยง', 'error'); return; }
-      if (!currentUser.__fromSubAdminDesktop) {
-        _deskSubAdminOriginalUser = currentUser;
-      }
+      _deskSubAdminOriginalUser = currentUser;
       currentUser = { ...student, user_type: 'student', __fromSubAdminDesktop: true };
       showPage('student-management');
       showStudentTab(tabName);
