@@ -15706,13 +15706,32 @@
     mCloseTray();
     desktop.setAttribute('style', 'display:block!important;padding-top:58px;box-sizing:border-box');
     mobile.style.display = 'none';
-    if (typeof setupFn === 'function') {
-      try { setupFn(); }
-      catch (e) {
-        console.error('mShowDesktopView setupFn error:', e);
-        var home = document.getElementById('home-content');
-        if (home) home.innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 text-center"><p class="text-red-500">เกิดข้อผิดพลาดในการแสดงผล: ' + (e && e.message ? e.message : e) + '</p></div>';
+    function runSetup() {
+      if (typeof setupFn === 'function') {
+        try { setupFn(); }
+        catch (e) {
+          console.error('mShowDesktopView setupFn error:', e);
+          var home = document.getElementById('home-content');
+          if (home) home.innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 text-center"><p class="text-red-500">เกิดข้อผิดพลาดในการแสดงผล: ' + (e && e.message ? e.message : e) + '</p></div>';
+        }
       }
+    }
+    // ⚠️ กันบั๊ก: ถ้ากดไอคอนเร็วมากหลัง login (ก่อน allData โหลดจาก Google Sheets เสร็จ) เนื้อหาจะว่างเปล่า
+    // ต้องรอให้ข้อมูลพร้อมก่อนค่อย render จริง ไม่ต้องให้ผู้ใช้รีเฟรชเอง
+    if (!window.__dataReady) {
+      var waited = 0;
+      var waitTimer = setInterval(function() {
+        waited += 100;
+        if (window.__dataReady) {
+          clearInterval(waitTimer);
+          runSetup();
+        } else if (waited > 15000) {
+          clearInterval(waitTimer);
+          runSetup(); // ลองแสดงผลไปตามข้อมูลที่มีอยู่ตอนนี้ ดีกว่าค้างเปล่าตลอดไป
+        }
+      }, 100);
+    } else {
+      runSetup();
     }
     var header = document.createElement('div');
     header.id = 'm-desktop-back-header';
