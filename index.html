@@ -3570,7 +3570,7 @@
       const adminBtn = document.getElementById('admin-nav-btn');
       const adminBellsContainer = document.getElementById('admin-bells-container');
       if (isAdmin) {
-        adminBtn.classList.remove('hidden');
+        if (adminBtn) adminBtn.classList.remove('hidden');
         if (adminBellsContainer) {
           adminBellsContainer.classList.remove('hidden');
           adminBellsContainer.classList.add('flex');
@@ -3578,7 +3578,7 @@
         renderNotificationBells();
         console.log('✅ showing admin nav button');
       } else {
-        adminBtn.classList.add('hidden');
+        if (adminBtn) adminBtn.classList.add('hidden');
         if (adminBellsContainer) {
           adminBellsContainer.classList.add('hidden');
           adminBellsContainer.classList.remove('flex');
