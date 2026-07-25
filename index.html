@@ -15630,7 +15630,9 @@
     // Header
     var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : currentUser.user_type === 'director' ? '🎓 ผู้นิเทศการสอน' : '🎓 นักเรียน';
     document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
+    console.log('[Header Debug] user_type:', currentUser.user_type, '| linked_student_id:', currentUser.linked_student_id, '| allData length:', (allData||[]).length);
     var linkedStudentForHeader = (currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
+    console.log('[Header Debug] linkedStudentForHeader found:', linkedStudentForHeader);
     document.getElementById('m-header-user').textContent = linkedStudentForHeader
       ? ((linkedStudentForHeader.prefix||'') + (linkedStudentForHeader.first_name||'') + ' ' + (linkedStudentForHeader.last_name||''))
       : ((currentUser.prefix||'') + (currentUser.first_name||currentUser.username||''));
@@ -15721,6 +15723,7 @@
     }
     // ⚠️ กันบั๊ก: ถ้ากดไอคอนเร็วมากหลัง login (ก่อน allData โหลดจาก Google Sheets เสร็จ) เนื้อหาจะว่างเปล่า
     // ต้องรอให้ข้อมูลพร้อมก่อนค่อย render จริง ไม่ต้องให้ผู้ใช้รีเฟรชเอง
+    console.log('[mShowDesktopView Debug] title:', title, '| window.__dataReady:', window.__dataReady, '| allData length:', (typeof allData !== 'undefined' ? allData.length : 'undefined'));
     if (!window.__dataReady) {
       var waited = 0;
       var waitTimer = setInterval(function() {
@@ -15798,6 +15801,8 @@
       mHideAllDesktopPages('page-subadmin');
       document.getElementById('app-main')?.classList.remove('hidden');
       document.getElementById('page-subadmin')?.classList.remove('hidden');
+      // ⚠️ ต้องสร้างโครงหน้า (แท็บ+กล่องเนื้อหา) ก่อนเสมอ ไม่งั้น showSubAdminTab จะหาที่เขียนเนื้อหาไม่เจอ (ว่างเปล่า)
+      if (typeof renderSubAdminPage === 'function') renderSubAdminPage();
       if (typeof showSubAdminTab === 'function') showSubAdminTab(tabName);
     });
   }
