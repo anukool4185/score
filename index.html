@@ -2015,13 +2015,13 @@
       <div id="admin-tab-menumanager" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">🎨 จัดการเมนู</h3>
-        <p class="text-gray-500 text-sm mb-6">ปรับลำดับและสัญลักษณ์ไอคอนของเมนูซ้าย สำหรับแต่ละบทบาท — ใช้ลูกศร ↑↓ เพื่อจัดลำดับ พิมพ์อีโมจิใหม่ในช่องเพื่อเปลี่ยนสัญลักษณ์</p>
-        <div class="flex gap-2 mb-4 flex-wrap">
-         <button onclick="switchMenuManagerRole('student')" id="mm-role-btn-student" class="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium">👨‍🎓 นักเรียน</button>
-         <button onclick="switchMenuManagerRole('subadmin')" id="mm-role-btn-subadmin" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400">🧑‍💼 ผู้ช่วยแอดมิน</button>
-         <button onclick="switchMenuManagerRole('director')" id="mm-role-btn-director" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400">🎓 นิเทศ</button>
-         <button onclick="switchMenuManagerRole('admin')" id="mm-role-btn-admin" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400">⚙️ แอดมิน</button>
+        <p class="text-gray-500 text-sm mb-6">ปรับลำดับและสัญลักษณ์ไอคอนของเมนู สำหรับแต่ละบทบาท — ใช้ลูกศร ↑↓ เพื่อจัดลำดับ พิมพ์อีโมจิใหม่ในช่องเพื่อเปลี่ยนสัญลักษณ์</p>
+        <div class="flex gap-2 mb-4">
+         <button onclick="switchMenuManagerPlatform('desktop')" id="mm-platform-btn-desktop" class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium">🖥️ เดสก์ท็อป</button>
+         <button onclick="switchMenuManagerPlatform('mobile')" id="mm-platform-btn-mobile" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400">📱 มือถือ</button>
         </div>
+        <div id="mm-role-buttons" class="flex gap-2 mb-4 flex-wrap"></div>
+        <p id="mm-note" class="text-xs text-amber-600 mb-3 hidden"></p>
         <div id="mm-list" class="space-y-2 mb-4"></div>
         <div class="flex gap-2">
          <button onclick="saveMenuManagerConfig()" class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium">💾 บันทึก</button>
@@ -3621,6 +3621,62 @@
       if (!configRecord || !configRecord.items_json) return defaults;
       try {
         const overrides = JSON.parse(configRecord.items_json); // [{id, icon, order}]
+        const overrideMap = {};
+        overrides.forEach(o => { overrideMap[o.id] = o; });
+        return defaults
+          .map(item => {
+            const o = overrideMap[item.id];
+            return o ? { ...item, icon: o.icon || item.icon, __order: o.order } : { ...item, __order: 999 };
+          })
+          .sort((a, b) => (a.__order ?? 999) - (b.__order ?? 999));
+      } catch (e) {
+        return defaults;
+      }
+    }
+
+    // ══════════════════════════════════════════════════
+    // 📱 ระบบเมนูมือถือแบบปรับแต่งได้ — แยกจากระบบเดสก์ท็อป เพราะโครงสร้างต่างกัน (มีการจัดกลุ่ม/tray)
+    // ══════════════════════════════════════════════════
+    const DEFAULT_MOBILE_ITEMS = {
+      admin: [
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก'},
+        {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ'},
+        {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
+        {id:'mn-score',    icon:'📊', label:'คะแนน'},
+        {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
+        {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
+      ],
+      subadmin_linked: [
+        {id:'mn-overview',  icon:'🏠', label:'หน้าแรก'},
+        {id:'mn-sa-profile',icon:'👤', label:'ข้อมูลส่วนตัว'},
+        {id:'mn-sa-study',  icon:'📖', label:'การเรียน'},
+        {id:'mn-sa-eval',   icon:'📝', label:'ประเมินการสอน'},
+        {id:'mn-sa-admin',  icon:'👤', label:'ผู้ช่วยแอดมิน'},
+      ],
+      subadmin: [
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก'},
+        {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ'},
+        {id:'mn-sa-hw',    icon:'📝', label:'การบ้าน'},
+        {id:'mn-sa-time',  icon:'⏱️', label:'ลงเวลา'},
+        {id:'mn-sa-gr',    icon:'🎓', label:'คะแนน'},
+        {id:'mn-sa-stu',   icon:'👥', label:'นักเรียน'},
+      ],
+      student: [
+        {id:'mn-overview', icon:'🏠', label:'หน้าแรก'},
+        {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
+        {id:'mn-stu-hw',   icon:'📝', label:'การบ้าน'},
+        {id:'mn-grade',    icon:'📊', label:'คะแนน'},
+        {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
+        {id:'mn-stu-sa',   icon:'👤', label:'ผู้ช่วยแอดมิน', conditional:'linked_admin_id'},
+      ],
+    };
+    const MOBILE_ROLE_LABELS_ALL = { admin:'แอดมิน', subadmin_linked:'ผู้ช่วยแอดมิน (ที่เป็นนักเรียน)', subadmin:'ผู้ช่วยแอดมิน (ทั่วไป)', student:'นักเรียน' };
+    function getMobileItemsForRole(configRole) {
+      const defaults = DEFAULT_MOBILE_ITEMS[configRole] || [];
+      const configRecord = allData.find(d => d.type === 'mobile_menu_config' && d.role === configRole);
+      if (!configRecord || !configRecord.items_json) return defaults;
+      try {
+        const overrides = JSON.parse(configRecord.items_json);
         const overrideMap = {};
         overrides.forEach(o => { overrideMap[o.id] = o; });
         return defaults
@@ -8100,25 +8156,55 @@
     // ══════════════════════════════════════════════════
     // 🎨 จัดการเมนู (Sidebar Menu Manager)
     // ══════════════════════════════════════════════════
+    let _mmCurrentPlatform = 'desktop';
     let _mmCurrentRole = 'student';
     let _mmCurrentItems = [];
-    const MM_ROLE_LABELS = { student: 'นักเรียน', subadmin: 'ผู้ช่วยแอดมิน', director: 'นิเทศ', admin: 'แอดมิน' };
+    const MM_ROLE_LABELS = { student: 'นักเรียน', subadmin: 'ผู้ช่วยแอดมิน', subadmin_linked: 'ผู้ช่วยแอดมิน (นักเรียน)', director: 'นิเทศ', admin: 'แอดมิน' };
+    const MM_DESKTOP_ROLES = [
+      { key:'student', label:'👨‍🎓 นักเรียน' }, { key:'subadmin', label:'🧑‍💼 ผู้ช่วยแอดมิน' },
+      { key:'director', label:'🎓 นิเทศ' }, { key:'admin', label:'⚙️ แอดมิน' },
+    ];
+    const MM_MOBILE_ROLES = [
+      { key:'student', label:'👨‍🎓 นักเรียน' }, { key:'subadmin_linked', label:'🧑‍💼 ผู้ช่วยแอดมิน (นักเรียน)' },
+      { key:'subadmin', label:'🧑‍💼 ผู้ช่วยแอดมิน (ทั่วไป)' }, { key:'admin', label:'⚙️ แอดมิน' },
+    ];
 
     function loadMenuManagerTab() {
-      switchMenuManagerRole('student');
+      switchMenuManagerPlatform('desktop');
+    }
+    function switchMenuManagerPlatform(platform) {
+      _mmCurrentPlatform = platform;
+      const dBtn = document.getElementById('mm-platform-btn-desktop');
+      const mBtn = document.getElementById('mm-platform-btn-mobile');
+      if (platform === 'desktop') {
+        dBtn.classList.add('bg-slate-700','text-white'); dBtn.classList.remove('bg-gray-300','text-gray-700');
+        mBtn.classList.add('bg-gray-300','text-gray-700'); mBtn.classList.remove('bg-slate-700','text-white');
+      } else {
+        mBtn.classList.add('bg-slate-700','text-white'); mBtn.classList.remove('bg-gray-300','text-gray-700');
+        dBtn.classList.add('bg-gray-300','text-gray-700'); dBtn.classList.remove('bg-slate-700','text-white');
+      }
+      const roles = platform === 'desktop' ? MM_DESKTOP_ROLES : MM_MOBILE_ROLES;
+      const roleButtonsEl = document.getElementById('mm-role-buttons');
+      roleButtonsEl.innerHTML = roles.map(r => `<button onclick="switchMenuManagerRole('${r.key}')" id="mm-role-btn-${r.key}" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400">${r.label}</button>`).join('');
+      const noteEl = document.getElementById('mm-note');
+      if (platform === 'mobile') {
+        noteEl.textContent = 'หมายเหตุ: "นิเทศ" ไม่มีในนี้ เพราะเมนูมือถือของนิเทศใช้ค่าเดียวกับฝั่งเดสก์ท็อปอยู่แล้ว (โครงสร้างเหมือนกัน)';
+        noteEl.classList.remove('hidden');
+      } else {
+        noteEl.classList.add('hidden');
+      }
+      switchMenuManagerRole(roles[0].key);
     }
     function switchMenuManagerRole(role) {
       _mmCurrentRole = role;
-      ['student','subadmin','director','admin'].forEach(r => {
-        const btn = document.getElementById('mm-role-btn-' + r);
-        if (btn) {
-          btn.classList.remove('bg-blue-500','text-white');
-          btn.classList.add('bg-gray-300','text-gray-700');
-        }
+      const roles = _mmCurrentPlatform === 'desktop' ? MM_DESKTOP_ROLES : MM_MOBILE_ROLES;
+      roles.forEach(r => {
+        const btn = document.getElementById('mm-role-btn-' + r.key);
+        if (btn) { btn.classList.remove('bg-blue-500','text-white'); btn.classList.add('bg-gray-300','text-gray-700'); }
       });
       const activeBtn = document.getElementById('mm-role-btn-' + role);
       if (activeBtn) { activeBtn.classList.remove('bg-gray-300','text-gray-700'); activeBtn.classList.add('bg-blue-500','text-white'); }
-      _mmCurrentItems = getSidebarItemsForRole(role).map(item => ({ ...item })); // สำเนาไว้แก้ไขชั่วคราวก่อนบันทึก
+      _mmCurrentItems = (_mmCurrentPlatform === 'desktop' ? getSidebarItemsForRole(role) : getMobileItemsForRole(role)).map(item => ({ ...item }));
       renderMenuManagerList();
     }
     function renderMenuManagerList() {
@@ -8157,23 +8243,27 @@
     }
     async function saveMenuManagerConfig() {
       const itemsToSave = _mmCurrentItems.map((item, idx) => ({ id: item.id, icon: item.icon, order: idx }));
-      const existing = allData.find(d => d.type === 'menu_config' && d.role === _mmCurrentRole);
-      const record = { type: 'menu_config', role: _mmCurrentRole, items_json: JSON.stringify(itemsToSave) };
+      const configType = _mmCurrentPlatform === 'desktop' ? 'menu_config' : 'mobile_menu_config';
+      const existing = allData.find(d => d.type === configType && d.role === _mmCurrentRole);
+      const record = { type: configType, role: _mmCurrentRole, items_json: JSON.stringify(itemsToSave) };
       const result = existing ? await window.dataSdk.update({ ...existing, ...record }) : await window.dataSdk.create(record);
       if (result.isOk) {
-        showToast(`✅ บันทึกเมนู "${MM_ROLE_LABELS[_mmCurrentRole]}" สำเร็จ`);
-        buildDesktopSidebar(); // รีเฟรชเมนูซ้ายทันที ถ้าแอดมินเป็นคนดูอยู่
+        showToast(`✅ บันทึกเมนู "${MM_ROLE_LABELS[_mmCurrentRole]}" (${_mmCurrentPlatform === 'desktop' ? 'เดสก์ท็อป' : 'มือถือ'}) สำเร็จ`);
+        buildDesktopSidebar();
+        if (typeof mBuildNav === 'function') mBuildNav();
       } else {
         showToast('บันทึกไม่สำเร็จ', 'error');
       }
     }
     async function resetMenuManagerConfig() {
       if (!confirm(`ยืนยันคืนค่าเริ่มต้นของเมนู "${MM_ROLE_LABELS[_mmCurrentRole]}"?`)) return;
-      const existing = allData.find(d => d.type === 'menu_config' && d.role === _mmCurrentRole);
+      const configType = _mmCurrentPlatform === 'desktop' ? 'menu_config' : 'mobile_menu_config';
+      const existing = allData.find(d => d.type === configType && d.role === _mmCurrentRole);
       if (existing) await window.dataSdk.delete(existing);
       showToast('↺ คืนค่าเริ่มต้นแล้ว');
       switchMenuManagerRole(_mmCurrentRole);
       buildDesktopSidebar();
+      if (typeof mBuildNav === 'function') mBuildNav();
     }
 
     function loadAdminGradeDistTab() {
@@ -16787,6 +16877,22 @@
   };
   var _mActiveTray = null;
 
+  // ฟังก์ชันจริงของแต่ละไอคอนมือถือ แยกจากข้อมูลลำดับ/ไอคอน (แก้แค่ข้อมูล ไม่กระทบการทำงาน)
+  const MOBILE_ACTIONS = {
+    admin: { 'mn-overview':"mShowDesktopAnnouncementManagement()", 'mn-datainfo':"mShowSection('home')" },
+    subadmin_linked: {
+      'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')",
+      'mn-sa-profile':"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')",
+      'mn-sa-eval':"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')",
+    },
+    subadmin: { 'mn-overview':"mShowSubAdminHome()", 'mn-datainfo':"mShowSection('home')" },
+    director: {
+      home:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')", kpacfull:"mShowDirectorKpacNative()",
+      grade:"mShowDirectorGradeNative()", attend:"mShowDirectorScoreNative()",
+      gradedist:"mShowDirectorGradeSummaryNative()", eval:"mShowDirectorEvalNative()",
+    },
+    student: { 'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')" },
+  };
   function mBuildNav() {
     var nav = document.getElementById('m-bottom-nav');
     if (!nav) return;
@@ -16795,57 +16901,23 @@
     var type = currentUser.user_type;
     var btns = [];
     if (type === 'admin') {
-      btns = [
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopAnnouncementManagement()"},
-        {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
-        {id:'mn-stu',      icon:'👥', label:'นักเรียน'},
-        {id:'mn-score',    icon:'📊', label:'คะแนน'},
-        {id:'mn-hw',       icon:'📝', label:'กิจกรรม'},
-        {id:'mn-settings', icon:'⚙️', label:'ตั้งค่า'},
-      ];
+      btns = getMobileItemsForRole('admin').map(item => ({ ...item, fn: MOBILE_ACTIONS.admin[item.id] || '' }));
     } else if (type === 'subadmin') {
       if (currentUser.linked_student_id) {
-        // ผู้ช่วยแอดมินคนนี้คือนักเรียนที่ถูกแต่งตั้ง → login แล้วให้เจอโหมดนักเรียนปกติก่อน
-        // เมนูผู้ช่วยแอดมินทั้งหมดถูกรวบไว้ในไอคอนเดียว "👤 ผู้ช่วยแอดมิน" (รวม ข้อมูลระบบ ไว้ในนี้ด้วย)
-        btns = [
-          {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
-          {id:'mn-sa-profile',icon:'👤', label:'ข้อมูลส่วนตัว', fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
-          {id:'mn-sa-study',  icon:'📖', label:'การเรียน'},
-          {id:'mn-sa-eval',   icon:'📝', label:'ประเมินการสอน', fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
-          {id:'mn-sa-admin',  icon:'👤', label:'ผู้ช่วยแอดมิน'},
-        ];
+        btns = getMobileItemsForRole('subadmin_linked').map(item => ({ ...item, fn: MOBILE_ACTIONS.subadmin_linked[item.id] || '' }));
       } else {
-        btns = [
-          {id:'mn-overview',icon:'🏠', label:'หน้าแรก', fn:"mShowSubAdminHome()"},
-          {id:'mn-datainfo', icon:'📊', label:'ข้อมูลระบบ', fn:"mShowSection('home')"},
-          {id:'mn-sa-hw',   icon:'📝', label:'การบ้าน'},
-          {id:'mn-sa-time', icon:'⏱️', label:'ลงเวลา'},
-          {id:'mn-sa-gr',   icon:'🎓', label:'คะแนน'},
-          {id:'mn-sa-stu',  icon:'👥', label:'นักเรียน'},
-        ];
+        btns = getMobileItemsForRole('subadmin').map(item => ({ ...item, fn: MOBILE_ACTIONS.subadmin[item.id] || '' }));
       }
     } else if (type === 'director') {
-      btns = [
-        {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
-        {id:'mn-dir-kpac',  icon:'🎯', label:'คะแนนเต็ม KPAC', fn:"mShowDirectorKpacNative()"},
-        {id:'mn-dir-grade', icon:'📊', label:'ผลการเรียน', fn:"mShowDirectorGradeNative()"},
-        {id:'mn-dir-score', icon:'⏱️', label:'เวลาเรียน', fn:"mShowDirectorScoreNative()"},
-        {id:'mn-dir-gradesum', icon:'📑', label:'สรุปเกรด', fn:"mShowDirectorGradeSummaryNative()"},
-        {id:'mn-dir-attendsum', icon:'📋', label:'สรุปเวลาเรียน', fn:"mShowDirectorAttendanceSummaryNative()"},
-        {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDirectorEvalNative()"},
-      ];
+      // ✅ ใช้ลำดับ+ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี) เหมือนฝั่งคอม เพราะโครงสร้างเมนูนิเทศเป็นรายการเรียบ ไม่มีการจัดกลุ่มแบบผู้ช่วยแอดมิน/แอดมิน
+      const dirItems = getSidebarItemsForRole('director');
+      btns = dirItems.map(item => ({ id: 'mn-dir-' + item.id, icon: item.icon, label: item.label, fn: MOBILE_ACTIONS.director[item.id] || '' }));
+      // "สรุปเวลาเรียน" เป็นฟีเจอร์เฉพาะมือถือ (ไม่มีแท็บคู่กันฝั่งคอม) จึงไม่อยู่ในระบบปรับแต่งเมนู เพิ่มต่อท้ายเสมอ
+      btns.push({id:'mn-dir-attendsum', icon:'📋', label:'สรุปเวลาเรียน', fn:"mShowDirectorAttendanceSummaryNative()"});
     } else {
-      btns = [
-        {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
-        {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
-        {id:'mn-stu-hw',   icon:'📝', label:'การบ้าน'},
-        {id:'mn-grade',    icon:'📊', label:'คะแนน'},
-        {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
-      ];
-      // นักเรียนที่ได้รับสิทธิ์เป็นผู้ช่วยแอดมินด้วย → เพิ่มไอคอนเข้าถึงเมนูผู้ช่วยแอดมิน
-      if (currentUser.linked_admin_id) {
-        btns.push({id:'mn-stu-sa', icon:'👤', label:'ผู้ช่วยแอดมิน'});
-      }
+      btns = getMobileItemsForRole('student')
+        .filter(item => !item.conditional || currentUser[item.conditional])
+        .map(item => ({ ...item, fn: MOBILE_ACTIONS.student[item.id] || '' }));
     }
     nav.innerHTML = btns.map(b => `
       <button id="${b.id}" onclick="${b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')"}"
