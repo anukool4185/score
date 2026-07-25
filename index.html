@@ -3532,6 +3532,7 @@
         html += btn('🎯', 'คะแนนเต็ม KPAC', "goToDirectorTabDirect('kpacfull')");
         html += btn('📊', 'ผลการเรียน', "goToDirectorTabDirect('gradesummary')");
         html += btn('⏱️', 'เวลาเรียน', "goToDirectorTabDirect('attendance')");
+        html += btn('📑', 'สรุปเกรด', "goToDirectorTabDirect('gradedist')");
         html += btn('📝', 'ประเมินผู้สอน', "goToDirectorTabDirect('evaluate')");
       } else if (effectiveUser.user_type === 'admin') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
@@ -14149,6 +14150,7 @@
           <button onclick="showDirectorTab('kpacfull')" id="director-tab-btn-kpacfull" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🎯 คะแนนเต็ม KPAC</button>
           <button onclick="showDirectorTab('gradesummary')" id="director-tab-btn-gradesummary" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button>
           <button onclick="showDirectorTab('attendance')" id="director-tab-btn-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button>
+          <button onclick="showDirectorTab('gradedist')" id="director-tab-btn-gradedist" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
           <button onclick="showDirectorTab('evaluate')" id="director-tab-btn-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินผู้สอน</button>
         </div>
         <div id="director-tab-content"></div>
@@ -14157,7 +14159,7 @@
     }
     function showDirectorTab(tabName) {
       currentDirectorTab = tabName;
-      ['kpacfull', 'gradesummary', 'attendance', 'evaluate'].forEach(name => {
+      ['kpacfull', 'gradesummary', 'attendance', 'gradedist', 'evaluate'].forEach(name => {
         const btn = document.getElementById('director-tab-btn-' + name);
         if (btn) {
           btn.classList.remove('bg-blue-500', 'text-white');
@@ -14175,6 +14177,8 @@
         showDirectorKpacFullScores();
       } else if (tabName === 'gradesummary') {
         showDirectorGradeSummary();
+      } else if (tabName === 'gradedist') {
+        showDirectorGradeDistribution();
       } else if (tabName === 'evaluate') {
         showDirectorEvaluationPage();
       }
@@ -14667,6 +14671,96 @@
           <td class="px-3 py-2 text-center font-bold text-blue-600">${r.special1==='มส.'||r.special2==='มส.' ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue)}</td>
         </tr>
       `).join('');
+    }
+
+    // 📑 สรุปเกรด (แบบสรุปรวมต่อวิชา) — จำนวน+ร้อยละของแต่ละเกรด ไม่ใช่รายบุคคล
+    function getGradeDisplayValue(row) {
+      return (row.special1==='มส.'||row.special2==='มส.') ? 'มส.' : (row.special3==='ร.' ? 'ร.' : row.gradeValue);
+    }
+    function computeGradeDistribution(className, roomNumber, subjectName) {
+      const rows = computeGradeReportRows(className, roomNumber, subjectName);
+      const counts = {};
+      rows.forEach(r => {
+        const g = getGradeDisplayValue(r);
+        counts[g] = (counts[g] || 0) + 1;
+      });
+      return { total: rows.length, counts, className, roomNumber, subjectName };
+    }
+    function showDirectorGradeDistribution() {
+      const container = document.getElementById('director-tab-content');
+      if (!container) return;
+      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📑 สรุปเกรด</h2>
+          <p class="text-gray-500 text-sm mb-6">สรุปจำนวนและร้อยละของแต่ละเกรดในแต่ละวิชา (ดูอย่างเดียว)</p>
+          <div class="flex items-center gap-3 flex-wrap mb-4">
+            <select id="director-gradedist-filter-class" onchange="updateDirectorGradeDistRoomSubject();updateDirectorGradeDistTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกชั้น</option>
+              ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <select id="director-gradedist-filter-room" onchange="updateDirectorGradeDistTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกห้อง</option>
+            </select>
+            <select id="director-gradedist-filter-subject" onchange="updateDirectorGradeDistTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">ทุกวิชา</option>
+            </select>
+          </div>
+          <div id="director-gradedist-list" class="space-y-4"></div>
+        </div>
+      `;
+      updateDirectorGradeDistRoomSubject();
+      updateDirectorGradeDistTable();
+    }
+    function updateDirectorGradeDistRoomSubject() {
+      const className = document.getElementById('director-gradedist-filter-class')?.value || '';
+      const roomSel = document.getElementById('director-gradedist-filter-room');
+      const subjSel = document.getElementById('director-gradedist-filter-subject');
+      if (!roomSel || !subjSel) return;
+      let regs = allData.filter(d => d.type === 'student_registration');
+      if (className) regs = regs.filter(r => r.class_name === className);
+      const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
+      roomSel.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjSel.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    function updateDirectorGradeDistTable() {
+      const className = document.getElementById('director-gradedist-filter-class')?.value || '';
+      const roomNumber = document.getElementById('director-gradedist-filter-room')?.value || '';
+      const subjectName = document.getElementById('director-gradedist-filter-subject')?.value || '';
+      const listEl = document.getElementById('director-gradedist-list');
+      if (!listEl) return;
+      let regs = allData.filter(d => d.type === 'student_registration');
+      if (className) regs = regs.filter(r => r.class_name === className);
+      if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+      if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
+      const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+      if (comboSet.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ไม่พบข้อมูล</p>'; return; }
+      const gradeOrder = ['4','3.5','3','2.5','2','1.5','1','0','ร.','มส.'];
+      listEl.innerHTML = comboSet.map(combo => {
+        const [c, rm, sub] = combo.split('|||');
+        const dist = computeGradeDistribution(c, rm, sub);
+        const gradesPresent = Object.keys(dist.counts).sort((a,b) => {
+          const ia = gradeOrder.indexOf(a), ib = gradeOrder.indexOf(b);
+          return (ia===-1?99:ia) - (ib===-1?99:ib);
+        });
+        const rowsHtml = gradesPresent.map(g => {
+          const count = dist.counts[g];
+          const pct = dist.total > 0 ? ((count / dist.total) * 100).toFixed(1) : '0.0';
+          const color = (g==='มส.'||g==='ร.') ? '#dc2626' : '#2563eb';
+          return `<div class="flex items-center gap-2 text-sm">
+            <span class="w-14 font-semibold" style="color:${color}">${g}</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden"><div style="width:${pct}%;background:${color};height:100%"></div></div>
+            <span class="w-24 text-right text-gray-600">${count} คน (${pct}%)</span>
+          </div>`;
+        }).join('');
+        return `
+          <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-100">
+            <p class="font-bold text-gray-800 mb-1">📚 ${sub}</p>
+            <p class="text-xs text-gray-500 mb-3">${c}/${rm} · นักเรียนทั้งหมด ${dist.total} คน</p>
+            <div class="space-y-2">${rowsHtml}</div>
+          </div>`;
+      }).join('');
     }
 
     function showDirectorEvaluationPage() {
@@ -15680,10 +15774,10 @@
   // ── Navigation ──
   // ปิด overlay/หน้าที่ยืมมาจากเดสก์ท็อปทั้งหมด ก่อนเปลี่ยนเมนู กันเมนูกดแล้วไม่ขยับเพราะโดน overlay บังอยู่
   function mCloseAllOverlays() {
+    // ลบ overlay ทุกตัวที่สร้างผ่าน mCreateOverlay() แบบทั่วไป (ไม่ต้องระบุ id ทีละตัว กันลืมเหมือนที่ผ่านมา)
+    document.querySelectorAll('.m-native-overlay').forEach(function(el) { el.remove(); });
     document.getElementById('m-eval-overlay')?.remove();
     document.getElementById('m-evaluators-overlay')?.remove();
-    document.getElementById('m-sa-tk-overlay')?.remove();
-    document.getElementById('m-sa-gr-overlay')?.remove();
     if (currentUser && currentUser.__fromSubAdmin && _subAdminOriginalUser) {
       currentUser = _subAdminOriginalUser;
       _subAdminOriginalUser = null;
@@ -16164,24 +16258,30 @@
     if (className) regs = regs.filter(r => r.class_name === className);
     if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
     if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
-    const comboSet = new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`));
-    let allRows = [];
-    comboSet.forEach(combo => {
+    const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+    if (comboSet.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูล</p>'; return; }
+    const gradeOrder = ['4','3.5','3','2.5','2','1.5','1','0','ร.','มส.'];
+    el.innerHTML = comboSet.map(combo => {
       const [c, rm, sub] = combo.split('|||');
-      const rows = computeGradeReportRows(c, rm, sub).map(row => ({ ...row, comboClass: c, comboRoom: rm, comboSubject: sub }));
-      allRows = allRows.concat(rows);
-    });
-    allRows.sort((a,b) => a.comboClass.localeCompare(b.comboClass) || a.comboRoom.localeCompare(b.comboRoom) || a.studentNumber - b.studentNumber);
-    if (allRows.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูลนักเรียน</p>'; return; }
-    el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${allRows.length} รายการ</p>` + allRows.map(r => {
-      const gradeDisplay = (r.special1==='มส.'||r.special2==='มส.') ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue);
-      const badgeColor = (gradeDisplay==='มส.'||gradeDisplay==='ร.') ? '#dc2626' : '#2563eb';
-      return `<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-        <div style="min-width:0">
-          <p style="font-weight:600;color:#1e293b;margin:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👤 ${r.studentName}</p>
-          <p style="font-size:10px;color:#94a3b8;margin:1px 0 0">${r.comboClass}/${r.comboRoom} · ${r.comboSubject}</p>
-        </div>
-        <span style="background:${badgeColor};color:white;font-weight:700;padding:4px 12px;border-radius:8px;font-size:14px;flex-shrink:0;margin-left:8px">${gradeDisplay}</span>
+      const dist = computeGradeDistribution(c, rm, sub);
+      const gradesPresent = Object.keys(dist.counts).sort((a,b) => {
+        const ia = gradeOrder.indexOf(a), ib = gradeOrder.indexOf(b);
+        return (ia===-1?99:ia) - (ib===-1?99:ib);
+      });
+      const rowsHtml = gradesPresent.map(g => {
+        const count = dist.counts[g];
+        const pct = dist.total > 0 ? ((count / dist.total) * 100).toFixed(1) : '0.0';
+        const color = (g==='มส.'||g==='ร.') ? '#dc2626' : '#2563eb';
+        return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px">
+          <span style="width:32px;font-weight:700;color:${color}">${g}</span>
+          <div style="flex:1;background:#e2e8f0;border-radius:999px;height:8px;overflow:hidden"><div style="width:${pct}%;background:${color};height:100%"></div></div>
+          <span style="width:76px;text-align:right;color:#64748b;font-size:11px">${count} คน (${pct}%)</span>
+        </div>`;
+      }).join('');
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px">
+        <p style="font-weight:700;color:#1e293b;margin:0 0 2px;font-size:13px">📚 ${sub}</p>
+        <p style="font-size:10px;color:#94a3b8;margin:0 0 8px">${c}/${rm} · ทั้งหมด ${dist.total} คน</p>
+        ${rowsHtml}
       </div>`;
     }).join('');
   }
@@ -16831,6 +16931,7 @@
     if (old) old.remove();
     var overlay = document.createElement('div');
     overlay.id = id;
+    overlay.className = 'm-native-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#edf2f8;display:flex;flex-direction:column;overflow:hidden';
     overlay.innerHTML =
       '<div style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">' +
