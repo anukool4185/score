@@ -923,7 +923,7 @@
     <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
-      <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="goToStudentManagementPage()" id="student-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นร.)</button> <button onclick="goToSubAdminPageFromStudent()" id="student-subadmin-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">🧑‍💼 ผู้ช่วยแอดมิน</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
+      <div class="flex flex-wrap gap-2 items-center"><button onclick="goToHomePage()" class="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm">🏠 หน้าหลัก</button> <button onclick="showPage('student-management');showStudentTab('register')" id="student-reg-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📚 ลงทะเบียน</button> <button onclick="showPage('student-management');showStudentTab('grades')" id="student-grades-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📊 ผลการเรียน</button> <button onclick="showPage('student-management');showStudentTab('homework')" id="student-hw-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📝 การบ้าน</button> <button onclick="showPage('student-management');showStudentTab('attendance')" id="student-attend-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">⏱️ เวลาเรียน</button> <button onclick="showPage('student-management');showStudentTab('evaluate')" id="student-eval-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">📝 ประเมินการสอน</button> <button onclick="showPage('student-management');showStudentTab('profile')" id="student-profile-nav-btn" class="px-3 py-2 rounded-lg bg-blue-500/80 hover:bg-blue-600/80 transition text-sm hidden">👤 ข้อมูลส่วนตัว</button> <button onclick="goToSubAdminPageFromStudent()" id="student-subadmin-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">🧑‍💼 ผู้ช่วยแอดมิน</button> <button onclick="goToDirectorManagementPage()" id="director-mgmt-nav-btn" class="px-3 py-2 rounded-lg bg-purple-500/80 hover:bg-purple-600/80 transition text-sm hidden">📂 เมนูการจัดการ(นิเทศ)</button> <button onclick="showAdminPanel()" id="admin-nav-btn" class="px-3 py-2 rounded-lg bg-amber-500/80 hover:bg-amber-600/80 transition text-sm hidden">⚙️ แอดมิน</button>
        <div id="admin-bells-container" class="hidden gap-3">
         <div class="relative flex flex-col items-center">
          <button onclick="toggleBellDropdown('applicants', 'admin')" class="bell-button relative bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex items-center justify-center text-xl transition">
@@ -3496,10 +3496,13 @@
       if (logoutBtn) logoutBtn.classList.remove('hidden');
 
       // แสดง/ซ่อนปุ่มเมนูการจัดการ ตามบทบาท
-      const studentMgmtBtn = document.getElementById('student-mgmt-nav-btn');
+      const isStudentUser = currentUser.user_type === 'student';
+      ['student-reg-nav-btn','student-grades-nav-btn','student-hw-nav-btn','student-attend-nav-btn','student-eval-nav-btn','student-profile-nav-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.classList.toggle('hidden', !isStudentUser);
+      });
       const directorMgmtBtn = document.getElementById('director-mgmt-nav-btn');
       const subAdminNavBtn = document.getElementById('student-subadmin-nav-btn');
-      if (studentMgmtBtn) studentMgmtBtn.classList.toggle('hidden', currentUser.user_type !== 'student');
       if (directorMgmtBtn) directorMgmtBtn.classList.toggle('hidden', !isDirector);
       // แสดงปุ่ม "ผู้ช่วยแอดมิน" ถ้านักเรียนคนนี้ถูกแต่งตั้งไว้
       if (subAdminNavBtn) {
@@ -4767,7 +4770,7 @@
       ['login-username','login-password'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
       safeHide('login-error');
       // รีเซ็ตปุ่มเมนูตามบทบาท
-      ['student-mgmt-nav-btn','director-mgmt-nav-btn','admin-nav-btn','student-subadmin-nav-btn','logout-btn','user-display'].forEach(safeHide);
+      ['student-reg-nav-btn','student-grades-nav-btn','student-hw-nav-btn','student-attend-nav-btn','student-eval-nav-btn','student-profile-nav-btn','director-mgmt-nav-btn','admin-nav-btn','student-subadmin-nav-btn','logout-btn','user-display'].forEach(safeHide);
       // รีเซ็ตแท็บนักเรียน
       ['tab-profile','tab-register','tab-grades','tab-homework-student','tab-evaluate','tab-attendance'].forEach(id => {
         safeRemoveClass(id,'bg-blue-500','text-white');
@@ -13657,7 +13660,7 @@
                 <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFull}</p>
                 <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('k', reg.__backendId, grade?.k_scores, 10, kFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${kSum.toFixed(1)}/${kFull}</p>
-                <div class="mt-2">${generateExamButtonsForRegistration(reg)}</div>
+                <div class="mt-2 flex flex-wrap gap-2">${generateExamButtonsForRegistration(reg)}</div>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
@@ -15661,14 +15664,7 @@
       {icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"},
       {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
     ],
-    // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง
-    // ไอคอน "การเรียน" รวมลงทะเบียน/เวลาเรียน/การบ้าน/ผลการเรียน ของนักเรียน
-    'mn-sa-study': [
-      {icon:'📚',label:'ลงทะเบียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
-      {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
-      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
-      {icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
-    ],
+    // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง (ดู mn-sast-* ด้านบน)
     // ไอคอน "ผู้ช่วยแอดมิน" รวมทุกฟังก์ชันผู้ช่วยแอดมินไว้ที่เดียว (สำหรับนักเรียนที่ได้รับสิทธิ์) รวมข้อมูลระบบไว้ด้วย
     'mn-sa-admin': [
       {icon:'📊',label:'ข้อมูลระบบ',fn:"mShowSection('home')"},
@@ -15681,10 +15677,19 @@
     'mn-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"}],
     'mn-stu-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTab('homework','📝 การบ้าน')"}],
     'mn-grade': [{icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTab('grades','📊 ผลการเรียน')"}],
+    // นักเรียนที่ได้รับสิทธิ์ผู้ช่วยแอดมิน — เมนูส่วนนักเรียนเหมือนนักเรียนทั่วไปทุกอย่าง (ใช้ตัวสลับตัวตนชั่วคราว)
+    'mn-sast-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"}],
+    'mn-sast-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"}],
+    'mn-sast-grade': [{icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"}],
     'mn-more': [
       {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTab('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
       {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTab('attendance','⏱️ เวลาเรียน')"},
       {icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTab('evaluate','📝 ประเมินการสอน')"},
+    ],
+    'mn-sast-more': [
+      {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
+      {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
+      {icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
     ],
   };
   var _mActiveTray = null;
@@ -15707,13 +15712,14 @@
       ];
     } else if (type === 'subadmin') {
       if (currentUser.linked_student_id) {
-        // ผู้ช่วยแอดมินคนนี้คือนักเรียนที่ถูกแต่งตั้ง → login แล้วให้เจอโหมดนักเรียนปกติก่อน
-        // เมนูผู้ช่วยแอดมินทั้งหมดถูกรวบไว้ในไอคอนเดียว "👤 ผู้ช่วยแอดมิน" (รวม ข้อมูลระบบ ไว้ในนี้ด้วย)
+        // ผู้ช่วยแอดมินคนนี้คือนักเรียนที่ถูกแต่งตั้ง → เมนูส่วนนักเรียนต้องมีครบเหมือนนักเรียนทั่วไปทุกคน
+        // ไม่รวบเป็นไอคอนเดียว — มีแค่ฟังก์ชันผู้ช่วยแอดมินเท่านั้นที่รวบเป็นไอคอนเสริมท้ายสุด
         btns = [
-          {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
-          {id:'mn-sa-profile',icon:'👤', label:'ข้อมูลส่วนตัว', fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
-          {id:'mn-sa-study',  icon:'📖', label:'การเรียน'},
-          {id:'mn-sa-eval',   icon:'📝', label:'ประเมินการสอน', fn:"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')"},
+          {id:'mn-overview', icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')"},
+          {id:'mn-sast-reg',      icon:'📋', label:'ลงทะเบียน'},
+          {id:'mn-sast-hw',       icon:'📝', label:'การบ้าน'},
+          {id:'mn-sast-grade',    icon:'📊', label:'คะแนน'},
+          {id:'mn-sast-more',     icon:'⚙️', label:'อื่นๆ'},
           {id:'mn-sa-admin',  icon:'👤', label:'ผู้ช่วยแอดมิน'},
         ];
       } else {
