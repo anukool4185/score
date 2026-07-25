@@ -3530,6 +3530,8 @@
       } else if (effectiveUser.user_type === 'director') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += btn('📊', 'ผลการเรียน/เวลาเรียน', "goToDirectorTabDirect('score')");
+        html += btn('🎯', 'คะแนนเต็ม KPAC', "goToDirectorTabDirect('kpacfull')");
+        html += btn('📑', 'สรุปเกรด', "goToDirectorTabDirect('gradesummary')");
         html += btn('📝', 'ประเมินผู้สอน', "goToDirectorTabDirect('evaluate')");
       } else if (effectiveUser.user_type === 'admin') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
@@ -14145,6 +14147,8 @@
       container.innerHTML = `
         <div id="director-tab-buttons" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
           <button onclick="showDirectorTab('score')" id="director-tab-btn-score" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📊 ตารางผลการเรียน/เวลาเรียน</button>
+          <button onclick="showDirectorTab('kpacfull')" id="director-tab-btn-kpacfull" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">🎯 คะแนนเต็ม KPAC</button>
+          <button onclick="showDirectorTab('gradesummary')" id="director-tab-btn-gradesummary" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
           <button onclick="showDirectorTab('evaluate')" id="director-tab-btn-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินผู้สอน</button>
         </div>
         <div id="director-tab-content"></div>
@@ -14153,7 +14157,7 @@
     }
     function showDirectorTab(tabName) {
       currentDirectorTab = tabName;
-      ['score', 'evaluate'].forEach(name => {
+      ['score', 'kpacfull', 'gradesummary', 'evaluate'].forEach(name => {
         const btn = document.getElementById('director-tab-btn-' + name);
         if (btn) {
           btn.classList.remove('bg-blue-500', 'text-white');
@@ -14167,6 +14171,10 @@
       }
       if (tabName === 'score') {
         showDirectorDashboard();
+      } else if (tabName === 'kpacfull') {
+        showDirectorKpacFullScores();
+      } else if (tabName === 'gradesummary') {
+        showDirectorGradeSummary();
       } else if (tabName === 'evaluate') {
         showDirectorEvaluationPage();
       }
@@ -14473,6 +14481,149 @@
       }
     }
     // ----- มุมมองกรรมการนิเทศ (ประเมินการสอน) -----
+    // 🎯 คะแนนเต็ม KPAC (ดูอย่างเดียวสำหรับกรรมการนิเทศ) — มีตัวกรองชั้น/ห้อง/วิชา
+    function showDirectorKpacFullScores() {
+      const container = document.getElementById('director-tab-content');
+      if (!container) return;
+      const classSubjects = allData.filter(d => d.type === 'class_subject');
+      const classes = [...new Set(classSubjects.map(c => c.class_name).filter(Boolean))].sort();
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">🎯 คะแนนเต็ม KPAC</h2>
+          <p class="text-gray-500 text-sm mb-6">ดูค่าคะแนนเต็มที่ครูกำหนดไว้ในแต่ละวิชา (ดูอย่างเดียว ไม่สามารถแก้ไขได้)</p>
+          <div class="flex items-center gap-3 flex-wrap mb-4">
+            <select id="director-kpac-filter-class" onchange="updateDirectorKpacRoomSubject();updateDirectorKpacTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกชั้น --</option>
+              ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <select id="director-kpac-filter-room" onchange="updateDirectorKpacTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+            <select id="director-kpac-filter-subject" onchange="updateDirectorKpacTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกวิชา --</option>
+            </select>
+          </div>
+          <div id="director-kpac-table" class="space-y-3"><p class="text-gray-400 text-center py-4">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p></div>
+        </div>
+      `;
+    }
+    function updateDirectorKpacRoomSubject() {
+      const className = document.getElementById('director-kpac-filter-class')?.value || '';
+      const roomSel = document.getElementById('director-kpac-filter-room');
+      const subjSel = document.getElementById('director-kpac-filter-subject');
+      if (!roomSel || !subjSel) return;
+      let list = allData.filter(d => d.type === 'class_subject');
+      if (className) list = list.filter(c => c.class_name === className);
+      const rooms = [...new Set(list.map(c => c.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(list.map(c => c.subject_name).filter(Boolean))].sort();
+      roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    function updateDirectorKpacTable() {
+      const className = document.getElementById('director-kpac-filter-class')?.value || '';
+      const roomNumber = document.getElementById('director-kpac-filter-room')?.value || '';
+      const subjectName = document.getElementById('director-kpac-filter-subject')?.value || '';
+      const container = document.getElementById('director-kpac-table');
+      if (!container) return;
+      if (!className || !roomNumber || !subjectName) { container.innerHTML = '<p class="text-gray-400 text-center py-4">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p>'; return; }
+      const classSubject = allData.find(d => d.type === 'class_subject' && d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+      if (!classSubject) { container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลวิชานี้</p>'; return; }
+      const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubject.__backendId);
+      const row = (label, full, arr) => {
+        const vals = (arr || '').split(',').map(s => s.trim() || '-').join(' | ');
+        return `<div class="flex justify-between border-b border-gray-100 py-2"><span class="text-gray-600">${label}</span><span class="font-semibold text-gray-800">เต็ม ${full || 0} · ${vals || '-'}</span></div>`;
+      };
+      container.innerHTML = `
+        <div class="bg-gray-50 rounded-xl p-4">
+          ${row('K (10 ครั้ง)', scoresConfig?.k_full_score, scoresConfig?.k_full_scores)}
+          ${row('P (3 ครั้ง)', scoresConfig?.p_full_score, scoresConfig?.p_full_scores)}
+          ${row('A (3 ครั้ง)', scoresConfig?.a_full_score, scoresConfig?.a_full_scores)}
+          ${row('C (3 ครั้ง)', scoresConfig?.c_full_score, scoresConfig?.c_full_scores)}
+          ${row('M (กลางภาค)', scoresConfig?.m_full_score, scoresConfig?.m_full_scores)}
+          ${row('F (ปลายภาค)', scoresConfig?.f_full_score, scoresConfig?.f_full_scores)}
+          <div class="flex justify-between pt-3 mt-2 border-t-2 border-gray-200"><span class="text-gray-700 font-semibold">น้ำหนักกลางภาค/ปลายภาค</span><span class="font-bold text-blue-600">${classSubject.mid_percent||0}% / ${classSubject.final_percent||0}%</span></div>
+        </div>
+      `;
+    }
+
+    // 📑 สรุปเกรด (ดูอย่างเดียวสำหรับกรรมการนิเทศ) — ใช้ logic คำนวณเดียวกับแอดมิน (computeGradeReportRows)
+    function showDirectorGradeSummary() {
+      const container = document.getElementById('director-tab-content');
+      if (!container) return;
+      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      container.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">📑 สรุปเกรด</h2>
+          <p class="text-gray-500 text-sm mb-6">ดูผลการตัดเกรดของนักเรียน (ดูอย่างเดียว ไม่สามารถแก้ไขได้)</p>
+          <div class="flex items-center gap-3 flex-wrap mb-4">
+            <select id="director-grade-filter-class" onchange="updateDirectorGradeRoomSubject();updateDirectorGradeTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกชั้น --</option>
+              ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+            </select>
+            <select id="director-grade-filter-room" onchange="updateDirectorGradeTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+            <select id="director-grade-filter-subject" onchange="updateDirectorGradeTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+              <option value="">-- เลือกวิชา --</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-100"><tr>
+                <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เลขที่</th>
+                <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">F</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">รวม</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรด</th>
+              </tr></thead>
+              <tbody id="director-grade-table-body" class="divide-y divide-gray-200"></tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+    function updateDirectorGradeRoomSubject() {
+      const className = document.getElementById('director-grade-filter-class')?.value || '';
+      const roomSel = document.getElementById('director-grade-filter-room');
+      const subjSel = document.getElementById('director-grade-filter-subject');
+      if (!roomSel || !subjSel) return;
+      let regs = allData.filter(d => d.type === 'student_registration');
+      if (className) regs = regs.filter(r => r.class_name === className);
+      const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
+      roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    function updateDirectorGradeTable() {
+      const className = document.getElementById('director-grade-filter-class')?.value || '';
+      const roomNumber = document.getElementById('director-grade-filter-room')?.value || '';
+      const subjectName = document.getElementById('director-grade-filter-subject')?.value || '';
+      const tbody = document.getElementById('director-grade-table-body');
+      if (!tbody) return;
+      if (!className || !roomNumber || !subjectName) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-6">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</td></tr>'; return; }
+      const rows = computeGradeReportRows(className, roomNumber, subjectName).sort((a,b) => a.studentNumber - b.studentNumber);
+      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-gray-400 py-6">ไม่พบข้อมูลนักเรียน</td></tr>'; return; }
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td class="px-3 py-2">${r.studentNumber}</td>
+          <td class="px-3 py-2">${r.studentName}</td>
+          <td class="px-3 py-2 text-center">${r.kScore}</td>
+          <td class="px-3 py-2 text-center">${r.pScore}</td>
+          <td class="px-3 py-2 text-center">${r.aScore}</td>
+          <td class="px-3 py-2 text-center">${r.cScore}</td>
+          <td class="px-3 py-2 text-center">${r.mScore}</td>
+          <td class="px-3 py-2 text-center">${r.fScore}</td>
+          <td class="px-3 py-2 text-center font-semibold">${r.totalAll}</td>
+          <td class="px-3 py-2 text-center font-bold text-blue-600">${r.special1==='มส.'||r.special2==='มส.' ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue)}</td>
+        </tr>
+      `).join('');
+    }
+
     function showDirectorEvaluationPage() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
@@ -15741,13 +15892,163 @@
       if (typeof showStudentTab === 'function') showStudentTab(tabName);
     });
   }
-  function mShowDesktopDirectorTab(tabName, title) {
-    mShowDesktopView(title, function() {
-      mHideAllDesktopPages('page-director-management');
-      document.getElementById('app-main')?.classList.remove('hidden');
-      document.getElementById('page-director-management')?.classList.remove('hidden');
-      if (typeof showDirectorTab === 'function') showDirectorTab(tabName);
-    });
+  // ══════════════════════════════════════════════════
+  // 📱 ระบบ director ฝั่งมือถือ — ออกแบบเป็นมือถือจริง (การ์ด ไม่ใช่ตารางลอกจากคอม)
+  // ══════════════════════════════════════════════════
+  function mDirSelectorsHtml(prefix) {
+    const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+    return `
+      <select id="${prefix}-class" onchange="mDirUpdateRoomSubject('${prefix}')" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box">
+        <option value="">-- เลือกชั้น --</option>
+        ${classes.map(c => `<option value="${c}">${c}</option>`).join('')}
+      </select>
+      <select id="${prefix}-room" onchange="mDirUpdateSubject('${prefix}')" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box">
+        <option value="">-- เลือกห้อง --</option>
+      </select>
+      <select id="${prefix}-subject" onchange="mDirRefresh('${prefix}')" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:12px;box-sizing:border-box">
+        <option value="">-- เลือกวิชา --</option>
+      </select>
+      <div id="${prefix}-result"><p style="color:#94a3b8;text-align:center;padding:16px 0">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p></div>
+    `;
+  }
+  function mDirUpdateRoomSubject(prefix) {
+    const className = document.getElementById(prefix + '-class')?.value || '';
+    const roomSel = document.getElementById(prefix + '-room');
+    const subjSel = document.getElementById(prefix + '-subject');
+    if (!roomSel || !subjSel) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
+    roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+    subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>';
+    mDirRefresh(prefix);
+  }
+  function mDirUpdateSubject(prefix) {
+    const className = document.getElementById(prefix + '-class')?.value || '';
+    const roomNumber = document.getElementById(prefix + '-room')?.value || '';
+    const subjSel = document.getElementById(prefix + '-subject');
+    if (!subjSel) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+    const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
+    subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+    mDirRefresh(prefix);
+  }
+  function mDirGetSelection(prefix) {
+    return {
+      className: document.getElementById(prefix + '-class')?.value || '',
+      roomNumber: document.getElementById(prefix + '-room')?.value || '',
+      subjectName: document.getElementById(prefix + '-subject')?.value || '',
+    };
+  }
+  function mDirRefresh(prefix) {
+    if (prefix === 'm-dir-score') mDirRenderScore();
+    else if (prefix === 'm-dir-kpac') mDirRenderKpac();
+    else if (prefix === 'm-dir-grade') mDirRenderGrade();
+  }
+
+  // ── 📊 ผลการเรียน/เวลาเรียน ──
+  function mShowDirectorScoreNative() {
+    mCreateOverlay('m-dir-score-overlay', '📊 ผลการเรียน/เวลาเรียน', mDirSelectorsHtml('m-dir-score'));
+  }
+  function mDirRenderScore() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-score');
+    const el = document.getElementById('m-dir-score-result');
+    if (!el) return;
+    if (!className || !roomNumber || !subjectName) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p>'; return; }
+    const regs = allData.filter(d => d.type === 'student_registration' && d.class_name===className && d.room_number===roomNumber && d.subject_name===subjectName);
+    if (regs.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบนักเรียน</p>'; return; }
+    el.innerHTML = regs.map(reg => {
+      const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+      const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
+      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const p1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
+      const p2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
+      const attend1 = p1?.attended_hours !== undefined ? `${p1.attended_hours}/${hoursData?.total_hours||0}` : '-';
+      const attend2 = p2?.attended_hours_real !== undefined ? `${p2.attended_hours_real}/${hoursData?.actual_hours_taught||0}` : '-';
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
+        <p style="font-weight:700;color:#1e293b;margin:0 0 6px">👤 ${name} <span style="color:#94a3b8;font-weight:400">(เลขที่ ${student?.student_number||'-'})</span></p>
+        <p style="font-size:12px;color:#64748b;margin:0">⏱️ เวลาเรียนส่วนที่ 1: ${attend1} · ส่วนที่ 2: ${attend2}</p>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 🎯 คะแนนเต็ม KPAC ──
+  function mShowDirectorKpacNative() {
+    mCreateOverlay('m-dir-kpac-overlay', '🎯 คะแนนเต็ม KPAC', mDirSelectorsHtml('m-dir-kpac'));
+  }
+  function mDirRenderKpac() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-kpac');
+    const el = document.getElementById('m-dir-kpac-result');
+    if (!el) return;
+    if (!className || !roomNumber || !subjectName) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p>'; return; }
+    const classSubject = allData.find(d => d.type === 'class_subject' && d.class_name===className && d.room_number===roomNumber && d.subject_name===subjectName);
+    if (!classSubject) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูลวิชานี้</p>'; return; }
+    const cfg = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubject.__backendId);
+    const row = (label, full, arr) => {
+      const vals = (arr || '').split(',').map(s => s.trim() || '-').join(' | ');
+      return `<div style="display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:8px 0;font-size:13px">
+        <span style="color:#64748b">${label}</span><span style="font-weight:600;color:#1e293b;text-align:right">เต็ม ${full||0}<br><span style="font-size:11px;color:#94a3b8">${vals}</span></span>
+      </div>`;
+    };
+    el.innerHTML = `<div style="background:#f8fafc;border-radius:10px;padding:12px">
+      ${row('K (10 ครั้ง)', cfg?.k_full_score, cfg?.k_full_scores)}
+      ${row('P (3 ครั้ง)', cfg?.p_full_score, cfg?.p_full_scores)}
+      ${row('A (3 ครั้ง)', cfg?.a_full_score, cfg?.a_full_scores)}
+      ${row('C (3 ครั้ง)', cfg?.c_full_score, cfg?.c_full_scores)}
+      ${row('M (กลางภาค)', cfg?.m_full_score, cfg?.m_full_scores)}
+      ${row('F (ปลายภาค)', cfg?.f_full_score, cfg?.f_full_scores)}
+      <div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;border-top:2px solid #e2e8f0;font-size:13px">
+        <span style="font-weight:600;color:#334155">น้ำหนักกลางภาค/ปลายภาค</span><span style="font-weight:700;color:#2563eb">${classSubject.mid_percent||0}% / ${classSubject.final_percent||0}%</span>
+      </div>
+    </div>`;
+  }
+
+  // ── 📑 สรุปเกรด ──
+  function mShowDirectorGradeNative() {
+    mCreateOverlay('m-dir-grade-overlay', '📑 สรุปเกรด', mDirSelectorsHtml('m-dir-grade'));
+  }
+  function mDirRenderGrade() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-grade');
+    const el = document.getElementById('m-dir-grade-result');
+    if (!el) return;
+    if (!className || !roomNumber || !subjectName) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">กรุณาเลือกชั้น/ห้อง/วิชาก่อน</p>'; return; }
+    const rows = computeGradeReportRows(className, roomNumber, subjectName).sort((a,b) => a.studentNumber - b.studentNumber);
+    if (rows.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูลนักเรียน</p>'; return; }
+    el.innerHTML = rows.map(r => {
+      const gradeDisplay = (r.special1==='มส.'||r.special2==='มส.') ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue);
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <p style="font-weight:700;color:#1e293b;margin:0;font-size:13px">👤 ${r.studentName} <span style="color:#94a3b8;font-weight:400">(เลขที่ ${r.studentNumber})</span></p>
+          <span style="background:#2563eb;color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px">${gradeDisplay}</span>
+        </div>
+        <p style="font-size:11px;color:#64748b;margin:6px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} · M ${r.mScore} · F ${r.fScore} · รวม ${r.totalAll}</p>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 📝 ประเมินผู้สอน ──
+  function mShowDirectorEvalNative() {
+    const evaluatorOptions = allData.filter(d => d.type === 'evaluator_option').sort((a, b) => (a.order || 0) - (b.order || 0));
+    const html = `
+      <div style="margin-bottom:6px">
+        <label style="font-size:12px;color:#475569;display:block;margin-bottom:4px">👤 ชื่อผู้ประเมิน</label>
+        <select id="director-eval-name" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+          <option value="">-- เลือกชื่อผู้ประเมิน --</option>
+          ${evaluatorOptions.map(o => `<option value="${o.__backendId}">${o.name}</option>`).join('')}
+        </select>
+        ${evaluatorOptions.length === 0 ? '<p style="color:#f59e0b;font-size:11px;margin-top:6px">⚠️ แอดมินยังไม่ได้เพิ่มรายชื่อผู้ประเมิน</p>' : ''}
+      </div>
+      <div id="director-eval-form">${renderEvaluationFormHtml(null)}</div>
+      <button onclick="handleDirectorEvaluationSubmit()" style="width:100%;background:#2563eb;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;margin:10px 0 16px">✅ บันทึกการประเมิน</button>
+      <div style="border-top:2px solid #e2e8f0;padding-top:12px">
+        <p style="font-weight:700;color:#1e293b;font-size:14px;margin:0 0 8px">📊 สรุปผลรวม</p>
+        <div id="director-eval-summary"></div>
+      </div>
+    `;
+    mCreateOverlay('m-dir-eval-overlay', '📝 ประเมินผู้สอน', html);
+    updateDirectorEvalSummary();
   }
   // หน้าแรกของนักเรียน/ผู้นิเทศ = ประกาศที่แอดมินโพสต์ให้ (ใช้หน้าเดสก์ท็อปจริง)
   function mShowDesktopHomeFeed(target, title) {
@@ -15893,8 +16194,10 @@
     } else if (type === 'director') {
       btns = [
         {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
-        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDesktopDirectorTab('score','📊 ตารางผลการเรียน/เวลาเรียน')"},
-        {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDesktopDirectorTab('evaluate','📝 ประเมินผู้สอน')"},
+        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDirectorScoreNative()"},
+        {id:'mn-dir-kpac',  icon:'🎯', label:'คะแนนเต็ม KPAC', fn:"mShowDirectorKpacNative()"},
+        {id:'mn-dir-grade', icon:'📑', label:'สรุปเกรด', fn:"mShowDirectorGradeNative()"},
+        {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDirectorEvalNative()"},
       ];
     } else {
       btns = [
