@@ -16149,6 +16149,81 @@
     }).join('');
   }
 
+  // ── 📑 สรุปเกรด (แบบย่อ เห็นแค่ชื่อ+เกรด เหมาะกับพื้นที่จอมือถือที่จำกัด) ──
+  function mShowDirectorGradeSummaryNative() {
+    mWaitForDataThen(() => {
+      mCreateOverlay('m-dir-gradesum-overlay', '📑 สรุปเกรด', mDirSelectorsHtml('m-dir-gradesum'));
+      mDirRenderGradeSummary();
+    });
+  }
+  function mDirRenderGradeSummary() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-gradesum');
+    const el = document.getElementById('m-dir-gradesum-result');
+    if (!el) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+    if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
+    const comboSet = new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`));
+    let allRows = [];
+    comboSet.forEach(combo => {
+      const [c, rm, sub] = combo.split('|||');
+      const rows = computeGradeReportRows(c, rm, sub).map(row => ({ ...row, comboClass: c, comboRoom: rm, comboSubject: sub }));
+      allRows = allRows.concat(rows);
+    });
+    allRows.sort((a,b) => a.comboClass.localeCompare(b.comboClass) || a.comboRoom.localeCompare(b.comboRoom) || a.studentNumber - b.studentNumber);
+    if (allRows.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูลนักเรียน</p>'; return; }
+    el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${allRows.length} รายการ</p>` + allRows.map(r => {
+      const gradeDisplay = (r.special1==='มส.'||r.special2==='มส.') ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue);
+      const badgeColor = (gradeDisplay==='มส.'||gradeDisplay==='ร.') ? '#dc2626' : '#2563eb';
+      return `<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div style="min-width:0">
+          <p style="font-weight:600;color:#1e293b;margin:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👤 ${r.studentName}</p>
+          <p style="font-size:10px;color:#94a3b8;margin:1px 0 0">${r.comboClass}/${r.comboRoom} · ${r.comboSubject}</p>
+        </div>
+        <span style="background:${badgeColor};color:white;font-weight:700;padding:4px 12px;border-radius:8px;font-size:14px;flex-shrink:0;margin-left:8px">${gradeDisplay}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 📋 สรุปเวลาเรียน (แบบย่อ เห็นแค่ชื่อ+สถานะผ่าน/ไม่ผ่าน เหมาะกับพื้นที่จอมือถือที่จำกัด) ──
+  function mShowDirectorAttendanceSummaryNative() {
+    mWaitForDataThen(() => {
+      mCreateOverlay('m-dir-attendsum-overlay', '📋 สรุปเวลาเรียน', mDirSelectorsHtml('m-dir-attendsum'));
+      mDirRenderAttendanceSummary();
+    });
+  }
+  function mDirRenderAttendanceSummary() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-attendsum');
+    const el = document.getElementById('m-dir-attendsum-result');
+    if (!el) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+    if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
+    if (regs.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูล</p>'; return; }
+    el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${regs.length} รายการ</p>` + regs.map(reg => {
+      const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+      const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
+      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const p1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
+      let status = 'ยังไม่มีข้อมูล', color = '#94a3b8';
+      if (hoursData && p1?.attended_hours !== undefined) {
+        const absentHours = (hoursData.total_hours||0) - p1.attended_hours;
+        const canAbsent = hoursData.hours_can_absent||0;
+        if (absentHours > canAbsent) { status = '❌ เกินสิทธิ์ขาด'; color = '#dc2626'; }
+        else { status = '✅ ผ่าน'; color = '#16a34a'; }
+      }
+      return `<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div style="min-width:0">
+          <p style="font-weight:600;color:#1e293b;margin:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👤 ${name}</p>
+          <p style="font-size:10px;color:#94a3b8;margin:1px 0 0">${reg.class_name}/${reg.room_number} · ${reg.subject_name}</p>
+        </div>
+        <span style="color:${color};font-weight:700;font-size:12px;flex-shrink:0;margin-left:8px;white-space:nowrap">${status}</span>
+      </div>`;
+    }).join('');
+  }
+
   // ── 📝 ประเมินผู้สอน ──
   function mShowDirectorEvalNative() {
     mWaitForDataThen(() => {
@@ -16317,9 +16392,11 @@
     } else if (type === 'director') {
       btns = [
         {id:'mn-overview',  icon:'🏠', label:'หน้าแรก', fn:"mShowDesktopHomeFeed('director','📢 ประกาศจากแอดมิน')"},
-        {id:'mn-dir-score', icon:'📊', label:'ผลการเรียน', fn:"mShowDirectorScoreNative()"},
         {id:'mn-dir-kpac',  icon:'🎯', label:'คะแนนเต็ม KPAC', fn:"mShowDirectorKpacNative()"},
-        {id:'mn-dir-grade', icon:'📑', label:'สรุปเกรด', fn:"mShowDirectorGradeNative()"},
+        {id:'mn-dir-grade', icon:'📊', label:'ผลการเรียน', fn:"mShowDirectorGradeNative()"},
+        {id:'mn-dir-score', icon:'⏱️', label:'เวลาเรียน', fn:"mShowDirectorScoreNative()"},
+        {id:'mn-dir-gradesum', icon:'📑', label:'สรุปเกรด', fn:"mShowDirectorGradeSummaryNative()"},
+        {id:'mn-dir-attendsum', icon:'📋', label:'สรุปเวลาเรียน', fn:"mShowDirectorAttendanceSummaryNative()"},
         {id:'mn-dir-eval',  icon:'📝', label:'ประเมินผู้สอน', fn:"mShowDirectorEvalNative()"},
       ];
     } else {
