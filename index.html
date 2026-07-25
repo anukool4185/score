@@ -5008,6 +5008,11 @@
       document.getElementById('m-tray-backdrop')?.style && (document.getElementById('m-tray-backdrop').style.display = 'none');
       // เผื่อออกจากระบบขณะกำลังดูหน้าที่ยืมมาจากเดสก์ท็อป ให้ล้าง header กลับด้วย
       document.getElementById('m-desktop-back-header')?.remove();
+      // ⚠️ สำคัญ: ลบหน้าเต็มจอทุกหน้าที่ค้างอยู่ (สรุปเกรด/คะแนนเต็ม KPAC/ประเมินผู้สอน ฯลฯ)
+      // หน้าพวกนี้ position:fixed ลอยทับทุกอย่างรวมถึงหน้า login — ถ้าไม่ลบ จะดูเหมือนออกไม่จริง (ทั้งที่ currentUser ถูกล้างแล้วจริงๆ)
+      document.querySelectorAll('.m-native-overlay').forEach(el => el.remove());
+      ['m-eval-overlay','m-evaluators-overlay','m-detail-popup','exam-alert-panel','eg-grading-panel',
+       'retry-request-panel','approve-retry-panel','exam-taking-overlay','exam-freeze-overlay'].forEach(id => document.getElementById(id)?.remove());
       const injectedStyle = document.getElementById('mobile-override-style');
       if (injectedStyle) injectedStyle.remove();
       // Mobile: กลับหน้า login ของ mobile
