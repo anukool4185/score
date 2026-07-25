@@ -571,7 +571,8 @@
     /* เมนูแนวตั้งฝั่งซ้าย (เดสก์ท็อปเท่านั้น) — ดันเนื้อหาหลักไปทางขวาให้พ้นเมนู */
     body:not(.is-mobile) .page { margin-left: 224px; }
     body:not(.is-mobile) #admin-tab-buttons,
-    body:not(.is-mobile) #subadmin-tab-buttons { display: none !important; }
+    body:not(.is-mobile) #subadmin-tab-buttons,
+    body:not(.is-mobile) #director-tab-buttons { display: none !important; }
     body.is-mobile #desktop-sidebar { display: none !important; }
     #desktop-sidebar .sb-btn { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: transparent; color: #cbd5e1; border: none; font-size: 13px; text-align: left; cursor: pointer; width: 100%; transition: background 0.15s; }
     #desktop-sidebar .sb-btn:hover { background: rgba(255,255,255,0.08); color: white; }
@@ -3474,6 +3475,12 @@
       if (pageHome) pageHome.classList.add('hidden');
       showAdminTab(tabName);
     }
+    function goToDirectorTabDirect(tabName) {
+      if (!currentUser || currentUser.user_type !== 'director') return;
+      showPage('director-management');
+      showDirectorMainPage();
+      showDirectorTab(tabName);
+    }
 
     // สร้างเมนูแนวตั้งฝั่งซ้าย ตามบทบาทของผู้ใช้ปัจจุบัน
     function buildDesktopSidebar() {
@@ -3522,7 +3529,8 @@
         html += btn('👥', 'นักเรียน', "goToSubAdminTabDirect('students')");
       } else if (effectiveUser.user_type === 'director') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
-        html += btn('📂', 'เมนูการจัดการ(นิเทศ)', "goToDirectorManagementPage()");
+        html += btn('📊', 'ผลการเรียน/เวลาเรียน', "goToDirectorTabDirect('score')");
+        html += btn('📝', 'ประเมินผู้สอน', "goToDirectorTabDirect('evaluate')");
       } else if (effectiveUser.user_type === 'admin') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += section('ข้อมูลพื้นฐาน');
@@ -3612,7 +3620,12 @@
       } else if (isAdmin) {
         document.getElementById('user-display').textContent = `Admin: ${currentUser.username}`;
       } else if (isSubAdmin) {
-        document.getElementById('user-display').textContent = `ผู้ช่วยแอดมิน: ${currentUser.username}`;
+        const linkedStudent = currentUser.linked_student_id ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
+        if (linkedStudent) {
+          document.getElementById('user-display').textContent = `ผู้ช่วยแอดมิน: ${linkedStudent.prefix||''}${linkedStudent.first_name||''} ${linkedStudent.last_name||''}`;
+        } else {
+          document.getElementById('user-display').textContent = `ผู้ช่วยแอดมิน: ${currentUser.username}`;
+        }
       }
       document.getElementById('user-display').classList.remove('hidden');
 
@@ -14130,7 +14143,7 @@
       const container = document.getElementById('director-content');
       if (!container) return;
       container.innerHTML = `
-        <div class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
+        <div id="director-tab-buttons" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
           <button onclick="showDirectorTab('score')" id="director-tab-btn-score" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📊 ตารางผลการเรียน/เวลาเรียน</button>
           <button onclick="showDirectorTab('evaluate')" id="director-tab-btn-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินผู้สอน</button>
         </div>
