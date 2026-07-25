@@ -15793,6 +15793,12 @@
   // แสดงแท็บผู้ช่วยแอดมิน
   function mShowDesktopSubAdminTab(tabName, title) {
     mShowDesktopView(title, function() {
+      // ⚠️ ถ้ากำลังสวมตัวตนเป็นนักเรียนอยู่ (มาจากผู้ช่วยแอดมินกด "มุมมองนักเรียน" ก่อนหน้า) ต้องคืนตัวตนเดิมก่อน
+      // ไม่งั้น currentUser.__backendId จะเป็นของนักเรียน ทำให้ getSubAdminScope() หาขอบเขตไม่เจอ กลายเป็นหน้าว่างเปล่า
+      if (currentUser?.__fromSubAdmin && typeof _subAdminOriginalUser !== 'undefined' && _subAdminOriginalUser) {
+        currentUser = _subAdminOriginalUser;
+        _subAdminOriginalUser = null;
+      }
       // นักเรียนที่ได้รับสิทธิ์เป็นผู้ช่วยแอดมิน (linked_admin_id) ต้องเปิดโหมดผู้ช่วยแอดมินก่อน
       // ไม่เช่นนั้น getSubAdminScope() จะใช้ __backendId ของนักเรียนผิดตัว ทำให้ดึงขอบเขตวิชาไม่ได้
       if (currentUser?.user_type === 'student' && currentUser?.linked_admin_id) {
