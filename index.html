@@ -3504,13 +3504,9 @@
           html += btn('👥', 'นักเรียน(ผู้ช่วยฯ)', "goToSubAdminTabDirect('students')");
         }
       } else if (effectiveUser.user_type === 'subadmin') {
-        html += section('ผู้ช่วยแอดมิน');
-        html += btn('📝', 'การบ้าน', "goToSubAdminTabDirect('homework')");
-        html += btn('⏱️', 'ลงเวลาเรียน', "goToSubAdminTabDirect('timekeeping')");
-        html += btn('🎓', 'ให้คะแนน', "goToSubAdminTabDirect('grading')");
-        html += btn('👥', 'นักเรียน', "goToSubAdminTabDirect('students')");
-        // บัญชีผู้ช่วยแอดมินนี้ ถูกผูกกับนักเรียนคนหนึ่งด้วย (คนละทิศทางจากที่เช็คไว้ข้างบน) → ต้องมีเมนูนักเรียนให้ครบด้วย
+        // ถ้าผูกกับนักเรียนคนหนึ่งด้วย → มีหน้าหลัก + เมนูนักเรียนขึ้นก่อน แล้วตามด้วยเมนูผู้ช่วยแอดมิน
         if (effectiveUser.linked_student_id) {
+          html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
           html += section('เมนูนักเรียน');
           html += btn('📚', 'ลงทะเบียน', "goToStudentTabFromSubAdmin('register')");
           html += btn('📊', 'ผลการเรียน', "goToStudentTabFromSubAdmin('grades')");
@@ -3519,6 +3515,11 @@
           html += btn('📝', 'ประเมินการสอน', "goToStudentTabFromSubAdmin('evaluate')");
           html += btn('👤', 'ข้อมูลส่วนตัว', "goToStudentTabFromSubAdmin('profile')");
         }
+        html += section('ผู้ช่วยแอดมิน');
+        html += btn('📝', 'การบ้าน', "goToSubAdminTabDirect('homework')");
+        html += btn('⏱️', 'ลงเวลาเรียน', "goToSubAdminTabDirect('timekeeping')");
+        html += btn('🎓', 'ให้คะแนน', "goToSubAdminTabDirect('grading')");
+        html += btn('👥', 'นักเรียน', "goToSubAdminTabDirect('students')");
       } else if (effectiveUser.user_type === 'director') {
         html += btn('🏠', 'หน้าหลัก', "goToHomePage()");
         html += btn('📂', 'เมนูการจัดการ(นิเทศ)', "goToDirectorManagementPage()");
