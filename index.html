@@ -7476,7 +7476,7 @@
         started_at: new Date().toISOString(),
       });
       if (result.isOk) {
-        renderExamModal(result.value.__backendId);
+        renderExamModal(result.data.__backendId);
       } else {
         showToast('ไม่สามารถเริ่มสอบแก้ได้', 'error');
       }
@@ -7509,14 +7509,14 @@
         started_at: new Date().toISOString(),
       });
       if (result.isOk) {
-        console.log('[Exam Popup Debug] submission created:', result.value.__backendId, '- calling renderExamModal');
+        console.log('[Exam Popup Debug] submission created:', result.data.__backendId, '- calling renderExamModal');
         // ⚠️ กันบั๊ก race condition: ข้อมูลที่เพิ่งสร้างอาจยังไม่เข้ามาใน allData ทันที (ต้องรอรอบ poll ถัดไป)
         // เพิ่มเข้า allData เองทันทีแบบ optimistic ก่อน กัน renderExamModal หาไม่เจอแล้วเงียบไป
-        if (!allData.find(d => d.__backendId === result.value.__backendId)) {
-          allData.push(result.value);
+        if (!allData.find(d => d.__backendId === result.data.__backendId)) {
+          allData.push(result.data);
         }
         try {
-          renderExamModal(result.value.__backendId);
+          renderExamModal(result.data.__backendId);
         } catch (err) {
           console.error('[Exam Popup Debug] renderExamModal THREW AN ERROR:', err);
           showToast('เกิดข้อผิดพลาดตอนเปิดหน้าสอบ: ' + err.message, 'error');
@@ -7532,6 +7532,8 @@
     }
 
     let _examCurrentQuestionIdx = 0;
+    // โหมดของหน้าสอบ: 'sheet' = ดูกระดาษคำตอบ(ตารางเลขข้อ), 'question' = ดูโจทย์ข้อใดข้อหนึ่ง
+    let _examViewMode = 'sheet';
     function renderExamModal(submissionId) {
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) { console.error('[Exam Popup Debug] renderExamModal: submission NOT FOUND in allData for id', submissionId); showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
@@ -7542,34 +7544,24 @@
       if (submission.status === 'terminated') { showToast('การสอบนี้ถูกยุติแล้ว', 'error'); return; }
       if (submission.frozen) { showExamFreezeOverlay(); return; }
 
-      _examCurrentQuestionIdx = 0;
+      _examCurrentQuestionIdx = -1; // -1 = อยู่หน้ากระดาษคำตอบ ยังไม่ได้เลือกข้อ
+      _examViewMode = 'sheet';
       document.getElementById('exam-taking-overlay')?.remove(); // กันซ้อนถ้ามีค้างอยู่ก่อน
+      const student = allData.find(d => d.type === 'student' && d.student_id === submission.student_id);
+      const studentName = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
+
       const overlay = document.createElement('div');
       overlay.id = 'exam-taking-overlay';
       overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:2147483000;background:#f1f5f9;display:flex;flex-direction:column;visibility:visible;opacity:1';
       overlay.innerHTML = `
-        <div id="exam-taking-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-          <div>
-            <p style="font-size:13px;font-weight:700;margin:0">📝 ${examSet.subject_name} — K ครั้งที่ ${examSet.k_round}</p>
-            <p style="font-size:10px;opacity:0.8;margin:0" id="exam-timer-label">เวลาที่เหลือ: กำลังคำนวณ...</p>
-          </div>
+        <div id="exam-taking-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;flex-shrink:0">
+          <p style="font-size:13px;font-weight:700;margin:0">📝 ${examSet.subject_name} — K ครั้งที่ ${examSet.k_round}</p>
+          <p style="font-size:10px;opacity:0.8;margin:0" id="exam-timer-label">เวลาที่เหลือ: กำลังคำนวณ...</p>
         </div>
-        <div id="exam-question-nav" style="display:flex;gap:4px;padding:10px 12px;background:white;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-shrink:0"></div>
-        <div id="exam-question-body" style="flex:1;overflow-y:auto;padding:16px"></div>
-        <div style="padding:12px 16px;background:white;border-top:1px solid #e2e8f0;flex-shrink:0;display:flex;gap:8px">
-          <button onclick="examGoQuestion(_examCurrentQuestionIdx-1)" id="exam-prev-btn" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">← ข้อก่อนหน้า</button>
-          <button onclick="examGoQuestion(_examCurrentQuestionIdx+1)" id="exam-next-btn" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">ข้อถัดไป →</button>
-          <button onclick="confirmSubmitExam('${submissionId}')" style="flex:1;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">✅ ส่งคำตอบ</button>
-        </div>
+        <div id="exam-modal-body" style="flex:1;overflow-y:auto"></div>
       `;
       document.body.appendChild(overlay);
       console.log('[Exam Popup Debug] exam-taking-overlay appended to body. In DOM now?', !!document.getElementById('exam-taking-overlay'));
-      setTimeout(() => {
-        console.log('[Exam Popup Debug] 1s later, exam-taking-overlay still in DOM?', !!document.getElementById('exam-taking-overlay'),
-          '| exam-freeze-overlay present?', !!document.getElementById('exam-freeze-overlay'),
-          '| mobile-root display:', document.getElementById('mobile-root')?.style.display,
-          '| desktop-root display:', document.getElementById('desktop-root')?.style.display);
-      }, 1000);
 
       // เริ่มระบบตรวจทุจริต — ล็อกไม่ให้ออก + จับตาสลับแท็บ/copy/paste
       startExamAntiCheatGuard(submissionId, {
@@ -7581,85 +7573,65 @@
       // เริ่มบันทึกกิจกรรมทุก 15 วินาที (rolling log เก็บแค่ 2 ช่วงล่าสุด เป็นหลักฐานก่อน-หลังหลุด)
       _startExamHeartbeatLog(submissionId);
 
-      renderExamQuestionNav(submissionId);
-      examGoQuestion(0);
+      renderAnswerSheetView(submissionId, examSet, studentName);
       _startExamTimer(examSet);
     }
 
-    // ── บันทึกกิจกรรมทุก 15 วินาที แบบ rolling window (เก็บแค่ 2 ช่วงล่าสุด ไม่สะสมเพิ่มเรื่อยๆ) ──
-    // ใช้เป็นหลักฐานประกอบตอนพิจารณาแจ้งเตือน/คำขอสอบแก้ ไม่ใช่ตัวคำตอบ (คำตอบบันทึกแยกทันทีที่เลือกอยู่แล้ว)
-    let _examHeartbeatInterval = null;
-    function _startExamHeartbeatLog(submissionId) {
-      if (_examHeartbeatInterval) clearInterval(_examHeartbeatInterval);
-      const tick = async () => {
-        const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-        if (!submission || submission.status !== 'in_progress') { clearInterval(_examHeartbeatInterval); return; }
-        const answers = JSON.parse(submission.answers || '{}');
-        const snapshot = {
-          time: new Date().toISOString(),
-          question_idx: _examCurrentQuestionIdx + 1,
-          answered_count: Object.keys(answers).filter(k => answers[k]).length,
-        };
-        let log = [];
-        try { log = JSON.parse(submission.activity_log || '[]'); } catch(e) { log = []; }
-        log.push(snapshot);
-        if (log.length > 2) log = log.slice(-2); // เก็บแค่ 2 ช่วงล่าสุด (ปัจจุบัน + ก่อนหน้า) ไม่สะสมเพิ่ม
-        await window.dataSdk.update({ ...submission, activity_log: JSON.stringify(log) });
-      };
-      _examHeartbeatInterval = setInterval(tick, 15000);
-      tick(); // บันทึกทันทีตอนเริ่ม ไม่ต้องรอ 15 วิแรก
-    }
-    function _stopExamHeartbeatLog() {
-      if (_examHeartbeatInterval) { clearInterval(_examHeartbeatInterval); _examHeartbeatInterval = null; }
-    }
-
-    function _examBeforeUnloadHandler(e) { e.preventDefault(); e.returnValue = ''; }
-
-    let _examTimerInterval = null;
-    function _startExamTimer(examSet) {
-      if (_examTimerInterval) clearInterval(_examTimerInterval);
-      const update = () => {
-        const remain = new Date(examSet.end_time) - new Date();
-        const label = document.getElementById('exam-timer-label');
-        if (!label) { clearInterval(_examTimerInterval); return; }
-        if (remain <= 0) { label.textContent = '⏰ หมดเวลาสอบแล้ว'; return; }
-        const mins = Math.floor(remain / 60000);
-        const secs = Math.floor((remain % 60000) / 1000);
-        label.textContent = `⏰ เวลาที่เหลือ: ${mins} นาที ${secs} วินาที`;
-      };
-      update();
-      _examTimerInterval = setInterval(update, 1000);
-    }
-
-    function renderExamQuestionNav(submissionId) {
+    // 📄 หน้ากระดาษคำตอบหลัก — ตารางเลขข้อ กดแล้วไปทำข้อนั้น พร้อมหัวกระดาษข้อมูลการสอบ
+    function renderAnswerSheetView(submissionId, examSet, studentName) {
+      _examViewMode = 'sheet';
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      const nav = document.getElementById('exam-question-nav');
-      if (!submission || !nav) return;
+      const body = document.getElementById('exam-modal-body');
+      if (!submission || !body) return;
+      examSet = examSet || allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
+      if (!studentName) {
+        const student = allData.find(d => d.type === 'student' && d.student_id === submission.student_id);
+        studentName = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
+      }
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       const answers = JSON.parse(submission.answers || '{}');
-      nav.innerHTML = orderedIds.map((qid, idx) => {
+      const answeredCount = orderedIds.filter(qid => answers[qid] !== undefined && answers[qid] !== '').length;
+
+      const gridHtml = orderedIds.map((qid, idx) => {
         const answered = answers[qid] !== undefined && answers[qid] !== '';
-        const isActive = idx === _examCurrentQuestionIdx;
-        const bg = isActive ? '#2563eb' : (answered ? '#16a34a' : '#e2e8f0');
-        const color = isActive || answered ? 'white' : '#64748b';
-        return `<button onclick="examGoQuestion(${idx})" style="min-width:34px;height:34px;border-radius:8px;border:none;background:${bg};color:${color};font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0">${idx+1}</button>`;
+        const bg = answered ? '#16a34a' : '#e2e8f0';
+        const color = answered ? 'white' : '#64748b';
+        return `<button onclick="examGoQuestion(${idx})" style="aspect-ratio:1;border-radius:8px;border:none;background:${bg};color:${color};font-size:13px;font-weight:700;cursor:pointer">${idx+1}</button>`;
       }).join('');
+
+      body.innerHTML = `
+        <div style="padding:16px">
+          <div style="background:white;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+            <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 8px">📄 กระดาษคำตอบ</p>
+            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>วิชา:</b> ${examSet.subject_name}</p>
+            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ห้อง:</b> ${examSet.class_name}/${examSet.room_number}</p>
+            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ผู้เข้าสอบ:</b> ${studentName}</p>
+            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ชุดข้อสอบ:</b> K ครั้งที่ ${examSet.k_round} · ${orderedIds.length} ข้อ</p>
+            <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600">✅ ทำแล้ว ${answeredCount}/${orderedIds.length} ข้อ</p>
+          </div>
+          <div style="background:white;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+            <p style="font-size:12px;color:#94a3b8;margin:0 0 10px">แตะหมายเลขข้อเพื่อทำข้อสอบ (🟩 ทำแล้ว · ⬜ ยังไม่ทำ)</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:8px">${gridHtml}</div>
+          </div>
+          <button onclick="confirmSubmitExam('${submissionId}')" style="width:100%;margin-top:16px;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">✅ ส่งคำตอบ</button>
+        </div>
+      `;
     }
 
+    // แสดงโจทย์ข้อใดข้อหนึ่ง (เรียกจากกระดาษคำตอบ) — มีปุ่มกลับไปกระดาษคำตอบ + ข้อก่อนหน้า/ถัดไปสำหรับไล่ทำต่อเนื่อง
     function examGoQuestion(idx) {
-      const overlay = document.getElementById('exam-taking-overlay');
-      if (!overlay) return;
+      _examViewMode = 'question';
       const submissionId = _examAntiCheatSubmissionId;
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission) return;
+      const body = document.getElementById('exam-modal-body');
+      if (!submission || !body) return;
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       if (idx < 0 || idx >= orderedIds.length) return;
       _examCurrentQuestionIdx = idx;
 
       const qid = orderedIds[idx];
       const question = allData.find(d => d.__backendId === qid && d.type === 'exam_question');
-      const body = document.getElementById('exam-question-body');
-      if (!question || !body) return;
+      if (!question) return;
 
       const answers = JSON.parse(submission.answers || '{}');
       const currentAnswer = answers[qid] || '';
@@ -7671,26 +7643,32 @@
         const shuffledChoices = examSetIsShuffleEnabled(submission) ? _seededShuffle(rawChoices, seed) : rawChoices;
         choicesHtml = shuffledChoices.map(c => `
           <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${currentAnswer===c.key ? '#2563eb' : '#e2e8f0'};border-radius:10px;margin-bottom:8px;cursor:pointer;background:${currentAnswer===c.key ? '#eff6ff' : 'white'}">
-            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="saveExamAnswer('${submissionId}','${qid}',this.value)" style="width:18px;height:18px">
+            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="saveExamAnswer('${submissionId}','${qid}',this.value);examUpdateAnsweredMark(${idx})" style="width:18px;height:18px">
             <span style="font-size:14px">${c.text}</span>
           </label>`).join('');
       } else {
-        choicesHtml = `<textarea onchange="saveExamAnswer('${submissionId}','${qid}',this.value)" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
+        choicesHtml = `<textarea onchange="saveExamAnswer('${submissionId}','${qid}',this.value);examUpdateAnsweredMark(${idx})" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
       }
 
       const imgHtml = question.question_image_url ? `<img src="${question.question_image_url}" style="max-width:100%;border-radius:10px;margin-bottom:12px" onerror="this.style.display='none'">` : '';
 
       body.innerHTML = `
-        <div style="background:white;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-          <p style="font-size:12px;color:#94a3b8;margin:0 0 8px">ข้อ ${idx+1} จาก ${orderedIds.length} · ${question.score_per_question} คะแนน</p>
-          ${imgHtml}
-          <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
-          ${choicesHtml}
+        <div style="padding:16px">
+          <button onclick="renderAnswerSheetView('${submissionId}')" style="background:#e2e8f0;color:#334155;border:none;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:12px">📄 กลับไปกระดาษคำตอบ</button>
+          <div style="background:white;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+            <p style="font-size:12px;color:#94a3b8;margin:0 0 8px">ข้อ ${idx+1} จาก ${orderedIds.length} · ${question.score_per_question} คะแนน</p>
+            ${imgHtml}
+            <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
+            ${choicesHtml}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button onclick="examGoQuestion(${idx-1})" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${idx===0?'opacity:0.4;pointer-events:none':''}">← ข้อก่อนหน้า</button>
+            <button onclick="examGoQuestion(${idx+1})" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${idx===orderedIds.length-1?'opacity:0.4;pointer-events:none':''}">ข้อถัดไป →</button>
+          </div>
         </div>`;
-      renderExamQuestionNav(submissionId);
-      document.getElementById('exam-prev-btn').style.opacity = idx === 0 ? '0.4' : '1';
-      document.getElementById('exam-next-btn').style.opacity = idx === orderedIds.length - 1 ? '0.4' : '1';
     }
+    // อัปเดตกระดาษคำตอบเบื้องหลังทันทีที่ตอบ (เผื่อกลับไปดูสถานะ ไม่ต้องรอ render ใหม่)
+    function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
 
     function examSetIsShuffleEnabled(submission) {
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
@@ -7704,7 +7682,7 @@
       const answers = JSON.parse(submission.answers || '{}');
       answers[questionId] = answer;
       await window.dataSdk.update({ ...submission, answers: JSON.stringify(answers) });
-      renderExamQuestionNav(submissionId);
+      // หมายเหตุ: ไม่ต้อง render กระดาษคำตอบใหม่ตรงนี้ เพราะ renderAnswerSheetView อ่านสถานะสดจาก allData ทุกครั้งที่กลับไปดูอยู่แล้ว
     }
 
     function confirmSubmitExam(submissionId) {
