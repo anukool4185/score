@@ -16574,6 +16574,8 @@
     else if (prefix === 'm-dir-grade') mDirRenderGrade();
     else if (prefix === 'm-dir-gradesum') mDirRenderGradeSummary();
     else if (prefix === 'm-dir-attendsum') mDirRenderAttendanceSummary();
+    else if (prefix === 'm-admin-gradereport') mAdminRenderGradeReport();
+    else if (prefix === 'm-admin-gradedist') mAdminRenderGradeDist();
   }
 
   // ── 📊 ผลการเรียน/เวลาเรียน ──
@@ -16697,6 +16699,105 @@
   }
 
   // ── 📑 สรุปเกรด (แบบย่อ เห็นแค่ชื่อ+เกรด เหมาะกับพื้นที่จอมือถือที่จำกัด) ──
+  // ── 📊 สัดส่วนเกรด (Admin) — ตารางรายบุคคล K/P/A/C/M/F/รวม/เกรด แบบมือถือแท้ ──
+  function mShowAdminGradeReportNative() {
+    mWaitForDataThen(() => {
+      mCreateOverlay('m-admin-gradereport-overlay', '📊 สัดส่วนเกรด', mDirSelectorsHtml('m-admin-gradereport'));
+      mAdminRenderGradeReport();
+    });
+  }
+  function mAdminRenderGradeReport() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-admin-gradereport');
+    const el = document.getElementById('m-admin-gradereport-result');
+    if (!el) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+    if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
+    const comboSet = new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`));
+    let allRows = [];
+    comboSet.forEach(combo => {
+      const [c, rm, sub] = combo.split('|||');
+      const rows = computeGradeReportRows(c, rm, sub).map(row => ({ ...row, comboClass: c, comboRoom: rm, comboSubject: sub }));
+      allRows = allRows.concat(rows);
+    });
+    allRows.sort((a,b) => a.comboClass.localeCompare(b.comboClass) || a.comboRoom.localeCompare(b.comboRoom) || a.studentNumber - b.studentNumber);
+    if (allRows.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูลนักเรียน</p>'; return; }
+    el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${allRows.length} รายการ</p>` + allRows.map(r => {
+      const gradeDisplay = (r.special1==='มส.'||r.special2==='มส.') ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue);
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <p style="font-weight:700;color:#1e293b;margin:0;font-size:13px">👤 ${r.studentName}</p>
+            <p style="font-size:11px;color:#94a3b8;margin:2px 0 0">${r.comboClass}/${r.comboRoom} · ${r.comboSubject}</p>
+          </div>
+          <span style="background:#2563eb;color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0">${gradeDisplay}</span>
+        </div>
+        <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KPAC ${r.totalKPAC}</b></p>
+        <p style="font-size:11px;color:#64748b;margin:2px 0 0">M ${r.mScore} · F ${r.fScore} → <b style="color:#2563eb">รวม MF ${(r.mScore+r.fScore)}</b></p>
+        <p style="font-size:12px;margin:4px 0 0"><b style="color:#16a34a">รวมทั้งสิ้น ${r.totalAll}</b></p>
+      </div>`;
+    }).join('');
+  }
+
+  // ── 🥧 สรุปเกรด (Admin) — สัดส่วน+แผนภูมิวงกลม แบบมือถือแท้ ──
+  function mShowAdminGradeDistNative() {
+    mWaitForDataThen(() => {
+      mCreateOverlay('m-admin-gradedist-overlay', '🥧 สรุปเกรด', mDirSelectorsHtml('m-admin-gradedist'));
+      mAdminRenderGradeDist();
+    });
+  }
+  function mAdminRenderGradeDist() {
+    const { className, roomNumber, subjectName } = mDirGetSelection('m-admin-gradedist');
+    const el = document.getElementById('m-admin-gradedist-result');
+    if (!el) return;
+    let regs = allData.filter(d => d.type === 'student_registration');
+    if (className) regs = regs.filter(r => r.class_name === className);
+    if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
+    if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
+    const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+    if (comboSet.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูล</p>'; return; }
+
+    // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)
+    const overallDist = computeGradeDistributionOverall(comboSet);
+    let overviewHtml = `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
+      <p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        ${renderGradePieChartSvg(overallDist.counts, 120)}
+        <div style="flex:1;min-width:0">
+          <p style="font-size:11px;color:#94a3b8;margin:0 0 6px">นักเรียนทั้งหมด ${overallDist.total} คน</p>
+          ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
+        </div>
+      </div>
+    </div>`;
+
+    // 📚 แยกตามวิชา (รวมทุกห้อง)
+    const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
+    if (subjectsInScope.length > 0) {
+      overviewHtml += '<p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">📚 แยกตามวิชา (รวมทุกห้อง)</p>' +
+        subjectsInScope.map(sub => {
+          const dist = computeGradeDistributionForSubject(sub);
+          return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px">
+            <p style="font-weight:700;color:#1e293b;margin:0 0 8px;font-size:13px">📚 ${sub} <span style="font-weight:400;color:#94a3b8;font-size:11px">(${dist.total} คน)</span></p>
+            <div style="display:flex;align-items:center;gap:12px">
+              ${renderGradePieChartSvg(dist.counts, 110)}
+              <div style="flex:1;min-width:0">${renderGradeLegendHtml(dist.counts, dist.total)}</div>
+            </div>
+          </div>`;
+        }).join('') + '<p style="font-weight:700;color:#1e293b;font-size:13px;margin:14px 0 8px">📋 แยกตามห้องเรียน</p>';
+    }
+
+    el.innerHTML = overviewHtml + comboSet.map(combo => {
+      const [c, rm, sub] = combo.split('|||');
+      const dist = computeGradeDistribution(c, rm, sub);
+      return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px">
+        <p style="font-weight:700;color:#1e293b;margin:0 0 2px;font-size:13px">📚 ${sub}</p>
+        <p style="font-size:10px;color:#94a3b8;margin:0 0 8px">${c}/${rm} · ทั้งหมด ${dist.total} คน</p>
+        ${renderGradeLegendHtml(dist.counts, dist.total)}
+      </div>`;
+    }).join('');
+  }
+
   function mShowDirectorGradeSummaryNative() {
     mWaitForDataThen(() => {
       mCreateOverlay('m-dir-gradesum-overlay', '📑 สรุปเกรด', mDirSelectorsHtml('m-dir-gradesum'));
@@ -16857,8 +16958,8 @@
       {id:'scores',icon:'📊',label:'คะแนนเต็ม',fn:"mShowDesktopAdminTab('scores','📊 คะแนนเต็ม')"},
       {id:'grading',icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopAdminTab('grading','🎓 ให้คะแนน')"},
       {id:'uploadscore',icon:'📤',label:'อัพโหลดคะแนน',fn:"mShowDesktopAdminTab('uploadscore','📤 อัพโหลดคะแนน')"},
-      {id:'gradereport',icon:'📑',label:'สรุปเกรด',fn:"mShowDesktopAdminTab('gradereport','📑 สรุปเกรด')"},
-      {id:'gradedist',icon:'🥧',label:'สัดส่วนเกรด',fn:"mShowDesktopAdminTab('gradedist','🥧 สัดส่วนเกรด')"},
+      {id:'gradereport',icon:'📑',label:'สัดส่วนเกรด',fn:"mShowAdminGradeReportNative()"},
+      {id:'gradedist',icon:'🥧',label:'สรุปเกรด',fn:"mShowAdminGradeDistNative()"},
       {id:'studentdata',icon:'📈',label:'ผลการเรียน',fn:"mShowDesktopAdminTab('studentdata','📈 ตารางผลการเรียน/เวลาเรียน')"},
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
