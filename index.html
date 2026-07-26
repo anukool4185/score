@@ -2127,6 +2127,22 @@
       <!-- 📝 จัดสอบ (Exam Assignment) -->
       <div id="admin-tab-examassign" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">📄 รูปแบบกระดาษคำตอบ</h3>
+        <p class="text-gray-500 text-sm mb-4">กำหนดจำนวนช่องของกระดาษคำตอบ (เหมือนกระดาษคำตอบมาตรฐาน) — ถ้าชุดสอบมีข้อน้อยกว่าที่กำหนด ช่องที่เหลือจะแสดงเป็นช่องว่างเทาๆ ไม่ให้กดได้</p>
+        <div class="flex items-center gap-3 flex-wrap">
+         <label class="text-sm text-gray-700">จำนวนช่องทั้งหมด:</label>
+         <input type="number" id="answer-sheet-slot-count" min="1" max="500" value="120" class="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <label class="text-sm text-gray-700 ml-2">จำนวนคอลัมน์ต่อแถว:</label>
+         <select id="answer-sheet-columns" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="5">5</option>
+          <option value="8" selected>8</option>
+          <option value="10">10</option>
+          <option value="12">12</option>
+         </select>
+         <button onclick="saveAnswerSheetFormat()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">💾 บันทึกรูปแบบ</button>
+        </div>
+       </div>
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">📝 จัดสอบ (มอบหมายชุดข้อสอบให้ห้องเรียน)</h3>
         <p class="text-gray-500 text-sm mb-4">เลือกชั้น/ห้อง/วิชา/ครั้งที่ K แล้วเลือกข้อสอบจากคลังที่จะใช้สอบ พร้อมกำหนดช่วงเวลาเปิด-ปิดสอบ — คะแนนเต็มจะรวมอัตโนมัติตามจำนวนข้อที่เลือก</p>
 
@@ -2184,6 +2200,28 @@
           <label class="flex items-center gap-2 text-sm cursor-pointer">
            <input type="checkbox" id="ea-shuffle" checked class="w-4 h-4"> สลับลำดับข้อ/ตัวเลือกให้แต่ละคนไม่เหมือนกัน (กันลอกข้อ)
           </label>
+         </div>
+
+         <div class="bg-purple-50 border-2 border-purple-100 rounded-lg p-3 mb-3">
+          <p class="text-xs font-semibold text-purple-700 mb-2">📄 รูปแบบกระดาษคำตอบ</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">🔢 จำนวนข้อในกระดาษคำตอบ</label>
+            <input type="number" id="ea-sheet-total-items" min="1" max="500" placeholder="ปล่อยว่าง = ใช้จำนวนข้อที่เลือกจริง" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+            <p class="text-[11px] text-gray-400 mt-1">ถ้ากำหนดมากกว่าจำนวนข้อที่เลือกจริง ช่องที่เหลือจะเป็นข้อว่างในกระดาษคำตอบ (เผื่อให้ตรงกับแบบฟอร์มกระดาษจริง)</p>
+           </div>
+           <div>
+            <label class="block text-xs text-gray-600 mb-1">▦ จำนวนคอลัมน์ต่อแถว</label>
+            <select id="ea-sheet-columns" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+             <option value="5">5 ช่องต่อแถว</option>
+             <option value="8">8 ช่องต่อแถว</option>
+             <option value="10" selected>10 ช่องต่อแถว</option>
+             <option value="12">12 ช่องต่อแถว</option>
+             <option value="15">15 ช่องต่อแถว</option>
+             <option value="20">20 ช่องต่อแถว</option>
+            </select>
+           </div>
+          </div>
          </div>
 
          <div class="mb-2 flex items-center justify-between">
@@ -7034,7 +7072,36 @@
     // ============================================================
     // 📝 จัดสอบ (Exam Assignment) — มอบหมายชุดข้อสอบให้ห้องเรียน
     // ============================================================
+    // 📄 รูปแบบกระดาษคำตอบ — จำนวนช่องทั้งหมด + จำนวนคอลัมน์ต่อแถว (ตั้งค่าเดียวใช้ร่วมกันทั้งโรงเรียน)
+    function getAnswerSheetFormat() {
+      const cfg = allData.find(d => d.type === 'answer_sheet_config');
+      return {
+        totalSlots: cfg?.total_slots ? parseInt(cfg.total_slots) : 120,
+        columns: cfg?.columns ? parseInt(cfg.columns) : 8,
+      };
+    }
+    function loadAnswerSheetFormat() {
+      const fmt = getAnswerSheetFormat();
+      const slotInput = document.getElementById('answer-sheet-slot-count');
+      const colSelect = document.getElementById('answer-sheet-columns');
+      if (slotInput) slotInput.value = fmt.totalSlots;
+      if (colSelect) colSelect.value = String(fmt.columns);
+    }
+    async function saveAnswerSheetFormat() {
+      const totalSlots = parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120;
+      const columns = parseInt(document.getElementById('answer-sheet-columns')?.value) || 8;
+      const existing = allData.find(d => d.type === 'answer_sheet_config');
+      const record = { type: 'answer_sheet_config', total_slots: totalSlots, columns: columns };
+      const result = existing ? await window.dataSdk.update({ ...existing, ...record }) : await window.dataSdk.create(record);
+      if (result.isOk) {
+        showToast('✅ บันทึกรูปแบบกระดาษคำตอบสำเร็จ');
+      } else {
+        showToast('บันทึกไม่สำเร็จ', 'error');
+      }
+    }
+
     function loadExamAssignTab() {
+      loadAnswerSheetFormat();
       const classes = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.class_name).filter(Boolean))].sort();
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
       const classSel = document.getElementById('ea-class');
@@ -7107,6 +7174,8 @@
       const startTime = document.getElementById('ea-start')?.value;
       const endTime = document.getElementById('ea-end')?.value;
       const shuffle = document.getElementById('ea-shuffle')?.checked;
+      const sheetTotalItems = document.getElementById('ea-sheet-total-items')?.value;
+      const sheetColumns = document.getElementById('ea-sheet-columns')?.value || '10';
       const editId = document.getElementById('ea-edit-id')?.value;
 
       if (!className || !roomNumber || !subjectName) { showToast('กรุณาเลือกชั้น/ห้อง/วิชาให้ครบ', 'error'); return; }
@@ -7115,6 +7184,7 @@
 
       const questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
       if (questionIds.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
+      if (sheetTotalItems && parseInt(sheetTotalItems) < questionIds.length) { showToast(`จำนวนข้อในกระดาษคำตอบ (${sheetTotalItems}) ต้องไม่น้อยกว่าจำนวนข้อที่เลือกจริง (${questionIds.length})`, 'error'); return; }
       const totalScore = questionIds.reduce((sum, id) => {
         const q = allData.find(d => d.__backendId === id);
         return sum + (parseFloat(q?.score_per_question) || 0);
@@ -7131,6 +7201,8 @@
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
         shuffle_enabled: shuffle,
+        sheet_total_items: sheetTotalItems ? parseInt(sheetTotalItems) : questionIds.length,
+        sheet_columns: parseInt(sheetColumns),
       };
 
       let result;
@@ -7166,6 +7238,8 @@
       document.getElementById('ea-start').value = '';
       document.getElementById('ea-end').value = '';
       document.getElementById('ea-shuffle').checked = true;
+      document.getElementById('ea-sheet-total-items').value = '';
+      document.getElementById('ea-sheet-columns').value = '10';
       renderEaQuestionPicker();
     }
 
@@ -7213,6 +7287,8 @@
       document.getElementById('ea-subject').value = s.subject_name || '';
       document.getElementById('ea-kround').value = s.k_round || '1';
       document.getElementById('ea-shuffle').checked = !!s.shuffle_enabled;
+      document.getElementById('ea-sheet-total-items').value = s.sheet_total_items || '';
+      document.getElementById('ea-sheet-columns').value = s.sheet_columns || '10';
       // แปลง ISO datetime กลับเป็นรูปแบบ input datetime-local (ตัด timezone/วินาทีทิ้ง)
       const toLocalInput = (iso) => { const d = new Date(iso); const pad = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
       document.getElementById('ea-start').value = s.start_time ? toLocalInput(s.start_time) : '';
@@ -7591,13 +7667,19 @@
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       const answers = JSON.parse(submission.answers || '{}');
       const answeredCount = orderedIds.filter(qid => answers[qid] !== undefined && answers[qid] !== '').length;
+      const sheetFmt = getAnswerSheetFormat();
+      const sheetTotalItems = Math.max((examSet.sheet_total_items ? parseInt(examSet.sheet_total_items) : sheetFmt.totalSlots), orderedIds.length);
+      const sheetColumns = examSet.sheet_columns ? parseInt(examSet.sheet_columns) : sheetFmt.columns;
+      const extraBlankCount = Math.max(0, sheetTotalItems - orderedIds.length);
 
       const gridHtml = orderedIds.map((qid, idx) => {
         const answered = answers[qid] !== undefined && answers[qid] !== '';
         const bg = answered ? '#16a34a' : '#e2e8f0';
         const color = answered ? 'white' : '#64748b';
         return `<button onclick="examGoQuestion(${idx})" style="aspect-ratio:1;border-radius:8px;border:none;background:${bg};color:${color};font-size:13px;font-weight:700;cursor:pointer">${idx+1}</button>`;
-      }).join('');
+      }).join('') + Array.from({ length: extraBlankCount }).map((_, i) =>
+        `<span style="aspect-ratio:1;border-radius:8px;background:#f1f5f9;color:#cbd5e1;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center">${orderedIds.length + i + 1}</span>`
+      ).join('');
 
       body.innerHTML = `
         <div style="padding:16px">
@@ -7606,12 +7688,12 @@
             <p style="font-size:12px;color:#64748b;margin:2px 0"><b>วิชา:</b> ${examSet.subject_name}</p>
             <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ห้อง:</b> ${examSet.class_name}/${examSet.room_number}</p>
             <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ผู้เข้าสอบ:</b> ${studentName}</p>
-            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ชุดข้อสอบ:</b> K ครั้งที่ ${examSet.k_round} · ${orderedIds.length} ข้อ</p>
+            <p style="font-size:12px;color:#64748b;margin:2px 0"><b>ชุดข้อสอบ:</b> K ครั้งที่ ${examSet.k_round} · ${orderedIds.length} ข้อ${extraBlankCount > 0 ? ` (กระดาษคำตอบ ${sheetTotalItems} ช่อง)` : ''}</p>
             <p style="font-size:12px;color:#16a34a;margin:8px 0 0;font-weight:600">✅ ทำแล้ว ${answeredCount}/${orderedIds.length} ข้อ</p>
           </div>
           <div style="background:white;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-            <p style="font-size:12px;color:#94a3b8;margin:0 0 10px">แตะหมายเลขข้อเพื่อทำข้อสอบ (🟩 ทำแล้ว · ⬜ ยังไม่ทำ)</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(42px,1fr));gap:8px">${gridHtml}</div>
+            <p style="font-size:12px;color:#94a3b8;margin:0 0 10px">แตะหมายเลขข้อเพื่อทำข้อสอบ (🟩 ทำแล้ว · ⬜ ยังไม่ทำ${extraBlankCount > 0 ? ' · ⬛ ไม่มีข้อสอบ' : ''})</p>
+            <div style="display:grid;grid-template-columns:repeat(${sheetColumns},1fr);gap:8px">${gridHtml}</div>
           </div>
           <button onclick="confirmSubmitExam('${submissionId}')" style="width:100%;margin-top:16px;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">✅ ส่งคำตอบ</button>
         </div>
