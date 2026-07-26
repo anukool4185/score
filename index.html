@@ -7057,7 +7057,14 @@
     }
 
     async function deleteExamQuestion(id) {
-      if (!confirm('ยืนยันลบข้อสอบข้อนี้ออกจากคลัง?')) return;
+      // ⚠️ เช็คก่อนลบ: ถ้าข้อนี้ถูกใช้อยู่ในชุดสอบที่มอบหมายไว้แล้ว (โดยเฉพาะที่เปิดสอบอยู่/ยังไม่ปิด) เตือนก่อนลบ กันข้อสอบพังกลางคัน
+      const usedInSets = allData.filter(d => d.type === 'exam_set' && (d.question_ids || '').split(',').includes(id));
+      let confirmMsg = 'ยืนยันลบข้อสอบข้อนี้ออกจากคลัง?';
+      if (usedInSets.length > 0) {
+        const setNames = usedInSets.map(s => `${s.subject_name} K.${s.k_round} (${s.class_name}/${s.room_number})`).join(', ');
+        confirmMsg = `⚠️ ข้อนี้ถูกใช้อยู่ในชุดสอบที่มอบหมายไว้แล้ว: ${setNames}\\n\\nถ้าลบ นักเรียนที่กำลังสอบ/เคยสอบข้อนี้อาจเห็นข้อผิดพลาดหรือคะแนนคลาดเคลื่อน\\n\\nยืนยันลบต่อหรือไม่?`;
+      }
+      if (!confirm(confirmMsg)) return;
       const q = allData.find(d => d.__backendId === id);
       if (!q) return;
       const result = await window.dataSdk.delete(q);
@@ -7316,6 +7323,7 @@
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
       for (const sub of submissions) {
+        if (sub.score_reversed) { await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -7352,6 +7360,7 @@
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
       for (const sub of submissions) {
+        if (sub.score_reversed) continue; // คะแนนของครั้งนี้ถูกลบออกไปแล้วตอนเริ่มสอบแก้ครั้งถัดไป กันลบซ้ำ
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven === null) continue; // ยังไม่มีคะแนน (ยังไม่สอบ/ยังไม่ตรวจ) ไม่ต้องแก้อะไร
@@ -7533,6 +7542,30 @@
     async function startRetryExamAttempt(examSetId, registrationId) {
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       if (!examSet) return;
+
+      // ⚠️ บั๊กสำคัญที่พบ: ถ้าครั้งก่อนมีคะแนนติดไปแล้ว (เช่น ครูกำหนดคะแนนเอง หรือตรวจอัตโนมัติ/อัตนัยไปแล้ว)
+      // แล้วให้สอบแก้โดยไม่ลบคะแนนเก่าออกก่อน พอสอบแก้เสร็จคะแนนใหม่จะถูก "บวกเพิ่ม" ทับคะแนนเก่า กลายเป็นคะแนนซ้อนสองเท่า
+      // ต้องลบคะแนนที่ครั้งก่อนทำให้ได้ออกจากยอดปัจจุบันก่อน เหมือนหลักการเดียวกับตอนลบ/รีเซ็ทชุดสอบ
+      const prevSubmission = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.registration_id === registrationId)
+        .sort((a,b) => new Date(b.started_at||0) - new Date(a.started_at||0))[0];
+      if (prevSubmission) {
+        const prevScore = prevSubmission.manual_score !== undefined && prevSubmission.manual_score !== null ? prevSubmission.manual_score
+          : (prevSubmission.auto_score !== undefined && prevSubmission.auto_score !== null ? prevSubmission.auto_score : null);
+        if (prevScore !== null && !prevSubmission.score_reversed) {
+          const round = parseInt(examSet.k_round) || 1;
+          const grade = allData.find(d => d.type === 'grade' && d.registration_id === registrationId);
+          if (grade) {
+            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            while (scoresArr.length < round) scoresArr.push('');
+            const currentValue = parseFloat(scoresArr[round - 1]) || 0;
+            scoresArr[round - 1] = String(currentValue - prevScore);
+            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+          }
+          // ทำเครื่องหมายว่าคะแนนของครั้งนี้ถูกลบออกจากยอดแล้ว กัน deleteExamSet/resetExamSet มาลบซ้ำอีกทีในอนาคต
+          await window.dataSdk.update({ ...prevSubmission, score_reversed: true });
+        }
+      }
+
       const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
       const seed = _seedFromString(currentUser.student_id + examSetId + '_retry_' + Date.now());
       const orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
@@ -8127,7 +8160,10 @@
       if (isNaN(score)) { showToast('กรุณากรอกคะแนนให้ถูกต้อง', 'error'); return; }
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (submission) {
+        const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
         await window.dataSdk.update({ ...submission, manual_score: score, score_overridden_by_admin: true, status: 'terminated', frozen: true, terminated_reason: 'score_overridden' });
+        // ⚠️ บั๊กที่พบ: เดิมกำหนดคะแนนแล้วไม่เคยเขียนเข้าช่อง K จริง คะแนนที่กำหนดไม่มีผลกับเกรดเลย — แก้ให้เขียนเข้าจริง
+        if (examSet) await _writeExamScoreToKField(submission, examSet, score);
       }
       await markExamAlertHandled(alertId, 'score_set');
       showToast(`✏️ กำหนดคะแนนเป็น ${score} แล้ว (จบการสอบครั้งนี้)`);
