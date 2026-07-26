@@ -7510,6 +7510,11 @@
       });
       if (result.isOk) {
         console.log('[Exam Popup Debug] submission created:', result.value.__backendId, '- calling renderExamModal');
+        // ⚠️ กันบั๊ก race condition: ข้อมูลที่เพิ่งสร้างอาจยังไม่เข้ามาใน allData ทันที (ต้องรอรอบ poll ถัดไป)
+        // เพิ่มเข้า allData เองทันทีแบบ optimistic ก่อน กัน renderExamModal หาไม่เจอแล้วเงียบไป
+        if (!allData.find(d => d.__backendId === result.value.__backendId)) {
+          allData.push(result.value);
+        }
         try {
           renderExamModal(result.value.__backendId);
         } catch (err) {
@@ -7529,7 +7534,7 @@
     let _examCurrentQuestionIdx = 0;
     function renderExamModal(submissionId) {
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission) { showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
+      if (!submission) { console.error('[Exam Popup Debug] renderExamModal: submission NOT FOUND in allData for id', submissionId); showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!examSet) { showToast('ไม่พบชุดสอบ', 'error'); return; }
 
