@@ -7543,9 +7543,10 @@
       if (submission.frozen) { showExamFreezeOverlay(); return; }
 
       _examCurrentQuestionIdx = 0;
+      document.getElementById('exam-taking-overlay')?.remove(); // กันซ้อนถ้ามีค้างอยู่ก่อน
       const overlay = document.createElement('div');
       overlay.id = 'exam-taking-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:999997;background:#f1f5f9;display:flex;flex-direction:column';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:2147483000;background:#f1f5f9;display:flex;flex-direction:column;visibility:visible;opacity:1';
       overlay.innerHTML = `
         <div id="exam-taking-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
           <div>
@@ -7562,6 +7563,13 @@
         </div>
       `;
       document.body.appendChild(overlay);
+      console.log('[Exam Popup Debug] exam-taking-overlay appended to body. In DOM now?', !!document.getElementById('exam-taking-overlay'));
+      setTimeout(() => {
+        console.log('[Exam Popup Debug] 1s later, exam-taking-overlay still in DOM?', !!document.getElementById('exam-taking-overlay'),
+          '| exam-freeze-overlay present?', !!document.getElementById('exam-freeze-overlay'),
+          '| mobile-root display:', document.getElementById('mobile-root')?.style.display,
+          '| desktop-root display:', document.getElementById('desktop-root')?.style.display);
+      }, 1000);
 
       // เริ่มระบบตรวจทุจริต — ล็อกไม่ให้ออก + จับตาสลับแท็บ/copy/paste
       startExamAntiCheatGuard(submissionId, {
@@ -8124,8 +8132,9 @@
       document.removeEventListener('paste', _handleExamPaste);
     }
     function _handleExamVisibilityChange() {
-      if (Date.now() - _examGuardStartTime < 1500) return; // ช่วงกันเหตุการณ์หลอกตอนเพิ่งเปิดหน้าสอบ
-      if (_examAntiCheatActive && document.hidden) _triggerExamViolation('tab_switch');
+      const elapsed = Date.now() - _examGuardStartTime;
+      if (elapsed < 3000) { console.log('[Exam Popup Debug] visibilitychange ignored (grace period), elapsed:', elapsed, 'hidden:', document.hidden); return; }
+      if (_examAntiCheatActive && document.hidden) { console.log('[Exam Popup Debug] visibilitychange TRIGGERED violation, elapsed:', elapsed); _triggerExamViolation('tab_switch'); }
     }
     function _handleExamCopy() {
       if (_examAntiCheatActive) _triggerExamViolation('copy');
@@ -8158,10 +8167,11 @@
       }
     }
     function showExamFreezeOverlay() {
+      console.log('[Exam Popup Debug] showExamFreezeOverlay() called - anti-cheat froze the exam!', new Error().stack);
       if (document.getElementById('exam-freeze-overlay')) return;
       const overlay = document.createElement('div');
       overlay.id = 'exam-freeze-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999999;background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;padding:20px';
       overlay.innerHTML = `
         <div style="background:white;border-radius:16px;padding:28px;max-width:360px;text-align:center">
           <p style="font-size:40px;margin:0 0 12px">⏸️</p>
@@ -8221,7 +8231,7 @@
       if (old) old.remove();
       const overlay = document.createElement('div');
       overlay.id = 'exam-freeze-overlay';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999999;background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;padding:20px';
       overlay.innerHTML = `
         <div style="background:white;border-radius:16px;padding:28px;max-width:360px;text-align:center">
           <p style="font-size:40px;margin:0 0 12px">📋</p>
