@@ -7227,12 +7227,33 @@
     }
 
     async function deleteExamSet(id) {
-      if (!confirm('ยืนยันลบการมอบหมายชุดสอบนี้?')) return;
+      if (!confirm('ยืนยันลบการมอบหมายชุดสอบนี้?\\n\\nระบบจะดึงคะแนนเต็มที่เคยเพิ่มไว้ตอนมอบหมายออกอัตโนมัติ\\nถ้ามีนักเรียนสอบไปแล้ว จะลบเฉพาะคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมาออกเท่านั้น (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)')) return;
       const s = allData.find(d => d.__backendId === id);
       if (!s) return;
+      const round = parseInt(s.k_round) || 1;
+
+      // 1) คืนคะแนนเต็มที่เคยบวกเพิ่มไว้ตอนมอบหมาย/แก้ไขชุดสอบ (ลบเต็มจำนวนของชุดสอบนี้ออกจากคะแนนเต็มของทั้งห้อง)
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -(s.total_score || 0));
+
+      // 2) ถ้ามีนักเรียนสอบไปแล้ว (มีคะแนนเขียนลง K ไปแล้ว) ให้ลบเฉพาะ "ส่วนที่ข้อสอบนี้ทำให้ได้เพิ่มมา" ออกจากยอดปัจจุบัน
+      //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
+      const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      for (const sub of submissions) {
+        const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
+          : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
+        if (scoreGiven === null) continue; // ยังไม่มีคะแนน (ยังไม่สอบ/ยังไม่ตรวจ) ไม่ต้องแก้อะไร
+        const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+        if (!grade) continue;
+        let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+        while (scoresArr.length < round) scoresArr.push('');
+        const currentValue = parseFloat(scoresArr[round - 1]) || 0;
+        scoresArr[round - 1] = String(currentValue - scoreGiven);
+        await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+      }
+
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
-        showToast('🗑️ ลบชุดสอบสำเร็จ');
+        showToast('🗑️ ลบชุดสอบสำเร็จ (ปรับคะแนนเต็มและคะแนนที่ได้ของนักเรียนที่สอบไปแล้วให้ถูกต้องแล้ว)');
         renderExamSetList();
       } else {
         showToast('ลบไม่สำเร็จ', 'error');
@@ -7680,7 +7701,9 @@
       const round = parseInt(examSet.k_round) || 1;
       let scoresArr = (grade?.k_scores || '').split(',').map(s => s.trim());
       while (scoresArr.length < round) scoresArr.push('');
-      scoresArr[round - 1] = String(score);
+      // บวกเพิ่มจากคะแนนเดิมที่มีอยู่ (เช่น ครูกรอกมือไว้ก่อนแล้ว) ไม่ทับคะแนนเดิมทิ้ง
+      const existingScore = parseFloat(scoresArr[round - 1]) || 0;
+      scoresArr[round - 1] = String(existingScore + score);
       if (grade) {
         await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
       } else {
