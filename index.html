@@ -7057,14 +7057,8 @@
     }
 
     async function deleteExamQuestion(id) {
-      // ⚠️ เช็คก่อนลบ: ถ้าข้อนี้ถูกใช้อยู่ในชุดสอบที่มอบหมายไว้แล้ว (โดยเฉพาะที่เปิดสอบอยู่/ยังไม่ปิด) เตือนก่อนลบ กันข้อสอบพังกลางคัน
-      const usedInSets = allData.filter(d => d.type === 'exam_set' && (d.question_ids || '').split(',').includes(id));
-      let confirmMsg = 'ยืนยันลบข้อสอบข้อนี้ออกจากคลัง?';
-      if (usedInSets.length > 0) {
-        const setNames = usedInSets.map(s => `${s.subject_name} K.${s.k_round} (${s.class_name}/${s.room_number})`).join(', ');
-        confirmMsg = `⚠️ ข้อนี้ถูกใช้อยู่ในชุดสอบที่มอบหมายไว้แล้ว: ${setNames}\\n\\nถ้าลบ นักเรียนที่กำลังสอบ/เคยสอบข้อนี้อาจเห็นข้อผิดพลาดหรือคะแนนคลาดเคลื่อน\\n\\nยืนยันลบต่อหรือไม่?`;
-      }
-      if (!confirm(confirmMsg)) return;
+      // หมายเหตุ: ลบข้อสอบจากคลังไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย เพราะชุดสอบเก็บสำเนาข้อมูลข้อสอบไว้เองแยกต่างหาก (snapshot) ตอนมอบหมาย
+      if (!confirm('ยืนยันลบข้อสอบข้อนี้ออกจากคลัง?')) return;
       const q = allData.find(d => d.__backendId === id);
       if (!q) return;
       const result = await window.dataSdk.delete(q);
@@ -7196,6 +7190,14 @@
         const q = allData.find(d => d.__backendId === id);
         return sum + (parseFloat(q?.score_per_question) || 0);
       }, 0);
+      // 📸 คัดลอกข้อมูลข้อสอบทั้งหมดมาเก็บไว้ในชุดสอบเอง (snapshot) — แยกออกจากคลังข้อสอบอย่างสิ้นเชิง
+      // ถ้าภายหลังมีการแก้ไข/ลบข้อสอบต้นฉบับในคลัง จะไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย
+      const questionSnapshot = questionIds.map(id => {
+        const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
+        return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question } : null;
+      }).filter(Boolean);
 
       const record = {
         type: 'exam_set',
@@ -7204,6 +7206,7 @@
         subject_name: subjectName,
         k_round: kRound,
         question_ids: questionIds.join(','),
+        question_snapshot_json: JSON.stringify(questionSnapshot),
         total_score: totalScore,
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
@@ -7323,7 +7326,7 @@
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
       for (const sub of submissions) {
-        if (sub.score_reversed) { await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -7336,15 +7339,33 @@
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
         }
-        // 3) ลบการทำข้อสอบเดิมทิ้ง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
+        // 3) ลบการทำข้อสอบเดิมทิ้ง + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้อง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
+        await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
       }
+      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ)
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
+      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
+      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
+      for (const rp of relatedRetryPermissions) await window.dataSdk.delete(rp);
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
       await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0);
 
       showToast('🔄 จัดสอบอีกครั้งสำเร็จ — นักเรียนสามารถเข้าสอบใหม่ได้แล้ว');
       renderExamSetList();
+    }
+
+    // 🧹 ลบการแจ้งเตือนทุจริต + คำขอสอบแก้ ที่ผูกกับกระดาษคำตอบนี้ทั้งหมด กันแจ้งเตือนค้างหลังลบ/รีเซ็ทชุดสอบ
+    async function cleanupExamSubmissionRelatedRecords(submissionId) {
+      const relatedAlerts = allData.filter(d => d.type === 'exam_alert' && d.submission_id === submissionId);
+      for (const a of relatedAlerts) {
+        // ⚠️ ลบตัวข้อมูลอย่างเดียวไม่พอ ถ้า banner แจ้งเตือนกำลังลอยอยู่บนจอแอดมินอยู่แล้ว ต้องลบตัว element ออกจากหน้าจอด้วย
+        document.getElementById('exam-alert-banner-' + a.__backendId)?.remove();
+        await window.dataSdk.delete(a);
+      }
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.submission_id === submissionId);
+      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
     }
 
     async function deleteExamSet(id) {
@@ -7360,18 +7381,28 @@
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
       for (const sub of submissions) {
-        if (sub.score_reversed) continue; // คะแนนของครั้งนี้ถูกลบออกไปแล้วตอนเริ่มสอบแก้ครั้งถัดไป กันลบซ้ำ
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; }
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
-        if (scoreGiven === null) continue; // ยังไม่มีคะแนน (ยังไม่สอบ/ยังไม่ตรวจ) ไม่ต้องแก้อะไร
-        const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
-        if (!grade) continue;
-        let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
-        while (scoresArr.length < round) scoresArr.push('');
-        const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-        scoresArr[round - 1] = String(currentValue - scoreGiven);
-        await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+        if (scoreGiven !== null) {
+          const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          if (grade) {
+            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            while (scoresArr.length < round) scoresArr.push('');
+            const currentValue = parseFloat(scoresArr[round - 1]) || 0;
+            scoresArr[round - 1] = String(currentValue - scoreGiven);
+            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+          }
+        }
+        // ⚠️ สำคัญ: ลบกระดาษคำตอบ + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องทั้งหมด กันค้างแจ้งเตือนไปตลอด
+        await cleanupExamSubmissionRelatedRecords(sub.__backendId);
+        await window.dataSdk.delete(sub);
       }
+      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ)
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
+      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
+      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
+      for (const rp of relatedRetryPermissions) await window.dataSdk.delete(rp);
 
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
@@ -7745,7 +7776,8 @@
       _examCurrentQuestionIdx = idx;
 
       const qid = orderedIds[idx];
-      const question = allData.find(d => d.__backendId === qid && d.type === 'exam_question');
+      const examSetForQ = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
+      const question = getExamQuestionFromSet(examSetForQ, qid);
       if (!question) return;
 
       const answers = JSON.parse(submission.answers || '{}');
@@ -7785,6 +7817,19 @@
     // อัปเดตกระดาษคำตอบเบื้องหลังทันทีที่ตอบ (เผื่อกลับไปดูสถานะ ไม่ต้องรอ render ใหม่)
     function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
 
+    // 📸 ดึงข้อมูลข้อสอบจาก snapshot ของชุดสอบเอง (ไม่พึ่งพาคลังข้อสอบต้นฉบับ) — ใช้กับชุดสอบเก่าที่ยังไม่มี snapshot เป็น fallback เท่านั้น
+    function getExamQuestionFromSet(examSet, qid) {
+      if (examSet?.question_snapshot_json) {
+        try {
+          const snapshot = JSON.parse(examSet.question_snapshot_json);
+          const found = snapshot.find(q => q.__backendId === qid);
+          if (found) return found;
+        } catch (e) { /* ตกไปใช้ fallback ด้านล่าง */ }
+      }
+      // fallback: ชุดสอบเก่าที่สร้างก่อนมีระบบ snapshot ยังต้องพึ่งคลังข้อสอบอยู่
+      return allData.find(d => d.__backendId === qid && d.type === 'exam_question');
+    }
+
     function examSetIsShuffleEnabled(submission) {
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       return !!examSet?.shuffle_enabled;
@@ -7822,7 +7867,7 @@
       let autoScore = 0;
       let hasWritten = false;
       orderedIds.forEach(qid => {
-        const q = allData.find(d => d.__backendId === qid && d.type === 'exam_question');
+        const q = getExamQuestionFromSet(examSet, qid);
         if (!q) return;
         if (q.question_type === 'choice') {
           if (answers[qid] === q.correct_answer) autoScore += parseFloat(q.score_per_question) || 0;
@@ -7886,7 +7931,7 @@
     function renderRetryRequestsList() {
       const listEl = document.getElementById('rr-list');
       if (!listEl) return;
-      const requests = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending')
+      const requests = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && allData.some(es => es.type === 'exam_set' && es.__backendId === d.exam_set_id))
         .sort((a,b) => new Date(a.requested_at) - new Date(b.requested_at));
       if (requests.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ไม่มีคำขอสอบแก้ที่รอพิจารณา</p>'; return; }
       listEl.innerHTML = requests.map(req => {
@@ -7980,7 +8025,7 @@
       const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       const answers = JSON.parse(submission.answers || '{}');
-      const writtenQuestions = orderedIds.map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question')).filter(q => q && q.question_type === 'written');
+      const writtenQuestions = orderedIds.map(qid => getExamQuestionFromSet(examSet, qid)).filter(q => q && q.question_type === 'written');
 
       document.getElementById('eg-grading-panel')?.remove();
       const wrap = document.createElement('div');
@@ -8039,7 +8084,21 @@
 
     let _seenExamAlertIds = new Set();
     function checkNewExamAlerts() {
-      const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
+      // 🧹 เก็บกวาด banner ที่ค้างอยู่บนจอ (ลอยแจ้งเตือนอยู่แล้วก่อนหน้านี้) แต่ตอนนี้ข้อมูลที่อ้างอิงถูกลบไปแล้ว
+      document.querySelectorAll('[id^="exam-alert-banner-"]').forEach(banner => {
+        const alertId = banner.id.replace('exam-alert-banner-', '');
+        const alert = allData.find(d => d.type === 'exam_alert' && d.__backendId === alertId);
+        const stillValid = alert && alert.status === 'pending'
+          && (!alert.submission_id || allData.some(d => d.type === 'exam_submission' && d.__backendId === alert.submission_id))
+          && (!alert.exam_id || allData.some(d => d.type === 'exam_set' && d.__backendId === alert.exam_id));
+        if (!stillValid) banner.remove();
+      });
+      const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').filter(a => {
+        // กันการแจ้งเตือนค้าง: ถ้ากระดาษคำตอบหรือชุดสอบที่เกี่ยวข้องถูกลบไปแล้ว ไม่ต้องแจ้งอีก (รวมถึงข้อมูลเก่าที่ค้างมาก่อนแก้บั๊กนี้)
+        const submissionExists = a.submission_id ? allData.some(d => d.type === 'exam_submission' && d.__backendId === a.submission_id) : true;
+        const examSetExists = a.exam_id ? allData.some(d => d.type === 'exam_set' && d.__backendId === a.exam_id) : true;
+        return submissionExists && examSetExists;
+      });
       alerts.forEach(a => {
         if (!_seenExamAlertIds.has(a.__backendId)) {
           _seenExamAlertIds.add(a.__backendId);
@@ -8230,7 +8289,17 @@
     function _handleExamVisibilityChange() {
       const elapsed = Date.now() - _examGuardStartTime;
       if (elapsed < 3000) { console.log('[Exam Popup Debug] visibilitychange ignored (grace period), elapsed:', elapsed, 'hidden:', document.hidden); return; }
-      if (_examAntiCheatActive && document.hidden) { console.log('[Exam Popup Debug] visibilitychange TRIGGERED violation, elapsed:', elapsed); _triggerExamViolation('tab_switch'); }
+      if (!(_examAntiCheatActive && document.hidden)) return;
+      // ⚠️ กันสัญญาณหลอกชั่วขณะ (flicker): รอ 1 วินาทีแล้วเช็คซ้ำว่ายัง hidden จริงไหม ก่อนตัดสินว่าเป็นการสลับหน้าจอจริง
+      const guardIdAtCheck = _examAntiCheatSubmissionId;
+      setTimeout(() => {
+        if (_examAntiCheatActive && _examAntiCheatSubmissionId === guardIdAtCheck && document.hidden) {
+          console.log('[Exam Popup Debug] visibilitychange TRIGGERED violation after debounce, elapsed:', elapsed);
+          _triggerExamViolation('tab_switch');
+        } else {
+          console.log('[Exam Popup Debug] visibilitychange flicker ignored — page became visible again within debounce window');
+        }
+      }, 1000);
     }
     function _handleExamCopy() {
       if (_examAntiCheatActive) _triggerExamViolation('copy');
