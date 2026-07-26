@@ -7483,10 +7483,12 @@
     }
 
     async function startExamAttempt(examSetId, registrationId) {
+      console.log('[Exam Popup Debug] startExamAttempt called:', examSetId, registrationId);
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       const reg = allData.find(d => d.__backendId === registrationId && d.type === 'student_registration');
+      console.log('[Exam Popup Debug] examSet found:', !!examSet, '| reg found:', !!reg);
       if (!examSet || !reg) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
-      if (!isExamSetOpen(examSet)) { showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      if (!isExamSetOpen(examSet)) { console.log('[Exam Popup Debug] exam NOT open, start:', examSet.start_time, 'end:', examSet.end_time, 'now:', new Date().toISOString()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
 
       const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
       const seed = _seedFromString(currentUser.student_id + examSet.__backendId);
@@ -7507,8 +7509,15 @@
         started_at: new Date().toISOString(),
       });
       if (result.isOk) {
-        renderExamModal(result.value.__backendId);
+        console.log('[Exam Popup Debug] submission created:', result.value.__backendId, '- calling renderExamModal');
+        try {
+          renderExamModal(result.value.__backendId);
+        } catch (err) {
+          console.error('[Exam Popup Debug] renderExamModal THREW AN ERROR:', err);
+          showToast('เกิดข้อผิดพลาดตอนเปิดหน้าสอบ: ' + err.message, 'error');
+        }
       } else {
+        console.log('[Exam Popup Debug] dataSdk.create FAILED:', result);
         showToast('ไม่สามารถเริ่มสอบได้', 'error');
       }
     }
