@@ -8104,9 +8104,13 @@
     // เรียกใช้ตอนเปิดหน้าทำข้อสอบ: startExamAntiCheatGuard(submissionId, examInfo)
     let _examAntiCheatActive = false;
     let _examAntiCheatSubmissionId = null;
+    let _examGuardStartTime = 0;
     function startExamAntiCheatGuard(submissionId, examInfo) {
       _examAntiCheatActive = true;
       _examAntiCheatSubmissionId = submissionId;
+      // ⚠️ กันบั๊ก: ตอนเปิดหน้าสอบ (โดยเฉพาะมือถือ) อาจเกิด visibilitychange หลอกๆ ชั่วขณะจากการเปลี่ยนหน้าจอเอง
+      // ไม่ใช่จากนักเรียนสลับแอปจริง ให้เว้นช่วง 1.5 วินาทีแรกไม่นับเป็นการสลับหน้าจอ
+      _examGuardStartTime = Date.now();
       document.addEventListener('visibilitychange', _handleExamVisibilityChange);
       document.addEventListener('copy', _handleExamCopy);
       document.addEventListener('paste', _handleExamPaste);
@@ -8120,6 +8124,7 @@
       document.removeEventListener('paste', _handleExamPaste);
     }
     function _handleExamVisibilityChange() {
+      if (Date.now() - _examGuardStartTime < 1500) return; // ช่วงกันเหตุการณ์หลอกตอนเพิ่งเปิดหน้าสอบ
       if (_examAntiCheatActive && document.hidden) _triggerExamViolation('tab_switch');
     }
     function _handleExamCopy() {
