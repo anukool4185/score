@@ -7193,6 +7193,7 @@
               </div>
               <div class="flex gap-1 flex-shrink-0">
                 <button onclick="editExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
+                <button onclick="resetExamSet('${s.__backendId}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs" title="รีเซ็ทให้สอบใหม่ทั้งห้อง">🔄 จัดสอบอีกครั้ง</button>
                 <button onclick="deleteExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
               </div>
             </div>
@@ -7224,6 +7225,42 @@
       });
       updateEaTotalScore();
       document.getElementById('ea-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    // 🔄 จัดสอบอีกครั้ง — รีเซ็ทให้นักเรียนทุกคนสอบใหม่ได้ (ล้างคะแนนเดิม แต่ไม่ลบชุดสอบทิ้ง)
+    async function resetExamSet(id) {
+      const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
+      if (!s) return;
+      if (!confirm(`ยืนยันจัดสอบ "${s.subject_name} K.${s.k_round}" อีกครั้ง?\n\nระบบจะ:\n- ล้างคะแนนที่นักเรียนทุกคนเคยได้จากการสอบครั้งนี้ (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)\n- ลบการทำข้อสอบเดิมทั้งหมด เพื่อให้ทุกคนเข้าสอบใหม่ได้\n- คะแนนเต็มจะถูกป้อนกลับเข้าไปใหม่เหมือนตอนมอบหมายครั้งแรก`)) return;
+      const round = parseInt(s.k_round) || 1;
+
+      // 1) คืนคะแนนเต็มที่เคยบวกไว้ก่อน (เหมือนตอนลบ)
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -(s.total_score || 0));
+
+      // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
+      const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      for (const sub of submissions) {
+        const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
+          : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
+        if (scoreGiven !== null) {
+          const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          if (grade) {
+            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            while (scoresArr.length < round) scoresArr.push('');
+            const currentValue = parseFloat(scoresArr[round - 1]) || 0;
+            scoresArr[round - 1] = String(currentValue - scoreGiven);
+            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+          }
+        }
+        // 3) ลบการทำข้อสอบเดิมทิ้ง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
+        await window.dataSdk.delete(sub);
+      }
+
+      // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0);
+
+      showToast('🔄 จัดสอบอีกครั้งสำเร็จ — นักเรียนสามารถเข้าสอบใหม่ได้แล้ว');
+      renderExamSetList();
     }
 
     async function deleteExamSet(id) {
