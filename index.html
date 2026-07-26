@@ -8297,10 +8297,21 @@
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
 
+      const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+
       const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
       if (overviewEl) {
-        overviewEl.innerHTML = subjectsInScope.length === 0 ? '' :
-          '<p class="font-semibold text-gray-700 mb-3">🥧 ภาพรวมทั้งวิชา (รวมทุกห้อง)</p><div class="flex flex-wrap gap-6">' +
+        const overallDist = computeGradeDistributionOverall(comboSet);
+        const overallHtml = comboSet.length === 0 ? '' : `<p class="font-semibold text-gray-700 mb-3">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
+          <div class="flex items-center gap-4 bg-blue-50 rounded-xl p-4 border-2 border-blue-100 mb-6">
+            ${renderGradePieChartSvg(overallDist.counts, 160)}
+            <div>
+              <p class="font-bold text-gray-800 mb-2">🎓 นักเรียนทั้งหมด <span class="text-xs font-normal text-gray-400">(${overallDist.total} คน)</span></p>
+              ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
+            </div>
+          </div>`;
+        overviewEl.innerHTML = overallHtml + (subjectsInScope.length === 0 ? '' :
+          '<p class="font-semibold text-gray-700 mb-3">📚 แยกตามวิชา (รวมทุกห้อง)</p><div class="flex flex-wrap gap-6">' +
           subjectsInScope.map(sub => {
             const dist = computeGradeDistributionForSubject(sub);
             return `<div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border-2 border-gray-100">
@@ -8310,10 +8321,9 @@
                 ${renderGradeLegendHtml(dist.counts, dist.total)}
               </div>
             </div>`;
-          }).join('') + '</div>';
+          }).join('') + '</div>');
       }
 
-      const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
       if (comboSet.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ไม่พบข้อมูล</p>'; return; }
       listEl.innerHTML = comboSet.map(combo => {
         const [c, rm, sub] = combo.split('|||');
@@ -15046,6 +15056,18 @@
       });
       return { total, counts, subjectName };
     }
+    // รวมทุกวิชาเข้าด้วยกันเป็นภาพรวมเดียว — รับรายการ combo (class|||room|||subject) ที่อยู่ในขอบเขตตัวกรองปัจจุบัน
+    function computeGradeDistributionOverall(combos) {
+      const counts = {};
+      let total = 0;
+      combos.forEach(combo => {
+        const [c, rm, sub] = combo.split('|||');
+        const dist = computeGradeDistribution(c, rm, sub);
+        total += dist.total;
+        Object.keys(dist.counts).forEach(g => { counts[g] = (counts[g]||0) + dist.counts[g]; });
+      });
+      return { total, counts };
+    }
     const GRADE_COLORS = { '4':'#16a34a','3.5':'#22c55e','3':'#3b82f6','2.5':'#60a5fa','2':'#f59e0b','1.5':'#fb923c','1':'#f97316','0':'#ef4444','ร.':'#dc2626','มส.':'#991b1b' };
     const GRADE_ORDER = ['4','3.5','3','2.5','2','1.5','1','0','ร.','มส.'];
     function renderGradePieChartSvg(counts, size) {
@@ -15145,13 +15167,26 @@
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
 
+      const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+
+      // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน) — แผนภูมิวงกลมเดียว
+      if (overviewEl) {
+        const overallDist = computeGradeDistributionOverall(comboSet);
+        const overallHtml = comboSet.length === 0 ? '' : `<p class="font-semibold text-gray-700 mb-3">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
+          <div class="flex items-center gap-4 bg-blue-50 rounded-xl p-4 border-2 border-blue-100 mb-6">
+            ${renderGradePieChartSvg(overallDist.counts, 160)}
+            <div>
+              <p class="font-bold text-gray-800 mb-2">🎓 นักเรียนทั้งหมด <span class="text-xs font-normal text-gray-400">(${overallDist.total} คน)</span></p>
+              ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
+            </div>
+          </div>`;
+
       // 🥧 ภาพรวมทั้งวิชา (รวมทุกห้องในวิชาเดียวกัน) — แสดงเป็นแผนภูมิวงกลม
       const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
-      if (overviewEl) {
         if (subjectsInScope.length === 0) {
-          overviewEl.innerHTML = '';
+          overviewEl.innerHTML = overallHtml;
         } else {
-          overviewEl.innerHTML = '<p class="font-semibold text-gray-700 mb-3">🥧 ภาพรวมทั้งวิชา (รวมทุกห้อง)</p><div class="flex flex-wrap gap-6">' +
+          overviewEl.innerHTML = overallHtml + '<p class="font-semibold text-gray-700 mb-3">📚 แยกตามวิชา (รวมทุกห้อง)</p><div class="flex flex-wrap gap-6">' +
             subjectsInScope.map(sub => {
               const dist = computeGradeDistributionForSubject(sub);
               return `<div class="flex items-center gap-4 bg-gray-50 rounded-xl p-4 border-2 border-gray-100">
@@ -15165,7 +15200,6 @@
         }
       }
 
-      const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
       if (comboSet.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ไม่พบข้อมูล</p>'; return; }
       listEl.innerHTML = comboSet.map(combo => {
         const [c, rm, sub] = combo.split('|||');
@@ -16680,11 +16714,23 @@
     const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
     if (comboSet.length === 0) { el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:16px 0">ไม่พบข้อมูล</p>'; return; }
 
+    // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน) — แผนภูมิวงกลมเดียว
+    const overallDist = computeGradeDistributionOverall(comboSet);
+    let overviewHtml = `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
+      <p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        ${renderGradePieChartSvg(overallDist.counts, 120)}
+        <div style="flex:1;min-width:0">
+          <p style="font-size:11px;color:#94a3b8;margin:0 0 6px">นักเรียนทั้งหมด ${overallDist.total} คน</p>
+          ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
+        </div>
+      </div>
+    </div>`;
+
     // 🥧 ภาพรวมทั้งวิชา (รวมทุกห้อง) — แผนภูมิวงกลม
     const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
-    let overviewHtml = '';
     if (subjectsInScope.length > 0) {
-      overviewHtml = '<p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">🥧 ภาพรวมทั้งวิชา (รวมทุกห้อง)</p>' +
+      overviewHtml += '<p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">📚 แยกตามวิชา (รวมทุกห้อง)</p>' +
         subjectsInScope.map(sub => {
           const dist = computeGradeDistributionForSubject(sub);
           return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px">
@@ -16803,31 +16849,31 @@
   var M_NAV_SUBTABS = {
     // Admin — 14 แท็บของเดสก์ท็อป จัดกลุ่มเป็น 4 หมวด
     'mn-stu': [
-      {icon:'📥',label:'นำเข้า',fn:"mShowDesktopAdminTab('import','📥 นำเข้าข้อมูลวิชา')"},
-      {icon:'👨‍🎓',label:'นักเรียน',fn:"mShowDesktopAdminTab('students','👨‍🎓 นักเรียน')"},
-      {icon:'👥',label:'ผู้ช่วยแอดมิน',fn:"mShowDesktopAdminTab('admins','👥 ผู้ช่วยแอดมิน')"},
+      {id:'import',icon:'📥',label:'นำเข้า',fn:"mShowDesktopAdminTab('import','📥 นำเข้าข้อมูลวิชา')"},
+      {id:'students',icon:'👨‍🎓',label:'นักเรียน',fn:"mShowDesktopAdminTab('students','👨‍🎓 นักเรียน')"},
+      {id:'admins',icon:'👥',label:'ผู้ช่วยแอดมิน',fn:"mShowDesktopAdminTab('admins','👥 ผู้ช่วยแอดมิน')"},
     ],
     'mn-score': [
-      {icon:'📊',label:'คะแนนเต็ม',fn:"mShowDesktopAdminTab('scores','📊 คะแนนเต็ม')"},
-      {icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopAdminTab('grading','🎓 ให้คะแนน')"},
-      {icon:'📤',label:'อัพโหลดคะแนน',fn:"mShowDesktopAdminTab('uploadscore','📤 อัพโหลดคะแนน')"},
-      {icon:'📑',label:'สรุปเกรด',fn:"mShowDesktopAdminTab('gradereport','📑 สรุปเกรด')"},
-      {icon:'🥧',label:'สัดส่วนเกรด',fn:"mShowDesktopAdminTab('gradedist','🥧 สัดส่วนเกรด')"},
-      {icon:'📈',label:'ผลการเรียน',fn:"mShowDesktopAdminTab('studentdata','📈 ตารางผลการเรียน/เวลาเรียน')"},
-      {icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
-      {icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
-      {icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
+      {id:'scores',icon:'📊',label:'คะแนนเต็ม',fn:"mShowDesktopAdminTab('scores','📊 คะแนนเต็ม')"},
+      {id:'grading',icon:'🎓',label:'ให้คะแนน',fn:"mShowDesktopAdminTab('grading','🎓 ให้คะแนน')"},
+      {id:'uploadscore',icon:'📤',label:'อัพโหลดคะแนน',fn:"mShowDesktopAdminTab('uploadscore','📤 อัพโหลดคะแนน')"},
+      {id:'gradereport',icon:'📑',label:'สรุปเกรด',fn:"mShowDesktopAdminTab('gradereport','📑 สรุปเกรด')"},
+      {id:'gradedist',icon:'🥧',label:'สัดส่วนเกรด',fn:"mShowDesktopAdminTab('gradedist','🥧 สัดส่วนเกรด')"},
+      {id:'studentdata',icon:'📈',label:'ผลการเรียน',fn:"mShowDesktopAdminTab('studentdata','📈 ตารางผลการเรียน/เวลาเรียน')"},
+      {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
+      {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
+      {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
     ],
     'mn-hw': [
-      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopAdminTab('homework','📝 จัดการการบ้าน')"},
-      {icon:'🎨',label:'จัดการเมนู',fn:"mShowDesktopAdminTab('menumanager','🎨 จัดการเมนู')"},
-      {icon:'⏱️',label:'ลงเวลาเรียน',fn:"mShowDesktopAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"},
-      {icon:'⏰',label:'หน่วยกิต',fn:"mShowDesktopAdminTab('hours','⏰ หน่วยกิต')"},
-      {icon:'📅',label:'ตารางลงทะเบียน',fn:"mShowDesktopAdminTab('schedule','📅 ตารางลงทะเบียน')"},
-      {icon:'📋',label:'หัวข้อประเมิน',fn:"mShowDesktopAdminTab('evaltopics','📋 หัวข้อประเมินการสอน')"},
+      {id:'homework',icon:'📝',label:'การบ้าน',fn:"mShowDesktopAdminTab('homework','📝 จัดการการบ้าน')"},
+      {id:'menumanager',icon:'🎨',label:'จัดการเมนู',fn:"mShowDesktopAdminTab('menumanager','🎨 จัดการเมนู')"},
+      {id:'timekeeping',icon:'⏱️',label:'ลงเวลาเรียน',fn:"mShowDesktopAdminTab('timekeeping','⏱️ ลงเวลาเรียน')"},
+      {id:'hours',icon:'⏰',label:'หน่วยกิต',fn:"mShowDesktopAdminTab('hours','⏰ หน่วยกิต')"},
+      {id:'schedule',icon:'📅',label:'ตารางลงทะเบียน',fn:"mShowDesktopAdminTab('schedule','📅 ตารางลงทะเบียน')"},
+      {id:'evaltopics',icon:'📋',label:'หัวข้อประเมิน',fn:"mShowDesktopAdminTab('evaltopics','📋 หัวข้อประเมินการสอน')"},
     ],
     'mn-settings': [
-      {icon:'⚙️',label:'ตั้งค่า M/F',fn:"mShowDesktopAdminTab('settings','⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)')"},
+      {id:'settings',icon:'⚙️',label:'ตั้งค่า M/F',fn:"mShowDesktopAdminTab('settings','⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)')"},
     ],
     // Sub-admin — ครบ 4 แท็บของเดสก์ท็อป
     'mn-sa-hw':   [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"}],
@@ -16843,18 +16889,18 @@
     // ผู้ช่วยแอดมินที่ผูกกับนักเรียน — เมนูฝั่งนักเรียนแบบเดียวกับนักเรียนทั่วไปทุกอย่าง
     // ไอคอน "การเรียน" รวมลงทะเบียน/เวลาเรียน/การบ้าน/ผลการเรียน ของนักเรียน
     'mn-sa-study': [
-      {icon:'📚',label:'ลงทะเบียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
-      {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
-      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
-      {icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
+      {id:'register',icon:'📚',label:'ลงทะเบียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"},
+      {id:'attendance',icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('attendance','⏱️ เวลาเรียน')"},
+      {id:'homework',icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"},
+      {id:'grades',icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"},
     ],
     // ไอคอน "ผู้ช่วยแอดมิน" รวมทุกฟังก์ชันผู้ช่วยแอดมินไว้ที่เดียว (สำหรับนักเรียนที่ได้รับสิทธิ์) รวมข้อมูลระบบไว้ด้วย
     'mn-sa-admin': [
-      {icon:'📊',label:'ข้อมูลระบบ',fn:"mShowSection('home')"},
-      {icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"},
-      {icon:'⏱️',label:'ลงเวลา',fn:"mShowSubAdminTimekeepingSearch()"},
-      {icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"},
-      {icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
+      {id:'datainfo',icon:'📊',label:'ข้อมูลระบบ',fn:"mShowSection('home')"},
+      {id:'homework',icon:'📝',label:'การบ้าน',fn:"mShowDesktopSubAdminTab('homework','📝 การบ้าน')"},
+      {id:'timekeeping',icon:'⏱️',label:'ลงเวลา',fn:"mShowSubAdminTimekeepingSearch()"},
+      {id:'grading',icon:'🎓',label:'ให้คะแนน',fn:"mShowSubAdminGradingSearch()"},
+      {id:'students',icon:'👥',label:'นักเรียน',fn:"mShowDesktopSubAdminTab('students','👥 นักเรียน')"},
     ],
     // นักเรียน — ใช้หน้าเดสก์ท็อปจริงทุกอย่าง (ทำได้ทุกอย่างเหมือนคอม)
     'mn-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"}],
@@ -16865,9 +16911,9 @@
     'mn-sast-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"}],
     'mn-sast-grade': [{icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"}],
     'mn-more': [
-      {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTab('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
-      {icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTab('attendance','⏱️ เวลาเรียน')"},
-      {icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTab('evaluate','📝 ประเมินการสอน')"},
+      {id:'profile',icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTab('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
+      {id:'attendance',icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTab('attendance','⏱️ เวลาเรียน')"},
+      {id:'evaluate',icon:'📝',label:'ประเมินการสอน',fn:"mShowDesktopStudentTab('evaluate','📝 ประเมินการสอน')"},
     ],
     'mn-sast-more': [
       {icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
@@ -16930,8 +16976,27 @@
       </button>`;
   }
 
+  // ดึงรายการในเมนูย่อย (tray) พร้อมลำดับ+ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี)
+  function getTrayItems(trayKey) {
+    var defaults = M_NAV_SUBTABS[trayKey] || [];
+    var configRecord = (allData || []).find(function(d) { return d.type === 'tray_menu_config' && d.tray_key === trayKey; });
+    if (!configRecord || !configRecord.items_json) return defaults;
+    try {
+      var overrides = JSON.parse(configRecord.items_json);
+      var overrideMap = {};
+      overrides.forEach(function(o) { overrideMap[o.id] = o; });
+      return defaults
+        .map(function(item) {
+          var o = item.id ? overrideMap[item.id] : null;
+          return o ? Object.assign({}, item, { icon: o.icon || item.icon, __order: o.order }) : Object.assign({}, item, { __order: 999 });
+        })
+        .sort(function(a, b) { return (a.__order != null ? a.__order : 999) - (b.__order != null ? b.__order : 999); });
+    } catch (e) {
+      return defaults;
+    }
+  }
   function mOpenTray(navId) {
-    var items = M_NAV_SUBTABS[navId] || [];
+    var items = getTrayItems(navId);
     var tray = document.getElementById('m-tray');
     var inner = document.getElementById('m-tray-inner');
     var bd = document.getElementById('m-tray-backdrop');
