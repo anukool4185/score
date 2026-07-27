@@ -2145,6 +2145,11 @@
         <p class="text-xs text-gray-400 mb-2">👁️ ตัวอย่างที่นักเรียนจะเห็น (อัปเดตอัตโนมัติ ยังไม่ต้องกดบันทึก):</p>
         <div id="answer-sheet-preview" class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4"></div>
        </div>
+       <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6">
+        <h3 class="text-lg font-bold text-red-800 mb-2">🔧 ซ่อมคะแนนเต็มที่ตกหล่น (ใช้ครั้งเดียว)</h3>
+        <p class="text-sm text-red-700 mb-3">ถ้าเคยจัดสอบไว้ก่อนหน้านี้ แล้วคะแนนเต็ม K ไม่ขึ้นในหน้า "ให้คะแนน" ทั้งที่จัดสอบไปแล้วจริง (เกิดจากบั๊กเก่าที่แก้ไปแล้ว) กดปุ่มนี้เพื่อซ่อมข้อมูลเก่าทั้งหมดให้ถูกต้องในครั้งเดียว — ไม่กระทบชุดสอบที่จัดใหม่หลังจากนี้ (ทำงานถูกต้องอยู่แล้ว)</p>
+        <button onclick="repairStaleExamFullScores()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">🔧 ซ่อมคะแนนเต็มทั้งหมดเดี๋ยวนี้</button>
+       </div>
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">📝 จัดสอบ (มอบหมายชุดข้อสอบให้ห้องเรียน)</h3>
         <p class="text-gray-500 text-sm mb-4">เลือกชั้น/ห้อง/วิชา/ครั้งที่ K แล้วเลือกข้อสอบจากคลังที่จะใช้สอบ พร้อมกำหนดช่วงเวลาเปิด-ปิดสอบ — คะแนนเต็มจะรวมอัตโนมัติตามจำนวนข้อที่เลือก</p>
@@ -7368,6 +7373,28 @@
       } else {
         showToast('บันทึกไม่สำเร็จ', 'error');
       }
+    }
+
+    // 🔧 ซ่อมคะแนนเต็มที่ตกหล่นจากบั๊กเดิม (ชุดสอบเก่าที่เขียนคะแนนเต็มไปผิด key ทำให้หน้าให้คะแนนไม่เห็น)
+    // ใช้ครั้งเดียวได้ปลอดภัย ไม่ว่าจะกดซ้ำกี่ครั้ง (มีธง repaired_full_score กันบวกซ้ำ)
+    async function repairStaleExamFullScores() {
+      if (!confirm('ยืนยันซ่อมคะแนนเต็มของชุดสอบเก่าทั้งหมด?\n\nระบบจะตรวจสอบชุดสอบที่มอบหมายไว้ทั้งหมด แล้วเติมคะแนนเต็มที่ตกหล่นเข้าไปในตำแหน่งที่ถูกต้อง (ปลอดภัย กดซ้ำได้ไม่ซ้อนคะแนน)')) return;
+      const examSets = allData.filter(d => d.type === 'exam_set' && !d.repaired_full_score);
+      if (examSets.length === 0) { showToast('✅ ไม่มีชุดสอบที่ต้องซ่อม (ซ่อมไปหมดแล้ว หรือยังไม่เคยมีปัญหา)'); return; }
+      showToast(`🔧 กำลังซ่อม ${examSets.length} ชุดสอบ กรุณารอสักครู่...`);
+      let repairedCount = 0;
+      for (const s of examSets) {
+        const round = parseInt(s.k_round) || 1;
+        const contribution = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
+        if (contribution > 0) {
+          await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, contribution);
+        }
+        // ทำเครื่องหมายว่าซ่อมแล้ว + บันทึกว่าตอนนี้สมทบเท่าไหร่จริง กันซ่อมซ้ำในอนาคต
+        await window.dataSdk.update({ ...s, repaired_full_score: true, applied_full_score_delta: contribution });
+        repairedCount++;
+      }
+      showToast(`✅ ซ่อมคะแนนเต็มสำเร็จ ${repairedCount} ชุดสอบ — ลองดูหน้า "ให้คะแนน" อีกครั้งได้เลยครับ`);
+      renderExamSetList();
     }
 
     function loadExamAssignTab() {
