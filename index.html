@@ -2883,6 +2883,97 @@
       `;
     }
 
+    // ✅ ทำขั้นตอนที่เหลือหลังยืนยันตัวตนนักเรียนสำเร็จแล้ว (แยกออกมาเพื่อเรียกซ้ำได้ทั้งจากล็อกอินปกติ และหลังกรอกเบอร์โทรครบแล้ว)
+    function _completeStudentLogin(student) {
+      const errorDiv = document.getElementById('login-error');
+      // 📋 ขั้นที่ 2: สร้าง currentUser object (เก็บข้อมูลส่วนตัวของนักเรียน)
+      currentUser = {
+        type: 'student',
+        student_id: student.student_id,
+        prefix: student.prefix,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        user_type: 'student',
+        __backendId: student.__backendId
+      };
+      console.log('📋 Step 2: currentUser object created with student info');
+
+      // 📋 ขั้นที่ 3: บันทึก currentUser ลง localStorage (เพื่อจำตัวตนเมื่อ refresh)
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      console.log('📋 Step 3: Saved currentUser to localStorage');
+
+      // 📋 ขั้นที่ 4: รีเซ็ตฟอร์ม login
+      if (errorDiv) errorDiv.classList.add('hidden');
+      const unameEl = document.getElementById('login-username');
+      const pwEl = document.getElementById('login-password');
+      if (unameEl) unameEl.value = '';
+      if (pwEl) pwEl.value = '';
+      console.log('📋 Step 4: Login form reset');
+
+      // 📋 ขั้นที่ 5: ซ่อนหน้า login/register และแสดงหน้า app-main
+      document.getElementById('page-login').classList.add('hidden');
+      document.getElementById('page-register').classList.add('hidden');
+      document.getElementById('app-main').classList.remove('hidden');
+      console.log('📋 Step 5: UI changed to app-main');
+
+      // ตรวจสอบว่านักเรียนคนนี้ถูกแต่งตั้งเป็นผู้ช่วยแอดมินด้วยหรือไม่
+      const linkedAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === student.__backendId);
+      if (linkedAdmin) {
+        currentUser.linked_admin_id = linkedAdmin.__backendId;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      }
+
+      // 📋 ขั้นที่ 6: อัปเดต UI เพื่อแสดงชื่อนักเรียน และปุ่มต่างๆ
+      showLoggedInUI();
+      console.log('📋 Step 6: UI updated to show student info');
+
+      // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (หน้าประชาสัมพันธ์)
+      console.log('📋 Step 7: Showing announcements home page');
+
+      showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
+      if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
+        if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+        return;
+      }
+      console.log('✅ Student login COMPLETE');
+    }
+
+    // 🚪 ประตูกั้นก่อนเข้าระบบ: ถ้ายังไม่มีเบอร์โทรในระบบ ต้องกรอกให้ครบก่อนถึงจะเข้าใช้งานได้ ระบบบันทึกให้อัตโนมัติ
+    function _showLoginPhoneCompletionGate(student) {
+      document.getElementById('login-phone-gate-modal')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'login-phone-gate-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px">
+          <p style="text-align:center;font-size:32px;margin:0 0 8px">📱</p>
+          <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 8px;text-align:center">กรอกเบอร์โทรก่อนเข้าใช้งาน</h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px;text-align:center">บัญชีของคุณยังไม่มีเบอร์โทรในระบบ กรุณากรอกให้ครบก่อน เพื่อใช้กับระบบ "ลืม User/Password" ในอนาคตได้</p>
+          <label style="font-size:12px;color:#475569;font-weight:600">เบอร์โทร (10 หลัก ขึ้นต้นด้วย 0)</label>
+          <input id="login-gate-phone" type="text" placeholder="เช่น 0812345678" maxlength="10" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+          <p id="login-gate-error" style="color:#dc2626;font-size:12px;margin:0 0 8px;display:none"></p>
+          <button onclick="_submitLoginPhoneGate('${student.__backendId}')" style="width:100%;padding:10px;background:#4f46e5;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✅ บันทึกและเข้าใช้งาน</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    async function _submitLoginPhoneGate(studentBackendId) {
+      const phone = document.getElementById('login-gate-phone')?.value.trim();
+      const errorEl = document.getElementById('login-gate-error');
+      const showErr = msg => { if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; } };
+      if (!/^0\d{9}$/.test(phone)) { showErr('⚠️ กรุณากรอกเบอร์โทร 10 หลัก ขึ้นต้นด้วย 0'); return; }
+      const student = allData.find(d => d.__backendId === studentBackendId && d.type === 'student');
+      if (!student) { showErr('ไม่พบข้อมูลนักเรียน กรุณาลองล็อกอินใหม่'); return; }
+      const result = await window.dataSdk.update({ ...student, phone_number: phone });
+      if (result.isOk) {
+        document.getElementById('login-phone-gate-modal')?.remove();
+        showToast('✅ บันทึกเบอร์โทรสำเร็จ กำลังเข้าสู่ระบบ...');
+        _completeStudentLogin(result.data);
+      } else {
+        showErr('บันทึกไม่สำเร็จ กรุณาลองใหม่');
+      }
+    }
+
     function handleLogin(event) {
       event.preventDefault();
       const username = document.getElementById('login-username').value.trim();
@@ -3014,56 +3105,15 @@
       if (student) {
         // ✅ ขั้นที่ 1: ค้นหาข้อมูลนักเรียนที่ตรงกับ username/password
         console.log('📌 Step 1: Student login verified - ', student.prefix, student.first_name);
-        
-        // 📋 ขั้นที่ 2: สร้าง currentUser object (เก็บข้อมูลส่วนตัวของนักเรียน)
-        currentUser = { 
-          type: 'student', 
-          student_id: student.student_id,
-          prefix: student.prefix, 
-          first_name: student.first_name,
-          last_name: student.last_name,
-          user_type: 'student',
-          __backendId: student.__backendId
-        };
-        console.log('📋 Step 2: currentUser object created with student info');
-        
-        // 📋 ขั้นที่ 3: บันทึก currentUser ลง localStorage (เพื่อจำตัวตนเมื่อ refresh)
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        console.log('📋 Step 3: Saved currentUser to localStorage');
-        
-        // 📋 ขั้นที่ 4: รีเซ็ตฟอร์ม login
-        errorDiv.classList.add('hidden');
-        document.getElementById('login-username').value = '';
-        document.getElementById('login-password').value = '';
-        console.log('📋 Step 4: Login form reset');
-        
-        // 📋 ขั้นที่ 5: ซ่อนหน้า login/register และแสดงหน้า app-main
-        document.getElementById('page-login').classList.add('hidden');
-        document.getElementById('page-register').classList.add('hidden');
-        document.getElementById('app-main').classList.remove('hidden');
-        console.log('📋 Step 5: UI changed to app-main');
-        
-        // ตรวจสอบว่านักเรียนคนนี้ถูกแต่งตั้งเป็นผู้ช่วยแอดมินด้วยหรือไม่
-        const linkedAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === student.__backendId);
-        if (linkedAdmin) {
-          currentUser.linked_admin_id = linkedAdmin.__backendId;
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
-        
-        // 📋 ขั้นที่ 6: อัปเดต UI เพื่อแสดงชื่อนักเรียน และปุ่มต่างๆ
-        showLoggedInUI();
-        console.log('📋 Step 6: UI updated to show student info');
-        
-        // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (หน้าประชาสัมพันธ์)
-        // ซึ่งถูกตั้งไว้แล้วโดย showLoggedInUI() ด้านบน (เรียก goToHomePage() ให้แล้ว)
-        console.log('📋 Step 7: Showing announcements home page');
-        
-        showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
-        if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
-          if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
+
+        // ⚠️ เช็คก่อนเข้าระบบ: ถ้ายังไม่มีเบอร์โทรในระบบ ต้องกรอกให้ครบก่อนถึงจะเข้าใช้งานได้
+        // (เพื่อให้ทุกคนมีเบอร์โทรไว้ใช้กับระบบ "ลืม User/Password" ในอนาคตได้แน่นอน)
+        if (!student.phone_number) {
+          errorDiv.classList.add('hidden');
+          _showLoginPhoneCompletionGate(student);
           return;
         }
-        console.log('✅ Student login COMPLETE');
+        _completeStudentLogin(student);
         return;
       }
       
