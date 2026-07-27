@@ -2153,7 +2153,7 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">🚪 ห้อง</label>
-           <select id="ea-room" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-room" onchange="updateEaSubjectOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกห้อง --</option>
            </select>
           </div>
@@ -7108,11 +7108,8 @@
     function loadExamAssignTab() {
       loadAnswerSheetFormat();
       const classes = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.class_name).filter(Boolean))].sort();
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
       const classSel = document.getElementById('ea-class');
-      const subjSel = document.getElementById('ea-subject');
       if (classSel) classSel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
-      if (subjSel) subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
       updateEaRoomOptions();
       renderEaQuestionPicker();
       renderExamSetList();
@@ -7123,6 +7120,20 @@
       const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === className).map(d => d.room_number).filter(Boolean))].sort();
       const roomSel = document.getElementById('ea-room');
       if (roomSel) roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      // ⚠️ บั๊กสำคัญที่พบ: เดิมช่องวิชาโชว์ทุกวิชาทั้งโรงเรียนไม่กรองตามชั้น/ห้อง — ทำให้เลือกวิชาที่ไม่มีจริงในชั้น/ห้องนั้นได้
+      // ผลคือมอบหมายชุดสอบไปแล้ว ไม่มีนักเรียนคนไหนตรงกับชั้น/ห้อง/วิชานี้จริง ปุ่มเข้าสอบเลยไม่ขึ้นเลย — แก้ให้กรองตามชั้นที่เลือกก่อนเสมอ
+      updateEaSubjectOptions();
+    }
+    function updateEaSubjectOptions() {
+      const className = document.getElementById('ea-class')?.value || '';
+      const roomNumber = document.getElementById('ea-room')?.value || '';
+      let list = allData.filter(d => d.type === 'class_subject');
+      if (className) list = list.filter(d => d.class_name === className);
+      if (roomNumber) list = list.filter(d => d.room_number === roomNumber);
+      const subjects = [...new Set(list.map(d => d.subject_name).filter(Boolean))].sort();
+      const subjSel = document.getElementById('ea-subject');
+      if (subjSel) subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      renderEaQuestionPicker();
     }
 
     function renderEaQuestionPicker() {
@@ -7441,9 +7452,20 @@
 
     // แสดงปุ่ม "เข้าสอบ/แก้ไข" ใต้ช่องคะแนน K แต่ละวิชาที่นักเรียนลงทะเบียน
     function generateExamButtonsForRegistration(reg) {
-      const norm = v => String(v == null ? '' : v).trim();
-      const examSets = allData.filter(d => d.type === 'exam_set' &&
-        norm(d.class_name) === norm(reg.class_name) && norm(d.room_number) === norm(reg.room_number) && norm(d.subject_name) === norm(reg.subject_name));
+      // ทำให้ทนทานต่อความต่างของข้อมูลให้มากที่สุด: ตัดช่องว่างทุกจุด (ไม่ใช่แค่หัวท้าย) + ไม่สนตัวพิมพ์เล็กใหญ่
+      const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const regKey = norm(reg.class_name) + '|' + norm(reg.room_number) + '|' + norm(reg.subject_name);
+      const examSets = allData.filter(d => {
+        if (d.type !== 'exam_set') return false;
+        const examKey = norm(d.class_name) + '|' + norm(d.room_number) + '|' + norm(d.subject_name);
+        if (examKey === regKey) return true;
+        // เผื่อกรณี class_subject_id ตรงกันแต่ข้อความดิบต่างกันเล็กน้อย (เช่น เว้นวรรคภายในต่างกัน) — เช็คผ่าน canonical key ด้วย
+        if (reg.class_subject_id) {
+          const examCanonicalId = `${d.class_name}_${d.room_number}_${d.subject_name}`;
+          if (norm(examCanonicalId) === norm(reg.class_subject_id)) return true;
+        }
+        return false;
+      });
       if (examSets.length === 0) {
         // ช่วยดีบัก: log เหตุผลที่ไม่พบชุดสอบตรงกันเลย เผื่อยังมีปัญหาข้อมูลไม่ตรงกัน
         const allExamSets = allData.filter(d => d.type === 'exam_set');
@@ -7697,6 +7719,33 @@
       };
       update();
       _examTimerInterval = setInterval(update, 1000);
+    }
+
+    // ⚠️ กู้คืนฟังก์ชันบันทึกกิจกรรมทุก 15 วินาทีที่หายไป — นี่คือสาเหตุที่แท้จริงของ "กระดาษคำตอบว่างเปล่า" ทั้งหมด!
+    // เพราะฟังก์ชันนี้ถูกเรียกก่อน renderAnswerSheetView พอไม่มีอยู่จริง = throw error ทันที หยุดการทำงานทั้งหมดตั้งแต่ตรงนี้
+    let _examHeartbeatInterval = null;
+    function _startExamHeartbeatLog(submissionId) {
+      if (_examHeartbeatInterval) clearInterval(_examHeartbeatInterval);
+      const tick = async () => {
+        const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+        if (!submission || submission.status !== 'in_progress') { clearInterval(_examHeartbeatInterval); return; }
+        const answers = JSON.parse(submission.answers || '{}');
+        const snapshot = {
+          time: new Date().toISOString(),
+          question_idx: _examCurrentQuestionIdx + 1,
+          answered_count: Object.keys(answers).filter(k => answers[k]).length,
+        };
+        let log = [];
+        try { log = JSON.parse(submission.activity_log || '[]'); } catch(e) { log = []; }
+        log.push(snapshot);
+        if (log.length > 2) log = log.slice(-2); // เก็บแค่ 2 ช่วงล่าสุด (ปัจจุบัน + ก่อนหน้า) ไม่สะสมเพิ่ม
+        await window.dataSdk.update({ ...submission, activity_log: JSON.stringify(log) });
+      };
+      _examHeartbeatInterval = setInterval(tick, 15000);
+      tick(); // บันทึกทันทีตอนเริ่ม ไม่ต้องรอ 15 วิแรก
+    }
+    function _stopExamHeartbeatLog() {
+      if (_examHeartbeatInterval) { clearInterval(_examHeartbeatInterval); _examHeartbeatInterval = null; }
     }
 
     function renderExamModal(submissionId) {
