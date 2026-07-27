@@ -7447,7 +7447,9 @@
       let fullArr = (scoresConfig?.k_full_scores || '').split(',').map(s => s.trim());
       while (fullArr.length < round) fullArr.push('');
       const existing = parseFloat(fullArr[round - 1]) || 0;
-      fullArr[round - 1] = String(existing + delta);
+      // ⚠️ ป้องกันคะแนนเต็มติดลบเด็ดขาด: ถ้าคำนวณแล้วติดลบ (เช่น ข้อมูลเก่าที่ไม่เคยถูกบวกจริงมาก่อน แล้วมาลบออกทีหลัง)
+      // ให้ตัดกลับเป็น 0 เสมอ ไม่ยอมให้คะแนนเต็มติดลบไม่ว่ากรณีใดก็ตาม
+      fullArr[round - 1] = String(Math.max(0, existing + delta));
       if (scoresConfig) {
         await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(',') });
       } else {
@@ -7614,7 +7616,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(currentValue - scoreGiven);
+            scoresArr[round - 1] = String(Math.max(0, currentValue - scoreGiven));
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
         }
@@ -7669,7 +7671,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(currentValue - scoreGiven);
+            scoresArr[round - 1] = String(Math.max(0, currentValue - scoreGiven));
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
         }
@@ -7879,7 +7881,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(currentValue - prevScore);
+            scoresArr[round - 1] = String(Math.max(0, currentValue - prevScore));
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
           // ทำเครื่องหมายว่าคะแนนของครั้งนี้ถูกลบออกจากยอดแล้ว กัน deleteExamSet/resetExamSet มาลบซ้ำอีกทีในอนาคต
@@ -13822,13 +13824,18 @@
       for (let i = 1; i <= times; i++) {
         const value = scores[i - 1] ? scores[i - 1].trim() : '';
         const fullScoreForThis = fullScoresArr ? fullScoresArr[i - 1] : '';
-        const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined);
+        const isConfigured = fullScoresArr === null || (fullScoreForThis !== '' && fullScoreForThis !== undefined && fullScoreForThis !== null && String(fullScoreForThis).trim() !== '' && parseFloat(fullScoreForThis) > 0);
         const borderClass = isConfigured ? 'border-green-400' : 'border-red-400 bg-red-50';
         const disabledAttr = isConfigured ? '' : 'disabled';
         const roundLabel = (type==='m'||type==='f') ? (i===1?'ป':i===2?'อ':i) : i;
+        // 📊 ป้ายกำกับคะแนนเต็มของรอบนี้ ให้เห็นชัดเจนว่ากำหนดไว้เท่าไหร่ (ไม่ใช่แค่ดูจากสีขอบ) — ช่วยยืนยันว่าคะแนนเต็มจากการจัดสอบสะท้อนมาถูกต้องจริง
+        const fullScoreLabel = isConfigured
+          ? `<span class="text-[8px] text-green-700 font-semibold block text-center" title="คะแนนเต็มของครั้งนี้">เต็ม ${fullScoreForThis}</span>`
+          : (type === 'k' ? `<span class="text-[8px] text-red-500 block text-center" title="ยังไม่กำหนดคะแนนเต็ม">ยังไม่กำหนด</span>` : '');
         html += `<span class="relative inline-flex flex-col items-center mr-0.5">
           <span class="absolute -top-1 -left-1 z-10 text-gray-500 font-bold" style="font-size:9px;line-height:1" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
           <input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">
+          ${fullScoreLabel}
           ${type === 'a' ? `<span class="text-[10px] block text-center" id="a-status-${regId}-${i}"></span>` : ''}
         </span>`;
       }
