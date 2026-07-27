@@ -2748,16 +2748,19 @@
         return;
       }
       if (String(student.phone_number).trim() !== phone) { showErr('❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง'); return; }
-      renderCredentialsEditForm(student);
+      renderCredentialsEditForm(student, phone);
     }
     function renderForgotCredPhoneSetup(student, enteredPhone) {
       const bodyEl = document.getElementById('forgot-cred-body');
       if (!bodyEl) return;
-      const phoneValid = /^0\d{9}$/.test(enteredPhone);
       bodyEl.innerHTML = `
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:14px">
-          <p style="font-size:12px;color:#92400e;margin:0">📱 บัญชีนี้ยังไม่เคยผูกเบอร์โทรไว้ กรุณายืนยันเบอร์โทรเพื่อผูกกับบัญชีนี้เป็นครั้งแรก</p>
+          <p style="font-size:12px;color:#92400e;margin:0">📱 บัญชีนี้ยังไม่เคยผูกเบอร์โทรไว้ — เพื่อป้องกันคนอื่นสวมสิทธิ์ กรุณายืนยันชื่อ-นามสกุลจริงของคุณด้วย</p>
         </div>
+        <label style="font-size:12px;color:#475569;font-weight:600">ชื่อจริง</label>
+        <input id="forgot-cred-firstname-confirm" type="text" placeholder="ชื่อจริง (ไม่ต้องมีคำนำหน้า)" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+        <label style="font-size:12px;color:#475569;font-weight:600">นามสกุล</label>
+        <input id="forgot-cred-lastname-confirm" type="text" placeholder="นามสกุลจริง" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
         <label style="font-size:12px;color:#475569;font-weight:600">ยืนยันเบอร์โทร (10 หลัก ขึ้นต้นด้วย 0)</label>
         <input id="forgot-cred-phone-confirm" type="text" value="${enteredPhone}" maxlength="10" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
         <p id="forgot-cred-error2" style="color:#dc2626;font-size:12px;margin:0 0 8px;display:none"></p>
@@ -2769,29 +2772,41 @@
     }
     async function confirmForgotCredPhoneSetup(studentBackendId) {
       const phone = document.getElementById('forgot-cred-phone-confirm')?.value.trim();
+      const firstNameConfirm = document.getElementById('forgot-cred-firstname-confirm')?.value.trim();
+      const lastNameConfirm = document.getElementById('forgot-cred-lastname-confirm')?.value.trim();
       const errorEl = document.getElementById('forgot-cred-error2');
       const showErr = msg => { if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; } };
+      if (!firstNameConfirm || !lastNameConfirm) { showErr('⚠️ กรุณากรอกทั้งชื่อจริงและนามสกุลให้ครบ'); return; }
       if (!/^0\d{9}$/.test(phone)) { showErr('⚠️ กรุณากรอกเบอร์โทร 10 หลัก ขึ้นต้นด้วย 0'); return; }
       const student = allData.find(d => d.__backendId === studentBackendId && d.type === 'student');
       if (!student) return;
+      // ⚠️ ตรวจสอบความปลอดภัย: ต้องตรงกับชื่อจริง "และ" นามสกุลจริงในระบบ ทั้งคู่ (ป้องกันคนอื่นที่รู้แค่รหัสนักเรียนมาสวมสิทธิ์บัญชีที่ยังไม่มีเบอร์)
+      const norm = v => String(v || '').trim();
+      if (norm(firstNameConfirm) !== norm(student.first_name) || norm(lastNameConfirm) !== norm(student.last_name)) {
+        showErr('❌ ชื่อ-นามสกุลไม่ตรงกับข้อมูลในระบบ กรุณาตรวจสอบอีกครั้ง');
+        return;
+      }
       const result = await window.dataSdk.update({ ...student, phone_number: phone });
       if (result.isOk) {
         showToast('✅ ผูกเบอร์โทรสำเร็จ');
-        renderCredentialsEditForm(result.data);
+        renderCredentialsEditForm(result.data, phone);
       } else {
         showErr('บันทึกไม่สำเร็จ กรุณาลองใหม่');
       }
     }
-    function renderCredentialsEditForm(student) {
+    function renderCredentialsEditForm(student, suggestedPhone) {
       const bodyEl = document.getElementById('forgot-cred-body');
       if (!bodyEl) return;
+      const phoneForPassword = suggestedPhone || student.phone_number || '';
       bodyEl.innerHTML = `
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;margin-bottom:14px">
           <p style="font-size:12px;color:#166534;margin:0 0 6px">✅ ยืนยันตัวตนสำเร็จ — ${student.prefix||''}${student.first_name||''} ${student.last_name||''}</p>
           <p style="font-size:12px;color:#166534;margin:0"><b>User ปัจจุบัน:</b> ${student.username || '-'}</p>
-          <p style="font-size:12px;color:#166534;margin:0"><b>Password ปัจจุบัน:</b> ${student.password || '-'}</p>
+          <p style="font-size:12px;color:#166534;margin:0"><b>Password ปัจจุบัน (ตั้งเอง):</b> ${student.password || '-'}</p>
+          <p style="font-size:12px;color:#166534;margin:0"><b>Password (ใช้เบอร์โทรได้ด้วย):</b> ${student.phone_number || '-'}</p>
+          <p style="font-size:11px;color:#166534;margin:4px 0 0;font-style:italic">💡 ใช้ Password ที่ตั้งเอง หรือเบอร์โทร เข้าสู่ระบบได้ทั้งคู่</p>
         </div>
-        <p style="font-size:12px;color:#475569;margin:0 0 8px">ต้องการเปลี่ยน User/Password ใหม่หรือไม่? (ใช้ได้เฉพาะ ภาษาอังกฤษ ตัวเลข และอักขระพิเศษเท่านั้น)</p>
+        <p style="font-size:12px;color:#475569;margin:0 0 8px">ต้องการเปลี่ยนข้อมูลใหม่หรือไม่? (Username/Password ใช้ได้เฉพาะภาษาอังกฤษ ตัวเลข และอักขระพิเศษเท่านั้น)</p>
         <label style="font-size:12px;color:#475569;font-weight:600">Username ใหม่</label>
         <div style="display:flex;gap:6px;margin:4px 0 12px">
           <input id="forgot-cred-new-username" type="text" placeholder="เช่น ${_suggestUsername(student.student_id)}" style="flex:1;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box">
@@ -2801,8 +2816,11 @@
         <div style="display:flex;gap:6px;margin:4px 0 12px">
           <input id="forgot-cred-new-password" type="text" placeholder="เช่น ${_suggestPassword()}" style="flex:1;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box">
           <button onclick="document.getElementById('forgot-cred-new-password').value=_suggestPassword()" style="padding:0 12px;background:#e0e7ff;color:#4338ca;border:none;border-radius:8px;font-size:12px;white-space:nowrap;cursor:pointer">💡 แนะนำ</button>
+          ${phoneForPassword ? `<button onclick="document.getElementById('forgot-cred-new-password').value='${phoneForPassword}'" style="padding:0 10px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:8px;font-size:12px;white-space:nowrap;cursor:pointer">📱 ใช้เบอร์โทร</button>` : ''}
         </div>
-        <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">* ปล่อยว่างช่องไหนไว้ = ไม่เปลี่ยนช่องนั้น (คงค่าเดิม)</p>
+        <label style="font-size:12px;color:#475569;font-weight:600">เบอร์โทรใหม่ (ถ้าต้องการเปลี่ยนเบอร์)</label>
+        <input id="forgot-cred-new-phone" type="text" placeholder="ปล่อยว่าง = ใช้เบอร์เดิม (${student.phone_number || '-'})" maxlength="10" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+        <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">* ปล่อยว่างช่องไหนไว้ = ไม่เปลี่ยนช่องนั้น (คงค่าเดิม) — ใช้เบอร์โทรเป็นรหัสผ่านได้เลย จำง่ายดี</p>
         <p id="forgot-cred-error3" style="color:#dc2626;font-size:12px;margin:0 0 8px;display:none"></p>
         <div style="display:flex;gap:8px">
           <button onclick="document.getElementById('forgot-cred-modal').remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ปิด</button>
@@ -2813,11 +2831,13 @@
     async function saveNewCredentials(studentBackendId) {
       const newUsername = document.getElementById('forgot-cred-new-username')?.value.trim();
       const newPassword = document.getElementById('forgot-cred-new-password')?.value.trim();
+      const newPhone = document.getElementById('forgot-cred-new-phone')?.value.trim();
       const errorEl = document.getElementById('forgot-cred-error3');
       const showErr = msg => { if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; } };
-      if (!newUsername && !newPassword) { showErr('⚠️ กรุณากรอก Username หรือ Password ใหม่อย่างน้อย 1 ช่อง หรือกด "ปิด" ถ้าไม่ต้องการเปลี่ยน'); return; }
+      if (!newUsername && !newPassword && !newPhone) { showErr('⚠️ กรุณากรอกข้อมูลที่ต้องการเปลี่ยนอย่างน้อย 1 ช่อง หรือกด "ปิด" ถ้าไม่ต้องการเปลี่ยน'); return; }
       if (newUsername && !CREDENTIAL_PATTERN.test(newUsername)) { showErr('⚠️ Username ต้องเป็นภาษาอังกฤษ ตัวเลข หรืออักขระพิเศษเท่านั้น (ห้ามมีภาษาไทย/ช่องว่าง)'); return; }
       if (newPassword && !CREDENTIAL_PATTERN.test(newPassword)) { showErr('⚠️ Password ต้องเป็นภาษาอังกฤษ ตัวเลข หรืออักขระพิเศษเท่านั้น (ห้ามมีภาษาไทย/ช่องว่าง)'); return; }
+      if (newPhone && !/^0\d{9}$/.test(newPhone)) { showErr('⚠️ เบอร์โทรต้องเป็นตัวเลข 10 หลัก ขึ้นต้นด้วย 0'); return; }
       const student = allData.find(d => d.__backendId === studentBackendId && d.type === 'student');
       if (!student) { showErr('ไม่พบข้อมูลนักเรียน'); return; }
       // เช็คว่า username ใหม่ซ้ำกับคนอื่นหรือไม่ (ยกเว้นตัวเอง)
@@ -2828,13 +2848,39 @@
       const updated = { ...student };
       if (newUsername) updated.username = newUsername;
       if (newPassword) updated.password = newPassword;
+      if (newPhone) updated.phone_number = newPhone;
       const result = await window.dataSdk.update(updated);
       if (result.isOk) {
-        showToast('✅ บันทึก User/Password ใหม่สำเร็จแล้ว');
-        document.getElementById('forgot-cred-modal')?.remove();
+        const changed = [newUsername && 'Username', newPassword && 'Password', newPhone && 'เบอร์โทร'].filter(Boolean).join(', ');
+        showToast(`✅ บันทึก${changed}ใหม่สำเร็จแล้ว`);
+        renderForgotCredFinalConfirmation(result.data);
       } else {
         showErr('บันทึกไม่สำเร็จ กรุณาลองใหม่');
       }
+    }
+    // 🎉 หน้าสรุปสุดท้ายหลังบันทึกสำเร็จ — แสดง User/Password ล่าสุด + แคบหน้าต่างลงให้ดูกระชับ
+    function renderForgotCredFinalConfirmation(student) {
+      const modal = document.getElementById('forgot-cred-modal');
+      const bodyEl = document.getElementById('forgot-cred-body');
+      if (!bodyEl) return;
+      // แคบหน้าต่างลง (จากฟอร์มแก้ไขเต็มๆ เหลือแค่กล่องสรุปกระชับ)
+      const cardEl = modal?.querySelector('div');
+      if (cardEl) cardEl.style.maxWidth = '320px';
+      bodyEl.innerHTML = `
+        <div style="text-align:center;padding:8px 0 4px">
+          <p style="font-size:32px;margin:0 0 8px">🎉</p>
+          <p style="font-size:14px;font-weight:700;color:#166534;margin:0 0 14px">บันทึกสำเร็จแล้ว!</p>
+        </div>
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;margin-bottom:16px">
+          <p style="font-size:12px;color:#166534;margin:0 0 4px">👤 <b>ชื่อ:</b> ${student.prefix||''}${student.first_name||''} ${student.last_name||''}</p>
+          <p style="font-size:12px;color:#166534;margin:0 0 4px">🔑 <b>Username:</b> ${student.username || '-'}</p>
+          <p style="font-size:12px;color:#166534;margin:0 0 4px">🔒 <b>Password (ตั้งเอง):</b> ${student.password || '-'}</p>
+          <p style="font-size:12px;color:#166534;margin:0 0 4px">📱 <b>Password (เบอร์โทร):</b> ${student.phone_number || '-'}</p>
+          <p style="font-size:11px;color:#166534;margin:4px 0 0;font-style:italic">💡 ใช้ Password ที่ตั้งเอง หรือเบอร์โทร เข้าสู่ระบบได้ทั้งคู่</p>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;text-align:center;margin:0 0 14px">กรุณาจดจำหรือบันทึกข้อมูลนี้ไว้ให้เรียบร้อยก่อนปิดหน้าต่าง</p>
+        <button onclick="document.getElementById('forgot-cred-modal')?.remove()" style="width:100%;padding:10px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✅ รับทราบ ปิดหน้าต่าง</button>
+      `;
     }
 
     function handleLogin(event) {
@@ -2957,7 +3003,8 @@
       let student = null;
       for (let i = 0; i < allData.length; i++) {
         const d = allData[i];
-        if (d.type === 'student' && d.username === username && d.password === password) {
+        // ⚠️ เบอร์โทรใช้เป็นรหัสผ่านแทนได้ด้วย (เข้าได้ทั้งรหัสผ่านที่ตั้งเอง หรือเบอร์โทรที่ผูกไว้)
+        if (d.type === 'student' && d.username === username && (d.password === password || (d.phone_number && d.phone_number === password))) {
           student = d;
           console.log('✅ Found student:', username);
           break;
