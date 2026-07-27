@@ -2132,6 +2132,11 @@
         <div class="flex items-center gap-3 flex-wrap mb-4">
          <label class="text-sm text-gray-700">จำนวนช่องทั้งหมด:</label>
          <input type="number" id="answer-sheet-slot-count" min="1" max="500" value="120" oninput="previewAnswerSheetFormat()" class="w-28 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         <label class="text-sm text-gray-700 ml-2">จำนวนตัวเลือกต่อข้อ:</label>
+         <select id="answer-sheet-choice-count" onchange="previewAnswerSheetFormat()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          <option value="4">4 ตัวเลือก (ก ข ค ง)</option>
+          <option value="5" selected>5 ตัวเลือก (ก ข ค ง จ)</option>
+         </select>
          <button onclick="saveAnswerSheetFormat()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium">💾 บันทึกรูปแบบ</button>
         </div>
         <p class="text-xs text-gray-400 mb-2">👁️ ตัวอย่างที่นักเรียนจะเห็น (อัปเดตอัตโนมัติ ยังไม่ต้องกดบันทึก):</p>
@@ -7051,12 +7056,16 @@
       const cfg = allData.find(d => d.type === 'answer_sheet_config');
       return {
         totalSlots: cfg?.total_slots ? parseInt(cfg.total_slots) : 120,
+        choiceCount: cfg?.choice_count ? parseInt(cfg.choice_count) : 5,
       };
     }
+    const THAI_CHOICE_LETTERS = ['ก','ข','ค','ง','จ'];
     function loadAnswerSheetFormat() {
       const fmt = getAnswerSheetFormat();
       const slotInput = document.getElementById('answer-sheet-slot-count');
+      const choiceSelect = document.getElementById('answer-sheet-choice-count');
       if (slotInput) slotInput.value = fmt.totalSlots;
+      if (choiceSelect) choiceSelect.value = String(fmt.choiceCount);
       previewAnswerSheetFormat();
     }
     // 👁️ แสดงตัวอย่างกระดาษคำตอบแบบสด อัปเดตทันทีที่พิมพ์/เลือก ยังไม่ต้องกดบันทึก
@@ -7064,25 +7073,29 @@
       const previewEl = document.getElementById('answer-sheet-preview');
       if (!previewEl) return;
       const totalSlots = Math.min(parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120, 500);
-      // แสดงตัวอย่างจำลอง: สมมติทำไปแล้ว 3 ข้อแรก ที่เหลือยังไม่ทำ เพื่อให้เห็นทั้ง 2 สถานะ — จัดเป็นบล็อกละ 10 ข้อวางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (แบบย่อ กะทัดรัด)
+      const choiceCount = parseInt(document.getElementById('answer-sheet-choice-count')?.value) || 5;
+      const choiceLetters = THAI_CHOICE_LETTERS.slice(0, choiceCount);
+      // แสดงตัวอย่างจำลอง: สมมติทำไปแล้ว 3 ข้อแรก (เลือกตัวเลือกต่างกัน) ที่เหลือยังไม่ทำ — จัดเป็นบล็อกละ 10 ข้อวางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (แบบย่อ กะทัดรัด)
       const sampleAnswered = Math.min(3, totalSlots);
       const blockCount = Math.ceil(totalSlots / 10);
       const blocksHtml = Array.from({ length: blockCount }, (_, b) => {
         const rowsHtml = Array.from({ length: Math.min(10, totalSlots - b*10) }, (_, r) => {
           const num = b*10 + r + 1;
           const answered = num <= sampleAnswered;
-          const bg = answered ? '#16a34a' : 'white';
-          const color = answered ? 'white' : '#334155';
-          const border = answered ? '#16a34a' : '#94a3b8';
+          const chosenIdx = answered ? (num - 1) % choiceCount : -1;
+          const lettersHtml = choiceLetters.map((letter, li) => {
+            const chosen = li === chosenIdx;
+            return `<span style="width:11px;height:11px;border-radius:50%;background:${chosen ? '#16a34a' : 'white'};color:${chosen ? 'white' : '#94a3b8'};border:1px solid ${chosen ? '#16a34a' : '#cbd5e1'};font-size:6px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
+          }).join('');
           return `<div style="display:flex;align-items:center;gap:3px;padding:1px 0">
-            <span style="width:14px;font-size:8px;color:#64748b;text-align:right;flex-shrink:0">${num}</span>
-            <span style="flex:1;height:14px;border-radius:3px;background:${bg};color:${color};border:1px solid ${border};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center">${answered ? '✓' : ''}</span>
+            <span style="width:12px;font-size:7px;color:#64748b;text-align:right;flex-shrink:0">${num}</span>
+            <div style="display:flex;gap:2px">${lettersHtml}</div>
           </div>`;
         }).join('');
-        return `<div style="min-width:36px">${rowsHtml}</div>`;
+        return `<div style="min-width:${20 + choiceCount * 13}px">${rowsHtml}</div>`;
       }).join('');
       previewEl.innerHTML = `
-        <div style="max-width:220px;margin:0 auto;transform-origin:top center">
+        <div style="max-width:280px;margin:0 auto;transform-origin:top center">
           <div style="background:white;border:1.5px solid #1e293b;border-radius:6px;padding:8px;margin-bottom:8px">
             <p style="text-align:center;font-size:9px;font-weight:700;color:#1e293b;margin:0 0 4px">📄 กระดาษคำตอบ</p>
             <div style="font-size:6.5px;color:#334155;line-height:1.5;border-top:1px dashed #cbd5e1;padding-top:4px">
@@ -7092,15 +7105,16 @@
             </div>
             <p style="text-align:center;font-size:7px;color:#16a34a;font-weight:700;margin:5px 0 0;border-top:1px dashed #cbd5e1;padding-top:4px">✅ ทำแล้ว ${sampleAnswered}/${totalSlots} ข้อ</p>
           </div>
-          <p class="text-xs text-gray-500 mb-2 text-center" style="font-size:9px">รวม ${totalSlots} ช่อง</p>
+          <p class="text-xs text-gray-500 mb-2 text-center" style="font-size:9px">รวม ${totalSlots} ช่อง · ${choiceCount} ตัวเลือกต่อข้อ</p>
           <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:200px;overflow-y:auto">${blocksHtml}</div>
         </div>
       `;
     }
     async function saveAnswerSheetFormat() {
       const totalSlots = parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120;
+      const choiceCount = parseInt(document.getElementById('answer-sheet-choice-count')?.value) || 5;
       const existing = allData.find(d => d.type === 'answer_sheet_config');
-      const record = { type: 'answer_sheet_config', total_slots: totalSlots };
+      const record = { type: 'answer_sheet_config', total_slots: totalSlots, choice_count: choiceCount };
       const result = existing ? await window.dataSdk.update({ ...existing, ...record }) : await window.dataSdk.create(record);
       if (result.isOk) {
         showToast('✅ บันทึกรูปแบบกระดาษคำตอบสำเร็จ');
@@ -7813,13 +7827,21 @@
     let _lastKnownExamSubmission = null; // เก็บกระดาษคำตอบล่าสุดที่ใช้งานสำเร็จ ไว้เป็น fallback กัน allData รีเฟรชไม่ทัน (race condition)
     function renderAnswerSheetView(submissionId, examSet, studentName, submissionObj) {
       _examViewMode = 'sheet';
+      const body = document.getElementById('exam-modal-body');
+      if (!body) return;
+      try {
+        _renderAnswerSheetViewInner(submissionId, examSet, studentName, submissionObj, body);
+      } catch (err) {
+        console.error('[Exam Popup Debug] renderAnswerSheetView INNER ERROR:', err, err.stack);
+        body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">⚠️ เกิดข้อผิดพลาดตอนแสดงกระดาษคำตอบ</p><p style="color:#64748b;font-size:12px">${err.message}</p><button onclick="renderAnswerSheetView('${submissionId}')" style="margin-top:12px;padding:8px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 ลองใหม่</button></div>`;
+      }
+    }
+    function _renderAnswerSheetViewInner(submissionId, examSet, studentName, submissionObj, body) {
       // ⚠️ กันบั๊ก race condition: ถ้า allData เพิ่งถูกแทนที่ด้วยข้อมูลจาก poll พื้นหลังที่ยังไม่มีกระดาษคำตอบที่เพิ่งสร้าง
       // (เพราะ backend อาจตอบช้ากว่ารอบ poll ถัดไปเล็กน้อย) ให้ใช้ตัวที่ส่งมาให้ตรงๆ (submissionObj) แทนการหาใหม่
       let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission && submissionObj) submission = submissionObj;
       if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
-      const body = document.getElementById('exam-modal-body');
-      if (!body) return;
       if (!submission) {
         console.error('[Exam Popup Debug] renderAnswerSheetView: submission not found even with fallback, id:', submissionId);
         body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700">⚠️ ไม่พบกระดาษคำตอบ กรุณาลองกดเข้าสอบใหม่อีกครั้ง</p></div>`;
@@ -7827,6 +7849,10 @@
       }
       _lastKnownExamSubmission = submission;
       examSet = examSet || allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
+      if (!examSet) {
+        body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700">⚠️ ไม่พบข้อมูลชุดสอบ</p></div>`;
+        return;
+      }
       if (!studentName) {
         const student = allData.find(d => d.type === 'student' && d.student_id === submission.student_id);
         studentName = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
@@ -7837,6 +7863,8 @@
       const sheetFmt = getAnswerSheetFormat();
       const sheetTotalItems = Math.max(sheetFmt.totalSlots, orderedIds.length);
       const extraBlankCount = Math.max(0, sheetTotalItems - orderedIds.length);
+      const choiceLetters = THAI_CHOICE_LETTERS.slice(0, sheetFmt.choiceCount);
+      const letterKeys = ['a','b','c','d','e']; // ตัวเลือกจริงในระบบ (choice_a..choice_e) จับคู่กับตัวอักษรไทยตามลำดับ
 
       // 📋 จัดเป็นบล็อกแนวตั้ง บล็อกละ 10 ข้อ วางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (1-10, 11-20, 21-30 ...)
       const allItems = orderedIds.map((qid, idx) => ({ num: idx+1, qid, hasQuestion: true }))
@@ -7848,16 +7876,30 @@
             return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0"><span style="width:22px;font-size:11px;color:#cbd5e1;text-align:right">${item.num}</span><span style="flex:1;height:22px;border-radius:5px;background:#f1f5f9"></span></div>`;
           }
           const idx = item.num - 1;
-          const answered = answers[item.qid] !== undefined && answers[item.qid] !== '';
-          const bg = answered ? '#16a34a' : 'white';
-          const color = answered ? 'white' : '#334155';
-          const border = answered ? '#16a34a' : '#94a3b8';
+          const question = getExamQuestionFromSet(examSet, item.qid);
+          const studentAnswer = answers[item.qid];
+          if (question?.question_type === 'written') {
+            // ข้ออัตนัยไม่มีตัวเลือกให้ฝน แสดงเป็นเครื่องหมายถูกแทน
+            const answered = studentAnswer !== undefined && studentAnswer !== '';
+            const bg = answered ? '#16a34a' : 'white';
+            const color = answered ? 'white' : '#334155';
+            const border = answered ? '#16a34a' : '#94a3b8';
+            return `<button onclick="examGoQuestion(${idx})" style="display:flex;align-items:center;gap:6px;padding:2px 0;background:transparent;border:none;cursor:pointer;width:100%;text-align:left">
+              <span style="width:22px;font-size:11px;color:#64748b;text-align:right;flex-shrink:0">${item.num}</span>
+              <span style="flex:1;height:24px;border-radius:5px;background:${bg};color:${color};border:1.5px solid ${border};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${answered ? '✓ (อัตนัย)' : 'อัตนัย'}</span>
+            </button>`;
+          }
+          // ข้อปรนัย: แสดงวงกลมตัวเลือก ก ข ค ง จ ตามจำนวนที่ตั้งค่าไว้ ตัวที่ตอบไว้จะถูกทำเครื่องหมายสีเขียว
+          const lettersHtml = choiceLetters.map((letter, li) => {
+            const chosen = studentAnswer === letterKeys[li];
+            return `<span style="width:22px;height:22px;border-radius:50%;background:${chosen ? '#16a34a' : 'white'};color:${chosen ? 'white' : '#94a3b8'};border:1.5px solid ${chosen ? '#16a34a' : '#94a3b8'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
+          }).join('');
           return `<button onclick="examGoQuestion(${idx})" style="display:flex;align-items:center;gap:6px;padding:2px 0;background:transparent;border:none;cursor:pointer;width:100%;text-align:left">
             <span style="width:22px;font-size:11px;color:#64748b;text-align:right;flex-shrink:0">${item.num}</span>
-            <span style="flex:1;height:24px;border-radius:5px;background:${bg};color:${color};border:1.5px solid ${border};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${answered ? '✓' : ''}</span>
+            <div style="display:flex;gap:4px">${lettersHtml}</div>
           </button>`;
         }).join('');
-        return `<div style="min-width:70px">${rowsHtml}</div>`;
+        return `<div style="min-width:${30 + sheetFmt.choiceCount * 26}px">${rowsHtml}</div>`;
       }).join('');
 
       body.innerHTML = `
