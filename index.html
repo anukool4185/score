@@ -7669,10 +7669,13 @@
     async function startExamAttempt(examSetId, registrationId) {
       if (_examModalOpening) { console.log('[Exam Popup Debug] startExamAttempt: กำลังเปิดอยู่แล้ว ไม่ให้เปิดซ้อน'); return; }
       _examModalOpening = true;
+      // ⚠️ กันล็อกค้างถาวร: ถ้าเกิดอะไรผิดพลาดจนค้างไม่จบ (เช่น เครือข่ายค้าง) ปลดล็อกให้แน่นอนหลัง 8 วินาที ไม่ว่าจะเกิดอะไรขึ้น
+      const safetyRelease = setTimeout(() => { _examModalOpening = false; console.log('[Exam Popup Debug] force-released lock after timeout'); }, 8000);
       try {
         await _startExamAttemptInner(examSetId, registrationId);
       } finally {
-        setTimeout(() => { _examModalOpening = false; }, 500); // ปลดล็อกหลังจากเปิดสำเร็จ/พังแล้วสักครู่ กันกดรัวจนซ้อน
+        clearTimeout(safetyRelease);
+        _examModalOpening = false;
       }
     }
     async function _startExamAttemptInner(examSetId, registrationId) {
@@ -7726,7 +7729,7 @@
       try {
         renderExamModal(submissionId);
       } finally {
-        setTimeout(() => { _examModalOpening = false; }, 500);
+        _examModalOpening = false; // renderExamModal ทำงานแบบ sync ทั้งหมด ปลดล็อกได้ทันที ไม่ต้องรอ
       }
     }
 
