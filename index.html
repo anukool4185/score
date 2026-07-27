@@ -8064,6 +8064,16 @@
       document.body.appendChild(overlay);
       console.log('[Exam Popup Debug] exam-taking-overlay appended to body. In DOM now?', !!document.getElementById('exam-taking-overlay'));
 
+      // 🐕 Watchdog: ถ้าผ่านไป 3 วินาทีแล้วยังค้างที่ "กำลังโหลด..." (แปลว่ามีอะไรค้าง/พังเงียบๆ ระหว่างทาง)
+      // บังคับแสดง error + ปุ่มลองใหม่ ให้แน่นอน ไม่ปล่อยให้ค้างเฉยๆ อีกต่อไป
+      setTimeout(() => {
+        const bodyEl = document.getElementById('exam-modal-body');
+        if (bodyEl && bodyEl.textContent.includes('กำลังโหลดกระดาษคำตอบ')) {
+          console.error('[Exam Popup Debug] WATCHDOG: ยังค้างที่ "กำลังโหลด" หลัง 3 วินาที มีบางอย่างค้าง/พังก่อนถึงจุดแสดงผล');
+          bodyEl.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">⚠️ โหลดกระดาษคำตอบไม่สำเร็จ (ค้างนานเกินไป)</p><p style="color:#64748b;font-size:12px;margin-bottom:12px">อาจมีปัญหาการเชื่อมต่อ หรือข้อมูลชุดสอบผิดปกติ</p><button onclick="renderExamModal('${submissionId}')" style="padding:8px 16px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer">🔄 ลองใหม่</button></div>`;
+        }
+      }, 3000);
+
       // เริ่มระบบตรวจทุจริต — ล็อกไม่ให้ออก + จับตาสลับแท็บ/copy/paste
       startExamAntiCheatGuard(submissionId, {
         student_id: submission.student_id, subject_name: submission.subject_name,
