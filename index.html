@@ -7549,6 +7549,10 @@
         const statusBadge = isOpen ? '<span class="text-green-600 font-semibold">🟢 กำลังเปิดสอบ</span>'
           : (now < start ? '<span class="text-amber-600">⏳ ยังไม่ถึงเวลา</span>' : '<span class="text-gray-400">⚫ ปิดแล้ว</span>');
         const questionCount = (s.question_ids || '').split(',').filter(Boolean).length;
+        // 🟢/🟡 สถานะปุ่มรีเซ็ท: เขียว = ยังไม่มีใครสอบเลย (พร้อมสอบ) / เหลือง = มีคนสอบไปแล้วอย่างน้อย 1 คน (กดรีเซ็ทได้มีความหมาย)
+        const hasAnySubmission = allData.some(d => d.type === 'exam_submission' && d.exam_set_id === s.__backendId);
+        const resetBtnClass = hasAnySubmission ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-500 hover:bg-green-600';
+        const resetBtnLabel = hasAnySubmission ? '🔄 จัดสอบอีกครั้ง' : '✅ พร้อมสอบ';
         return `
           <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
             <div class="flex items-start justify-between gap-2">
@@ -7560,7 +7564,7 @@
               </div>
               <div class="flex gap-1 flex-shrink-0">
                 <button onclick="editExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
-                <button onclick="resetExamSet('${s.__backendId}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs" title="รีเซ็ทให้สอบใหม่ทั้งห้อง">🔄 จัดสอบอีกครั้ง</button>
+                <button onclick="resetExamSet('${s.__backendId}')" class="px-2 py-1 ${resetBtnClass} text-white rounded text-xs" title="${hasAnySubmission ? 'รีเซ็ทให้สอบใหม่ทั้งห้อง (มีคนสอบไปแล้ว)' : 'ยังไม่มีใครสอบ พร้อมให้สอบได้เลย'}">${resetBtnLabel}</button>
                 <button onclick="deleteExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
               </div>
             </div>
@@ -7605,9 +7609,10 @@
       await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -(s.total_score || 0));
 
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
+      // ⚡ ทำแบบขนาน (Promise.all) แทนการรอทีละคนตามลำดับ — เดิมช้ามากเพราะแต่ละคนต้องรอครบก่อนถึงจะเริ่มคนถัดไป
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
-      for (const sub of submissions) {
-        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
+      await Promise.all(submissions.map(async sub => {
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); return; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -7623,12 +7628,11 @@
         // 3) ลบการทำข้อสอบเดิมทิ้ง + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้อง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
-      }
-      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ)
+      }));
+      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนานเช่นกัน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
-      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
-      for (const rp of relatedRetryPermissions) await window.dataSdk.delete(rp);
+      await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
       await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0);
@@ -7640,13 +7644,10 @@
     // 🧹 ลบการแจ้งเตือนทุจริต + คำขอสอบแก้ ที่ผูกกับกระดาษคำตอบนี้ทั้งหมด กันแจ้งเตือนค้างหลังลบ/รีเซ็ทชุดสอบ
     async function cleanupExamSubmissionRelatedRecords(submissionId) {
       const relatedAlerts = allData.filter(d => d.type === 'exam_alert' && d.submission_id === submissionId);
-      for (const a of relatedAlerts) {
-        // ⚠️ ลบตัวข้อมูลอย่างเดียวไม่พอ ถ้า banner แจ้งเตือนกำลังลอยอยู่บนจอแอดมินอยู่แล้ว ต้องลบตัว element ออกจากหน้าจอด้วย
-        document.getElementById('exam-alert-banner-' + a.__backendId)?.remove();
-        await window.dataSdk.delete(a);
-      }
+      // ⚠️ ลบตัวข้อมูลอย่างเดียวไม่พอ ถ้า banner แจ้งเตือนกำลังลอยอยู่บนจอแอดมินอยู่แล้ว ต้องลบตัว element ออกจากหน้าจอด้วย (ลบ DOM ทันทีแบบ sync ก่อน แล้วค่อยลบข้อมูลแบบขนาน)
+      relatedAlerts.forEach(a => document.getElementById('exam-alert-banner-' + a.__backendId)?.remove());
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.submission_id === submissionId);
-      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
+      await Promise.all([...relatedAlerts.map(a => window.dataSdk.delete(a)), ...relatedRetryRequests.map(rr => window.dataSdk.delete(rr))]);
     }
 
     async function deleteExamSet(id) {
@@ -7660,9 +7661,10 @@
 
       // 2) ถ้ามีนักเรียนสอบไปแล้ว (มีคะแนนเขียนลง K ไปแล้ว) ให้ลบเฉพาะ "ส่วนที่ข้อสอบนี้ทำให้ได้เพิ่มมา" ออกจากยอดปัจจุบัน
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
+      // ⚡ ทำแบบขนาน (Promise.all) แทนการรอทีละคนตามลำดับ — เร็วขึ้นมากถ้ามีคนสอบหลายคน
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
-      for (const sub of submissions) {
-        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; }
+      await Promise.all(submissions.map(async sub => {
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); return; }
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -7678,12 +7680,11 @@
         // ⚠️ สำคัญ: ลบกระดาษคำตอบ + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องทั้งหมด กันค้างแจ้งเตือนไปตลอด
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
-      }
-      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ)
+      }));
+      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนาน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
-      for (const rr of relatedRetryRequests) await window.dataSdk.delete(rr);
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
-      for (const rp of relatedRetryPermissions) await window.dataSdk.delete(rp);
+      await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
