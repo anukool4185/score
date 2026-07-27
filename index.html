@@ -7459,11 +7459,20 @@
     // เช่น เดิม 5 แก้เป็น 7 → บวกเพิ่ม 2 / เดิม 7 แก้เป็น 5 → ลดลง 2 / สร้างใหม่ → บวกเพิ่มเต็มจำนวน
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta) {
       if (!delta) return;
-      // 🎯 บั๊กที่แท้จริงที่พบในที่สุด: ที่ผ่านมาใช้ classSubject.__backendId เป็น key ในการหา/เขียน class_subject_scores
-      // แต่หน้า "ให้คะแนน" (grading) ใช้ key แบบข้อความ `${className}_${roomNumber}_${subjectName}` เสมอ (ดู editCategoryFullScorePopup, loadGradingTab)
-      // ทั้งสองจุดนี้เป็นคนละ key กันโดยสิ้นเชิง! ทำให้เขียนไปที่ record หนึ่ง แต่หน้าให้คะแนนอ่านจากอีก record หนึ่งที่ไม่เกี่ยวข้องกันเลย
-      // แก้โดยเปลี่ยนมาใช้ key แบบเดียวกับหน้าให้คะแนนให้ตรงกันเป๊ะ
-      const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
+      // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
+      // แต่หน้า "ให้คะแนน" สร้าง key จากตาราง student_registration แทน! ถ้าข้อความ 2 ตารางนี้ไม่ตรงกันเป๊ะ (แม้เรื่องเดียวกัน) จะไม่มีทางจับคู่กันได้เลย
+      // แก้โดยหา student_registration ที่ตรงกับชั้น/ห้อง/วิชานี้จริงๆ ก่อน แล้วใช้ค่า class_name/room_number/subject_name "ของ registration นั้นเป๊ะๆ"
+      // มาสร้าง key แทน เพื่อการันตีว่าตรงกับที่หน้าให้คะแนนคำนวณทุกประการ ไม่ว่าตาราง class_subject จะเขียนต่างไปแค่ไหนก็ตาม
+      const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const matchingReg = allData.find(d => d.type === 'student_registration' &&
+        norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName));
+      const keyClassName = matchingReg ? matchingReg.class_name : className;
+      const keyRoomNumber = matchingReg ? matchingReg.room_number : roomNumber;
+      const keySubjectName = matchingReg ? matchingReg.subject_name : subjectName;
+      if (!matchingReg) {
+        console.warn('[Exam Debug] _applyExamFullScoreDelta: ไม่พบนักเรียนที่ลงทะเบียนตรงกับชั้น/ห้อง/วิชานี้เลย ใช้ค่าดิบแทน (อาจไม่ตรงกับหน้าให้คะแนนถ้ายังไม่มีคนลงทะเบียน)', { className, roomNumber, subjectName });
+      }
+      const classSubjectId = `${keyClassName}_${keyRoomNumber}_${keySubjectName}`;
       const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const round = parseInt(kRound) || 1;
       let fullArr = (scoresConfig?.k_full_scores || '').split(',').map(s => s.trim());
