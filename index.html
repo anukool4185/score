@@ -7452,6 +7452,34 @@
 
     // ตั้ง/ปรับคะแนนเต็ม K ของทั้งห้องทันที ตอนมอบหมาย/แก้ไขชุดสอบ — ปรับตามส่วนต่าง (delta) ไม่ทับค่าที่มีอยู่เดิม
     // เช่น เดิม 5 แก้เป็น 7 → บวกเพิ่ม 2 / เดิม 7 แก้เป็น 5 → ลดลง 2 / สร้างใหม่ → บวกเพิ่มเต็มจำนวน
+    // 🔧 ซ่อมข้อมูลเก่า: คำนวณคะแนนเต็มเอกพจน์ (ใช้ในสูตรเกรดจริง) ใหม่ให้เท่ากับผลรวมคะแนนเต็มพหูพจน์ (แต่ละรอบ) ของทุกวิชา
+    // ใช้ครั้งเดียวได้ปลอดภัย (คำนวณจากค่าปัจจุบันเสมอ ไม่มีการบวกสะสม จึงกดซ้ำได้ไม่มีปัญหา)
+    async function repairSingularFullScoreSync(silent) {
+      if (!silent && !confirm('ยืนยันซ่อมคะแนนเต็มให้สัมพันธ์กันทั้งหมด?\n\nระบบจะคำนวณ "คะแนนดิบรวม" ใหม่ให้ตรงกับผลรวมของคะแนนเต็มแต่ละรอบ (K/P/A/C/M/F) ของทุกวิชาในระบบ ปลอดภัย กดซ้ำได้')) return;
+      const allScoreConfigs = allData.filter(d => d.type === 'class_subject_scores');
+      if (allScoreConfigs.length === 0) { if (!silent) showToast('ไม่มีข้อมูลคะแนนเต็มในระบบให้ซ่อม'); return; }
+      if (!silent) showToast(`🔧 กำลังซ่อม ${allScoreConfigs.length} วิชา กรุณารอสักครู่...`);
+      const categoryKeys = ['k', 'p', 'a', 'c', 'm', 'f'];
+      let anyChanged = false;
+      await Promise.all(allScoreConfigs.map(async cfg => {
+        const updates = {};
+        let changed = false;
+        for (const cat of categoryKeys) {
+          const arr = (cfg[`${cat}_full_scores`] || '').split(',').map(s => s.trim());
+          const sum = arr.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+          if (sum !== (parseFloat(cfg[`${cat}_full_score`]) || 0)) { updates[`${cat}_full_score`] = sum; changed = true; }
+        }
+        if (changed) { anyChanged = true; await window.dataSdk.update({ ...cfg, ...updates }); }
+      }));
+      // 🤫 โหมดเงียบ (เรียกอัตโนมัติตอนเข้าแท็บ): แจ้งเตือนแค่ตอนที่ซ่อมอะไรจริงๆ เท่านั้น ไม่รบกวนถ้าทุกอย่างถูกต้องอยู่แล้ว
+      if (!silent) {
+        showToast('✅ ซ่อมคะแนนเต็มให้สัมพันธ์กันสำเร็จทุกวิชาแล้ว — เกรดของนักเรียนจะคำนวณถูกต้องตั้งแต่นี้ไป');
+      } else if (anyChanged) {
+        showToast('🔧 ระบบซ่อมคะแนนเต็มที่ไม่สัมพันธ์กันให้อัตโนมัติแล้ว');
+      }
+      refreshCurrentView();
+    }
+
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta) {
       if (!delta) return;
       // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
@@ -9713,6 +9741,8 @@
         loadTimekeepingFilters();
       } else if (tabName === 'grading') {
         loadGradingFilters();
+        // 🔧 ซ่อมคะแนนเต็มให้สัมพันธ์กันอัตโนมัติแบบเงียบๆ (แค่ครั้งแรกที่เข้าแท็บนี้ในแต่ละครั้งที่เปิดเว็บ) ไม่ต้องกดปุ่มเองอีกต่อไป
+        if (!window.__fullScoreSyncRepaired) { window.__fullScoreSyncRepaired = true; repairSingularFullScoreSync(true); }
       } else if (tabName === 'import') {
         updateImportedData();
       } else if (tabName === 'evaltopics') {
