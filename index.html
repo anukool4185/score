@@ -2197,13 +2197,6 @@
           </label>
          </div>
 
-         <div class="bg-purple-50 border-2 border-purple-100 rounded-lg p-3 mb-3">
-          <p class="text-xs font-semibold text-purple-700 mb-2">📄 รูปแบบกระดาษคำตอบ (เฉพาะชุดสอบนี้)</p>
-          <label class="block text-xs text-gray-600 mb-1">🔢 จำนวนข้อในกระดาษคำตอบ</label>
-          <input type="number" id="ea-sheet-total-items" min="1" max="500" placeholder="ปล่อยว่าง = ใช้ค่าเริ่มต้นของทั้งโรงเรียน" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
-          <p class="text-[11px] text-gray-400 mt-1">ถ้ากำหนดมากกว่าจำนวนข้อที่เลือกจริง ช่องที่เหลือจะเป็นข้อว่างในกระดาษคำตอบ (เผื่อให้ตรงกับแบบฟอร์มกระดาษจริง) — ถ้าปล่อยว่างจะใช้ค่าเริ่มต้นที่ตั้งไว้ด้านบนแทน</p>
-         </div>
-
          <div class="mb-2 flex items-center justify-between">
           <label class="block text-xs text-gray-600">✅ เลือกข้อสอบจากคลัง (ติ๊กข้อที่จะใช้ในชุดสอบนี้)</label>
           <span class="text-xs text-purple-600 font-semibold" id="ea-total-score-label">คะแนนเต็ม: 0</span>
@@ -7190,7 +7183,6 @@
       const startTime = document.getElementById('ea-start')?.value;
       const endTime = document.getElementById('ea-end')?.value;
       const shuffle = document.getElementById('ea-shuffle')?.checked;
-      const sheetTotalItems = document.getElementById('ea-sheet-total-items')?.value;
       const editId = document.getElementById('ea-edit-id')?.value;
 
       if (!className || !roomNumber || !subjectName) { showToast('กรุณาเลือกชั้น/ห้อง/วิชาให้ครบ', 'error'); return; }
@@ -7199,7 +7191,6 @@
 
       const questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
       if (questionIds.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
-      if (sheetTotalItems && parseInt(sheetTotalItems) < questionIds.length) { showToast(`จำนวนข้อในกระดาษคำตอบ (${sheetTotalItems}) ต้องไม่น้อยกว่าจำนวนข้อที่เลือกจริง (${questionIds.length})`, 'error'); return; }
       const totalScore = questionIds.reduce((sum, id) => {
         const q = allData.find(d => d.__backendId === id);
         return sum + (parseFloat(q?.score_per_question) || 0);
@@ -7225,7 +7216,6 @@
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
         shuffle_enabled: shuffle,
-        sheet_total_items: sheetTotalItems ? parseInt(sheetTotalItems) : null,
       };
 
       let result;
@@ -7261,7 +7251,6 @@
       document.getElementById('ea-start').value = '';
       document.getElementById('ea-end').value = '';
       document.getElementById('ea-shuffle').checked = true;
-      document.getElementById('ea-sheet-total-items').value = '';
       renderEaQuestionPicker();
     }
 
@@ -7309,7 +7298,6 @@
       document.getElementById('ea-subject').value = s.subject_name || '';
       document.getElementById('ea-kround').value = s.k_round || '1';
       document.getElementById('ea-shuffle').checked = !!s.shuffle_enabled;
-      document.getElementById('ea-sheet-total-items').value = s.sheet_total_items || '';
       // แปลง ISO datetime กลับเป็นรูปแบบ input datetime-local (ตัด timezone/วินาทีทิ้ง)
       const toLocalInput = (iso) => { const d = new Date(iso); const pad = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
       document.getElementById('ea-start').value = s.start_time ? toLocalInput(s.start_time) : '';
@@ -7823,7 +7811,7 @@
       const answers = JSON.parse(submission.answers || '{}');
       const answeredCount = orderedIds.filter(qid => answers[qid] !== undefined && answers[qid] !== '').length;
       const sheetFmt = getAnswerSheetFormat();
-      const sheetTotalItems = Math.max((examSet.sheet_total_items ? parseInt(examSet.sheet_total_items) : sheetFmt.totalSlots), orderedIds.length);
+      const sheetTotalItems = Math.max(sheetFmt.totalSlots, orderedIds.length);
       const extraBlankCount = Math.max(0, sheetTotalItems - orderedIds.length);
 
       // 📋 จัดเป็นบล็อกแนวตั้ง บล็อกละ 10 ข้อ วางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (1-10, 11-20, 21-30 ...)
