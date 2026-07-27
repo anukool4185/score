@@ -7674,6 +7674,31 @@
     let _examCurrentQuestionIdx = 0;
     // โหมดของหน้าสอบ: 'sheet' = ดูกระดาษคำตอบ(ตารางเลขข้อ), 'question' = ดูโจทย์ข้อใดข้อหนึ่ง
     let _examViewMode = 'sheet';
+    // ⚠️ กู้คืนฟังก์ชันตัวจับเวลาสอบที่หายไปโดยไม่ได้ตั้งใจระหว่างแก้ไขก่อนหน้านี้ — ทำให้เรียก _startExamTimer/_examTimerInterval แล้ว throw error เงียบๆ มาตลอด
+    let _examTimerInterval = null;
+    function _startExamTimer(examSet) {
+      if (_examTimerInterval) clearInterval(_examTimerInterval);
+      const update = () => {
+        const label = document.getElementById('exam-timer-label');
+        if (!label) { clearInterval(_examTimerInterval); return; }
+        const remainMs = new Date(examSet.end_time) - new Date();
+        if (remainMs <= 0) {
+          label.textContent = 'เวลาที่เหลือ: หมดเวลาแล้ว — กำลังส่งคำตอบอัตโนมัติ...';
+          clearInterval(_examTimerInterval);
+          if (_examAntiCheatSubmissionId) submitExam(_examAntiCheatSubmissionId);
+          return;
+        }
+        const totalSec = Math.floor(remainMs / 1000);
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const sec = totalSec % 60;
+        const pad = n => String(n).padStart(2, '0');
+        label.textContent = `เวลาที่เหลือ: ${h > 0 ? pad(h) + ':' : ''}${pad(m)}:${pad(sec)}`;
+      };
+      update();
+      _examTimerInterval = setInterval(update, 1000);
+    }
+
     function renderExamModal(submissionId) {
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) { console.error('[Exam Popup Debug] renderExamModal: submission NOT FOUND in allData for id', submissionId); showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
