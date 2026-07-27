@@ -7432,17 +7432,12 @@
     // เช่น เดิม 5 แก้เป็น 7 → บวกเพิ่ม 2 / เดิม 7 แก้เป็น 5 → ลดลง 2 / สร้างใหม่ → บวกเพิ่มเต็มจำนวน
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta) {
       if (!delta) return;
-      // ⚠️ บั๊กสำคัญที่พบ: เดิมเทียบแบบเป๊ะๆ (===) ถ้าข้อความมีช่องว่างหรือตัวพิมพ์ต่างกันเล็กน้อยจะหาไม่เจอ แล้ว "เงียบ" ไปเลยไม่แจ้งอะไร
-      // ทำให้จัดสอบไปแล้วคะแนนเต็มไม่ขึ้น เพราะฟังก์ชันหา class_subject ไม่เจอ แก้ให้ทนทานเหมือนจุดอื่นๆ ที่แก้ไปก่อนหน้า
-      const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
-      const classSubject = allData.find(d => d.type === 'class_subject' &&
-        norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName));
-      if (!classSubject) {
-        console.error('[Exam Debug] _applyExamFullScoreDelta: ไม่พบ class_subject ที่ตรงกัน! คะแนนเต็มจะไม่ถูกอัปเดต', { className, roomNumber, subjectName });
-        showToast('⚠️ ไม่พบข้อมูลวิชานี้ในระบบ คะแนนเต็มอาจไม่อัปเดต กรุณาตรวจสอบชั้น/ห้อง/วิชา', 'error');
-        return;
-      }
-      const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubject.__backendId);
+      // 🎯 บั๊กที่แท้จริงที่พบในที่สุด: ที่ผ่านมาใช้ classSubject.__backendId เป็น key ในการหา/เขียน class_subject_scores
+      // แต่หน้า "ให้คะแนน" (grading) ใช้ key แบบข้อความ `${className}_${roomNumber}_${subjectName}` เสมอ (ดู editCategoryFullScorePopup, loadGradingTab)
+      // ทั้งสองจุดนี้เป็นคนละ key กันโดยสิ้นเชิง! ทำให้เขียนไปที่ record หนึ่ง แต่หน้าให้คะแนนอ่านจากอีก record หนึ่งที่ไม่เกี่ยวข้องกันเลย
+      // แก้โดยเปลี่ยนมาใช้ key แบบเดียวกับหน้าให้คะแนนให้ตรงกันเป๊ะ
+      const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
+      const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const round = parseInt(kRound) || 1;
       let fullArr = (scoresConfig?.k_full_scores || '').split(',').map(s => s.trim());
       while (fullArr.length < round) fullArr.push('');
@@ -7453,7 +7448,7 @@
       if (scoresConfig) {
         await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(',') });
       } else {
-        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubject.__backendId, k_full_scores: fullArr.join(',') });
+        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, k_full_scores: fullArr.join(',') });
       }
     }
 
