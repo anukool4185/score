@@ -1267,6 +1267,7 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">🎓 บันทึกคะแนน</h3>
         <div class="grid md:grid-cols-3 gap-4 mb-6"><select id="filter-grading-class" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกชั้นเรียน --</option> </select> <select id="filter-grading-room" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกห้องเรียน --</option> </select> <select id="filter-grading-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกวิชา --</option> </select>
         </div>
+        <div id="grading-key-debug-panel"></div>
         <div id="grading-students-container" class="hidden">
          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div class="md:col-span-1">
@@ -7466,13 +7467,12 @@
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const matchingReg = allData.find(d => d.type === 'student_registration' &&
         norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName));
-      const keyClassName = matchingReg ? matchingReg.class_name : className;
-      const keyRoomNumber = matchingReg ? matchingReg.room_number : roomNumber;
-      const keySubjectName = matchingReg ? matchingReg.subject_name : subjectName;
+      // 🎯 ใช้ reg.class_subject_id "ตัวที่บันทึกไว้จริง" ตรงๆ (ไม่สร้างขึ้นใหม่เอง) เพราะฝั่งนักเรียนอ่านค่านี้ตรงๆ เช่นกัน (showStudentGrades)
+      // การสร้างขึ้นใหม่เองมีความเสี่ยงไม่ตรงกัน ถ้าค่าดิบ (class_name/room_number/subject_name) ณ ตอนนี้ ไม่ตรงกับตอนที่คำนวณ class_subject_id ครั้งแรกตอนลงทะเบียน
+      const classSubjectId = matchingReg ? matchingReg.class_subject_id : `${className}_${roomNumber}_${subjectName}`;
       if (!matchingReg) {
         console.warn('[Exam Debug] _applyExamFullScoreDelta: ไม่พบนักเรียนที่ลงทะเบียนตรงกับชั้น/ห้อง/วิชานี้เลย ใช้ค่าดิบแทน (อาจไม่ตรงกับหน้าให้คะแนนถ้ายังไม่มีคนลงทะเบียน)', { className, roomNumber, subjectName });
       }
-      const classSubjectId = `${keyClassName}_${keyRoomNumber}_${keySubjectName}`;
       const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const round = parseInt(kRound) || 1;
       let fullArr = (scoresConfig?.k_full_scores || '').split(',').map(s => s.trim());
@@ -7526,6 +7526,7 @@
         question_ids: questionIds.join(','),
         question_snapshot_json: JSON.stringify(questionSnapshot),
         total_score: totalScore,
+        applied_full_score_delta: totalScore, // ⚡ ใส่ไว้ตั้งแต่ตอนบันทึกเลย ไม่ต้อง update ซ้ำทีหลัง (กันปัญหาจังหวะ/รายการหาย)
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
         shuffle_enabled: shuffle,
@@ -7544,13 +7545,9 @@
       }
 
       if (result.isOk) {
-        // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที: ชุดใหม่ = บวกเต็มจำนวน / แก้ไข = บวก-ลบตามส่วนต่าง
+        // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที ในเบื้องหลังทันทีที่บันทึกสำเร็จ — ไม่ต้องกดปุ่มซ่อมเองอีกต่อไป ทำงานอัตโนมัติทุกครั้ง
         const delta = totalScore - oldTotalScore;
         await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta);
-        // ⚠️ สำคัญ: บันทึกไว้ว่าตอนนี้ชุดสอบนี้ "มีส่วนสมทบจริง" เท่าไหร่ในคะแนนเต็ม (ไม่ใช่แค่ total_score ที่ตั้งใจไว้)
-        // เพื่อให้ลบ/รีเซ็ทในอนาคตแม่นยำ แม้ว่าการเพิ่มครั้งนี้จะล้มเหลวแบบเงียบๆ ก็ตาม (เช่น หาข้อมูลวิชาไม่เจอ)
-        const savedRecord = editId ? { ...allData.find(d => d.__backendId === editId), ...record } : result.data;
-        await window.dataSdk.update({ ...savedRecord, applied_full_score_delta: totalScore });
         showToast(editId ? '✅ แก้ไขชุดสอบสำเร็จ (ปรับคะแนนเต็มตามส่วนต่างแล้ว)' : '✅ มอบหมายชุดสอบสำเร็จ (ตั้งคะแนนเต็มให้ทันที)');
         resetExamSetForm();
         renderExamSetList();
@@ -13641,6 +13638,20 @@
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      // 🔍 แผงตรวจสอบชั่วคราว: แสดง key ที่กำลังค้นหา เทียบกับ key ทั้งหมดที่มีอยู่จริงในระบบ ให้เห็นตรงๆ ว่าตรงกันไหม (ไม่ต้องเปิด console)
+      const allScoreKeys = allData.filter(d => d.type === 'class_subject_scores').map(d => d.class_subject_id);
+      const debugPanel = document.getElementById('grading-key-debug-panel');
+      if (debugPanel) {
+        debugPanel.innerHTML = `
+          <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;font-family:monospace">
+            <p style="margin:0 0 4px"><b>🔍 กำลังค้นหา key:</b> "${classSubjectId}"</p>
+            <p style="margin:0 0 4px"><b>${scoresData ? '✅ พบข้อมูลตรงกัน!' : '❌ ไม่พบข้อมูลที่ตรงกันเลย'}</b></p>
+            <p style="margin:0 0 2px"><b>key ทั้งหมดที่มีอยู่จริงในระบบ (${allScoreKeys.length} รายการ):</b></p>
+            ${allScoreKeys.length === 0 ? '<p style="margin:0;color:#92400e">(ไม่มี class_subject_scores เลยในระบบ)</p>' :
+              allScoreKeys.map(k => `<p style="margin:0;word-break:break-all;color:${k === classSubjectId ? '#16a34a;font-weight:700' : '#92400e'}">${k === classSubjectId ? '✅' : '·'} "${k}"</p>`).join('')}
+          </div>
+        `;
+      }
       const registrations = refreshGradingNameListOnly();
       if (!registrations || registrations.length === 0) return;
       // รายละเอียดด้านขวา ของคนที่เลือกไว้
