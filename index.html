@@ -8035,6 +8035,17 @@
       if (_examHeartbeatInterval) { clearInterval(_examHeartbeatInterval); _examHeartbeatInterval = null; }
     }
 
+    // ⚠️ กู้คืนฟังก์ชันที่หายไปโดยไม่ได้ตั้งใจ (เหมือนกรณี _startExamTimer ก่อนหน้านี้)
+    // ฟังก์ชันนี้ถูกอ้างอิงใน renderExamModal แต่ไม่เคยถูกประกาศไว้เลย ทำให้ throw ReferenceError ทันที
+    // ตั้งแต่ก่อนจะไปถึงจุดแสดงกระดาษคำตอบ อธิบายได้ว่าทำไมค้างที่ "กำลังโหลด..." ตลอดมา
+    function _examBeforeUnloadHandler(e) {
+      if (_examAntiCheatActive) {
+        e.preventDefault();
+        e.returnValue = 'คุณกำลังทำข้อสอบอยู่ การออกจากหน้านี้อาจทำให้คำตอบไม่ถูกบันทึกครบถ้วน ต้องการออกจริงหรือไม่?';
+        return e.returnValue;
+      }
+    }
+
     function renderExamModal(submissionId) {
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) { console.error('[Exam Popup Debug] renderExamModal: submission NOT FOUND in allData for id', submissionId); showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
