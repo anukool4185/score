@@ -7665,7 +7665,17 @@
       }
     }
 
+    let _examModalOpening = false; // กันเปิดหน้าสอบซ้อนกัน (ดับเบิลคลิก/แตะซ้ำ) ที่อาจทำให้ overlay ถูกสร้าง/ลบสวนกันจนอ้างอิง DOM เก่าที่หลุดไปแล้ว
     async function startExamAttempt(examSetId, registrationId) {
+      if (_examModalOpening) { console.log('[Exam Popup Debug] startExamAttempt: กำลังเปิดอยู่แล้ว ไม่ให้เปิดซ้อน'); return; }
+      _examModalOpening = true;
+      try {
+        await _startExamAttemptInner(examSetId, registrationId);
+      } finally {
+        setTimeout(() => { _examModalOpening = false; }, 500); // ปลดล็อกหลังจากเปิดสำเร็จ/พังแล้วสักครู่ กันกดรัวจนซ้อน
+      }
+    }
+    async function _startExamAttemptInner(examSetId, registrationId) {
       console.log('[Exam Popup Debug] startExamAttempt called:', examSetId, registrationId);
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       const reg = allData.find(d => d.__backendId === registrationId && d.type === 'student_registration');
@@ -7711,7 +7721,13 @@
     }
 
     function resumeExamAttempt(submissionId) {
-      renderExamModal(submissionId);
+      if (_examModalOpening) { console.log('[Exam Popup Debug] resumeExamAttempt: กำลังเปิดอยู่แล้ว ไม่ให้เปิดซ้อน'); return; }
+      _examModalOpening = true;
+      try {
+        renderExamModal(submissionId);
+      } finally {
+        setTimeout(() => { _examModalOpening = false; }, 500);
+      }
     }
 
     let _examCurrentQuestionIdx = 0;
@@ -7861,7 +7877,7 @@
       const answers = JSON.parse(submission.answers || '{}');
       const answeredCount = orderedIds.filter(qid => answers[qid] !== undefined && answers[qid] !== '').length;
       const sheetFmt = getAnswerSheetFormat();
-      const sheetTotalItems = Math.max(sheetFmt.totalSlots, orderedIds.length);
+      const sheetTotalItems = Math.max(Number.isFinite(sheetFmt.totalSlots) ? sheetFmt.totalSlots : 120, orderedIds.length);
       const extraBlankCount = Math.max(0, sheetTotalItems - orderedIds.length);
       const choiceLetters = THAI_CHOICE_LETTERS.slice(0, sheetFmt.choiceCount);
       const letterKeys = ['a','b','c','d','e']; // ตัวเลือกจริงในระบบ (choice_a..choice_e) จับคู่กับตัวอักษรไทยตามลำดับ
