@@ -8133,7 +8133,11 @@
         const student = allData.find(d => d.type === 'student' && d.student_id === submission.student_id);
         studentName = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
       }
-      const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
+      // ⚠️ บั๊กร้ายแรงอีกจุดที่พบ: การจำกัดค่า sheetTotalItems ก่อนหน้านี้ไม่ได้จำกัด orderedIds เอง!
+      // ถ้า question_order มีข้อมูลผิดปกติ (ซ้ำ/เสีย) จนมีจำนวนมากผิดปกติ (เช่น หลักพัน) ลูปสร้าง HTML จะยังวนครบทุกตัว
+      // ทำให้ thread หลักค้างสนิทจนแม้แต่ setTimeout (watchdog) ก็ไม่มีทางทำงานได้ ตรงกับอาการค้างไม่ตอบสนองเลย
+      const orderedIdsRaw = (submission.question_order || '').split(',').filter(Boolean);
+      const orderedIds = orderedIdsRaw.slice(0, 300); // จำกัดสูงสุด 300 ข้อ ป้องกันค้างจากข้อมูลผิดปกติ ไม่ว่ากรณีใดก็ตาม
       const answers = JSON.parse(submission.answers || '{}');
       const answeredCount = orderedIds.filter(qid => answers[qid] !== undefined && answers[qid] !== '').length;
       const sheetFmt = getAnswerSheetFormat();
@@ -8141,6 +8145,16 @@
       const extraBlankCount = Math.max(0, sheetTotalItems - orderedIds.length);
       const choiceLetters = THAI_CHOICE_LETTERS.slice(0, sheetFmt.choiceCount);
       const letterKeys = ['a','b','c','d','e']; // ตัวเลือกจริงในระบบ (choice_a..choice_e) จับคู่กับตัวอักษรไทยตามลำดับ
+
+      // ⚡ แกะ JSON ของ snapshot แค่ครั้งเดียวก่อนเข้าลูป (เดิมเรียก getExamQuestionFromSet แยกทุกข้อ = JSON.parse ซ้ำทุกครั้ง ช้าถ้าข้อสอบมีเยอะ)
+      let _snapshotMap = null;
+      if (examSet.question_snapshot_json) {
+        try {
+          const snap = JSON.parse(examSet.question_snapshot_json);
+          _snapshotMap = new Map(snap.map(q => [q.__backendId, q]));
+        } catch (e) { _snapshotMap = null; }
+      }
+      const getQuestionFast = qid => (_snapshotMap && _snapshotMap.get(qid)) || allData.find(d => d.__backendId === qid && d.type === 'exam_question');
 
       // 📋 จัดเป็นบล็อกแนวตั้ง บล็อกละ 10 ข้อ วางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (1-10, 11-20, 21-30 ...)
       const allItems = orderedIds.map((qid, idx) => ({ num: idx+1, qid, hasQuestion: true }))
@@ -8152,7 +8166,7 @@
             return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0"><span style="width:22px;font-size:11px;color:#cbd5e1;text-align:right">${item.num}</span><span style="flex:1;height:22px;border-radius:5px;background:#f1f5f9"></span></div>`;
           }
           const idx = item.num - 1;
-          const question = getExamQuestionFromSet(examSet, item.qid);
+          const question = getQuestionFast(item.qid);
           const studentAnswer = answers[item.qid];
           if (question?.question_type === 'written') {
             // ข้ออัตนัยไม่มีตัวเลือกให้ฝน แสดงเป็นเครื่องหมายถูกแทน
