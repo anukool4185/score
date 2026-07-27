@@ -1267,7 +1267,6 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">🎓 บันทึกคะแนน</h3>
         <div class="grid md:grid-cols-3 gap-4 mb-6"><select id="filter-grading-class" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกชั้นเรียน --</option> </select> <select id="filter-grading-room" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกห้องเรียน --</option> </select> <select id="filter-grading-subject" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกวิชา --</option> </select>
         </div>
-        <div id="grading-key-debug-panel"></div>
         <div id="grading-students-container" class="hidden">
          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div class="md:col-span-1">
@@ -2145,11 +2144,6 @@
         </div>
         <p class="text-xs text-gray-400 mb-2">👁️ ตัวอย่างที่นักเรียนจะเห็น (อัปเดตอัตโนมัติ ยังไม่ต้องกดบันทึก):</p>
         <div id="answer-sheet-preview" class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4"></div>
-       </div>
-       <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6">
-        <h3 class="text-lg font-bold text-red-800 mb-2">🔧 ซ่อมคะแนนเต็มที่ตกหล่น (ใช้ครั้งเดียว)</h3>
-        <p class="text-sm text-red-700 mb-3">ถ้าเคยจัดสอบไว้ก่อนหน้านี้ แล้วคะแนนเต็ม K ไม่ขึ้นในหน้า "ให้คะแนน" ทั้งที่จัดสอบไปแล้วจริง (เกิดจากบั๊กเก่าที่แก้ไปแล้ว) กดปุ่มนี้เพื่อซ่อมข้อมูลเก่าทั้งหมดให้ถูกต้องในครั้งเดียว — ไม่กระทบชุดสอบที่จัดใหม่หลังจากนี้ (ทำงานถูกต้องอยู่แล้ว)</p>
-        <button onclick="repairStaleExamFullScores()" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold">🔧 ซ่อมคะแนนเต็มทั้งหมดเดี๋ยวนี้</button>
        </div>
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">📝 จัดสอบ (มอบหมายชุดข้อสอบให้ห้องเรียน)</h3>
@@ -7481,10 +7475,14 @@
       // ⚠️ ป้องกันคะแนนเต็มติดลบเด็ดขาด: ถ้าคำนวณแล้วติดลบ (เช่น ข้อมูลเก่าที่ไม่เคยถูกบวกจริงมาก่อน แล้วมาลบออกทีหลัง)
       // ให้ตัดกลับเป็น 0 เสมอ ไม่ยอมให้คะแนนเต็มติดลบไม่ว่ากรณีใดก็ตาม
       fullArr[round - 1] = String(Math.max(0, existing + delta));
+      // 🎯 บั๊กที่ลึกที่สุดที่พบ: สูตรคำนวณเกรดจริง (weightedScore) ใช้ฟิลด์ k_full_score "เอกพจน์" เป็นตัวหาร
+      // ไม่ใช่ k_full_scores (พหูพจน์) ที่ฟังก์ชันนี้อัปเดตมาตลอด! ทำให้ต่อให้ตัวเลขต่อรอบแสดงถูกต้อง แต่เกรดจริงยังคำนวณจากค่าเก่าที่ไม่เกี่ยวข้องกันเลย
+      // ต้องคำนวณ k_full_score (เอกพจน์) ใหม่ให้เท่ากับ "ผลรวม" ของ k_full_scores (พหูพจน์) ทุกครั้งที่มีการเปลี่ยนแปลง เพื่อให้สูตรเกรดถูกต้องจริง
+      const newSingularFullScore = fullArr.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
       if (scoresConfig) {
-        await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(',') });
+        await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(','), k_full_score: newSingularFullScore });
       } else {
-        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, k_full_scores: fullArr.join(',') });
+        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, k_full_scores: fullArr.join(','), k_full_score: newSingularFullScore });
       }
     }
 
@@ -13638,20 +13636,6 @@
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
-      // 🔍 แผงตรวจสอบชั่วคราว: แสดง key ที่กำลังค้นหา เทียบกับ key ทั้งหมดที่มีอยู่จริงในระบบ ให้เห็นตรงๆ ว่าตรงกันไหม (ไม่ต้องเปิด console)
-      const allScoreKeys = allData.filter(d => d.type === 'class_subject_scores').map(d => d.class_subject_id);
-      const debugPanel = document.getElementById('grading-key-debug-panel');
-      if (debugPanel) {
-        debugPanel.innerHTML = `
-          <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px;font-family:monospace">
-            <p style="margin:0 0 4px"><b>🔍 กำลังค้นหา key:</b> "${classSubjectId}"</p>
-            <p style="margin:0 0 4px"><b>${scoresData ? '✅ พบข้อมูลตรงกัน!' : '❌ ไม่พบข้อมูลที่ตรงกันเลย'}</b></p>
-            <p style="margin:0 0 2px"><b>key ทั้งหมดที่มีอยู่จริงในระบบ (${allScoreKeys.length} รายการ):</b></p>
-            ${allScoreKeys.length === 0 ? '<p style="margin:0;color:#92400e">(ไม่มี class_subject_scores เลยในระบบ)</p>' :
-              allScoreKeys.map(k => `<p style="margin:0;word-break:break-all;color:${k === classSubjectId ? '#16a34a;font-weight:700' : '#92400e'}">${k === classSubjectId ? '✅' : '·'} "${k}"</p>`).join('')}
-          </div>
-        `;
-      }
       const registrations = refreshGradingNameListOnly();
       if (!registrations || registrations.length === 0) return;
       // รายละเอียดด้านขวา ของคนที่เลือกไว้
@@ -13887,7 +13871,7 @@
         // 📊 ป้ายกำกับคะแนนเต็มของรอบนี้ ให้เห็นชัดเจนว่ากำหนดไว้เท่าไหร่ (ไม่ใช่แค่ดูจากสีขอบ) — ช่วยยืนยันว่าคะแนนเต็มจากการจัดสอบสะท้อนมาถูกต้องจริง
         const fullScoreLabel = isConfigured
           ? `<span class="text-[8px] text-green-700 font-semibold block text-center" title="คะแนนเต็มของครั้งนี้">เต็ม ${fullScoreForThis}</span>`
-          : (type === 'k' ? `<span class="text-[8px] text-red-500 block text-center" title="ยังไม่กำหนดคะแนนเต็ม">ยังไม่กำหนด</span>` : '');
+          : `<span class="text-[8px] text-red-500 block text-center" title="ยังไม่กำหนดคะแนนเต็ม">ยังไม่กำหนด</span>`;
         html += `<span class="relative inline-flex flex-col items-center mr-0.5">
           <span class="absolute -top-1 -left-1 z-10 text-gray-500 font-bold" style="font-size:9px;line-height:1" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
           <input type="number" step="0.1" min="0" max="100" id="${type}-${regId}-${i}" value="${value}" data-full="${fullScoreForThis}" ${disabledAttr} class="score-input w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold focus:border-blue-500 focus:outline-none text-xs">
@@ -14853,7 +14837,7 @@
         const roundLabel = (type==='m'||type==='f') ? (i===1?'ป':i===2?'อ':i) : i;
         const fullScoreLabel = isConfigured
           ? `<span class="text-[8px] text-green-700 font-semibold block text-center" title="คะแนนเต็มของครั้งนี้">เต็ม ${fullScoreForThis}</span>`
-          : (type === 'k' ? `<span class="text-[8px] text-red-500 block text-center" title="ยังไม่กำหนดคะแนนเต็ม">ยังไม่กำหนด</span>` : '');
+          : `<span class="text-[8px] text-red-500 block text-center" title="ยังไม่กำหนดคะแนนเต็ม">ยังไม่กำหนด</span>`;
         html += `<span class="relative inline-flex flex-col items-center mr-0.5">
           <span class="absolute -top-1 -left-1 z-10 text-gray-500 font-bold" style="font-size:9px;line-height:1" title="${(type==='m'||type==='f')?(i===1?'ปรนัย':'อัตนัย'):'ครั้งที่ '+i}">${roundLabel}</span>
           <input type="number" value="${value}" disabled class="w-10 px-1 py-1 border-2 ${borderClass} rounded text-center font-semibold text-xs bg-gray-50">
