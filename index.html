@@ -7504,7 +7504,9 @@
       let oldTotalScore = 0;
       if (editId) {
         const existing = allData.find(d => d.__backendId === editId);
-        oldTotalScore = parseFloat(existing?.total_score) || 0;
+        // ⚠️ ใช้ applied_full_score_delta (ส่วนที่สมทบจริง) แทน total_score (ค่าที่ตั้งใจไว้)
+        // เผื่อกรณีชุดสอบเก่าที่การเพิ่มครั้งแรกล้มเหลวแบบเงียบๆ (เช่น หาข้อมูลวิชาไม่เจอ) จะได้คำนวณส่วนต่างถูกต้อง
+        oldTotalScore = existing?.applied_full_score_delta !== undefined ? parseFloat(existing.applied_full_score_delta) || 0 : (parseFloat(existing?.total_score) || 0);
         result = await window.dataSdk.update({ ...existing, ...record });
       } else {
         result = await window.dataSdk.create(record);
@@ -7514,6 +7516,10 @@
         // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที: ชุดใหม่ = บวกเต็มจำนวน / แก้ไข = บวก-ลบตามส่วนต่าง
         const delta = totalScore - oldTotalScore;
         await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta);
+        // ⚠️ สำคัญ: บันทึกไว้ว่าตอนนี้ชุดสอบนี้ "มีส่วนสมทบจริง" เท่าไหร่ในคะแนนเต็ม (ไม่ใช่แค่ total_score ที่ตั้งใจไว้)
+        // เพื่อให้ลบ/รีเซ็ทในอนาคตแม่นยำ แม้ว่าการเพิ่มครั้งนี้จะล้มเหลวแบบเงียบๆ ก็ตาม (เช่น หาข้อมูลวิชาไม่เจอ)
+        const savedRecord = editId ? { ...allData.find(d => d.__backendId === editId), ...record } : result.data;
+        await window.dataSdk.update({ ...savedRecord, applied_full_score_delta: totalScore });
         showToast(editId ? '✅ แก้ไขชุดสอบสำเร็จ (ปรับคะแนนเต็มตามส่วนต่างแล้ว)' : '✅ มอบหมายชุดสอบสำเร็จ (ตั้งคะแนนเต็มให้ทันที)');
         resetExamSetForm();
         renderExamSetList();
@@ -7604,9 +7610,12 @@
       if (!s) return;
       if (!confirm(`ยืนยันจัดสอบ "${s.subject_name} K.${s.k_round}" อีกครั้ง?\n\nระบบจะ:\n- ล้างคะแนนที่นักเรียนทุกคนเคยได้จากการสอบครั้งนี้ (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)\n- ลบการทำข้อสอบเดิมทั้งหมด เพื่อให้ทุกคนเข้าสอบใหม่ได้\n- คะแนนเต็มจะถูกป้อนกลับเข้าไปใหม่เหมือนตอนมอบหมายครั้งแรก`)) return;
       const round = parseInt(s.k_round) || 1;
+      // ⚠️ ใช้ส่วนที่สมทบจริง (applied_full_score_delta) แทนการเดาว่า total_score ถูกใส่เข้าไปจริง
+      // เผื่อชุดสอบเก่าที่ตอนสร้างครั้งแรกอาจล้มเหลวแบบเงียบๆ (หาข้อมูลวิชาไม่เจอ) จะได้ลบ/เติมถูกต้องแม่นยำ
+      const currentlyApplied = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
 
-      // 1) คืนคะแนนเต็มที่เคยบวกไว้ก่อน (เหมือนตอนลบ)
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -(s.total_score || 0));
+      // 1) คืนคะแนนเต็มที่เคยบวกไว้ก่อน (เท่าที่สมทบจริงเท่านั้น)
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyApplied);
 
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
       // ⚡ ทำแบบขนาน (Promise.all) แทนการรอทีละคนตามลำดับ — เดิมช้ามากเพราะแต่ละคนต้องรอครบก่อนถึงจะเริ่มคนถัดไป
@@ -7636,6 +7645,8 @@
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
       await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0);
+      // อัปเดตค่าที่สมทบจริงให้ตรงกับปัจจุบัน (เท่ากับ total_score เต็มจำนวน เพราะเพิ่งป้อนกลับเข้าไปใหม่สดๆ)
+      await window.dataSdk.update({ ...s, applied_full_score_delta: s.total_score || 0 });
 
       showToast('🔄 จัดสอบอีกครั้งสำเร็จ — นักเรียนสามารถเข้าสอบใหม่ได้แล้ว');
       renderExamSetList();
@@ -7655,9 +7666,11 @@
       const s = allData.find(d => d.__backendId === id);
       if (!s) return;
       const round = parseInt(s.k_round) || 1;
+      // ⚠️ ใช้ส่วนที่สมทบจริง (applied_full_score_delta) แทนการเดาว่า total_score ถูกใส่เข้าไปจริง (เหมือนที่แก้ใน resetExamSet)
+      const currentlyAppliedForDelete = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
 
-      // 1) คืนคะแนนเต็มที่เคยบวกเพิ่มไว้ตอนมอบหมาย/แก้ไขชุดสอบ (ลบเต็มจำนวนของชุดสอบนี้ออกจากคะแนนเต็มของทั้งห้อง)
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -(s.total_score || 0));
+      // 1) คืนคะแนนเต็มที่เคยบวกเพิ่มไว้ตอนมอบหมาย/แก้ไขชุดสอบ (เท่าที่สมทบจริงเท่านั้น)
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyAppliedForDelete);
 
       // 2) ถ้ามีนักเรียนสอบไปแล้ว (มีคะแนนเขียนลง K ไปแล้ว) ให้ลบเฉพาะ "ส่วนที่ข้อสอบนี้ทำให้ได้เพิ่มมา" ออกจากยอดปัจจุบัน
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
