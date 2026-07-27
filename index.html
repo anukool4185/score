@@ -7064,7 +7064,7 @@
       const previewEl = document.getElementById('answer-sheet-preview');
       if (!previewEl) return;
       const totalSlots = Math.min(parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120, 500);
-      // แสดงตัวอย่างจำลอง: สมมติทำไปแล้ว 3 ข้อแรก ที่เหลือยังไม่ทำ เพื่อให้เห็นทั้ง 2 สถานะ — จัดเป็นบล็อกละ 10 ข้อวางเรียงข้างกัน เหมือนกระดาษคำตอบจริง
+      // แสดงตัวอย่างจำลอง: สมมติทำไปแล้ว 3 ข้อแรก ที่เหลือยังไม่ทำ เพื่อให้เห็นทั้ง 2 สถานะ — จัดเป็นบล็อกละ 10 ข้อวางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (แบบย่อ กะทัดรัด)
       const sampleAnswered = Math.min(3, totalSlots);
       const blockCount = Math.ceil(totalSlots / 10);
       const blocksHtml = Array.from({ length: blockCount }, (_, b) => {
@@ -7074,16 +7074,27 @@
           const bg = answered ? '#16a34a' : 'white';
           const color = answered ? 'white' : '#334155';
           const border = answered ? '#16a34a' : '#94a3b8';
-          return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0">
-            <span style="width:22px;font-size:11px;color:#64748b;text-align:right;flex-shrink:0">${num}</span>
-            <span style="flex:1;height:24px;border-radius:5px;background:${bg};color:${color};border:1.5px solid ${border};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${answered ? '✓' : ''}</span>
+          return `<div style="display:flex;align-items:center;gap:3px;padding:1px 0">
+            <span style="width:14px;font-size:8px;color:#64748b;text-align:right;flex-shrink:0">${num}</span>
+            <span style="flex:1;height:14px;border-radius:3px;background:${bg};color:${color};border:1px solid ${border};font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center">${answered ? '✓' : ''}</span>
           </div>`;
         }).join('');
-        return `<div style="min-width:70px">${rowsHtml}</div>`;
+        return `<div style="min-width:36px">${rowsHtml}</div>`;
       }).join('');
       previewEl.innerHTML = `
-        <p class="text-xs text-gray-500 mb-3">รวม ${totalSlots} ช่อง</p>
-        <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;max-height:320px;overflow-y:auto">${blocksHtml}</div>
+        <div style="max-width:220px;margin:0 auto;transform-origin:top center">
+          <div style="background:white;border:1.5px solid #1e293b;border-radius:6px;padding:8px;margin-bottom:8px">
+            <p style="text-align:center;font-size:9px;font-weight:700;color:#1e293b;margin:0 0 4px">📄 กระดาษคำตอบ</p>
+            <div style="font-size:6.5px;color:#334155;line-height:1.5;border-top:1px dashed #cbd5e1;padding-top:4px">
+              <p style="margin:0"><b>วิชา</b>.... (ตย.) คณิตฯ เพิ่มเติม ....</p>
+              <p style="margin:0"><b>ชื่อ-สกุล</b>.... (ตย.) ชื่อ นามสกุล ....</p>
+              <p style="margin:0"><b>ชั้น/ห้อง</b>.... ม.6/1 .... <b>K ครั้งที่</b> 1</p>
+            </div>
+            <p style="text-align:center;font-size:7px;color:#16a34a;font-weight:700;margin:5px 0 0;border-top:1px dashed #cbd5e1;padding-top:4px">✅ ทำแล้ว ${sampleAnswered}/${totalSlots} ข้อ</p>
+          </div>
+          <p class="text-xs text-gray-500 mb-2 text-center" style="font-size:9px">รวม ${totalSlots} ช่อง</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:200px;overflow-y:auto">${blocksHtml}</div>
+        </div>
       `;
     }
     async function saveAnswerSheetFormat() {
