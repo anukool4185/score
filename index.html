@@ -7779,7 +7779,12 @@
           <p style="font-size:13px;font-weight:700;margin:0">📝 ${examSet.subject_name} — K ครั้งที่ ${examSet.k_round}</p>
           <p style="font-size:10px;opacity:0.8;margin:0" id="exam-timer-label">เวลาที่เหลือ: กำลังคำนวณ...</p>
         </div>
-        <div id="exam-modal-body" style="flex:1;overflow-y:auto"></div>
+        <div id="exam-modal-body" style="flex:1;overflow-y:auto;min-height:200px;background:#f1f5f9">
+          <div style="padding:40px 20px;text-align:center;color:#94a3b8">
+            <p style="font-size:24px;margin:0 0 8px">⏳</p>
+            <p style="font-size:13px;margin:0">กำลังโหลดกระดาษคำตอบ...</p>
+          </div>
+        </div>
       `;
       document.body.appendChild(overlay);
       console.log('[Exam Popup Debug] exam-taking-overlay appended to body. In DOM now?', !!document.getElementById('exam-taking-overlay'));
