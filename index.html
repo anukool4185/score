@@ -7732,16 +7732,33 @@
       // เริ่มบันทึกกิจกรรมทุก 15 วินาที (rolling log เก็บแค่ 2 ช่วงล่าสุด เป็นหลักฐานก่อน-หลังหลุด)
       _startExamHeartbeatLog(submissionId);
 
-      renderAnswerSheetView(submissionId, examSet, studentName);
+      try {
+        renderAnswerSheetView(submissionId, examSet, studentName, submission);
+      } catch (err) {
+        console.error('[Exam Popup Debug] renderAnswerSheetView THREW:', err);
+        const body = document.getElementById('exam-modal-body');
+        if (body) body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">⚠️ เกิดข้อผิดพลาดตอนแสดงกระดาษคำตอบ</p><p style="color:#64748b;font-size:12px">${err.message}</p></div>`;
+      }
       _startExamTimer(examSet);
     }
 
     // 📄 หน้ากระดาษคำตอบหลัก — ตารางเลขข้อ กดแล้วไปทำข้อนั้น พร้อมหัวกระดาษข้อมูลการสอบ
-    function renderAnswerSheetView(submissionId, examSet, studentName) {
+    let _lastKnownExamSubmission = null; // เก็บกระดาษคำตอบล่าสุดที่ใช้งานสำเร็จ ไว้เป็น fallback กัน allData รีเฟรชไม่ทัน (race condition)
+    function renderAnswerSheetView(submissionId, examSet, studentName, submissionObj) {
       _examViewMode = 'sheet';
-      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      // ⚠️ กันบั๊ก race condition: ถ้า allData เพิ่งถูกแทนที่ด้วยข้อมูลจาก poll พื้นหลังที่ยังไม่มีกระดาษคำตอบที่เพิ่งสร้าง
+      // (เพราะ backend อาจตอบช้ากว่ารอบ poll ถัดไปเล็กน้อย) ให้ใช้ตัวที่ส่งมาให้ตรงๆ (submissionObj) แทนการหาใหม่
+      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (!submission && submissionObj) submission = submissionObj;
+      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
       const body = document.getElementById('exam-modal-body');
-      if (!submission || !body) return;
+      if (!body) return;
+      if (!submission) {
+        console.error('[Exam Popup Debug] renderAnswerSheetView: submission not found even with fallback, id:', submissionId);
+        body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700">⚠️ ไม่พบกระดาษคำตอบ กรุณาลองกดเข้าสอบใหม่อีกครั้ง</p></div>`;
+        return;
+      }
+      _lastKnownExamSubmission = submission;
       examSet = examSet || allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!studentName) {
         const student = allData.find(d => d.type === 'student' && d.student_id === submission.student_id);
@@ -7800,9 +7817,11 @@
     function examGoQuestion(idx) {
       _examViewMode = 'question';
       const submissionId = _examAntiCheatSubmissionId;
-      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
       const body = document.getElementById('exam-modal-body');
       if (!submission || !body) return;
+      _lastKnownExamSubmission = submission; // เก็บไว้เป็น fallback เผื่อ allData รีเฟรชไม่ทัน
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       if (idx < 0 || idx >= orderedIds.length) return;
       _examCurrentQuestionIdx = idx;
@@ -7869,11 +7888,13 @@
 
     // บันทึกคำตอบทันทีที่เลือก/พิมพ์ — ป้องกันคำตอบหายก่อนกดส่ง (สำคัญที่สุด)
     async function saveExamAnswer(submissionId, questionId, answer) {
-      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission) return;
+      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
+      if (!submission) { console.error('[Exam Popup Debug] saveExamAnswer: submission not found, answer NOT saved!', submissionId); showToast('⚠️ บันทึกคำตอบไม่สำเร็จ ลองกดใหม่อีกครั้ง', 'error'); return; }
       const answers = JSON.parse(submission.answers || '{}');
       answers[questionId] = answer;
-      await window.dataSdk.update({ ...submission, answers: JSON.stringify(answers) });
+      const result = await window.dataSdk.update({ ...submission, answers: JSON.stringify(answers) });
+      if (result.isOk) _lastKnownExamSubmission = result.data; // อัปเดต cache ให้ตรงกับข้อมูลล่าสุดที่บันทึกสำเร็จ
       // หมายเหตุ: ไม่ต้อง render กระดาษคำตอบใหม่ตรงนี้ เพราะ renderAnswerSheetView อ่านสถานะสดจาก allData ทุกครั้งที่กลับไปดูอยู่แล้ว
     }
 
