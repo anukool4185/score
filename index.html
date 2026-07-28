@@ -8151,28 +8151,24 @@
     // 📷 หลังกด "รับทราบ" — ตรวจสอบว่ามีกล้องไหม แล้วขอสิทธิ์ใช้กล้อง (บังคับ ถ้าไม่ผ่านจะเข้าสอบไม่ได้)
     async function _examGateProceedToCamera(submissionId) {
       const gateEl = document.getElementById('exam-monitoring-gate');
-      if (gateEl) gateEl.innerHTML = `<div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center"><p style="font-size:32px;margin:0 0 8px">📷</p><p style="font-size:13px;color:#64748b">กำลังตรวจสอบกล้อง กรุณารอสักครู่...</p></div>`;
+      if (gateEl) gateEl.innerHTML = `<div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center"><p style="font-size:32px;margin:0 0 8px">📷</p><p style="font-size:13px;color:#64748b">กำลังขอสิทธิ์ใช้กล้อง กรุณาอนุญาตในหน้าต่างที่เบราว์เซอร์แสดงขึ้นมา...</p></div>`;
 
-      // ตรวจสอบก่อนว่าเครื่องนี้มีกล้องจริงไหม (ยังไม่ขอสิทธิ์ แค่เช็คว่ามีอุปกรณ์)
-      let hasCameraDevice = false;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        hasCameraDevice = devices.some(d => d.kind === 'videoinput');
-      } catch (e) { hasCameraDevice = false; }
-
-      if (!hasCameraDevice) {
-        _showExamGateBlocked('no_camera');
-        return;
-      }
-
-      // มีกล้อง → ขอสิทธิ์ใช้งานจริง
+      // ⚠️ ขอสิทธิ์กล้องตรงๆ เลย (ไม่เช็ค enumerateDevices ก่อน เพราะบางเบราว์เซอร์ไม่แสดงอุปกรณ์ครบก่อนได้รับอนุญาต)
+      // แยกสาเหตุจาก "ชนิด error" แทน: NotFoundError = ไม่มีกล้องจริง / NotAllowedError = ไม่อนุญาต (รวมถึงเคยปฏิเสธไว้ก่อนหน้า เบราว์เซอร์จะจำไว้และปฏิเสธทันทีโดยไม่ถามซ้ำ)
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
         stream.getTracks().forEach(t => t.stop()); // ปิดชั่วคราวก่อน เดี๋ยว _startExamCameraMonitor จะเปิดใหม่ตอนเข้าสอบจริง
+        // 📝 บันทึกไว้เป็นหลักฐานว่านักเรียนคนนี้ได้รับอนุญาตให้เปิดกล้องแล้วจริง (ป้องกันสิทธิ์ทั้งสองฝ่ายภายหลัง)
+        await window.dataSdk.create({
+          type: 'exam_camera_consent', student_id: currentUser?.student_id, submission_id: submissionId,
+          granted_at: new Date().toISOString(), status: 'granted',
+        });
         document.getElementById('exam-monitoring-gate')?.remove();
         _renderExamModalActual(submissionId, window._examGateExamSet);
       } catch (err) {
-        _showExamGateBlocked('permission_denied');
+        console.log('[Exam Popup Debug] camera permission error:', err.name, err.message);
+        const noCameraErrors = ['NotFoundError', 'DevicesNotFoundError', 'OverconstrainedError'];
+        _showExamGateBlocked(noCameraErrors.includes(err.name) ? 'no_camera' : 'permission_denied');
       }
     }
 
@@ -8182,7 +8178,7 @@
       if (!gateEl) return;
       const messages = {
         no_camera: { icon: '📵', title: 'เครื่องนี้ไม่มีกล้อง', detail: 'ระบบต้องใช้กล้องเพื่อตรวจสอบระหว่างทำข้อสอบ<br><b>กรุณาหาเครื่องอื่นที่มีกล้องมาทำข้อสอบแทน</b>' },
-        permission_denied: { icon: '🚫', title: 'ไม่ได้รับอนุญาตให้ใช้กล้อง', detail: 'ถ้าไม่ประสงค์เปิดกล้องเพื่อตรวจสอบ<br><b>กรุณาไปทำข้อสอบที่โรงเรียนแทน</b>' },
+        permission_denied: { icon: '🚫', title: 'ไม่ได้รับอนุญาตให้ใช้กล้อง', detail: 'ถ้าไม่ประสงค์เปิดกล้องเพื่อตรวจสอบ <b>กรุณาไปทำข้อสอบที่โรงเรียนแทน</b><br><br><span style="font-size:11px;color:#94a3b8">หมายเหตุ: ถ้าเคยกดปฏิเสธไว้ก่อนหน้านี้ เบราว์เซอร์จะจำไว้และปฏิเสธทันทีโดยไม่ถามซ้ำ ต้องไปกดอนุญาตใหม่ที่ไอคอนกุญแจ/ข้อมูลเว็บไซต์ข้างช่อง URL ก่อน แล้วรีเฟรชหน้านี้ใหม่</span>' },
       };
       const m = messages[reason] || messages.permission_denied;
       gateEl.innerHTML = `
