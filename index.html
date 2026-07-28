@@ -8122,8 +8122,9 @@
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!examSet) { showToast('ไม่พบชุดสอบ', 'error'); return; }
 
-      // เช็คสถานะ frozen/terminated ก่อนเปิดหน้าสอบ
+      // เช็คสถานะ frozen/terminated/submitted ก่อนเปิดหน้าสอบ — ส่งคำตอบไปแล้วถือว่าจบเด็ดขาด กลับเข้ามาแก้ไขไม่ได้อีก
       if (submission.status === 'terminated') { showToast('การสอบนี้ถูกยุติแล้ว', 'error'); return; }
+      if (submission.status === 'submitted') { showToast('ส่งคำตอบไปแล้ว ไม่สามารถกลับเข้ามาทำต่อได้อีก', 'error'); return; }
       if (submission.frozen) { showExamFreezeOverlay(); return; }
 
       // 🚪 ด่านแรก: แจ้งเตือนการตรวจสอบ + ตรวจสอบ/ขอสิทธิ์กล้องก่อนเข้าสอบเสมอ (บังคับ ไม่ผ่านด่านนี้เข้าสอบไม่ได้)
@@ -8559,8 +8560,8 @@
     function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
 
     // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
-    async function confirmExamAnswer(submissionId, questionId, answer, idx) {
-      await saveExamAnswer(submissionId, questionId, answer);
+    function confirmExamAnswer(submissionId, questionId, answer, idx) {
+      saveExamAnswer(submissionId, questionId, answer); // บันทึกเบื้องหลังแบบไม่รอ (ไม่ await) — ให้กล่องยืนยันขึ้นทันที ไม่ต้องรอเครือข่าย
       if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
         renderAnswerSheetView(submissionId);
       } else {
@@ -8647,6 +8648,13 @@
         await _writeExamScoreToKField(submission, examSet, autoScore);
       }
 
+      // ⚠️ บังคับดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์ซ้ำอีกครั้ง ก่อนที่นักเรียนจะกลับไปหน้าคะแนน
+      // กันปัญหากรณี allData ยังไม่ทันอัปเดตครบ (เช่น การเขียนคะแนนสำเร็จที่ฝั่งเซิร์ฟเวอร์ แต่ฝั่งเบราว์เซอร์ยังไม่รีเฟรชทัน)
+      try {
+        const fresh = await window.dataSdk._fetchAll();
+        if (fresh) allData = fresh;
+      } catch (e) { console.log('[Exam Popup Debug] force refresh after submit failed (ไม่ร้ายแรง):', e.message); }
+
       stopExamAntiCheatGuard();
       window.removeEventListener('beforeunload', _examBeforeUnloadHandler);
       if (_examTimerInterval) clearInterval(_examTimerInterval);
@@ -8693,7 +8701,9 @@
           while (fullArr.length < round) fullArr.push('');
           if (!fullArr[round - 1]) {
             fullArr[round - 1] = String(examSet.total_score);
-            await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(',') });
+            // ⚠️ ต้องอัปเดต k_full_score (เอกพจน์ ใช้ในสูตรคำนวณเกรดจริง) ให้เท่ากับผลรวมของ k_full_scores (พหูพจน์) เสมอ เหมือนที่แก้ใน _applyExamFullScoreDelta
+            const newSingular = fullArr.reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(','), k_full_score: newSingular });
           }
         }
       }
@@ -9075,8 +9085,9 @@
         videoEl.style.cssText = 'position:fixed;bottom:70px;right:10px;width:90px;height:68px;border-radius:8px;border:2px solid #2563eb;object-fit:cover;z-index:2147483500;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
         videoEl.srcObject = _examCameraStream;
         document.body.appendChild(videoEl);
-        // ถ่ายภาพเป็นระยะ (ทุก 45 วินาที) เก็บไว้เป็นหลักฐานพื้นฐาน
-        _examCameraInterval = setInterval(() => _captureExamCameraSnapshot(submissionId, 'periodic'), 45000);
+        // 📸 ถ่ายภาพเป็นระยะทุก 90 วินาที (ยืดจาก 45 วิ) — ลดจำนวนครั้งที่เขียนข้อมูลเข้า Google Sheets ต่อการสอบ 1 ครั้ง
+        // ไม่ให้กระทบโควต้าฟรีของ Google Sheets/Apps Script ถ้ามีคนสอบพร้อมกันหลายคน
+        _examCameraInterval = setInterval(() => _captureExamCameraSnapshot(submissionId, 'periodic'), 90000);
       } catch (err) {
         console.log('[Exam Popup Debug] เปิดกล้องไม่สำเร็จ (นักเรียนอาจไม่อนุญาต หรือเครื่องไม่มีกล้อง):', err.message);
       }
@@ -9096,6 +9107,12 @@
         canvas.width = 240; canvas.height = 180;
         canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL('image/jpeg', 0.5);
+        // 🗑️ ถ้าเป็นภาพ "ตามรอบเวลาปกติ" (periodic) ให้ลบภาพ periodic เก่าของคนเดียวกันทิ้งก่อน (เก็บแค่ภาพล่าสุดพอ ไม่สะสม)
+        // ภาพที่ถ่ายตอนตรวจพบความผิดปกติ (ไม่ใช่ periodic) จะไม่ลบ เก็บไว้เป็นหลักฐานทุกภาพเสมอ
+        if (reason === 'periodic') {
+          const oldPeriodicShots = allData.filter(d => d.type === 'exam_camera_snapshot' && d.submission_id === submissionId && d.reason === 'periodic');
+          await Promise.all(oldPeriodicShots.map(s => window.dataSdk.delete(s)));
+        }
         await window.dataSdk.create({ type: 'exam_camera_snapshot', submission_id: submissionId, image_data: imageData, reason, captured_at: new Date().toISOString() });
       } catch (err) {
         console.log('[Exam Popup Debug] ถ่ายภาพไม่สำเร็จ:', err.message);
