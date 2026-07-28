@@ -8126,6 +8126,79 @@
       if (submission.status === 'terminated') { showToast('การสอบนี้ถูกยุติแล้ว', 'error'); return; }
       if (submission.frozen) { showExamFreezeOverlay(); return; }
 
+      // 🚪 ด่านแรก: แจ้งเตือนการตรวจสอบ + ตรวจสอบ/ขอสิทธิ์กล้องก่อนเข้าสอบเสมอ (บังคับ ไม่ผ่านด่านนี้เข้าสอบไม่ได้)
+      _showExamMonitoringNoticeGate(submissionId, examSet);
+    }
+
+    // ⚠️ แจ้งเตือนก่อนเข้าสอบทุกครั้ง: กำลังถูกตรวจสอบ ห้ามทำการใดๆ ที่ไม่สุจริต
+    function _showExamMonitoringNoticeGate(submissionId, examSet) {
+      document.getElementById('exam-monitoring-gate')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'exam-monitoring-gate';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483200;background:rgba(15,23,42,0.92);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">
+          <p style="font-size:40px;margin:0 0 12px">🔒</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 10px">ขณะนี้ระบบกำลังตรวจสอบการทำข้อสอบ</p>
+          <p style="font-size:13px;color:#dc2626;font-weight:600;margin:0 0 16px">ห้ามกระทำการใดๆ ที่ไม่สุจริตในการทำข้อสอบ<br>หากพบจะตัดสิทธิ์การสอบทันที</p>
+          <button onclick="_examGateProceedToCamera('${submissionId}')" style="width:100%;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">✅ รับทราบ</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      window._examGateExamSet = examSet; // เก็บไว้ใช้ต่อหลังผ่านด่านนี้
+    }
+
+    // 📷 หลังกด "รับทราบ" — ตรวจสอบว่ามีกล้องไหม แล้วขอสิทธิ์ใช้กล้อง (บังคับ ถ้าไม่ผ่านจะเข้าสอบไม่ได้)
+    async function _examGateProceedToCamera(submissionId) {
+      const gateEl = document.getElementById('exam-monitoring-gate');
+      if (gateEl) gateEl.innerHTML = `<div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center"><p style="font-size:32px;margin:0 0 8px">📷</p><p style="font-size:13px;color:#64748b">กำลังตรวจสอบกล้อง กรุณารอสักครู่...</p></div>`;
+
+      // ตรวจสอบก่อนว่าเครื่องนี้มีกล้องจริงไหม (ยังไม่ขอสิทธิ์ แค่เช็คว่ามีอุปกรณ์)
+      let hasCameraDevice = false;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        hasCameraDevice = devices.some(d => d.kind === 'videoinput');
+      } catch (e) { hasCameraDevice = false; }
+
+      if (!hasCameraDevice) {
+        _showExamGateBlocked('no_camera');
+        return;
+      }
+
+      // มีกล้อง → ขอสิทธิ์ใช้งานจริง
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
+        stream.getTracks().forEach(t => t.stop()); // ปิดชั่วคราวก่อน เดี๋ยว _startExamCameraMonitor จะเปิดใหม่ตอนเข้าสอบจริง
+        document.getElementById('exam-monitoring-gate')?.remove();
+        _renderExamModalActual(submissionId, window._examGateExamSet);
+      } catch (err) {
+        _showExamGateBlocked('permission_denied');
+      }
+    }
+
+    // 🚫 บล็อกไม่ให้เข้าสอบ พร้อมคำแนะนำที่ต้องทำต่อไป
+    function _showExamGateBlocked(reason) {
+      const gateEl = document.getElementById('exam-monitoring-gate');
+      if (!gateEl) return;
+      const messages = {
+        no_camera: { icon: '📵', title: 'เครื่องนี้ไม่มีกล้อง', detail: 'ระบบต้องใช้กล้องเพื่อตรวจสอบระหว่างทำข้อสอบ<br><b>กรุณาหาเครื่องอื่นที่มีกล้องมาทำข้อสอบแทน</b>' },
+        permission_denied: { icon: '🚫', title: 'ไม่ได้รับอนุญาตให้ใช้กล้อง', detail: 'ถ้าไม่ประสงค์เปิดกล้องเพื่อตรวจสอบ<br><b>กรุณาไปทำข้อสอบที่โรงเรียนแทน</b>' },
+      };
+      const m = messages[reason] || messages.permission_denied;
+      gateEl.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">
+          <p style="font-size:40px;margin:0 0 12px">${m.icon}</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 10px">${m.title}</p>
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 18px">${m.detail}</p>
+          <button onclick="document.getElementById('exam-monitoring-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
+        </div>
+      `;
+    }
+
+    // ✅ เนื้อหาจริงของหน้าสอบ (เดิมคือ renderExamModal) — ทำงานหลังผ่านด่านตรวจสอบกล้องแล้วเท่านั้น
+    function _renderExamModalActual(submissionId, examSet) {
+      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (!submission) return;
       _examCurrentQuestionIdx = -1; // -1 = อยู่หน้ากระดาษคำตอบ ยังไม่ได้เลือกข้อ
       _examViewMode = 'sheet';
       document.getElementById('exam-taking-overlay')?.remove(); // กันซ้อนถ้ามีค้างอยู่ก่อน
@@ -8160,7 +8233,7 @@
         }
       }, 3000);
 
-      // เริ่มระบบตรวจทุจริต — ล็อกไม่ให้ออก + จับตาสลับแท็บ/copy/paste
+      // เริ่มระบบตรวจทุจริต — ล็อกไม่ให้ออก + จับตาสลับแท็บ/copy/paste + เปิดกล้องตรวจสอบ
       startExamAntiCheatGuard(submissionId, {
         student_id: submission.student_id, subject_name: submission.subject_name,
         class_name: submission.class_name, room_number: submission.room_number, exam_id: submission.exam_set_id,
@@ -8729,6 +8802,12 @@
       const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' }[alert.violation_type] || alert.violation_type;
       const currentScore = submission?.manual_score !== undefined && submission?.manual_score !== null ? submission.manual_score : '';
       const activityLogHtml = renderExamActivityLogHtml(submission);
+      // 📸 หาภาพที่ถ่ายไว้ใกล้เวลาที่แจ้งเตือนนี้มากที่สุด (ถ่ายไว้ทันทีตอนตรวจพบความผิดปกติ)
+      const relatedSnapshots = allData.filter(d => d.type === 'exam_camera_snapshot' && d.submission_id === alert.submission_id)
+        .sort((a,b) => Math.abs(new Date(a.captured_at) - new Date(alert.created_at)) - Math.abs(new Date(b.captured_at) - new Date(alert.created_at)));
+      const snapshotHtml = relatedSnapshots.length > 0
+        ? `<div style="margin-bottom:14px"><p style="font-size:11px;color:#64748b;margin:0 0 6px">📸 ภาพจากกล้องขณะตรวจพบ (${relatedSnapshots[0].reason === alert.violation_type ? 'ถ่ายทันทีตอนตรวจพบ' : 'ภาพใกล้เคียงเวลา'})</p><img src="${relatedSnapshots[0].image_data}" style="width:100%;border-radius:8px;border:1px solid #e2e8f0"></div>`
+        : `<p style="font-size:11px;color:#94a3b8;margin:0 0 14px">📷 ไม่มีภาพจากกล้อง (นักเรียนอาจไม่อนุญาตใช้กล้อง หรือเครื่องไม่มีกล้อง)</p>`;
 
       document.getElementById('exam-alert-panel')?.remove();
       const wrap = document.createElement('div');
@@ -8744,6 +8823,7 @@
             <p style="margin:2px 0"><b>เวลา:</b> ${alert.created_at ? new Date(alert.created_at).toLocaleString('th-TH') : '-'}</p>
             <p style="margin:6px 0 0;color:#b91c1c;font-size:11px">⚠️ ระบบตรวจจับได้แค่พฤติกรรมนี้เท่านั้น ไม่สามารถยืนยันการทุจริตจริง 100% — โปรดใช้ดุลยพินิจ</p>
           </div>
+          ${snapshotHtml}
           ${activityLogHtml}
           <div style="display:flex;flex-direction:column;gap:8px">
             <button onclick="resumeExamSubmission('${alert.submission_id}','${alert.__backendId}')" style="background:#16a34a;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">🔓 ให้สอบต่อ (ปลดล็อก กลับไปทำต่อจากจุดเดิม)</button>
@@ -8850,6 +8930,43 @@
     let _examAntiCheatActive = false;
     let _examAntiCheatSubmissionId = null;
     let _examGuardStartTime = 0;
+    let _examCameraStream = null;
+    let _examCameraInterval = null;
+    async function _startExamCameraMonitor(submissionId) {
+      try {
+        _examCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
+        const videoEl = document.createElement('video');
+        videoEl.id = 'exam-camera-preview';
+        videoEl.autoplay = true; videoEl.muted = true; videoEl.playsInline = true;
+        videoEl.style.cssText = 'position:fixed;bottom:70px;right:10px;width:90px;height:68px;border-radius:8px;border:2px solid #2563eb;object-fit:cover;z-index:2147483500;box-shadow:0 2px 8px rgba(0,0,0,0.3)';
+        videoEl.srcObject = _examCameraStream;
+        document.body.appendChild(videoEl);
+        // ถ่ายภาพเป็นระยะ (ทุก 45 วินาที) เก็บไว้เป็นหลักฐานพื้นฐาน
+        _examCameraInterval = setInterval(() => _captureExamCameraSnapshot(submissionId, 'periodic'), 45000);
+      } catch (err) {
+        console.log('[Exam Popup Debug] เปิดกล้องไม่สำเร็จ (นักเรียนอาจไม่อนุญาต หรือเครื่องไม่มีกล้อง):', err.message);
+      }
+    }
+    function _stopExamCameraMonitor() {
+      if (_examCameraInterval) { clearInterval(_examCameraInterval); _examCameraInterval = null; }
+      if (_examCameraStream) { _examCameraStream.getTracks().forEach(t => t.stop()); _examCameraStream = null; }
+      document.getElementById('exam-camera-preview')?.remove();
+    }
+    // 📸 ถ่ายภาพจากกล้อง — เรียกทั้งตามรอบเวลาปกติ และทันทีที่ระบบตรวจพบพฤติกรรมผิดปกติ (สลับแท็บ/copy/paste)
+    async function _captureExamCameraSnapshot(submissionId, reason) {
+      if (!_examCameraStream) return;
+      try {
+        const videoEl = document.getElementById('exam-camera-preview');
+        if (!videoEl) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 240; canvas.height = 180;
+        canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+        const imageData = canvas.toDataURL('image/jpeg', 0.5);
+        await window.dataSdk.create({ type: 'exam_camera_snapshot', submission_id: submissionId, image_data: imageData, reason, captured_at: new Date().toISOString() });
+      } catch (err) {
+        console.log('[Exam Popup Debug] ถ่ายภาพไม่สำเร็จ:', err.message);
+      }
+    }
     function startExamAntiCheatGuard(submissionId, examInfo) {
       _examAntiCheatActive = true;
       _examAntiCheatSubmissionId = submissionId;
@@ -8860,6 +8977,7 @@
       document.addEventListener('copy', _handleExamCopy);
       document.addEventListener('paste', _handleExamPaste);
       window._examInfoForAntiCheat = examInfo; // {student_id, subject_name, class_name, room_number, exam_id}
+      _startExamCameraMonitor(submissionId); // 📷 เปิดกล้องตรวจสอบ (ต้องได้รับอนุญาตจากนักเรียนผ่าน browser prompt เสมอ)
     }
     function stopExamAntiCheatGuard() {
       _examAntiCheatActive = false;
@@ -8867,6 +8985,7 @@
       document.removeEventListener('visibilitychange', _handleExamVisibilityChange);
       document.removeEventListener('copy', _handleExamCopy);
       document.removeEventListener('paste', _handleExamPaste);
+      _stopExamCameraMonitor();
     }
     function _handleExamVisibilityChange() {
       const elapsed = Date.now() - _examGuardStartTime;
@@ -8892,6 +9011,8 @@
     async function _triggerExamViolation(violationType) {
       if (!_examAntiCheatActive) return;
       const info = window._examInfoForAntiCheat || {};
+      // 📸 ถ่ายภาพจากกล้องทันทีที่ตรวจพบความผิดปกติ — จังหวะที่มีประโยชน์ที่สุด ให้แอดมินดูเป็นหลักฐานประกอบ
+      _captureExamCameraSnapshot(_examAntiCheatSubmissionId, violationType);
       // หยุดหน้าจอทันที (freeze) — ก่อนจะรอแอดมินตัดสินใจ
       showExamFreezeOverlay();
       // บันทึกการแจ้งเตือนทันที
