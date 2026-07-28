@@ -8321,12 +8321,14 @@
         const shuffledChoices = examSetIsShuffleEnabled(submission) ? _seededShuffle(rawChoices, seed) : rawChoices;
         choicesHtml = shuffledChoices.map(c => `
           <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${currentAnswer===c.key ? '#2563eb' : '#e2e8f0'};border-radius:10px;margin-bottom:8px;cursor:pointer;background:${currentAnswer===c.key ? '#eff6ff' : 'white'}">
-            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="saveExamAnswer('${submissionId}','${qid}',this.value);examUpdateAnsweredMark(${idx})" style="width:18px;height:18px">
+            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" style="width:18px;height:18px">
             <span style="font-size:14px">${c.text}</span>
           </label>`).join('');
       } else {
-        choicesHtml = `<textarea onchange="saveExamAnswer('${submissionId}','${qid}',this.value);examUpdateAnsweredMark(${idx})" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
+        choicesHtml = `<textarea onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
       }
+      // ปุ่มยืนยันคำตอบ (โผล่เฉพาะเมื่อมีคำตอบอยู่แล้ว เผื่อกดยกเลิกไว้ก่อนหน้านี้ แล้วเปลี่ยนใจอยากยืนยันทีหลัง)
+      const confirmBtnHtml = currentAnswer ? `<button onclick="renderAnswerSheetView('${submissionId}')" style="width:100%;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:10px">✅ ยืนยันคำตอบข้อนี้</button>` : '';
 
       const imgHtml = question.question_image_url ? `<img src="${question.question_image_url}" style="max-width:100%;border-radius:10px;margin-bottom:12px" onerror="this.style.display='none'">` : '';
 
@@ -8338,6 +8340,7 @@
             ${imgHtml}
             <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
             ${choicesHtml}
+            ${confirmBtnHtml}
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <button onclick="examGoQuestion(${idx-1})" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${idx===0?'opacity:0.4;pointer-events:none':''}">← ข้อก่อนหน้า</button>
@@ -8347,6 +8350,16 @@
     }
     // อัปเดตกระดาษคำตอบเบื้องหลังทันทีที่ตอบ (เผื่อกลับไปดูสถานะ ไม่ต้องรอ render ใหม่)
     function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
+
+    // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
+    async function confirmExamAnswer(submissionId, questionId, answer, idx) {
+      await saveExamAnswer(submissionId, questionId, answer);
+      if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
+        renderAnswerSheetView(submissionId);
+      } else {
+        examGoQuestion(idx); // อยู่ที่ข้อเดิม แสดงปุ่ม "✅ ยืนยันคำตอบข้อนี้" ให้กดทีหลังได้
+      }
+    }
 
     // 📸 ดึงข้อมูลข้อสอบจาก snapshot ของชุดสอบเอง (ไม่พึ่งพาคลังข้อสอบต้นฉบับ) — ใช้กับชุดสอบเก่าที่ยังไม่มี snapshot เป็น fallback เท่านั้น
     function getExamQuestionFromSet(examSet, qid) {
@@ -8393,6 +8406,17 @@
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!submission || !examSet) return;
+
+      // ⏳ แสดงนาฬิการอทันที กันกดส่งซ้ำ (ทั้งกดเองและหมดเวลาอัตโนมัติ)
+      const bodyEl = document.getElementById('exam-modal-body');
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div style="padding:60px 20px;text-align:center">
+          <p style="font-size:48px;margin:0 0 16px">⏳</p>
+          <p style="font-size:15px;color:#334155;font-weight:600;margin:0">กำลังส่งคำตอบ กรุณารอสักครู่...</p>
+          <p style="font-size:12px;color:#94a3b8;margin:8px 0 0">ห้ามปิดหน้าต่างนี้จนกว่าจะเสร็จสิ้น</p>
+        </div>`;
+      }
+
       const answers = JSON.parse(submission.answers || '{}');
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
 
@@ -8420,7 +8444,22 @@
       window.removeEventListener('beforeunload', _examBeforeUnloadHandler);
       if (_examTimerInterval) clearInterval(_examTimerInterval);
       _stopExamHeartbeatLog();
-      document.getElementById('exam-taking-overlay')?.remove();
+
+      // 🎉 แสดงผลคะแนนให้เห็นชัดเจนก่อนปิดหน้าต่าง (แทนที่จะปิดทันทีแล้วขึ้นแค่ toast เล็กๆ)
+      if (bodyEl) {
+        bodyEl.innerHTML = `<div style="padding:50px 20px;text-align:center">
+          <p style="font-size:48px;margin:0 0 12px">${hasWritten ? '📝' : '🎉'}</p>
+          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 8px">ส่งคำตอบสำเร็จแล้ว!</p>
+          ${hasWritten
+            ? `<p style="font-size:13px;color:#64748b;margin:0">มีข้ออัตนัยที่ต้องรอครูตรวจ<br>คะแนนส่วนปรนัยที่ตรวจอัตโนมัติแล้ว: <b style="color:#2563eb">${autoScore}</b> คะแนน</p>`
+            : `<p style="font-size:13px;color:#64748b;margin:0 0 4px">คะแนนที่ได้</p>
+               <p style="font-size:32px;font-weight:800;color:#16a34a;margin:0">${autoScore}<span style="font-size:16px;color:#94a3b8"> / ${examSet.total_score}</span></p>`
+          }
+          <button onclick="document.getElementById('exam-taking-overlay')?.remove()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">ปิดหน้าต่างนี้</button>
+        </div>`;
+      } else {
+        document.getElementById('exam-taking-overlay')?.remove();
+      }
       showToast(hasWritten ? '✅ ส่งคำตอบสำเร็จ รอครูตรวจข้ออัตนัย' : `✅ ส่งคำตอบสำเร็จ ได้คะแนน ${autoScore}/${examSet.total_score}`);
     }
 
