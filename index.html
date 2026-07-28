@@ -8560,9 +8560,11 @@
     function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
 
     // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
-    function confirmExamAnswer(submissionId, questionId, answer, idx) {
-      saveExamAnswer(submissionId, questionId, answer); // บันทึกเบื้องหลังแบบไม่รอ (ไม่ await) — ให้กล่องยืนยันขึ้นทันที ไม่ต้องรอเครือข่าย
+    async function confirmExamAnswer(submissionId, questionId, answer, idx) {
+      const savePromise = saveExamAnswer(submissionId, questionId, answer); // เริ่มบันทึกเบื้องหลังทันที ไม่รอ ให้กล่องยืนยันขึ้นเร็ว
       if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
+        // ⚠️ ก่อนกลับไปกระดาษคำตอบ ต้องรอให้การบันทึกเสร็จสมบูรณ์ก่อนเสมอ ไม่งั้นจะกลับไปเจอข้อมูลเก่าที่ยังไม่มีคำตอบ (มาร์คสีเขียวไม่ขึ้น)
+        await savePromise;
         renderAnswerSheetView(submissionId);
       } else {
         examGoQuestion(idx); // อยู่ที่ข้อเดิม แสดงปุ่ม "✅ ยืนยันคำตอบข้อนี้" ให้กดทีหลังได้
