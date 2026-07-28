@@ -8183,6 +8183,32 @@
     }
 
     // ⚠️ เตือนเมื่อเปิดผ่านเบราว์เซอร์ในตัวแอป (LINE/Facebook/ฯลฯ) — กล้องอาจใช้งานไม่ได้ ต้องเปิดในเบราว์เซอร์จริงก่อน
+    // 🚀 พยายามเปิดในเบราว์เซอร์จริงอัตโนมัติ — ใช้ URL scheme เฉพาะระบบ (ได้ผลไม่แน่นอน บาง in-app browser เช่น LINE บล็อกไว้ตั้งใจ)
+    function _attemptAutoOpenBrowser() {
+      const url = window.location.href;
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPhone|iPad|iPod/.test(ua);
+      try {
+        if (isIOS) {
+          // iOS: ลองเปิดด้วย Chrome ก่อน (ถ้ามีติดตั้งไว้) — Safari ไม่มี scheme ให้เรียกจากเว็บได้โดยตรง
+          window.location.href = url.replace(/^https?:\/\//, 'googlechrome://');
+        } else {
+          // Android: ใช้ Intent URL เปิด Chrome โดยตรง
+          const urlNoScheme = url.replace(/^https?:\/\//, '');
+          window.location.href = `intent://${urlNoScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+        }
+      } catch (e) { /* เงียบไว้ ถ้าไม่สำเร็จให้ผู้ใช้คัดลอกลิงก์ไปเปิดเองแทน */ }
+    }
+    // 📋 คัดลอกลิงก์ปัจจุบันไปยัง clipboard — วิธีที่เชื่อถือได้ที่สุด ให้ผู้ใช้ไปวางในเบราว์เซอร์เอง
+    async function _copyExamUrlToClipboard() {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('📋 คัดลอกลิงก์แล้ว — เปิด Chrome/Safari แล้ววางลิงก์ในช่อง URL ได้เลย');
+      } catch (e) {
+        showToast('⚠️ คัดลอกไม่สำเร็จ กรุณาคัดลอกที่อยู่จากช่อง URL ด้วยตัวเองแทน', 'error');
+      }
+    }
+
     function _showInAppBrowserWarning(appName) {
       const overlay = document.createElement('div');
       overlay.id = 'exam-monitoring-gate';
@@ -8195,9 +8221,13 @@
             ตรวจพบว่าเปิดหน้านี้ผ่าน <b>${appName}</b> ซึ่งกล้องอาจใช้งานไม่ได้ถูกต้อง<br>
             <b style="color:#dc2626">กรุณาเปิดลิงก์นี้ในเบราว์เซอร์จริง (Chrome/Safari) ก่อน</b>
           </p>
+          <button onclick="_attemptAutoOpenBrowser()" style="width:100%;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">🚀 ลองเปิดในเบราว์เซอร์อัตโนมัติ</button>
+          <button onclick="_copyExamUrlToClipboard()" style="width:100%;padding:11px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">📋 คัดลอกลิงก์นี้</button>
           <div style="text-align:left;background:#f8fafc;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;margin-bottom:16px">
+            <p style="margin:0 0 4px;font-weight:600">ถ้ากดปุ่มด้านบนไม่ทำงาน ให้ทำเองตามนี้:</p>
             👉 กดปุ่ม <b>⋯</b> หรือ <b>⋮</b> มุมขวาบน (หรือมุมล่าง) ของหน้าจอ<br>
-            👉 เลือก <b>"เปิดในเบราว์เซอร์" / "Open in Browser" / "Open in Safari/Chrome"</b>
+            👉 เลือก <b>"เปิดในเบราว์เซอร์" / "Open in Browser"</b><br>
+            <span style="color:#94a3b8">หรือคัดลอกลิงก์ (ปุ่มสีน้ำเงินด้านบน) แล้วเปิด Chrome/Safari เอง แล้ววางลิงก์ในช่อง URL</span>
           </div>
           <button onclick="document.getElementById('exam-monitoring-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
         </div>
