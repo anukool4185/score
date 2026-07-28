@@ -8144,6 +8144,21 @@
 
     function _showExamMonitoringNoticeGate(submissionId, examSet) {
       document.getElementById('exam-monitoring-gate')?.remove();
+      // ⚠️ ตรวจจับ In-App Browser (LINE, Facebook, Instagram ฯลฯ) — เบราว์เซอร์ในตัวแอปพวกนี้มักมีปัญหากับสิทธิ์กล้อง
+      // (บางตัวไม่รองรับเลย บางตัวขอสิทธิ์ไม่ได้ถูกต้อง) ต้องเตือนให้เปิดในเบราว์เซอร์จริงก่อนเข้าสอบเสมอ
+      const ua = navigator.userAgent || '';
+      const inAppBrowserPatterns = [
+        { name: 'LINE', regex: /Line\//i },
+        { name: 'Facebook', regex: /FBAN|FBAV/i },
+        { name: 'Instagram', regex: /Instagram/i },
+        { name: 'Messenger', regex: /FB_IAB/i },
+        { name: 'TikTok', regex: /musical_ly|TikTok/i },
+      ];
+      const detectedApp = inAppBrowserPatterns.find(p => p.regex.test(ua));
+      if (detectedApp) {
+        _showInAppBrowserWarning(detectedApp.name);
+        return;
+      }
       const overlay = document.createElement('div');
       overlay.id = 'exam-monitoring-gate';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483200;background:rgba(15,23,42,0.92);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -8165,6 +8180,29 @@
       `;
       document.body.appendChild(overlay);
       window._examGateExamSet = examSet; // เก็บไว้ใช้ต่อหลังผ่านด่านนี้
+    }
+
+    // ⚠️ เตือนเมื่อเปิดผ่านเบราว์เซอร์ในตัวแอป (LINE/Facebook/ฯลฯ) — กล้องอาจใช้งานไม่ได้ ต้องเปิดในเบราว์เซอร์จริงก่อน
+    function _showInAppBrowserWarning(appName) {
+      const overlay = document.createElement('div');
+      overlay.id = 'exam-monitoring-gate';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483200;background:rgba(15,23,42,0.92);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">
+          <p style="font-size:40px;margin:0 0 12px">⚠️</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 10px">กรุณาเปิดในเบราว์เซอร์ก่อนเข้าสอบ</p>
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 16px">
+            ตรวจพบว่าเปิดหน้านี้ผ่าน <b>${appName}</b> ซึ่งกล้องอาจใช้งานไม่ได้ถูกต้อง<br>
+            <b style="color:#dc2626">กรุณาเปิดลิงก์นี้ในเบราว์เซอร์จริง (Chrome/Safari) ก่อน</b>
+          </p>
+          <div style="text-align:left;background:#f8fafc;border-radius:8px;padding:12px;font-size:12px;line-height:1.8;margin-bottom:16px">
+            👉 กดปุ่ม <b>⋯</b> หรือ <b>⋮</b> มุมขวาบน (หรือมุมล่าง) ของหน้าจอ<br>
+            👉 เลือก <b>"เปิดในเบราว์เซอร์" / "Open in Browser" / "Open in Safari/Chrome"</b>
+          </div>
+          <button onclick="document.getElementById('exam-monitoring-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
     }
 
     // 📷 หลังกด "รับทราบ" — ตรวจสอบว่ามีกล้องไหม แล้วขอสิทธิ์ใช้กล้อง (บังคับ ถ้าไม่ผ่านจะเข้าสอบไม่ได้)
@@ -8207,6 +8245,26 @@
     function _showExamGateBlocked(reason, submissionId) {
       const gateEl = document.getElementById('exam-monitoring-gate');
       if (!gateEl) return;
+      // 📱 วิธีเปิดกล้องคืนบนมือถือ ต่างจากคอมมาก (ไม่มีไอคอนกุญแจข้าง URL ให้กดง่ายๆ) ต้องแยกคำแนะนำตามอุปกรณ์และระบบปฏิบัติการ
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPhone|iPad|iPod/.test(ua);
+      const isAndroid = /Android/.test(ua);
+      let mobileSteps = '';
+      if (isIOS) {
+        mobileSteps = `1️⃣ ออกจากเบราว์เซอร์ ไปที่ "การตั้งค่า" (Settings) ของเครื่อง<br>
+                       2️⃣ เลื่อนหาแอป "Safari" (หรือเบราว์เซอร์ที่ใช้) แล้วกดเข้าไป<br>
+                       3️⃣ หาหัวข้อ "กล้อง / Camera" เปลี่ยนเป็น "อนุญาต / Allow"<br>
+                       4️⃣ กลับมาที่หน้านี้ กดปุ่ม "🔄 ลองอีกครั้ง" ด้านล่าง`;
+      } else if (isAndroid) {
+        mobileSteps = `1️⃣ กดปุ่ม ⋮ (จุด 3 จุด) มุมขวาบนของเบราว์เซอร์<br>
+                       2️⃣ เลือก "การตั้งค่าเว็บไซต์" หรือ "ข้อมูลเว็บไซต์" (กดไอคอน ⓘ ข้าง URL ก็ได้ถ้ามี)<br>
+                       3️⃣ หาหัวข้อ "กล้อง / Camera" เปลี่ยนเป็น "อนุญาต / Allow"<br>
+                       4️⃣ กลับมาที่หน้านี้ กดปุ่ม "🔄 ลองอีกครั้ง" ด้านล่าง`;
+      } else {
+        mobileSteps = `1️⃣ กดไอคอน 🔒 หรือ ⓘ ที่อยู่ข้างช่อง URL ด้านบนสุดของเบราว์เซอร์<br>
+                       2️⃣ หาคำว่า "กล้อง / Camera" แล้วเปลี่ยนเป็น "อนุญาต / Allow"<br>
+                       3️⃣ กลับมากดปุ่ม "🔄 ลองอีกครั้ง" ด้านล่างนี้ (ไม่ต้องรีเฟรชหน้าเว็บ)`;
+      }
       const messages = {
         no_camera: {
           icon: '📵', title: 'เครื่องนี้ไม่มีกล้อง',
@@ -8217,9 +8275,7 @@
           icon: '🚫', title: 'กล้องถูกปิดกั้นไว้ (เคยกดปฏิเสธมาก่อน)',
           detail: `เบราว์เซอร์จำการปฏิเสธไว้ จึงไม่ถามซ้ำอัตโนมัติ ต้องเปิดเองตามขั้นตอนนี้ก่อน:<br><br>
             <div style="text-align:left;background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;line-height:1.8">
-              1️⃣ กดไอคอน 🔒 หรือ ⓘ ที่อยู่ข้างช่อง URL ด้านบนสุดของเบราว์เซอร์<br>
-              2️⃣ หาคำว่า "กล้อง / Camera" แล้วเปลี่ยนเป็น "อนุญาต / Allow"<br>
-              3️⃣ กลับมากดปุ่ม "🔄 ลองอีกครั้ง" ด้านล่างนี้ (ไม่ต้องรีเฟรชหน้าเว็บ)
+              ${mobileSteps}
             </div>`,
           showRetry: true,
         },
