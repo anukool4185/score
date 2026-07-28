@@ -8131,6 +8131,17 @@
     }
 
     // ⚠️ แจ้งเตือนก่อนเข้าสอบทุกครั้ง: กำลังถูกตรวจสอบ ห้ามทำการใดๆ ที่ไม่สุจริต
+    // 🚪 ปิดการสอบครั้งนี้อย่างเด็ดขาด (ไม่ใช่แค่ปิด popup) — เพราะนักเรียนเลือกไม่เปิดกล้องตามที่กำหนด
+    async function _closeExamGateDefinitively(submissionId) {
+      document.getElementById('exam-monitoring-gate')?.remove();
+      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (submission) {
+        // ยุติการสอบครั้งนี้จริง (ยังไม่เคยเห็นคำถามเลย จึงไม่มีคะแนนต้องคืน) — ต้องขออนุญาตจากแอดมินถ้าจะสอบใหม่
+        await window.dataSdk.delete(submission);
+      }
+      showToast('🚪 ปิดการสอบครั้งนี้แล้ว กรุณาไปทำข้อสอบที่โรงเรียน หรือติดต่อครูผู้สอน');
+    }
+
     function _showExamMonitoringNoticeGate(submissionId, examSet) {
       document.getElementById('exam-monitoring-gate')?.remove();
       const overlay = document.createElement('div');
@@ -8141,6 +8152,14 @@
           <p style="font-size:40px;margin:0 0 12px">🔒</p>
           <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 10px">ขณะนี้ระบบกำลังตรวจสอบการทำข้อสอบ</p>
           <p style="font-size:13px;color:#dc2626;font-weight:600;margin:0 0 16px">ห้ามกระทำการใดๆ ที่ไม่สุจริตในการทำข้อสอบ<br>หากพบจะตัดสิทธิ์การสอบทันที</p>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:16px;text-align:left">
+            <p style="font-size:12px;font-weight:700;color:#1e40af;margin:0 0 6px">📷 คำแนะนำก่อนเข้าสอบ</p>
+            <p style="font-size:11.5px;color:#334155;line-height:1.7;margin:0">
+              หลังกด "รับทราบ" เบราว์เซอร์จะขึ้นหน้าต่างขอสิทธิ์ใช้กล้อง<br>
+              👉 <b>กด "อนุญาต / Allow"</b> เพื่อเริ่มทำข้อสอบได้ทันที<br>
+              ⚠️ ถ้ากด "บล็อก/ปฏิเสธ" ระบบจะไม่ถามซ้ำอัตโนมัติ ต้องไปเปิดเองทีหลัง
+            </p>
+          </div>
           <button onclick="_examGateProceedToCamera('${submissionId}')" style="width:100%;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">✅ รับทราบ</button>
         </div>
       `;
@@ -8151,6 +8170,18 @@
     // 📷 หลังกด "รับทราบ" — ตรวจสอบว่ามีกล้องไหม แล้วขอสิทธิ์ใช้กล้อง (บังคับ ถ้าไม่ผ่านจะเข้าสอบไม่ได้)
     async function _examGateProceedToCamera(submissionId) {
       const gateEl = document.getElementById('exam-monitoring-gate');
+      // ⚠️ เช็คสถานะสิทธิ์กล้องล่วงหน้าก่อน (ถ้าเบราว์เซอร์รองรับ Permissions API) — ถ้าเคยถูกปฏิเสธไว้แล้ว
+      // จะได้ไม่ต้องเสียเวลาลองแล้วพังเงียบๆ แต่แสดงคำแนะนำวิธีเปิดเองให้ชัดเจนตั้งแต่แรก
+      try {
+        if (navigator.permissions?.query) {
+          const status = await navigator.permissions.query({ name: 'camera' });
+          if (status.state === 'denied') {
+            _showExamGateBlocked('permission_denied', submissionId);
+            return;
+          }
+        }
+      } catch (e) { /* เบราว์เซอร์บางตัวไม่รองรับการเช็คแบบนี้ ข้ามไปลองขอสิทธิ์ตรงๆ แทน */ }
+
       if (gateEl) gateEl.innerHTML = `<div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center"><p style="font-size:32px;margin:0 0 8px">📷</p><p style="font-size:13px;color:#64748b">กำลังขอสิทธิ์ใช้กล้อง กรุณาอนุญาตในหน้าต่างที่เบราว์เซอร์แสดงขึ้นมา...</p></div>`;
 
       // ⚠️ ขอสิทธิ์กล้องตรงๆ เลย (ไม่เช็ค enumerateDevices ก่อน เพราะบางเบราว์เซอร์ไม่แสดงอุปกรณ์ครบก่อนได้รับอนุญาต)
@@ -8168,25 +8199,46 @@
       } catch (err) {
         console.log('[Exam Popup Debug] camera permission error:', err.name, err.message);
         const noCameraErrors = ['NotFoundError', 'DevicesNotFoundError', 'OverconstrainedError'];
-        _showExamGateBlocked(noCameraErrors.includes(err.name) ? 'no_camera' : 'permission_denied');
+        _showExamGateBlocked(noCameraErrors.includes(err.name) ? 'no_camera' : 'permission_denied', submissionId);
       }
     }
 
     // 🚫 บล็อกไม่ให้เข้าสอบ พร้อมคำแนะนำที่ต้องทำต่อไป
-    function _showExamGateBlocked(reason) {
+    function _showExamGateBlocked(reason, submissionId) {
       const gateEl = document.getElementById('exam-monitoring-gate');
       if (!gateEl) return;
       const messages = {
-        no_camera: { icon: '📵', title: 'เครื่องนี้ไม่มีกล้อง', detail: 'ระบบต้องใช้กล้องเพื่อตรวจสอบระหว่างทำข้อสอบ<br><b>กรุณาหาเครื่องอื่นที่มีกล้องมาทำข้อสอบแทน</b>' },
-        permission_denied: { icon: '🚫', title: 'ไม่ได้รับอนุญาตให้ใช้กล้อง', detail: 'ถ้าไม่ประสงค์เปิดกล้องเพื่อตรวจสอบ <b>กรุณาไปทำข้อสอบที่โรงเรียนแทน</b><br><br><span style="font-size:11px;color:#94a3b8">หมายเหตุ: ถ้าเคยกดปฏิเสธไว้ก่อนหน้านี้ เบราว์เซอร์จะจำไว้และปฏิเสธทันทีโดยไม่ถามซ้ำ ต้องไปกดอนุญาตใหม่ที่ไอคอนกุญแจ/ข้อมูลเว็บไซต์ข้างช่อง URL ก่อน แล้วรีเฟรชหน้านี้ใหม่</span>' },
+        no_camera: {
+          icon: '📵', title: 'เครื่องนี้ไม่มีกล้อง',
+          detail: 'ระบบต้องใช้กล้องเพื่อตรวจสอบระหว่างทำข้อสอบ<br><b>กรุณาหาเครื่องอื่นที่มีกล้องมาทำข้อสอบแทน</b>',
+          showRetry: false,
+        },
+        permission_denied: {
+          icon: '🚫', title: 'กล้องถูกปิดกั้นไว้ (เคยกดปฏิเสธมาก่อน)',
+          detail: `เบราว์เซอร์จำการปฏิเสธไว้ จึงไม่ถามซ้ำอัตโนมัติ ต้องเปิดเองตามขั้นตอนนี้ก่อน:<br><br>
+            <div style="text-align:left;background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;line-height:1.8">
+              1️⃣ กดไอคอน 🔒 หรือ ⓘ ที่อยู่ข้างช่อง URL ด้านบนสุดของเบราว์เซอร์<br>
+              2️⃣ หาคำว่า "กล้อง / Camera" แล้วเปลี่ยนเป็น "อนุญาต / Allow"<br>
+              3️⃣ กลับมากดปุ่ม "🔄 ลองอีกครั้ง" ด้านล่างนี้ (ไม่ต้องรีเฟรชหน้าเว็บ)
+            </div>`,
+          showRetry: true,
+        },
       };
       const m = messages[reason] || messages.permission_denied;
+      // ⚠️ ข้อความเตือนให้ไปสอบที่โรงเรียน — ทำให้เห็นชัดเจนแยกกล่องต่างหาก ไม่ให้กลืนไปกับข้อความอื่น
+      const schoolNoticeHtml = `<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:10px;margin-top:12px">
+        <p style="font-size:12.5px;color:#b91c1c;font-weight:700;margin:0">⚠️ หากไม่ประสงค์เปิดกล้อง กรุณาไปทำข้อสอบที่โรงเรียนแทน</p>
+      </div>`;
       gateEl.innerHTML = `
         <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">
           <p style="font-size:40px;margin:0 0 12px">${m.icon}</p>
           <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 10px">${m.title}</p>
-          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 18px">${m.detail}</p>
-          <button onclick="document.getElementById('exam-monitoring-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0">${m.detail}</p>
+          ${schoolNoticeHtml}
+          <div style="margin-top:16px">
+          ${m.showRetry ? `<button onclick="_examGateProceedToCamera('${submissionId}')" style="width:100%;padding:11px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">🔄 ลองอีกครั้ง</button>` : ''}
+          <button onclick="_closeExamGateDefinitively('${submissionId}')" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิดการสอบครั้งนี้</button>
+          </div>
         </div>
       `;
     }
