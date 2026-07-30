@@ -7502,7 +7502,7 @@
       const existing = parseFloat(fullArr[round - 1]) || 0;
       // ⚠️ ป้องกันคะแนนเต็มติดลบเด็ดขาด: ถ้าคำนวณแล้วติดลบ (เช่น ข้อมูลเก่าที่ไม่เคยถูกบวกจริงมาก่อน แล้วมาลบออกทีหลัง)
       // ให้ตัดกลับเป็น 0 เสมอ ไม่ยอมให้คะแนนเต็มติดลบไม่ว่ากรณีใดก็ตาม
-      fullArr[round - 1] = String(Math.max(0, existing + delta));
+      fullArr[round - 1] = (existing + delta) > 0 ? String(existing + delta) : ''; // ว่างเปล่า ไม่ใช่ "0" กันนักเรียนเข้าใจผิดว่าได้ 0 คะแนน
       // 🎯 บั๊กที่ลึกที่สุดที่พบ: สูตรคำนวณเกรดจริง (weightedScore) ใช้ฟิลด์ k_full_score "เอกพจน์" เป็นตัวหาร
       // ไม่ใช่ k_full_scores (พหูพจน์) ที่ฟังก์ชันนี้อัปเดตมาตลอด! ทำให้ต่อให้ตัวเลขต่อรอบแสดงถูกต้อง แต่เกรดจริงยังคำนวณจากค่าเก่าที่ไม่เกี่ยวข้องกันเลย
       // ต้องคำนวณ k_full_score (เอกพจน์) ใหม่ให้เท่ากับ "ผลรวม" ของ k_full_scores (พหูพจน์) ทุกครั้งที่มีการเปลี่ยนแปลง เพื่อให้สูตรเกรดถูกต้องจริง
@@ -7684,7 +7684,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(Math.max(0, currentValue - scoreGiven));
+            scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
         }
@@ -7740,7 +7740,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(Math.max(0, currentValue - scoreGiven));
+            scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
         }
@@ -7949,7 +7949,7 @@
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = String(Math.max(0, currentValue - prevScore));
+            scoresArr[round - 1] = (currentValue - prevScore) > 0 ? String(currentValue - prevScore) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
           }
           // ทำเครื่องหมายว่าคะแนนของครั้งนี้ถูกลบออกจากยอดแล้ว กัน deleteExamSet/resetExamSet มาลบซ้ำอีกทีในอนาคต
