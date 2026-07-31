@@ -10,6 +10,12 @@
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <!-- 🧮 KaTeX สำหรับแสดงสมการคณิตศาสตร์ในโจทย์และตัวเลือกข้อสอบ (พิมพ์สมการด้วย LaTeX คร่อมด้วย $...$ หรือ $$...$$) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <!-- 🖊️ MathLive: ตัวช่วยแทรกสมการแบบไม่ต้องพิมพ์คำสั่ง LaTeX เอง (คลิก/พิมพ์แล้วขึ้นรูปสมการให้อัตโนมัติ) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathlive"></script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Prompt', sans-serif; }
@@ -2067,8 +2073,11 @@
          </div>
 
          <div class="mb-3">
-          <label class="block text-xs text-gray-600 mb-1">❓ โจทย์คำถาม</label>
-          <textarea id="eq-question-text" rows="3" placeholder="พิมพ์โจทย์คำถามที่นี่..." class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
+          <label class="block text-xs text-gray-600 mb-1">❓ โจทย์คำถาม <span class="text-gray-400 font-normal">(พิมพ์สมการคณิตศาสตร์ได้ คร่อมด้วย $...$ เช่น $x^2+y^2=r^2$)</span>
+           <button type="button" onclick="openEquationBuilder('eq-question-text')" class="ml-1 px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[11px] font-medium">🖊️ แทรกสมการ (ไม่ต้องพิมพ์ LaTeX เอง)</button>
+          </label>
+          <textarea id="eq-question-text" oninput="document.getElementById('eq-question-preview').textContent = this.value; renderMathIn('#eq-question-preview')" rows="3" placeholder="พิมพ์โจทย์คำถามที่นี่... (ใส่สมการได้ เช่น $\frac{a}{b}$)" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
+          <div id="eq-question-preview" class="text-sm text-gray-700 mt-1 px-2 py-1.5 bg-gray-50 rounded-lg min-h-[24px]"></div>
          </div>
 
          <div class="mb-3">
@@ -2084,7 +2093,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="a" id="eq-correct-a">
              <span class="text-sm w-4">ก.</span>
-             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-a')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
             </div>
             <input type="text" id="eq-choice-a-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -2092,7 +2101,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="b" id="eq-correct-b">
              <span class="text-sm w-4">ข.</span>
-             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-b')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
             </div>
             <input type="text" id="eq-choice-b-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -2100,7 +2109,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="c" id="eq-correct-c">
              <span class="text-sm w-4">ค.</span>
-             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-c')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
             </div>
             <input type="text" id="eq-choice-c-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -2108,7 +2117,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="d" id="eq-correct-d">
              <span class="text-sm w-4">ง.</span>
-             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-d')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
             </div>
             <input type="text" id="eq-choice-d-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -2116,7 +2125,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="e" id="eq-correct-e">
              <span class="text-sm w-4">จ.</span>
-             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-e')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
             </div>
             <input type="text" id="eq-choice-e-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -7278,6 +7287,7 @@
             </div>
           </div>`;
       }).join('');
+      renderMathIn('#eq-list'); // 🧮 แสดงสมการคณิตศาสตร์ในรายการคลังข้อสอบ (ถ้ามี)
     }
 
     function editExamQuestion(id) {
@@ -8533,6 +8543,72 @@
     }
 
     // แสดงโจทย์ข้อใดข้อหนึ่ง (เรียกจากกระดาษคำตอบ) — มีปุ่มกลับไปกระดาษคำตอบ + ข้อก่อนหน้า/ถัดไปสำหรับไล่ทำต่อเนื่อง
+    // 🧮 แสดงสมการคณิตศาสตร์ (LaTeX ผ่าน KaTeX) ในเนื้อหาที่เพิ่งแสดงผล — พิมพ์สมการคร่อมด้วย $...$ (แบบแทรกในบรรทัด) หรือ $$...$$ (แบบขึ้นบรรทัดใหม่)
+    // 🖊️ เปิดตัวช่วยแทรกสมการแบบไม่ต้องพิมพ์คำสั่ง LaTeX เอง — คลิก/พิมพ์ตัวเลขปกติ (เช่น "1/2" จะกลายเป็นเศษส่วนให้อัตโนมัติ)
+    function openEquationBuilder(targetInputId) {
+      document.getElementById('equation-builder-modal')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'equation-builder-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:480px;width:100%;padding:20px">
+          <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
+          <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ ไม่ต้องรู้คำสั่ง LaTeX</p>
+          <math-field id="equation-builder-field" style="width:100%;font-size:22px;padding:14px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;display:block;min-height:50px"></math-field>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin:10px 0">
+            ${[
+              ['x²','x^2'],['xₙ','x_n'],['√x','\\sqrt{x}'],['a/b','\\frac{a}{b}'],
+              ['π','\\pi'],['±','\\pm'],['≤','\\leq'],['≥','\\geq'],['≠','\\neq'],
+              ['∑','\\sum_{i=1}^{n}'],['∫','\\int_0^1'],['∞','\\infty'],['°','^\\circ'],
+            ].map(([label, cmd]) => `<button onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">${label}</button>`).join('')}
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button onclick="document.getElementById('equation-builder-modal')?.remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ยกเลิก</button>
+            <button onclick="_insertEquationResult('${targetInputId}')" style="flex:1;padding:10px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✅ แทรกสมการ</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    function _insertToEquationField(latexCmd) {
+      const field = document.getElementById('equation-builder-field');
+      if (field && field.executeCommand) field.executeCommand(['insert', latexCmd]);
+    }
+    function _insertEquationResult(targetInputId) {
+      const field = document.getElementById('equation-builder-field');
+      const targetInput = document.getElementById(targetInputId);
+      if (field && targetInput) {
+        const latex = field.getValue ? field.getValue() : field.value;
+        if (latex) {
+          const cursorPos = targetInput.selectionStart ?? targetInput.value.length;
+          const before = targetInput.value.slice(0, cursorPos);
+          const after = targetInput.value.slice(cursorPos);
+          targetInput.value = `${before}$${latex}$${after}`;
+          // อัปเดตตัวอย่างสมการทันทีถ้ามี (เฉพาะช่องโจทย์คำถาม)
+          if (targetInputId === 'eq-question-text') {
+            document.getElementById('eq-question-preview').textContent = targetInput.value;
+            renderMathIn('#eq-question-preview');
+          }
+        }
+      }
+      document.getElementById('equation-builder-modal')?.remove();
+    }
+
+    function renderMathIn(selector) {
+      try {
+        const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (el && typeof renderMathInElement === 'function') {
+          renderMathInElement(el, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false },
+            ],
+            throwOnError: false,
+          });
+        }
+      } catch (e) { console.log('[Exam Popup Debug] renderMathIn error (ไม่ร้ายแรง):', e.message); }
+    }
+
     function examGoQuestion(idx) {
       _examViewMode = 'question';
       const submissionId = _examAntiCheatSubmissionId;
@@ -8589,6 +8665,7 @@
             <button onclick="examGoQuestion(${idx+1})" style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;${idx===orderedIds.length-1?'opacity:0.4;pointer-events:none':''}">ข้อถัดไป →</button>
           </div>
         </div>`;
+      renderMathIn('#exam-modal-body'); // 🧮 แสดงสมการคณิตศาสตร์ (ถ้ามีในโจทย์/ตัวเลือก)
     }
     // อัปเดตกระดาษคำตอบเบื้องหลังทันทีที่ตอบ (เผื่อกลับไปดูสถานะ ไม่ต้องรอ render ใหม่)
     function examUpdateAnsweredMark(idx) { /* สถานะจะอัปเดตอัตโนมัติตอนกลับไปหน้ากระดาษคำตอบ เพราะ renderAnswerSheetView อ่านจาก submission.answers สดเสมอ */ }
