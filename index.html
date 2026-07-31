@@ -3923,12 +3923,17 @@
         const overrides = JSON.parse(configRecord.items_json); // [{id, icon, order}]
         const overrideMap = {};
         overrides.forEach(o => { overrideMap[o.id] = o; });
-        return defaults
-          .map(item => {
-            const o = overrideMap[item.id];
-            return o ? { ...item, icon: o.icon || item.icon, __order: o.order } : { ...item, __order: 999 };
-          })
-          .sort((a, b) => (a.__order ?? 999) - (b.__order ?? 999));
+        // ⚠️ บั๊กที่พบ: ไอเทมใหม่ที่เพิ่งเพิ่มเข้าโค้ด (ยังไม่เคยมีอยู่ตอนแอดมินบันทึกลำดับเมนูครั้งก่อน) จะไม่มี order ที่บันทึกไว้
+        // เดิมให้ order = 999 ตายตัว ทำให้กระเด็นไปอยู่ท้ายสุด แยกออกจากกลุ่มเดิมของมันจนดูเหมือนมี 2 กลุ่มซ้อนกัน
+        // แก้ให้ไอเทมใหม่ "แทรกต่อจากไอเทมก่อนหน้าที่มี order บันทึกไว้แล้ว" แทน จะได้อยู่ติดกลุ่มเดิมตามตำแหน่งที่ตั้งใจไว้ในโค้ด
+        let lastKnownOrder = -1;
+        const withOrder = defaults.map(item => {
+          const o = overrideMap[item.id];
+          if (o) { lastKnownOrder = o.order; return { ...item, icon: o.icon || item.icon, __order: o.order }; }
+          lastKnownOrder += 0.01;
+          return { ...item, __order: lastKnownOrder };
+        });
+        return withOrder.sort((a, b) => (a.__order ?? 999) - (b.__order ?? 999));
       } catch (e) {
         return defaults;
       }
