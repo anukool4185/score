@@ -8738,28 +8738,52 @@
       const overlay = document.createElement('div');
       overlay.id = 'equation-builder-modal';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
+      // 🎨 ปุ่มด่วนจัดหมวดหมู่ครบทุกกลุ่ม (ไม่ต้องพึ่งแป้นพิมพ์เสมือนของ MathLive อีกต่อไป — ยุ่งยาก/มีปัญหาซ้อนทับ popup)
+      const iconBase = (top) => `<span style="position:relative;display:inline-block;width:15px;height:15px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:${top}px;display:inline-block;width:8px;height:8px;border:1.2px dashed #2563eb;border-radius:2px;vertical-align:middle"></span>`;
+      const iconBlank = (top) => `<span style="position:relative;display:inline-block;width:15px;height:15px;border:1.2px dashed #64748b;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:${top}px;display:inline-block;width:8px;height:8px;border:1.2px dashed #64748b;border-radius:2px;vertical-align:middle"></span>`;
+      const categories = [
+        { title: '📐 ยกกำลัง / ตัวห้อย', items: [
+          [iconBase(-7),'^{}','ตัวยก (มีฐานแล้ว)'], [iconBase(6),'_{}','ตัวห้อย (มีฐานแล้ว)'],
+          [iconBlank(-7),'{}^{}','ตัวยก (พิมพ์ใหม่ทั้งบล็อก)'], [iconBlank(6),'{}_{}','ตัวห้อย (พิมพ์ใหม่ทั้งบล็อก)'],
+          ['√','\\sqrt{}','รากที่สอง'], ['ⁿ√','\\sqrt[n]{}','รากที่ n'], ['÷','\\frac{}{}','เศษส่วน'],
+        ]},
+        { title: '≤ เปรียบเทียบ / ตรรกะ', items: [
+          ['±','\\pm','บวก/ลบ'], ['∓','\\mp','ลบ/บวก'], ['×','\\times','คูณ'], ['÷','\\div','หาร'],
+          ['≤','\\leq','น้อยกว่าหรือเท่ากับ'], ['≥','\\geq','มากกว่าหรือเท่ากับ'], ['≠','\\neq','ไม่เท่ากับ'],
+          ['≈','\\approx','ประมาณ'], ['∈','\\in','เป็นสมาชิกของ'], ['∀','\\forall','สำหรับทุก'],
+        ]},
+        { title: '∑ แคลคูลัส / ผลรวม', items: [
+          ['∑','\\sum_{}^{}','ผลรวม (ซิกม่า)'], ['∏','\\prod_{}^{}','ผลคูณ (ไพ)'],
+          ['∫','\\int_{}^{}','อินทิกรัล'], ['∬','\\iint','อินทิกรัลสองชั้น'],
+          ['lim','\\lim_{}','ลิมิต'], ['d/dx','\\frac{d}{dx}','อนุพันธ์'], ['∞','\\infty','อนันต์'],
+        ]},
+        { title: 'α อักษรกรีก', items: [
+          ['π','\\pi','พาย'], ['α','\\alpha','อัลฟา'], ['β','\\beta','เบต้า'], ['θ','\\theta','ทีตา'],
+          ['λ','\\lambda','แลมบ์ดา'], ['μ','\\mu','มิว'], ['σ','\\sigma','ซิกมา'], ['Δ','\\Delta','เดลตา'], ['°','^\\circ','องศา'],
+        ]},
+        { title: 'sin ตรีโกณมิติ', items: [
+          ['sin','\\sin()','ไซน์'], ['cos','\\cos()','โคไซน์'], ['tan','\\tan()','แทนเจนต์'],
+          ['sin⁻¹','\\sin^{-1}()','อาร์กไซน์'], ['log','\\log()','ล็อก'], ['ln','\\ln()','ลอการิทึมธรรมชาติ'],
+        ]},
+      ];
       overlay.innerHTML = `
-        <div style="background:white;border-radius:16px;max-width:480px;width:100%;padding:20px">
-          <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
-          <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ ไม่ต้องรู้คำสั่ง LaTeX</p>
-          <math-field id="equation-builder-field" oninput="_updateEquationPreview()" style="width:100%;font-size:18px;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;display:block;min-height:40px"></math-field>
-          <div style="margin-top:8px">
+        <div style="background:white;border-radius:16px;max-width:600px;width:100%;padding:20px;max-height:92vh;overflow-y:auto">
+          <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
+          <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ — หรือกดปุ่มด่วนด้านล่างช่วยได้เลย</p>
+          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
+          <div style="margin-top:8px;margin-bottom:14px">
             <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
-            <div id="equation-builder-preview" style="font-size:14px;padding:8px 10px;background:#f8fafc;border-radius:8px;min-height:24px;color:#1e293b"></div>
+            <div id="equation-builder-preview" style="font-size:15px;padding:10px 12px;background:#f8fafc;border-radius:8px;min-height:28px;color:#1e293b"></div>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px;margin:10px 0">
-            ${[
-              [`<span style="position:relative;display:inline-block;width:16px;height:16px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:-8px;display:inline-block;width:9px;height:9px;border:1.3px dashed #2563eb;border-radius:2px;vertical-align:middle"></span>`,'^{}','ตัวยก (มีฐานแล้ว เพิ่มตัวยกต่อท้าย)'],
-              [`<span style="position:relative;display:inline-block;width:16px;height:16px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:6px;display:inline-block;width:9px;height:9px;border:1.3px dashed #2563eb;border-radius:2px;vertical-align:middle"></span>`,'_{}','ตัวห้อย (มีฐานแล้ว เพิ่มตัวห้อยต่อท้าย)'],
-              [`<span style="position:relative;display:inline-block;width:14px;height:14px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:absolute;margin-top:-14px;margin-left:2px;display:inline-block;width:8px;height:8px;border:1.2px dashed #2563eb;border-radius:2px"></span><span style="position:relative;top:6px;left:2px;display:inline-block;width:8px;height:8px;border:1.2px dashed #2563eb;border-radius:2px;vertical-align:middle"></span>`,'_{}^{}','ตัวยก+ตัวห้อย (มีฐานแล้ว)'],
-              [`<span style="position:relative;display:inline-block;width:16px;height:16px;border:1.3px dashed #64748b;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:-8px;display:inline-block;width:9px;height:9px;border:1.3px dashed #64748b;border-radius:2px;vertical-align:middle"></span>`,'{}^{}','ตัวยก (ไม่มีฐาน พิมพ์ใหม่ทั้งบล็อก)'],
-              [`<span style="position:relative;display:inline-block;width:16px;height:16px;border:1.3px dashed #64748b;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:6px;display:inline-block;width:9px;height:9px;border:1.3px dashed #64748b;border-radius:2px;vertical-align:middle"></span>`,'{}_{}','ตัวห้อย (ไม่มีฐาน พิมพ์ใหม่ทั้งบล็อก)'],
-              ['√','\\sqrt{}','รากที่สอง'],['÷','\\frac{}{}','เศษส่วน'],
-              ['π','\\pi','พาย'],['±','\\pm','บวก/ลบ'],['≤','\\leq','น้อยกว่าหรือเท่ากับ'],['≥','\\geq','มากกว่าหรือเท่ากับ'],['≠','\\neq','ไม่เท่ากับ'],
-              ['∑','\\sum_{i=1}^{n}','ผลรวม (ซิกม่า)'],['∫','\\int_0^1','อินทิกรัล'],['∞','\\infty','อนันต์'],['°','^\\circ','องศา'],
-            ].map(([label, cmd, title]) => `<button title="${title}" onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">${label}</button>`).join('')}
-          </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
+          ${categories.map(cat => `
+            <div style="margin-bottom:10px">
+              <p style="font-size:10.5px;font-weight:700;color:#475569;margin:0 0 5px">${cat.title}</p>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                ${cat.items.map(([label, cmd, title]) => `<button title="${title}" onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;min-width:34px">${label}</button>`).join('')}
+              </div>
+            </div>
+          `).join('')}
+          <div style="display:flex;gap:8px;margin-top:12px">
             <button onclick="document.getElementById('equation-builder-modal')?.remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ยกเลิก</button>
             <button onclick="_insertEquationResult('${targetInputId}')" style="flex:1;padding:10px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">✅ แทรกสมการ</button>
           </div>
