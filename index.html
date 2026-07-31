@@ -8740,7 +8740,11 @@
         <div style="background:white;border-radius:16px;max-width:480px;width:100%;padding:20px">
           <h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
           <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ ไม่ต้องรู้คำสั่ง LaTeX</p>
-          <math-field id="equation-builder-field" style="width:100%;font-size:22px;padding:14px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;display:block;min-height:50px"></math-field>
+          <math-field id="equation-builder-field" oninput="_updateEquationPreview()" style="width:100%;font-size:18px;padding:10px;border:2px solid #e2e8f0;border-radius:10px;box-sizing:border-box;display:block;min-height:40px"></math-field>
+          <div style="margin-top:8px">
+            <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
+            <div id="equation-builder-preview" style="font-size:14px;padding:8px 10px;background:#f8fafc;border-radius:8px;min-height:24px;color:#1e293b"></div>
+          </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin:10px 0">
             ${[
               ['x²','x^2'],['xₙ','x_n'],['√x','\\sqrt{x}'],['a/b','\\frac{a}{b}'],
@@ -8759,6 +8763,16 @@
     function _insertToEquationField(latexCmd) {
       const field = document.getElementById('equation-builder-field');
       if (field && field.executeCommand) field.executeCommand(['insert', latexCmd]);
+      _updateEquationPreview();
+    }
+    // 👁️ อัปเดตตัวอย่างสมการแบบสด (เล็กกะทัดรัด) ในหน้าต่างเดียวกับที่กำลังสร้างสมการอยู่
+    function _updateEquationPreview() {
+      const field = document.getElementById('equation-builder-field');
+      const preview = document.getElementById('equation-builder-preview');
+      if (!field || !preview) return;
+      const latex = field.getValue ? field.getValue() : field.value;
+      preview.innerHTML = latex ? `$${latex}$` : '';
+      renderMathIn('#equation-builder-preview');
     }
     function _insertEquationResult(targetInputId) {
       const field = document.getElementById('equation-builder-field');
