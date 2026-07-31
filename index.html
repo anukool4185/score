@@ -8749,10 +8749,10 @@
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin:10px 0">
             ${[
-              ['ʸ (ตัวยก)','^{}'],['ᵧ (ตัวห้อย)','_{}'],['ᵧʸ (ทั้งคู่)','_{}^{}'],['√ (ราก)','\\sqrt{}'],['÷ (เศษส่วน)','\\frac{}{}'],
-              ['π','\\pi'],['±','\\pm'],['≤','\\leq'],['≥','\\geq'],['≠','\\neq'],
-              ['∑','\\sum_{i=1}^{n}'],['∫','\\int_0^1'],['∞','\\infty'],['°','^\\circ'],
-            ].map(([label, cmd]) => `<button onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">${label}</button>`).join('')}
+              ['ʸ','^{}','ตัวยก'],['ᵧ','_{}','ตัวห้อย'],['ᵧʸ','_{}^{}','ตัวยก+ตัวห้อย'],['√','\\sqrt{}','รากที่สอง'],['÷','\\frac{}{}','เศษส่วน'],
+              ['π','\\pi','พาย'],['±','\\pm','บวก/ลบ'],['≤','\\leq','น้อยกว่าหรือเท่ากับ'],['≥','\\geq','มากกว่าหรือเท่ากับ'],['≠','\\neq','ไม่เท่ากับ'],
+              ['∑','\\sum_{i=1}^{n}','ผลรวม (ซิกม่า)'],['∫','\\int_0^1','อินทิกรัล'],['∞','\\infty','อนันต์'],['°','^\\circ','องศา'],
+            ].map(([label, cmd, title]) => `<button title="${title}" onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">${label}</button>`).join('')}
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button onclick="document.getElementById('equation-builder-modal')?.remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ยกเลิก</button>
