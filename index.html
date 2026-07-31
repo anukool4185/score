@@ -2042,9 +2042,9 @@
       <div id="admin-tab-examquestions" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">🗂️ คลังข้อสอบ</h3>
-        <p class="text-gray-500 text-sm mb-4">สร้าง/แก้ไข/ลบข้อสอบทีละข้อ — 1 ข้อสามารถมีทั้งข้อความและรูปภาพประกอบพร้อมกันได้ เก็บไว้ในคลังกลาง ใช้ประกอบชุดข้อสอบภายหลัง</p>
+        <p class="text-gray-500 text-sm mb-4">ค้นหา/กรองข้อสอบที่มีอยู่แล้วในคลัง แก้ไข/ลบได้จากรายการด้านล่าง — จะสร้างข้อสอบใหม่ ไปที่เมนู "➕ สร้างข้อสอบ" แทน</p>
 
-        <div id="eq-form-container" class="bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6">
+        <div id="eq-form-container" class="hidden bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6">
          <p class="font-semibold text-gray-700 mb-3" id="eq-form-title">➕ เพิ่มข้อสอบใหม่</p>
          <input type="hidden" id="eq-edit-id" value="">
          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -7341,6 +7341,7 @@
     function _showEqFormAsPopup() {
       const form = document.getElementById('eq-form-container');
       if (!form) return;
+      form.classList.remove('hidden'); // ปกติซ่อนอยู่ในหน้าคลังข้อสอบ ต้องเอาออกก่อนถึงจะแสดงเป็น popup ได้
       document.getElementById('eq-form-popup-backdrop')?.remove();
       const backdrop = document.createElement('div');
       backdrop.id = 'eq-form-popup-backdrop';
@@ -7376,7 +7377,7 @@
       const form = document.getElementById('eq-form-container');
       if (form) {
         form.removeAttribute('style');
-        form.className = 'bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6';
+        form.className = 'hidden bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6'; // กลับไปซ่อนเป็นค่าเริ่มต้นในหน้าคลังข้อสอบ
       }
       document.getElementById('eq-form-popup-backdrop')?.remove();
       document.getElementById('eq-form-popup-close')?.remove();
