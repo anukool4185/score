@@ -8743,7 +8743,7 @@
       // 🎨 ปุ่มด่วนจัดหมวดหมู่ — ใช้ตัวอักษร Unicode ตัวยก/ตัวห้อยธรรมดา (ไม่ใช้ CSS จัดตำแหน่งเองแล้ว เพราะเคยแสดงผลเพี้ยนมาก่อน)
       const categories = [
         { title: '📐 ยกกำลัง / ตัวห้อย / ราก / เศษส่วน', items: [
-          ['◻ʸ','TYPE:^','ตัวยก'], ['◻ᵧ','TYPE:_','ตัวห้อย'],
+          ['◻ʸ','^{\\placeholder{}}','ตัวยก'], ['◻ᵧ','_{\\placeholder{}}','ตัวห้อย'],
           ['√','\\sqrt{}','รากที่สอง'], ['ⁿ√','\\sqrt[n]{}','รากที่ n'], ['÷','\\frac{}{}','เศษส่วน'],
         ]},
         { title: '≤ เปรียบเทียบ / ตรรกะ', items: [
@@ -8793,14 +8793,7 @@
     }
     function _insertToEquationField(latexCmd) {
       const field = document.getElementById('equation-builder-field');
-      if (!field) return;
-      if (latexCmd.startsWith('TYPE:')) {
-        // 🖊️ จำลองการพิมพ์จริงด้วยแป้นพิมพ์ (^ หรือ _) แทนการแทรก LaTeX ดิบๆ — ทำให้ MathLive สร้างช่องรับตัวยก/ตัวห้อยที่มองเห็นได้จริง เหมือนตอนพิมพ์เอง
-        const chars = latexCmd.slice(5);
-        if (field.executeCommand) field.executeCommand(['typedText', chars]);
-      } else if (field.executeCommand) {
-        field.executeCommand(['insert', latexCmd]);
-      }
+      if (field && field.executeCommand) field.executeCommand(['insert', latexCmd]);
       _updateEquationPreview();
     }
     // 👁️ อัปเดตตัวอย่างสมการแบบสด (เล็กกะทัดรัด) ในหน้าต่างเดียวกับที่กำลังสร้างสมการอยู่
