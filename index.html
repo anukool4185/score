@@ -2078,35 +2078,50 @@
          </div>
 
          <div id="eq-choices-section">
-          <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก (ระบุเฉพาะข้อที่ใช้ ก-ง หรือเพิ่ม จ ได้)</label>
+          <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก (ระบุเฉพาะข้อที่ใช้ ก-ง หรือเพิ่ม จ ได้) — ใส่รูปภาพประกอบแต่ละตัวเลือกได้ (ไม่บังคับ)</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-           <div class="flex items-center gap-2">
-            <input type="radio" name="eq-correct" value="a" id="eq-correct-a">
-            <span class="text-sm w-4">ก.</span>
-            <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <div>
+            <div class="flex items-center gap-2">
+             <input type="radio" name="eq-correct" value="a" id="eq-correct-a">
+             <span class="text-sm w-4">ก.</span>
+             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+            <input type="text" id="eq-choice-a-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
-           <div class="flex items-center gap-2">
-            <input type="radio" name="eq-correct" value="b" id="eq-correct-b">
-            <span class="text-sm w-4">ข.</span>
-            <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <div>
+            <div class="flex items-center gap-2">
+             <input type="radio" name="eq-correct" value="b" id="eq-correct-b">
+             <span class="text-sm w-4">ข.</span>
+             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+            <input type="text" id="eq-choice-b-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
-           <div class="flex items-center gap-2">
-            <input type="radio" name="eq-correct" value="c" id="eq-correct-c">
-            <span class="text-sm w-4">ค.</span>
-            <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <div>
+            <div class="flex items-center gap-2">
+             <input type="radio" name="eq-correct" value="c" id="eq-correct-c">
+             <span class="text-sm w-4">ค.</span>
+             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+            <input type="text" id="eq-choice-c-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
-           <div class="flex items-center gap-2">
-            <input type="radio" name="eq-correct" value="d" id="eq-correct-d">
-            <span class="text-sm w-4">ง.</span>
-            <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <div>
+            <div class="flex items-center gap-2">
+             <input type="radio" name="eq-correct" value="d" id="eq-correct-d">
+             <span class="text-sm w-4">ง.</span>
+             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+            <input type="text" id="eq-choice-d-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
-           <div class="flex items-center gap-2">
-            <input type="radio" name="eq-correct" value="e" id="eq-correct-e">
-            <span class="text-sm w-4">จ.</span>
-            <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <div>
+            <div class="flex items-center gap-2">
+             <input type="radio" name="eq-correct" value="e" id="eq-correct-e">
+             <span class="text-sm w-4">จ.</span>
+             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            </div>
+            <input type="text" id="eq-choice-e-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
           </div>
-          <p class="text-[11px] text-gray-400">ติ๊กหน้าตัวเลือกที่เป็นคำตอบที่ถูกต้อง</p>
+          <p class="text-[11px] text-gray-400">ติ๊กหน้าตัวเลือกที่เป็นคำตอบที่ถูกต้อง · รูปภาพใช้ลิงก์จาก Google Drive แบบเปิดสาธารณะเหมือนรูปคำถาม</p>
          </div>
 
          <div class="flex gap-2 mt-4">
@@ -7171,10 +7186,16 @@
         const choiceC = document.getElementById('eq-choice-c')?.value.trim();
         const choiceD = document.getElementById('eq-choice-d')?.value.trim();
         const choiceE = document.getElementById('eq-choice-e')?.value.trim();
+        const choiceAImg = document.getElementById('eq-choice-a-image')?.value.trim();
+        const choiceBImg = document.getElementById('eq-choice-b-image')?.value.trim();
+        const choiceCImg = document.getElementById('eq-choice-c-image')?.value.trim();
+        const choiceDImg = document.getElementById('eq-choice-d-image')?.value.trim();
+        const choiceEImg = document.getElementById('eq-choice-e-image')?.value.trim();
         const filledChoices = [choiceA, choiceB, choiceC, choiceD, choiceE].filter(Boolean);
         if (filledChoices.length < 2) { showToast('ข้อสอบปรนัยต้องมีตัวเลือกอย่างน้อย 2 ข้อ', 'error'); return; }
         if (!correct) { showToast('กรุณาติ๊กเลือกคำตอบที่ถูกต้อง', 'error'); return; }
-        record = { ...record, choice_a: choiceA, choice_b: choiceB, choice_c: choiceC, choice_d: choiceD, choice_e: choiceE, correct_answer: correct };
+        record = { ...record, choice_a: choiceA, choice_b: choiceB, choice_c: choiceC, choice_d: choiceD, choice_e: choiceE, correct_answer: correct,
+          choice_a_image: choiceAImg, choice_b_image: choiceBImg, choice_c_image: choiceCImg, choice_d_image: choiceDImg, choice_e_image: choiceEImg };
       }
 
       let result;
@@ -7204,7 +7225,11 @@
       document.getElementById('eq-question-text').value = '';
       document.getElementById('eq-image-url').value = '';
       document.getElementById('eq-image-preview').innerHTML = '';
-      ['a','b','c','d','e'].forEach(l => { document.getElementById(`eq-choice-${l}`).value = ''; });
+      ['a','b','c','d','e'].forEach(l => {
+        document.getElementById(`eq-choice-${l}`).value = '';
+        const imgEl = document.getElementById(`eq-choice-${l}-image`);
+        if (imgEl) imgEl.value = '';
+      });
       const correctRadios = document.querySelectorAll('input[name="eq-correct"]');
       correctRadios.forEach(r => r.checked = false);
       const choiceRadio = document.querySelector('input[name="eq-type"][value="choice"]');
@@ -7269,7 +7294,11 @@
       document.getElementById('eq-image-preview').innerHTML = q.question_image_url ? `<img src="${q.question_image_url}" style="max-height:120px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'">` : '';
       const typeRadio = document.querySelector(`input[name="eq-type"][value="${q.question_type}"]`);
       if (typeRadio) typeRadio.checked = true;
-      ['a','b','c','d','e'].forEach(l => { document.getElementById(`eq-choice-${l}`).value = q[`choice_${l}`] || ''; });
+      ['a','b','c','d','e'].forEach(l => {
+        document.getElementById(`eq-choice-${l}`).value = q[`choice_${l}`] || '';
+        const imgEl = document.getElementById(`eq-choice-${l}-image`);
+        if (imgEl) imgEl.value = q[`choice_${l}_image`] || '';
+      });
       const correctRadio = document.getElementById(`eq-correct-${q.correct_answer}`);
       if (correctRadio) correctRadio.checked = true;
       updateEqTypeUI();
@@ -7540,7 +7569,9 @@
         const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
         return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
           question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question } : null;
+          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image } : null;
       }).filter(Boolean);
 
       const record = {
@@ -8525,12 +8556,15 @@
 
       let choicesHtml = '';
       if (question.question_type === 'choice') {
-        const rawChoices = ['a','b','c','d','e'].filter(l => question[`choice_${l}`]).map(l => ({ key: l, text: question[`choice_${l}`] }));
+        const rawChoices = ['a','b','c','d','e'].filter(l => question[`choice_${l}`]).map(l => ({ key: l, text: question[`choice_${l}`], image: question[`choice_${l}_image`] }));
         const shuffledChoices = examSetIsShuffleEnabled(submission) ? _seededShuffle(rawChoices, seed) : rawChoices;
         choicesHtml = shuffledChoices.map(c => `
           <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${currentAnswer===c.key ? '#2563eb' : '#e2e8f0'};border-radius:10px;margin-bottom:8px;cursor:pointer;background:${currentAnswer===c.key ? '#eff6ff' : 'white'}">
-            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" style="width:18px;height:18px">
-            <span style="font-size:14px">${c.text}</span>
+            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" style="width:18px;height:18px;flex-shrink:0">
+            <div style="flex:1">
+              ${c.image ? `<img src="${c.image}" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:${c.text ? '6px' : '0'};display:block" onerror="this.style.display='none'">` : ''}
+              ${c.text ? `<span style="font-size:14px">${c.text}</span>` : ''}
+            </div>
           </label>`).join('');
       } else {
         choicesHtml = `<textarea onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
