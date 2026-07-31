@@ -3871,8 +3871,8 @@
         {id:'gradereport', icon:'📑', label:'สัดส่วนเกรด',      section:'คะแนน'},
         {id:'gradedist',   icon:'🥧', label:'สรุปเกรด',         section:'คะแนน'},
         {id:'studentdata', icon:'📈', label:'ผลการเรียน/เวลาเรียน', section:'คะแนน'},
-        {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
         {id:'examcreate',    icon:'➕', label:'สร้างข้อสอบ',   section:'ข้อสอบ'},
+        {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
         {id:'admins',     icon:'👤', label:'ผู้ช่วยแอดมิน',        section:'บุคคล'},
@@ -8159,11 +8159,40 @@
 
       if (examSet.is_random_mode) {
         // 🎲 โหมดสุ่ม: สุ่มข้อสอบให้นักเรียนคนนี้โดยเฉพาะ ตอนเริ่มทำข้อสอบจริง (ไม่ใช่ตอนจัดสอบ) — แต่ละคนอาจได้ข้อไม่เหมือนกัน
+        // ⚖️ จัดกลุ่มตามคะแนนต่อข้อ (ใช้แทนระดับความยาก) แล้วสุ่มแบบกระจายสัดส่วนเท่าๆ กันในแต่ละกลุ่ม กันไม่ให้บางคนได้ข้อยากล้วน บางคนได้ข้อง่ายล้วน
         const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
-        const shuffledPool = _seededShuffle(pool, seed);
-        const picked = shuffledPool.slice(0, Math.min(examSet.random_count || 0, pool.length));
+        const wantCount = examSet.random_count || 0;
+        const difficultyGroups = {};
+        pool.forEach(q => {
+          const key = String(parseFloat(q.score_per_question) || 1);
+          if (!difficultyGroups[key]) difficultyGroups[key] = [];
+          difficultyGroups[key].push(q);
+        });
+        const groupKeys = Object.keys(difficultyGroups).sort((a,b) => parseFloat(a)-parseFloat(b));
+        let picked = [];
+        if (groupKeys.length > 1 && pool.length > 0) {
+          // มีหลายระดับความยาก → สุ่มแบบกระจายสัดส่วนตามที่มีอยู่จริงในคลัง (ไม่ใช่สุ่มมั่วจากกองรวม)
+          let remaining = wantCount;
+          groupKeys.forEach((key, gi) => {
+            const groupPool = _seededShuffle(difficultyGroups[key], seed + gi);
+            // สัดส่วนตามน้ำหนักที่มีในคลังจริง เฉลี่ยเท่าๆ กันในแต่ละระดับเป็นค่าเริ่มต้น
+            const shareForThisGroup = gi === groupKeys.length - 1 ? remaining : Math.round(wantCount / groupKeys.length);
+            const takeCount = Math.min(shareForThisGroup, groupPool.length);
+            picked.push(...groupPool.slice(0, takeCount));
+            remaining -= takeCount;
+          });
+          // ถ้ายังไม่ครบ (บางกลุ่มมีของไม่พอ) เติมจากกองรวมที่เหลือแบบสุ่ม
+          if (picked.length < wantCount) {
+            const pickedIds = new Set(picked.map(q => q.__backendId));
+            const leftoverPool = _seededShuffle(pool.filter(q => !pickedIds.has(q.__backendId)), seed + 999);
+            picked.push(...leftoverPool.slice(0, wantCount - picked.length));
+          }
+        } else {
+          const shuffledPool = _seededShuffle(pool, seed);
+          picked = shuffledPool.slice(0, Math.min(wantCount, pool.length));
+        }
         // ⚠️ ถ้าคลังมีข้อสอบไม่พอ (น้อยกว่าจำนวนที่ต้องการสุ่ม) ให้สุ่มซ้ำเติมจนครบจำนวนที่กำหนด (อาจมีข้อซ้ำภายในชุดของคนคนเดียวได้ในกรณีนี้)
-        while (picked.length < (examSet.random_count || 0) && pool.length > 0) {
+        while (picked.length < wantCount && pool.length > 0) {
           picked.push(pool[Math.floor(Math.random() * pool.length)]);
         }
         orderedIds = picked.map(q => q.__backendId);
@@ -18334,8 +18363,8 @@
       {id:'gradereport',icon:'📑',label:'สัดส่วนเกรด',fn:"mShowAdminGradeReportNative()"},
       {id:'gradedist',icon:'🥧',label:'สรุปเกรด',fn:"mShowAdminGradeDistNative()"},
       {id:'studentdata',icon:'📈',label:'ผลการเรียน',fn:"mShowDesktopAdminTab('studentdata','📈 ตารางผลการเรียน/เวลาเรียน')"},
-      {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'examcreate',icon:'➕',label:'สร้างข้อสอบ',fn:"openCreateExamQuestionPopup()"},
+      {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
       {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
     ],
