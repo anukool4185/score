@@ -8738,14 +8738,9 @@
       const overlay = document.createElement('div');
       overlay.id = 'equation-builder-modal';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
-      // 🎨 ปุ่มด่วนจัดหมวดหมู่ครบทุกกลุ่ม (ไม่ต้องพึ่งแป้นพิมพ์เสมือนของ MathLive อีกต่อไป — ยุ่งยาก/มีปัญหาซ้อนทับ popup)
-      const iconBase = (top) => `<span style="position:relative;display:inline-block;width:15px;height:15px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:${top}px;display:inline-block;width:8px;height:8px;border:1.2px dashed #2563eb;border-radius:2px;vertical-align:middle"></span>`;
-      const iconBlank = (top) => `<span style="position:relative;display:inline-block;width:15px;height:15px;border:1.2px dashed #64748b;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:${top}px;display:inline-block;width:8px;height:8px;border:1.2px dashed #64748b;border-radius:2px;vertical-align:middle"></span>`;
+      // 🎨 ปุ่มด่วนจัดหมวดหมู่สัญลักษณ์ที่ไม่มีในแป้นพิมพ์เริ่มต้นของ MathLive (ตัวยก/ตัวห้อยใช้แป้นพิมพ์ของ MathLive เองแทน — มีสไตล์ไอคอนตามที่ต้องการอยู่แล้ว)
       const categories = [
-        { title: '📐 ยกกำลัง / ตัวห้อย', items: [
-          [iconBase(-7),'^{}','ตัวยก (มีฐานแล้ว)'], [iconBase(6),'_{}','ตัวห้อย (มีฐานแล้ว)'],
-          [iconBlank(-7),'{}^{}','ตัวยก (พิมพ์ใหม่ทั้งบล็อก)'], [iconBlank(6),'{}_{}','ตัวห้อย (พิมพ์ใหม่ทั้งบล็อก)'],
-          [`<span style="position:relative;display:inline-block;width:15px;height:15px;background:#2563eb;border-radius:2px;vertical-align:middle"></span><span style="position:relative;top:-6px;font-size:14px;color:#2563eb;font-weight:700">′</span>`,"'",'ขีดบน (อนุพันธ์)'],
+        { title: '📐 ราก / เศษส่วน', items: [
           ['√','\\sqrt{}','รากที่สอง'], ['ⁿ√','\\sqrt[n]{}','รากที่ n'], ['÷','\\frac{}{}','เศษส่วน'],
         ]},
         { title: '≤ เปรียบเทียบ / ตรรกะ', items: [
@@ -8771,7 +8766,8 @@
         <div style="background:white;border-radius:16px;max-width:600px;width:100%;padding:20px;max-height:92vh;overflow-y:auto">
           <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
           <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ — หรือกดปุ่มด่วนด้านล่างช่วยได้เลย</p>
-          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
+          <math-field id="equation-builder-field" virtual-keyboard-mode="manual" oninput="_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
+          <p style="font-size:10px;color:#94a3b8;margin:4px 0 0">💡 กดไอคอนแป้นพิมพ์ (⌨️) มุมขวาบนของช่องพิมพ์ เพื่อเปิดแป้นพิมพ์คณิตศาสตร์เต็มรูปแบบ (มีปุ่มตัวยก/ตัวห้อยสไตล์เดียวกับที่ต้องการ)</p>
           <div style="margin-top:8px;margin-bottom:14px">
             <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
             <div id="equation-builder-preview" style="font-size:15px;padding:10px 12px;background:#f8fafc;border-radius:8px;min-height:28px;color:#1e293b"></div>
