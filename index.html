@@ -2191,7 +2191,7 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
-           <select id="ea-subject" onchange="renderEaQuestionPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-subject" onchange="renderEaQuestionPicker();updateEaRandomInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกวิชา --</option>
            </select>
           </div>
@@ -2229,12 +2229,29 @@
           </label>
          </div>
 
-         <div class="mb-2 flex items-center justify-between">
-          <label class="block text-xs text-gray-600">✅ เลือกข้อสอบจากคลัง (ติ๊กข้อที่จะใช้ในชุดสอบนี้)</label>
-          <span class="text-xs text-purple-600 font-semibold" id="ea-total-score-label">คะแนนเต็ม: 0</span>
+         <div class="mb-3 flex gap-2">
+          <button type="button" onclick="switchEaPickerMode('manual')" id="ea-mode-manual-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-purple-500 text-white">🎯 เลือกข้อสอบเอง</button>
+          <button type="button" onclick="switchEaPickerMode('random')" id="ea-mode-random-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-600">🎲 สุ่มข้อสอบอัตโนมัติ</button>
          </div>
-         <div id="ea-question-picker" class="border-2 border-gray-200 rounded-lg p-3 max-h-72 overflow-y-auto space-y-2 bg-white">
-          <p class="text-gray-400 text-sm text-center py-4">กรุณาเลือกวิชาก่อน</p>
+         <input type="hidden" id="ea-picker-mode" value="manual">
+
+         <div id="ea-manual-picker-section">
+          <div class="mb-2 flex items-center justify-between">
+           <label class="block text-xs text-gray-600">✅ เลือกข้อสอบจากคลัง (ติ๊กข้อที่จะใช้ในชุดสอบนี้)</label>
+           <span class="text-xs text-purple-600 font-semibold" id="ea-total-score-label">คะแนนเต็ม: 0</span>
+          </div>
+          <div id="ea-question-picker" class="border-2 border-gray-200 rounded-lg p-3 max-h-72 overflow-y-auto space-y-2 bg-white">
+           <p class="text-gray-400 text-sm text-center py-4">กรุณาเลือกวิชาก่อน</p>
+          </div>
+         </div>
+
+         <div id="ea-random-picker-section" class="hidden">
+          <label class="block text-xs text-gray-600 mb-1">🎲 จำนวนข้อที่ต้องการสุ่ม (1 ข้อ = 1 คะแนน)</label>
+          <input type="number" id="ea-random-count" min="1" value="5" oninput="updateEaRandomInfo()" class="w-32 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+          <p class="text-xs text-purple-600 font-semibold mt-2" id="ea-random-info-label">มีข้อสอบในคลังที่ตรงกัน: 0 ข้อ</p>
+          <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+           <p class="text-[11px] text-blue-700">ระบบจะ<b>สุ่มข้อสอบให้นักเรียนแต่ละคนไม่เหมือนกัน</b>ตอนเริ่มทำข้อสอบจริง (ไม่ใช่สุ่มครั้งเดียวตอนนี้) — ถ้าคลังมีข้อสอบไม่พอสำหรับทุกคนไม่ซ้ำกันเลย อาจมีบางข้อซ้ำกันบ้างระหว่างนักเรียนบางคน แต่ลำดับ/ชุดที่ได้จะต่างกันไปตามธรรมชาติของการสุ่ม</p>
+          </div>
          </div>
 
          <div class="flex gap-2 mt-4">
@@ -3855,6 +3872,7 @@
         {id:'gradedist',   icon:'🥧', label:'สรุปเกรด',         section:'คะแนน'},
         {id:'studentdata', icon:'📈', label:'ผลการเรียน/เวลาเรียน', section:'คะแนน'},
         {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
+        {id:'examcreate',    icon:'➕', label:'สร้างข้อสอบ',   section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
         {id:'admins',     icon:'👤', label:'ผู้ช่วยแอดมิน',        section:'บุคคล'},
@@ -3891,7 +3909,7 @@
         import:"goToAdminTabDirect('import')", settings:"goToAdminTabDirect('settings')", hours:"goToAdminTabDirect('hours')", schedule:"goToAdminTabDirect('schedule')",
         scores:"goToAdminTabDirect('scores')", grading:"goToAdminTabDirect('grading')", uploadscore:"goToAdminTabDirect('uploadscore')",
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", studentdata:"goToAdminTabDirect('studentdata')",
-        examquestions:"goToAdminTabDirect('examquestions')", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')",
+        examquestions:"goToAdminTabDirect('examquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
         timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", menumanager:"goToAdminTabDirect('menumanager')",
       },
@@ -7343,6 +7361,16 @@
       }
     }
     // ปิด popup กลับเป็นฟอร์มปกติในหน้า (ใช้ตอนกดปิด หรือหลังบันทึก/ยกเลิกสำเร็จ)
+    // ➕ เปิดฟอร์มสร้างข้อสอบใหม่แบบ popup จากเมนู "สร้างข้อสอบ" — เรียกได้จากทุกหน้า ไม่ต้องอยู่แท็บ "คลังข้อสอบ" ก่อน
+    function openCreateExamQuestionPopup() {
+      resetExamQuestionForm(); // การันตีเริ่มจากฟอร์มว่างเปล่า (โหมดสร้างใหม่ ไม่ใช่ค้างจากการแก้ไขข้ออื่น)
+      const tabEl = document.getElementById('admin-tab-examquestions');
+      // จำไว้ว่าตอนนี้แท็บ "คลังข้อสอบ" ซ่อนอยู่หรือไม่ (เผื่อต้องซ่อนกลับให้ถูกต้องตอนปิด popup)
+      window._eqTabWasHiddenBeforePopup = tabEl ? tabEl.classList.contains('hidden') : false;
+      if (tabEl) tabEl.classList.remove('hidden'); // เปิดชั่วคราวเพื่อให้ popup (ซึ่งเป็นลูกของแท็บนี้) แสดงผลได้ ไม่ว่าจะอยู่แท็บไหนอยู่ก่อนหน้า
+      _showEqFormAsPopup();
+    }
+
     function _closeEqFormPopup() {
       const form = document.getElementById('eq-form-container');
       if (form) {
@@ -7352,6 +7380,10 @@
       document.getElementById('eq-form-popup-backdrop')?.remove();
       document.getElementById('eq-form-popup-close')?.remove();
       resetExamQuestionForm();
+      // 🔙 ถ้าเปิดจากเมนู "สร้างข้อสอบ" ตอนที่แท็บ "คลังข้อสอบ" ไม่ได้เปิดอยู่เดิม ให้ซ่อนกลับให้ถูกต้อง (ไม่ทิ้งค้างเป็นแท็บที่แสดงอยู่ผิดๆ)
+      const tabEl = document.getElementById('admin-tab-examquestions');
+      if (tabEl && window._eqTabWasHiddenBeforePopup) tabEl.classList.add('hidden');
+      window._eqTabWasHiddenBeforePopup = undefined;
     }
 
     async function deleteExamQuestion(id) {
@@ -7501,6 +7533,27 @@
       renderEaQuestionPicker();
     }
 
+    // 🎯🎲 สลับโหมดจัดสอบ ระหว่างเลือกเอง กับสุ่มอัตโนมัติ
+    function switchEaPickerMode(mode) {
+      document.getElementById('ea-picker-mode').value = mode;
+      document.getElementById('ea-manual-picker-section').classList.toggle('hidden', mode !== 'manual');
+      document.getElementById('ea-random-picker-section').classList.toggle('hidden', mode !== 'random');
+      document.getElementById('ea-mode-manual-btn').className = `flex-1 px-3 py-2 rounded-lg text-sm font-semibold ${mode==='manual' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`;
+      document.getElementById('ea-mode-random-btn').className = `flex-1 px-3 py-2 rounded-lg text-sm font-semibold ${mode==='random' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-600'}`;
+      if (mode === 'random') updateEaRandomInfo();
+    }
+    // 📊 แสดงจำนวนข้อสอบที่มีอยู่จริงในคลังตรงกับวิชา/บทที่เลือก ให้แอดมินรู้ว่าคลังพอไหม
+    function updateEaRandomInfo() {
+      const subjectName = document.getElementById('ea-subject')?.value || '';
+      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      const count = parseInt(document.getElementById('ea-random-count')?.value) || 0;
+      const label = document.getElementById('ea-random-info-label');
+      if (label) {
+        label.textContent = `มีข้อสอบในคลังที่ตรงกัน: ${questions.length} ข้อ` + (questions.length < count ? ` ⚠️ น้อยกว่าที่ต้องการสุ่ม (${count} ข้อ) — บางข้อจะถูกสุ่มซ้ำกันในนักเรียนบางคน` : '');
+        label.className = questions.length < count ? 'text-xs text-amber-600 font-semibold mt-2' : 'text-xs text-purple-600 font-semibold mt-2';
+      }
+    }
+
     function renderEaQuestionPicker() {
       const subjectName = document.getElementById('ea-subject')?.value || '';
       const picker = document.getElementById('ea-question-picker');
@@ -7606,22 +7659,38 @@
       if (!startTime || !endTime) { showToast('กรุณากำหนดวันเวลาเปิด-ปิดสอบ', 'error'); return; }
       if (new Date(endTime) <= new Date(startTime)) { showToast('เวลาปิดสอบต้องอยู่หลังเวลาเปิดสอบ', 'error'); return; }
 
-      const questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
-      if (questionIds.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
-      const totalScore = questionIds.reduce((sum, id) => {
-        const q = allData.find(d => d.__backendId === id);
-        return sum + (parseFloat(q?.score_per_question) || 0);
-      }, 0);
-      // 📸 คัดลอกข้อมูลข้อสอบทั้งหมดมาเก็บไว้ในชุดสอบเอง (snapshot) — แยกออกจากคลังข้อสอบอย่างสิ้นเชิง
-      // ถ้าภายหลังมีการแก้ไข/ลบข้อสอบต้นฉบับในคลัง จะไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย
-      const questionSnapshot = questionIds.map(id => {
-        const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
-        return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
-          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image } : null;
-      }).filter(Boolean);
+      const pickerMode = document.getElementById('ea-picker-mode')?.value || 'manual';
+      let questionIds = [];
+      let totalScore = 0;
+      let questionSnapshot = [];
+      let randomCount = 0;
+
+      if (pickerMode === 'random') {
+        // 🎲 โหมดสุ่ม: ยังไม่กำหนดข้อสอบตายตัวตอนนี้ — จะสุ่มให้แต่ละคนตอนเริ่มทำข้อสอบจริงแทน (เก็บแค่เงื่อนไข+จำนวนไว้)
+        randomCount = parseInt(document.getElementById('ea-random-count')?.value) || 0;
+        if (randomCount < 1) { showToast('กรุณากำหนดจำนวนข้อที่ต้องการสุ่มอย่างน้อย 1 ข้อ', 'error'); return; }
+        const poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+        if (poolQuestions.length === 0) { showToast('ไม่มีข้อสอบในคลังสำหรับวิชานี้เลย กรุณาเพิ่มข้อสอบก่อน', 'error'); return; }
+        totalScore = randomCount; // 1 ข้อ = 1 คะแนน ตามที่กำหนดในโหมดสุ่ม
+        // question_ids/snapshot ปล่อยว่างไว้ — ระบบจะสุ่มเติมให้ทีหลังแยกตามนักเรียนแต่ละคน (เก็บไว้ที่ submission แทน)
+      } else {
+        questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
+        if (questionIds.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
+        totalScore = questionIds.reduce((sum, id) => {
+          const q = allData.find(d => d.__backendId === id);
+          return sum + (parseFloat(q?.score_per_question) || 0);
+        }, 0);
+        // 📸 คัดลอกข้อมูลข้อสอบทั้งหมดมาเก็บไว้ในชุดสอบเอง (snapshot) — แยกออกจากคลังข้อสอบอย่างสิ้นเชิง
+        // ถ้าภายหลังมีการแก้ไข/ลบข้อสอบต้นฉบับในคลัง จะไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย
+        questionSnapshot = questionIds.map(id => {
+          const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
+          return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image } : null;
+        }).filter(Boolean);
+      }
 
       const record = {
         type: 'exam_set',
@@ -7629,6 +7698,8 @@
         room_number: roomNumber,
         subject_name: subjectName,
         k_round: kRound,
+        is_random_mode: pickerMode === 'random',
+        random_count: randomCount,
         question_ids: questionIds.join(','),
         question_snapshot_json: JSON.stringify(questionSnapshot),
         total_score: totalScore,
@@ -8083,9 +8154,29 @@
       if (!examSet || !reg) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
       if (!isExamSetOpen(examSet)) { console.log('[Exam Popup Debug] exam NOT open, start:', examSet.start_time, 'end:', examSet.end_time, 'now:', new Date().toISOString()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
 
-      const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
       const seed = _seedFromString(currentUser.student_id + examSet.__backendId);
-      const orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+      let orderedIds, submissionSnapshot = null;
+
+      if (examSet.is_random_mode) {
+        // 🎲 โหมดสุ่ม: สุ่มข้อสอบให้นักเรียนคนนี้โดยเฉพาะ ตอนเริ่มทำข้อสอบจริง (ไม่ใช่ตอนจัดสอบ) — แต่ละคนอาจได้ข้อไม่เหมือนกัน
+        const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        const shuffledPool = _seededShuffle(pool, seed);
+        const picked = shuffledPool.slice(0, Math.min(examSet.random_count || 0, pool.length));
+        // ⚠️ ถ้าคลังมีข้อสอบไม่พอ (น้อยกว่าจำนวนที่ต้องการสุ่ม) ให้สุ่มซ้ำเติมจนครบจำนวนที่กำหนด (อาจมีข้อซ้ำภายในชุดของคนคนเดียวได้ในกรณีนี้)
+        while (picked.length < (examSet.random_count || 0) && pool.length > 0) {
+          picked.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+        orderedIds = picked.map(q => q.__backendId);
+        // 📸 เก็บ snapshot ไว้ที่ submission เอง (ไม่ใช่ exam_set) เพราะแต่ละคนได้ข้อไม่เหมือนกัน
+        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+      } else {
+        const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
+        orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+      }
 
       const result = await window.dataSdk.create({
         type: 'exam_submission',
@@ -8097,6 +8188,7 @@
         room_number: examSet.room_number,
         exam_id: examSetId,
         question_order: orderedIds.join(','),
+        question_snapshot_json: submissionSnapshot ? JSON.stringify(submissionSnapshot) : '', // 🎲 เฉพาะโหมดสุ่ม เก็บชุดข้อสอบเฉพาะของคนนี้ไว้ที่นี่
         answers: '{}',
         status: 'in_progress',
         started_at: new Date().toISOString(),
@@ -8516,10 +8608,12 @@
       const letterKeys = ['a','b','c','d','e']; // ตัวเลือกจริงในระบบ (choice_a..choice_e) จับคู่กับตัวอักษรไทยตามลำดับ
 
       // ⚡ แกะ JSON ของ snapshot แค่ครั้งเดียวก่อนเข้าลูป (เดิมเรียก getExamQuestionFromSet แยกทุกข้อ = JSON.parse ซ้ำทุกครั้ง ช้าถ้าข้อสอบมีเยอะ)
+      // 🎲 โหมดสุ่ม: ใช้ snapshot ที่ submission เอง (ชุดข้อสอบเฉพาะของคนนี้) แทน exam_set's snapshot
       let _snapshotMap = null;
-      if (examSet.question_snapshot_json) {
+      const snapshotSource = submission.question_snapshot_json || examSet.question_snapshot_json;
+      if (snapshotSource) {
         try {
-          const snap = JSON.parse(examSet.question_snapshot_json);
+          const snap = JSON.parse(snapshotSource);
           _snapshotMap = new Map(snap.map(q => [q.__backendId, q]));
         } catch (e) { _snapshotMap = null; }
       }
@@ -8662,7 +8756,7 @@
 
       const qid = orderedIds[idx];
       const examSetForQ = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
-      const question = getExamQuestionFromSet(examSetForQ, qid);
+      const question = getExamQuestionFromSet(examSetForQ, qid, submission);
       if (!question) return;
 
       const answers = JSON.parse(submission.answers || '{}');
@@ -8722,7 +8816,15 @@
     }
 
     // 📸 ดึงข้อมูลข้อสอบจาก snapshot ของชุดสอบเอง (ไม่พึ่งพาคลังข้อสอบต้นฉบับ) — ใช้กับชุดสอบเก่าที่ยังไม่มี snapshot เป็น fallback เท่านั้น
-    function getExamQuestionFromSet(examSet, qid) {
+    function getExamQuestionFromSet(examSet, qid, submission) {
+      // 🎲 โหมดสุ่ม: แต่ละคนมีชุดข้อสอบของตัวเองเก็บไว้ที่ submission ไม่ใช่ที่ exam_set — เช็คจุดนี้ก่อนเป็นอันดับแรก
+      if (submission?.question_snapshot_json) {
+        try {
+          const subSnap = JSON.parse(submission.question_snapshot_json);
+          const foundInSub = subSnap.find(q => q.__backendId === qid);
+          if (foundInSub) return foundInSub;
+        } catch (e) { /* ตกไป fallback ด้านล่าง */ }
+      }
       if (examSet?.question_snapshot_json) {
         try {
           const snapshot = JSON.parse(examSet.question_snapshot_json);
@@ -8784,7 +8886,7 @@
       let autoScore = 0;
       let hasWritten = false;
       orderedIds.forEach(qid => {
-        const q = getExamQuestionFromSet(examSet, qid);
+        const q = getExamQuestionFromSet(examSet, qid, submission);
         if (!q) return;
         if (q.question_type === 'choice') {
           if (answers[qid] === q.correct_answer) autoScore += parseFloat(q.score_per_question) || 0;
@@ -8966,7 +9068,7 @@
       const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : submission.student_id;
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       const answers = JSON.parse(submission.answers || '{}');
-      const writtenQuestions = orderedIds.map(qid => getExamQuestionFromSet(examSet, qid)).filter(q => q && q.question_type === 'written');
+      const writtenQuestions = orderedIds.map(qid => getExamQuestionFromSet(examSet, qid, submission)).filter(q => q && q.question_type === 'written');
 
       document.getElementById('eg-grading-panel')?.remove();
       const wrap = document.createElement('div');
@@ -18233,6 +18335,7 @@
       {id:'gradedist',icon:'🥧',label:'สรุปเกรด',fn:"mShowAdminGradeDistNative()"},
       {id:'studentdata',icon:'📈',label:'ผลการเรียน',fn:"mShowDesktopAdminTab('studentdata','📈 ตารางผลการเรียน/เวลาเรียน')"},
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
+      {id:'examcreate',icon:'➕',label:'สร้างข้อสอบ',fn:"openCreateExamQuestionPopup()"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
       {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
     ],
