@@ -7652,6 +7652,31 @@
       }
     }
 
+    // 🎲 คำนวณสัดส่วนการสุ่มแบบแบ่งตามระดับความยาก (คะแนนต่อข้อ) — ใช้ร่วมกันทั้งตอนตั้งคะแนนเต็มและตอนสุ่มจริงให้แต่ละคน การันตีว่าตรงกันเสมอ
+    function _computeRandomExamTierPlan(pool, wantCount) {
+      const difficultyGroups = {};
+      pool.forEach(q => {
+        const key = String(parseFloat(q.score_per_question) || 1);
+        if (!difficultyGroups[key]) difficultyGroups[key] = [];
+        difficultyGroups[key].push(q);
+      });
+      const groupKeys = Object.keys(difficultyGroups).sort((a,b) => parseFloat(a)-parseFloat(b));
+      const plan = []; // [{key, scorePerQ, count}]
+      let remaining = wantCount;
+      groupKeys.forEach((key, gi) => {
+        const groupSize = difficultyGroups[key].length;
+        const shareForThisGroup = gi === groupKeys.length - 1 ? remaining : Math.min(Math.round(wantCount / groupKeys.length), groupSize);
+        plan.push({ key, scorePerQ: parseFloat(key), count: shareForThisGroup, poolInThisTier: difficultyGroups[key] });
+        remaining -= shareForThisGroup;
+      });
+      return { plan, groupKeys, difficultyGroups };
+    }
+    // คำนวณคะแนนเต็มที่คาดว่าจะได้จากแผนสุ่มข้างต้น (ใช้ตอนตั้งคะแนนเต็มของชุดสอบ ให้ตรงกับที่จะสุ่มจริงเป๊ะๆ)
+    function _computeRandomExamExpectedScore(pool, wantCount) {
+      const { plan } = _computeRandomExamTierPlan(pool, wantCount);
+      return plan.reduce((sum, p) => sum + (p.count * p.scorePerQ), 0);
+    }
+
     async function saveExamSet() {
       const className = document.getElementById('ea-class')?.value;
       const roomNumber = document.getElementById('ea-room')?.value;
@@ -7678,7 +7703,10 @@
         if (randomCount < 1) { showToast('กรุณากำหนดจำนวนข้อที่ต้องการสุ่มอย่างน้อย 1 ข้อ', 'error'); return; }
         const poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
         if (poolQuestions.length === 0) { showToast('ไม่มีข้อสอบในคลังสำหรับวิชานี้เลย กรุณาเพิ่มข้อสอบก่อน', 'error'); return; }
-        totalScore = randomCount; // 1 ข้อ = 1 คะแนน ตามที่กำหนดในโหมดสุ่ม
+        // ⚠️ บั๊กสำคัญที่พบ: เดิมสมมติว่า "1 ข้อ = 1 คะแนน" เสมอ แต่ระบบสุ่มจริงเลือกข้อสอบแบบกระจายตามคะแนนต่อข้อ (ยากง่าย)
+        // ถ้าคลังมีข้อ 2-3 คะแนนปนอยู่ คะแนนเต็มที่ตั้งไว้ (=จำนวนข้อ) จะไม่ตรงกับคะแนนที่นักเรียนทำได้จริง
+        // แก้ให้คำนวณคะแนนเต็มจากสัดส่วนการสุ่มแบบเดียวกับตอนเริ่มสอบจริงเป๊ะๆ การันตีว่าตรงกันเสมอ
+        totalScore = _computeRandomExamExpectedScore(poolQuestions, randomCount);
         // question_ids/snapshot ปล่อยว่างไว้ — ระบบจะสุ่มเติมให้ทีหลังแยกตามนักเรียนแต่ละคน (เก็บไว้ที่ submission แทน)
       } else {
         questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
@@ -8166,29 +8194,18 @@
 
       if (examSet.is_random_mode) {
         // 🎲 โหมดสุ่ม: สุ่มข้อสอบให้นักเรียนคนนี้โดยเฉพาะ ตอนเริ่มทำข้อสอบจริง (ไม่ใช่ตอนจัดสอบ) — แต่ละคนอาจได้ข้อไม่เหมือนกัน
-        // ⚖️ จัดกลุ่มตามคะแนนต่อข้อ (ใช้แทนระดับความยาก) แล้วสุ่มแบบกระจายสัดส่วนเท่าๆ กันในแต่ละกลุ่ม กันไม่ให้บางคนได้ข้อยากล้วน บางคนได้ข้อง่ายล้วน
+        // ⚖️ ใช้แผนสุ่มเดียวกับตอนตั้งคะแนนเต็ม (_computeRandomExamTierPlan) การันตีว่าทุกคนได้ "จำนวนข้อต่อระดับความยาก" เท่ากันเป๊ะ
+        // ต่างกันแค่ "ข้อไหน" ภายในแต่ละระดับเท่านั้น ทำให้คะแนนเต็มที่ทำได้จริงตรงกับที่ตั้งไว้ และเท่ากันทุกคนเสมอ
         const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
         const wantCount = examSet.random_count || 0;
-        const difficultyGroups = {};
-        pool.forEach(q => {
-          const key = String(parseFloat(q.score_per_question) || 1);
-          if (!difficultyGroups[key]) difficultyGroups[key] = [];
-          difficultyGroups[key].push(q);
-        });
-        const groupKeys = Object.keys(difficultyGroups).sort((a,b) => parseFloat(a)-parseFloat(b));
+        const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
         let picked = [];
         if (groupKeys.length > 1 && pool.length > 0) {
-          // มีหลายระดับความยาก → สุ่มแบบกระจายสัดส่วนตามที่มีอยู่จริงในคลัง (ไม่ใช่สุ่มมั่วจากกองรวม)
-          let remaining = wantCount;
-          groupKeys.forEach((key, gi) => {
-            const groupPool = _seededShuffle(difficultyGroups[key], seed + gi);
-            // สัดส่วนตามน้ำหนักที่มีในคลังจริง เฉลี่ยเท่าๆ กันในแต่ละระดับเป็นค่าเริ่มต้น
-            const shareForThisGroup = gi === groupKeys.length - 1 ? remaining : Math.round(wantCount / groupKeys.length);
-            const takeCount = Math.min(shareForThisGroup, groupPool.length);
-            picked.push(...groupPool.slice(0, takeCount));
-            remaining -= takeCount;
+          plan.forEach((tier, gi) => {
+            const groupPool = _seededShuffle(tier.poolInThisTier, seed + gi); // สุ่มลำดับต่างกันตามนักเรียนแต่ละคน แต่ "จำนวน" ที่หยิบเท่ากันทุกคน
+            picked.push(...groupPool.slice(0, Math.min(tier.count, groupPool.length)));
           });
-          // ถ้ายังไม่ครบ (บางกลุ่มมีของไม่พอ) เติมจากกองรวมที่เหลือแบบสุ่ม
+          // ถ้าบางระดับมีของไม่พอ (ไม่ครบตามแผน) เติมจากระดับเดียวกันไม่ได้ ให้เติมจากกองรวมที่เหลือแบบสุ่ม (ยอมรับว่าอาจกระทบคะแนนเต็มเล็กน้อยเฉพาะกรณีคลังไม่พอจริงๆ)
           if (picked.length < wantCount) {
             const pickedIds = new Set(picked.map(q => q.__backendId));
             const leftoverPool = _seededShuffle(pool.filter(q => !pickedIds.has(q.__backendId)), seed + 999);
