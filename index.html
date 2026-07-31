@@ -8749,7 +8749,7 @@
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin:10px 0">
             ${[
-              ['xʸ (ตัวยก)','x^{}'],['xᵧ (ตัวห้อย)','x_{}'],['√x','\\sqrt{x}'],['a/b','\\frac{a}{b}'],
+              ['ʸ (ตัวยก)','^{}'],['ᵧ (ตัวห้อย)','_{}'],['ᵧʸ (ทั้งคู่)','_{}^{}'],['√ (ราก)','\\sqrt{}'],['÷ (เศษส่วน)','\\frac{}{}'],
               ['π','\\pi'],['±','\\pm'],['≤','\\leq'],['≥','\\geq'],['≠','\\neq'],
               ['∑','\\sum_{i=1}^{n}'],['∫','\\int_0^1'],['∞','\\infty'],['°','^\\circ'],
             ].map(([label, cmd]) => `<button onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer">${label}</button>`).join('')}
