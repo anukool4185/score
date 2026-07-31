@@ -7229,8 +7229,7 @@
       document.getElementById('eq-edit-id').value = '';
       document.getElementById('eq-form-title').textContent = '➕ เพิ่มข้อสอบใหม่';
       document.getElementById('eq-save-btn').textContent = '💾 บันทึกข้อสอบ';
-      document.getElementById('eq-chapter').value = '';
-      document.getElementById('eq-score').value = '1';
+      // ⚡ ไม่ล้างชื่อวิชา/บทเรื่อง/คะแนนทิ้ง ให้ค้างค่าเดิมไว้ (เหมือนชื่อวิชาที่ค้างอยู่แล้ว) ประหยัดเวลาเวลาเพิ่มข้อสอบต่อเนื่องหลายข้อในบทเดียวกัน
       document.getElementById('eq-question-text').value = '';
       document.getElementById('eq-image-url').value = '';
       document.getElementById('eq-image-preview').innerHTML = '';
