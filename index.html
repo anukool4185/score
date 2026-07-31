@@ -8769,7 +8769,7 @@
         <div style="background:white;border-radius:16px;max-width:600px;width:100%;padding:20px;max-height:92vh;overflow-y:auto">
           <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
           <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ — หรือกดปุ่มด่วนด้านล่างช่วยได้เลย</p>
-          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
+          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_lastEquationScriptCmd=null;_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
 
           <div style="margin-top:8px;margin-bottom:14px">
             <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
@@ -8791,9 +8791,21 @@
       `;
       document.body.appendChild(overlay);
     }
+    let _lastEquationScriptCmd = null; // จำคำสั่งตัวยก/ตัวห้อยล่าสุดที่กด ไว้ตรวจว่ากดซ้ำเพื่อยกเลิกหรือไม่
     function _insertToEquationField(latexCmd) {
       const field = document.getElementById('equation-builder-field');
-      if (field && field.executeCommand) field.executeCommand(['insert', latexCmd]);
+      if (!field || !field.executeCommand) return;
+      const isScriptCmd = latexCmd === '^{\\placeholder{}}' || latexCmd === '_{\\placeholder{}}';
+      if (isScriptCmd && _lastEquationScriptCmd === latexCmd) {
+        // 🔁 กดปุ่มเดิมซ้ำ = ยกเลิกโหมดตัวยก/ตัวห้อย กลับมาพิมพ์บรรทัดปกติ (ออกจากช่องยก/ห้อยที่กำลังอยู่)
+        field.executeCommand('moveAfterParent');
+        _lastEquationScriptCmd = null;
+      } else {
+        field.executeCommand(['insert', latexCmd]);
+        // ⌨️ โฟกัสกลับที่ช่องพิมพ์ทันที ให้พิมพ์ต่อได้เลยด้วยคีย์บอร์ดจริง (ทั้งคอมและมือถือ) ไม่ต้องคลิกเข้าไปในกรอบเอง
+        field.focus();
+        _lastEquationScriptCmd = isScriptCmd ? latexCmd : null;
+      }
       _updateEquationPreview();
     }
     // 👁️ อัปเดตตัวอย่างสมการแบบสด (เล็กกะทัดรัด) ในหน้าต่างเดียวกับที่กำลังสร้างสมการอยู่
