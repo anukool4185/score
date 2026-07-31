@@ -8743,8 +8743,7 @@
       // 🎨 ปุ่มด่วนจัดหมวดหมู่ — ใช้ตัวอักษร Unicode ตัวยก/ตัวห้อยธรรมดา (ไม่ใช้ CSS จัดตำแหน่งเองแล้ว เพราะเคยแสดงผลเพี้ยนมาก่อน)
       const categories = [
         { title: '📐 ยกกำลัง / ตัวห้อย / ราก / เศษส่วน', items: [
-          ['◻ʸ','^{}','ตัวยก (มีฐานแล้ว)'], ['◻ᵧ','_{}','ตัวห้อย (มีฐานแล้ว)'],
-          ['⬚ʸ','{}^{}','ตัวยก (พิมพ์ใหม่ทั้งบล็อก)'], ['⬚ᵧ','{}_{}','ตัวห้อย (พิมพ์ใหม่ทั้งบล็อก)'],
+          ['◻ʸ','TYPE:^','ตัวยก'], ['◻ᵧ','TYPE:_','ตัวห้อย'],
           ['√','\\sqrt{}','รากที่สอง'], ['ⁿ√','\\sqrt[n]{}','รากที่ n'], ['÷','\\frac{}{}','เศษส่วน'],
         ]},
         { title: '≤ เปรียบเทียบ / ตรรกะ', items: [
@@ -8770,7 +8769,7 @@
         <div style="background:white;border-radius:16px;max-width:600px;width:100%;padding:20px;max-height:92vh;overflow-y:auto">
           <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
           <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ — หรือกดปุ่มด่วนด้านล่างช่วยได้เลย</p>
-          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_updateEquationPreview()" style="width:100%;font-size:32px;padding:16px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:60px"></math-field>
+          <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
 
           <div style="margin-top:8px;margin-bottom:14px">
             <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
@@ -8794,7 +8793,14 @@
     }
     function _insertToEquationField(latexCmd) {
       const field = document.getElementById('equation-builder-field');
-      if (field && field.executeCommand) field.executeCommand(['insert', latexCmd]);
+      if (!field) return;
+      if (latexCmd.startsWith('TYPE:')) {
+        // 🖊️ จำลองการพิมพ์จริงด้วยแป้นพิมพ์ (^ หรือ _) แทนการแทรก LaTeX ดิบๆ — ทำให้ MathLive สร้างช่องรับตัวยก/ตัวห้อยที่มองเห็นได้จริง เหมือนตอนพิมพ์เอง
+        const chars = latexCmd.slice(5);
+        if (field.executeCommand) field.executeCommand(['typedText', chars]);
+      } else if (field.executeCommand) {
+        field.executeCommand(['insert', latexCmd]);
+      }
       _updateEquationPreview();
     }
     // 👁️ อัปเดตตัวอย่างสมการแบบสด (เล็กกะทัดรัด) ในหน้าต่างเดียวกับที่กำลังสร้างสมการอยู่
