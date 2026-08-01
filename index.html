@@ -1236,8 +1236,9 @@
          <select id="examcheat-filter-room" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกห้อง --</option></select>
          <select id="examcheat-filter-subject" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกวิชา --</option></select>
         </div>
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
          <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" id="examcheat-select-all" onchange="toggleAllExamCheatSelection(this.checked)"> เลือกทั้งหมด</label>
+         <button id="examcheat-pause-btn" onclick="toggleExamCheatAutoRender()" class="px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-medium">⏸️ หยุด render ชั่วคราว</button>
          <button onclick="deleteSelectedExamCheatAlerts()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium">🗑️ ลบที่เลือก</button>
         </div>
         <div id="examcheat-list" class="space-y-2"></div>
@@ -2557,10 +2558,19 @@
         if (currentUser && currentUser.user_type === 'admin' && typeof checkNewExamAlerts === 'function') {
           checkNewExamAlerts();
         }
-        // 🚨 ถ้าแอดมินกำลังเปิดหน้า "ตรวจสอบทุจริต" ค้างไว้อยู่ (ระหว่างช่วงสอบ) ให้รีเฟรชรายการสดทันทีที่มีข้อมูลใหม่ ไม่ต้องรอสลับแท็บ
+        // 🚨 ถ้าแอดมินกำลังเปิดหน้า "ตรวจสอบทุจริต" ค้างไว้อยู่ (ระหว่างช่วงสอบ) ให้รีเฟรชรายการสดทันทีที่มีข้อมูลใหม่จริงๆ เท่านั้น
+        // ⚠️ บั๊กที่พบ: เดิมรีเฟรชทุกครั้งที่ onDataChanged ทำงาน (ทุกรอบ poll) แม้ไม่มีอะไรเปลี่ยน ทำให้ checkbox ที่ติ๊กไว้หายไปเฉยๆ (เพราะ render ใหม่ล้าง state ของ checkbox ทิ้งหมด)
+        // แก้โดยเช็คก่อนว่ารายการที่ pending อยู่ตอนนี้ "เปลี่ยนไปจริง" หรือไม่ (เทียบ id ทั้งหมด) ถ้าเหมือนเดิมเป๊ะ ไม่ต้อง render ซ้ำ กัน checkbox ที่ติ๊กไว้หาย
         const examCheatTabEl = document.getElementById('admin-tab-examcheat');
         if (examCheatTabEl && !examCheatTabEl.classList.contains('hidden') && typeof renderExamCheatList === 'function') {
-          renderExamCheatList();
+          const currentPendingIds = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').map(d => d.__backendId).sort().join(',');
+          if (currentPendingIds !== window._lastExamCheatPendingIds) {
+            window._lastExamCheatPendingIds = currentPendingIds;
+            // ⏸️ ถ้าแอดมินกดปุ่ม "หยุด render ชั่วคราว" ไว้ (กำลังเลือกหลายรายการอยู่) ให้ข้ามการ render แม้มีข้อมูลใหม่จริง จนกว่าจะกดกลับมาทำงานอัตโนมัติเอง
+            if (!window._examCheatAutoRenderPaused) {
+              renderExamCheatList();
+            }
+          }
         }
         // 📝 ฝั่งนักเรียน: ถ้ากำลังถูก freeze อยู่ ให้เช็คว่าแอดมินตัดสินใจแล้วหรือยัง ตอบสนองอัตโนมัติทันที ไม่ต้องรีเฟรช
         if (typeof checkExamLiveStatus === 'function' && (document.getElementById('exam-freeze-overlay') || _examAntiCheatActive)) {
@@ -7840,6 +7850,13 @@
     // 🚨 หน้า "ตรวจสอบทุจริต" แยกต่างหาก — เปิดค้างไว้ระหว่างช่วงสอบเพื่อเห็นการแจ้งเตือนทันที
     // ══════════════════════════════════════════════════
     function loadExamCheatTab() {
+      // 🔄 รีเซ็ตสถานะ "หยุด render ชั่วคราว" ทุกครั้งที่เปิดหน้านี้ใหม่ (เป็นตัวช่วยชั่วคราวระหว่างใช้งาน ไม่ใช่การตั้งค่าถาวร)
+      window._examCheatAutoRenderPaused = false;
+      const pauseBtn = document.getElementById('examcheat-pause-btn');
+      if (pauseBtn) {
+        pauseBtn.textContent = '⏸️ หยุด render ชั่วคราว';
+        pauseBtn.className = 'px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-medium';
+      }
       const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
       const classes = [...new Set(alerts.map(a => a.class_name).filter(Boolean))].sort();
       const rooms = [...new Set(alerts.map(a => a.room_number).filter(Boolean))].sort();
@@ -7893,6 +7910,23 @@
       await adminDeleteStudentNotifications(selected);
       showToast(`✅ ลบรายการสำเร็จ ${selected.length} รายการ`);
       loadExamCheatTab();
+    }
+    // ⏸️ ตัวเลือกเสริม: หยุด render อัตโนมัติชั่วคราว — เผื่อกรณีกำลังติ๊กเลือกหลายรายการอยู่ แล้วมีทุจริตใหม่เข้ามาพอดี (จะได้ไม่ขัดจังหวะการเลือก)
+    function toggleExamCheatAutoRender() {
+      window._examCheatAutoRenderPaused = !window._examCheatAutoRenderPaused;
+      const btn = document.getElementById('examcheat-pause-btn');
+      if (btn) {
+        if (window._examCheatAutoRenderPaused) {
+          btn.textContent = '▶️ render อัตโนมัติต่อ';
+          btn.classList.remove('bg-amber-100', 'hover:bg-amber-200', 'text-amber-800');
+          btn.classList.add('bg-blue-100', 'hover:bg-blue-200', 'text-blue-800');
+        } else {
+          btn.textContent = '⏸️ หยุด render ชั่วคราว';
+          btn.classList.remove('bg-blue-100', 'hover:bg-blue-200', 'text-blue-800');
+          btn.classList.add('bg-amber-100', 'hover:bg-amber-200', 'text-amber-800');
+          renderExamCheatList(); // กลับมาทำงานอัตโนมัติ ให้อัปเดตทันทีครั้งแรกที่กลับมาเปิดใช้
+        }
+      }
     }
 
     function toggleAllNotifSelection(checked) {
