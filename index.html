@@ -3983,6 +3983,7 @@
       ],
       subadmin_linked: [
         {id:'mn-overview',  icon:'🏠', label:'หน้าแรก'},
+        {id:'mn-notif',     icon:'🔔', label:'แจ้งเตือน'},
         {id:'mn-sa-profile',icon:'👤', label:'ข้อมูลส่วนตัว'},
         {id:'mn-sa-study',  icon:'📖', label:'การเรียน'},
         {id:'mn-sa-eval',   icon:'📝', label:'ประเมินการสอน'},
@@ -18719,6 +18720,7 @@
     admin: { 'mn-overview':"mShowDesktopAnnouncementManagement()", 'mn-datainfo':"mShowSection('home')" },
     subadmin_linked: {
       'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')",
+      'mn-notif':"showStudentNotificationPage()",
       'mn-sa-profile':"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')",
       'mn-sa-eval':"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')",
     },
