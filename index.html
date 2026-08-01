@@ -4047,7 +4047,20 @@
     };
     const MOBILE_ROLE_LABELS_ALL = { admin:'แอดมิน', subadmin_linked:'ผู้ช่วยแอดมิน (ที่เป็นนักเรียน)', subadmin:'ผู้ช่วยแอดมิน (ทั่วไป)', student:'นักเรียน' };
     function getMobileItemsForRole(configRole) {
-      const defaults = DEFAULT_MOBILE_ITEMS[configRole] || [];
+      // 📂 แตกไอคอนย่อยที่ซ่อนอยู่ในเมนูซ้อน (tray-opener เช่น "อื่นๆ") ให้เป็นส่วนหนึ่งของรายการหลักตั้งแต่ต้น
+      // เพื่อให้แอดมินจัดการ (ย้ายเข้า-ออกจากกลุ่ม/ลำดับ/ไอคอน) ได้ผ่านเครื่องมือ "จัดการเมนู" โดยไม่ต้องแก้โค้ดเอง
+      const rawDefaults = DEFAULT_MOBILE_ITEMS[configRole] || [];
+      const roleActions = MOBILE_ACTIONS[configRole] || {};
+      const defaults = [];
+      rawDefaults.forEach(item => {
+        defaults.push(item);
+        // ถ้าไอเทมนี้ไม่มี action ตรงๆ (ไปเปิด tray แทน) และมีรายการย่อยกำหนดไว้ ให้แตกออกมา
+        if (!roleActions[item.id] && M_NAV_SUBTABS[item.id] && Array.isArray(M_NAV_SUBTABS[item.id])) {
+          M_NAV_SUBTABS[item.id].forEach((sub, subIdx) => {
+            defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label });
+          });
+        }
+      });
       const configRecord = allData.find(d => d.type === 'mobile_menu_config' && d.role === configRole);
       if (!configRecord || !configRecord.items_json) return defaults;
       try {
@@ -18925,12 +18938,12 @@
     var type = currentUser.user_type;
     var btns = [];
     if (type === 'admin') {
-      btns = getMobileItemsForRole('admin').map(item => ({ ...item, fn: MOBILE_ACTIONS.admin[item.id] || '' }));
+      btns = getMobileItemsForRole('admin').map(item => ({ ...item, fn: item.fn || MOBILE_ACTIONS.admin[item.id] || '' }));
     } else if (type === 'subadmin') {
       if (currentUser.linked_student_id) {
-        btns = getMobileItemsForRole('subadmin_linked').map(item => ({ ...item, fn: MOBILE_ACTIONS.subadmin_linked[item.id] || '' }));
+        btns = getMobileItemsForRole('subadmin_linked').map(item => ({ ...item, fn: item.fn || MOBILE_ACTIONS.subadmin_linked[item.id] || '' }));
       } else {
-        btns = getMobileItemsForRole('subadmin').map(item => ({ ...item, fn: MOBILE_ACTIONS.subadmin[item.id] || '' }));
+        btns = getMobileItemsForRole('subadmin').map(item => ({ ...item, fn: item.fn || MOBILE_ACTIONS.subadmin[item.id] || '' }));
       }
     } else if (type === 'director') {
       // ✅ ใช้ลำดับ+ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี) เหมือนฝั่งคอม เพราะโครงสร้างเมนูนิเทศเป็นรายการเรียบ ไม่มีการจัดกลุ่มแบบผู้ช่วยแอดมิน/แอดมิน
@@ -18941,7 +18954,7 @@
     } else {
       btns = getMobileItemsForRole('student')
         .filter(item => !item.conditional || currentUser[item.conditional])
-        .map(item => ({ ...item, fn: MOBILE_ACTIONS.student[item.id] || '' }));
+        .map(item => ({ ...item, fn: item.fn || MOBILE_ACTIONS.student[item.id] || '' }));
     }
     // 🗂️ จัดกลุ่มปุ่มที่แอดมินตั้งชื่อกลุ่มเดียวกันไว้ (ผ่านเครื่องมือ "จัดการเมนู") ให้รวมเป็นปุ่มเดียว เปิดเป็นเมนูย่อยแบบไดนามิก
     var groupedBtns = [];
