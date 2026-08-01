@@ -7723,11 +7723,20 @@
     }
     // 🔔 อัปเดตตัวเลขที่กระดิ่งแจ้งเตือน — เรียกทุกครั้งที่ข้อมูลเปลี่ยน (onDataChanged) ให้ตัวเลขสดใหม่เสมอ
     function updateStudentNotificationBadge() {
-      const badge = document.getElementById('student-notif-count');
-      if (!badge) return;
       const count = getMyNotificationCount();
-      badge.textContent = count > 99 ? '99+' : String(count);
-      badge.classList.toggle('hidden', count === 0);
+      const displayText = count > 99 ? '99+' : String(count);
+      // เดสก์ท็อป (ใช้ class hidden ของ Tailwind)
+      const badge = document.getElementById('student-notif-count');
+      if (badge) {
+        badge.textContent = displayText;
+        badge.classList.toggle('hidden', count === 0);
+      }
+      // มือถือ (ใช้ inline style display เพราะไม่ได้ใช้ Tailwind class ในส่วนนี้)
+      const mBadge = document.getElementById('m-student-notif-count');
+      if (mBadge) {
+        mBadge.textContent = displayText;
+        mBadge.style.display = count === 0 ? 'none' : 'flex';
+      }
     }
 
     // ══════════════════════════════════════════════════
@@ -17805,6 +17814,9 @@
           <p id="m-header-title" style="font-size:13px;font-weight:700;margin:0">KPAC Score</p>
           <p id="m-header-user" style="font-size:10px;opacity:0.7;margin:0"></p>
         </div>
+        <button onclick="showStudentNotificationPage()" id="m-student-notif-bell-btn" style="position:relative;background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-right:6px;display:none">
+          🔔<span id="m-student-notif-count" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:white;font-size:9px;font-weight:700;border-radius:50%;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 2px">0</span>
+        </button>
         <button onclick="handleLogout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:10px;cursor:pointer">🚪 ออก</button>
       </div>
 
@@ -17870,6 +17882,12 @@
       ? ((linkedStudentForHeader.prefix||'') + (linkedStudentForHeader.first_name||'') + ' ' + (linkedStudentForHeader.last_name||''))
       : ((currentUser.prefix||'') + (currentUser.first_name||currentUser.username||''));
     mBuildNav();
+    // 🔔 แสดงกระดิ่งแจ้งเตือนสำหรับนักเรียนบนมือถือ (ครอบคลุมทั้งนักเรียนปกติและนักเรียนที่เป็นผู้ช่วยแอดมิน)
+    var mNotifBtn = document.getElementById('m-student-notif-bell-btn');
+    if (mNotifBtn) {
+      mNotifBtn.style.display = currentUser.user_type === 'student' ? 'inline-flex' : 'none';
+      if (currentUser.user_type === 'student' && typeof updateStudentNotificationBadge === 'function') updateStudentNotificationBadge();
+    }
     if (currentUser.user_type === 'student') {
       mShowDesktopHomeFeed('student', '📢 ประกาศจากแอดมิน');
     } else if (currentUser.user_type === 'director') {
@@ -18730,7 +18748,7 @@
       grade:"mShowDirectorGradeNative()", attend:"mShowDirectorScoreNative()",
       gradedist:"mShowDirectorGradeSummaryNative()", eval:"mShowDirectorEvalNative()",
     },
-    student: { 'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')" },
+    student: { 'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')", 'mn-notif':"showStudentNotificationPage()" },
   };
   function mBuildNav() {
     var nav = document.getElementById('m-bottom-nav');
