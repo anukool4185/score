@@ -5598,7 +5598,7 @@
       });
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'gradedist', 'menumanager'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'gradedist', 'menumanager', 'stunotif'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -7780,11 +7780,30 @@
       if (fRoom) notifs = notifs.filter(n => n.room_number === fRoom);
       if (fSubject) notifs = notifs.filter(n => n.subject_name === fSubject);
       notifs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      if (notifs.length === 0) {
+      // 🚨 รวมการแจ้งเตือนทุจริตข้อสอบเข้ามาไว้ในที่เดียวด้วย (ตามที่ขอให้รวมทุกอย่างมาไว้ที่เมนูนี้) — แต่ยังคงป๊อปอัพแจ้งเตือนทันทีไว้เหมือนเดิม (เรื่องความปลอดภัย/ความเร่งด่วน) ที่นี่เป็นแค่จุดรวมดูภาพรวมเพิ่มเติม
+      let examAlerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
+      if (fClass) examAlerts = examAlerts.filter(a => a.class_name === fClass);
+      if (fRoom) examAlerts = examAlerts.filter(a => a.room_number === fRoom);
+      if (fSubject) examAlerts = examAlerts.filter(a => a.subject_name === fSubject);
+      examAlerts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      if (notifs.length === 0 && examAlerts.length === 0) {
         listEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:20px 0">📭 ไม่มีการแจ้งเตือนตามเงื่อนไขที่เลือก</p>';
         return;
       }
-      listEl.innerHTML = notifs.map(n => {
+      const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' };
+      const examAlertsHtml = examAlerts.map(a => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : a.student_id;
+        return `
+          <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
+            <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0">🚨 สงสัยทุจริต — ${name} <span style="font-size:11px;color:#94a3b8;font-weight:400">(${a.student_id})</span></p>
+            <p style="font-size:13px;color:#7f1d1d;margin:2px 0">${typeLabel[a.violation_type] || a.violation_type} · ${a.subject_name||'-'}</p>
+            <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${a.created_at ? new Date(a.created_at).toLocaleString('th-TH') : ''}</p>
+            <button onclick="openExamAlertControlPanel('${a.__backendId}')" style="padding:6px 14px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔍 ตรวจสอบ/จัดการ</button>
+          </div>`;
+      }).join('');
+      const notifsHtml = notifs.map(n => {
         const student = allData.find(s => s.type === 'student' && s.student_id === n.student_id);
         const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : n.student_id;
         return `
@@ -7798,6 +7817,7 @@
             <button onclick="adminDeleteStudentNotifications(['${n.__backendId}'])" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex-shrink-0">🗑️</button>
           </div>`;
       }).join('');
+      listEl.innerHTML = examAlertsHtml + notifsHtml;
     }
     function toggleAllNotifSelection(checked) {
       document.querySelectorAll('.notif-select-cb').forEach(cb => { cb.checked = checked; });
@@ -10618,8 +10638,12 @@
         }
       });
       document.getElementById('admin-tab-' + tabName).classList.remove('hidden');
-      document.getElementById('tab-' + tabName).classList.remove('bg-gray-300', 'text-gray-700');
-      document.getElementById('tab-' + tabName).classList.add('bg-blue-500', 'text-white');
+      // ⚠️ ป้องกัน error: บางแท็บ (เช่น stunotif) เข้าถึงผ่านเมนู sidebar ใหม่โดยตรง ไม่มีปุ่มคู่กันในระบบแท็บเก่าหน้า "แผงควบคุมแอดมิน" — เช็คก่อนว่ามีปุ่มจริงไหมค่อยปรับสี
+      const activeTabBtn = document.getElementById('tab-' + tabName);
+      if (activeTabBtn) {
+        activeTabBtn.classList.remove('bg-gray-300', 'text-gray-700');
+        activeTabBtn.classList.add('bg-blue-500', 'text-white');
+      }
       
       if (tabName === 'students') {
         showStudentsSubTab('applicants');
