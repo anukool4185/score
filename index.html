@@ -3868,6 +3868,7 @@
       ],
       subadmin: [
         {id:'home',      icon:'🏠', label:'หน้าหลัก',       conditional:'linked_student_id'},
+        {id:'st-notif',  icon:'🔔', label:'แจ้งเตือน',      section:'เมนูนักเรียน', conditional:'linked_student_id'},
         {id:'st-reg',    icon:'📚', label:'ลงทะเบียน',      section:'เมนูนักเรียน', conditional:'linked_student_id'},
         {id:'st-grades', icon:'📊', label:'ผลการเรียน',     section:'เมนูนักเรียน', conditional:'linked_student_id'},
         {id:'st-hw',     icon:'📝', label:'การบ้าน(นร.)',    section:'เมนูนักเรียน', conditional:'linked_student_id'},
@@ -3923,7 +3924,7 @@
         'sa-grade':"goToSubAdminTabDirect('grading')", 'sa-stu':"goToSubAdminTabDirect('students')",
       },
       subadmin: {
-        home:"goToHomePage()", 'st-reg':"goToStudentTabFromSubAdmin('register')", 'st-grades':"goToStudentTabFromSubAdmin('grades')",
+        home:"goToHomePage()", 'st-notif':"goToStudentTabFromSubAdmin('notif')", 'st-reg':"goToStudentTabFromSubAdmin('register')", 'st-grades':"goToStudentTabFromSubAdmin('grades')",
         'st-hw':"goToStudentTabFromSubAdmin('homework')", 'st-attend':"goToStudentTabFromSubAdmin('attendance')",
         'st-eval':"goToStudentTabFromSubAdmin('evaluate')", 'st-profile':"goToStudentTabFromSubAdmin('profile')",
         'sa-hw':"goToSubAdminTabDirect('homework')", 'sa-time':"goToSubAdminTabDirect('timekeeping')",
@@ -4088,13 +4089,14 @@
       const isSubAdmin = currentUser && currentUser.user_type === 'subadmin';
       const isDirector = currentUser && currentUser.user_type === 'director';
       const isStudent = currentUser && currentUser.user_type === 'student';
+      const hasLinkedStudentBell = isStudent || (isSubAdmin && currentUser.linked_student_id);
       console.log('🔍 isAdmin:', isAdmin, 'isSubAdmin:', isSubAdmin, 'isDirector:', isDirector, 'user_type:', currentUser?.user_type, 'username:', currentUser?.username);
 
-      // 🔔 แสดงกระดิ่งแจ้งเตือนสำหรับนักเรียน (ครอบคลุมทั้งนักเรียนปกติ และนักเรียนที่เป็นผู้ช่วยแอดมินด้วย เพราะ user_type ยังคงเป็น 'student' เหมือนกัน)
+      // 🔔 แสดงกระดิ่งแจ้งเตือนสำหรับนักเรียน (ครอบคลุมทั้งนักเรียนปกติ, นักเรียนที่เป็นผู้ช่วยแอดมิน, และผู้ช่วยแอดมินที่เชื่อมโยงกับนักเรียน — ทุกกรณีที่มีสถานะเป็นนักเรียนด้วย)
       const studentNotifBtn = document.getElementById('student-notif-bell-btn');
       if (studentNotifBtn) {
-        studentNotifBtn.classList.toggle('hidden', !isStudent);
-        if (isStudent) updateStudentNotificationBadge();
+        studentNotifBtn.classList.toggle('hidden', !hasLinkedStudentBell);
+        if (hasLinkedStudentBell) updateStudentNotificationBadge();
       }
       
       // แสดงปุ่มแอดมิน
@@ -7718,9 +7720,20 @@
     }
 
     // 🔔 นับจำนวนแจ้งเตือนที่ยังไม่รับทราบของนักเรียนคนปัจจุบัน — ใช้แสดงตัวเลขที่กระดิ่ง
+    // 🔔 หา student_id ที่ถูกต้องไม่ว่า currentUser จะเป็นนักเรียนโดยตรง หรือผู้ช่วยแอดมินที่เชื่อมโยงกับนักเรียน
+    function _getEffectiveStudentIdForNotifications() {
+      if (!currentUser) return null;
+      if (currentUser.student_id) return currentUser.student_id; // นักเรียนโดยตรง (รวมถึงตอนสวมตัวตนจาก subadmin แล้ว)
+      if (currentUser.linked_student_id) { // ผู้ช่วยแอดมินที่เชื่อมโยงกับนักเรียน (ยังไม่ได้สวมตัวตน)
+        const linkedStudent = allData.find(s => s.__backendId === currentUser.linked_student_id && s.type === 'student');
+        return linkedStudent?.student_id || null;
+      }
+      return null;
+    }
     function getMyNotificationCount() {
-      if (!currentUser?.student_id) return 0;
-      return allData.filter(d => d.type === 'student_notification' && d.student_id === currentUser.student_id).length;
+      const sid = _getEffectiveStudentIdForNotifications();
+      if (!sid) return 0;
+      return allData.filter(d => d.type === 'student_notification' && d.student_id === sid).length;
     }
     // 🔔 อัปเดตตัวเลขที่กระดิ่งแจ้งเตือน — เรียกทุกครั้งที่ข้อมูลเปลี่ยน (onDataChanged) ให้ตัวเลขสดใหม่เสมอ
     function updateStudentNotificationBadge() {
