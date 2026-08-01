@@ -1227,6 +1227,22 @@
         <div id="stunotif-list" class="space-y-2"></div>
        </div>
       </div>
+      <div id="admin-tab-examcheat" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">🚨 ตรวจสอบทุจริต</h3>
+        <p class="text-gray-500 text-sm mb-4">ดูรายการสงสัยทุจริตข้อสอบทั้งหมด — เปิดหน้านี้ค้างไว้ระหว่างช่วงสอบ เพื่อเห็นการแจ้งเตือนทันทีที่พบความผิดปกติ</p>
+        <div class="grid md:grid-cols-3 gap-3 mb-4">
+         <select id="examcheat-filter-class" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกชั้น --</option></select>
+         <select id="examcheat-filter-room" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกห้อง --</option></select>
+         <select id="examcheat-filter-subject" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกวิชา --</option></select>
+        </div>
+        <div class="flex items-center justify-between mb-3">
+         <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" id="examcheat-select-all" onchange="toggleAllExamCheatSelection(this.checked)"> เลือกทั้งหมด</label>
+         <button onclick="deleteSelectedExamCheatAlerts()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium">🗑️ ลบที่เลือก</button>
+        </div>
+        <div id="examcheat-list" class="space-y-2"></div>
+       </div>
+      </div>
       <div id="admin-tab-homework" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📝 จัดการการบ้าน</h3>
@@ -2540,6 +2556,11 @@
         // 🚨 ตรวจจับการแจ้งเตือนทุจริตข้อสอบใหม่ (เฉพาะแอดมิน) — เด้งแจ้งเตือนทันทีที่เจอ
         if (currentUser && currentUser.user_type === 'admin' && typeof checkNewExamAlerts === 'function') {
           checkNewExamAlerts();
+        }
+        // 🚨 ถ้าแอดมินกำลังเปิดหน้า "ตรวจสอบทุจริต" ค้างไว้อยู่ (ระหว่างช่วงสอบ) ให้รีเฟรชรายการสดทันทีที่มีข้อมูลใหม่ ไม่ต้องรอสลับแท็บ
+        const examCheatTabEl = document.getElementById('admin-tab-examcheat');
+        if (examCheatTabEl && !examCheatTabEl.classList.contains('hidden') && typeof renderExamCheatList === 'function') {
+          renderExamCheatList();
         }
         // 📝 ฝั่งนักเรียน: ถ้ากำลังถูก freeze อยู่ ให้เช็คว่าแอดมินตัดสินใจแล้วหรือยัง ตอบสนองอัตโนมัติทันที ไม่ต้องรีเฟรช
         if (typeof checkExamLiveStatus === 'function' && (document.getElementById('exam-freeze-overlay') || _examAntiCheatActive)) {
@@ -3904,6 +3925,7 @@
         {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
+        {id:'examcheat',     icon:'🚨', label:'ตรวจสอบทุจริต',  section:'ข้อสอบ'},
         {id:'admins',     icon:'👤', label:'ผู้ช่วยแอดมิน',        section:'บุคคล'},
         {id:'students',   icon:'🎓', label:'นักเรียน',             section:'บุคคล'},
         {id:'evaltopics', icon:'📋', label:'หัวข้อประเมินการสอน',   section:'บุคคล'},
@@ -3939,7 +3961,7 @@
         import:"goToAdminTabDirect('import')", settings:"goToAdminTabDirect('settings')", hours:"goToAdminTabDirect('hours')", schedule:"goToAdminTabDirect('schedule')",
         scores:"goToAdminTabDirect('scores')", grading:"goToAdminTabDirect('grading')", uploadscore:"goToAdminTabDirect('uploadscore')",
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", studentdata:"goToAdminTabDirect('studentdata')",
-        examquestions:"goToAdminTabDirect('examquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')",
+        examquestions:"goToAdminTabDirect('examquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", examcheat:"goToAdminTabDirect('examcheat')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
         timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", menumanager:"goToAdminTabDirect('menumanager')",
       },
@@ -5611,7 +5633,7 @@
       });
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'gradedist', 'menumanager', 'stunotif'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'examcheat', 'gradedist', 'menumanager', 'stunotif'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -7793,30 +7815,12 @@
       if (fRoom) notifs = notifs.filter(n => n.room_number === fRoom);
       if (fSubject) notifs = notifs.filter(n => n.subject_name === fSubject);
       notifs.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      // 🚨 รวมการแจ้งเตือนทุจริตข้อสอบเข้ามาไว้ในที่เดียวด้วย (ตามที่ขอให้รวมทุกอย่างมาไว้ที่เมนูนี้) — แต่ยังคงป๊อปอัพแจ้งเตือนทันทีไว้เหมือนเดิม (เรื่องความปลอดภัย/ความเร่งด่วน) ที่นี่เป็นแค่จุดรวมดูภาพรวมเพิ่มเติม
-      let examAlerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
-      if (fClass) examAlerts = examAlerts.filter(a => a.class_name === fClass);
-      if (fRoom) examAlerts = examAlerts.filter(a => a.room_number === fRoom);
-      if (fSubject) examAlerts = examAlerts.filter(a => a.subject_name === fSubject);
-      examAlerts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-
-      if (notifs.length === 0 && examAlerts.length === 0) {
+      // 🚨 ย้ายแจ้งเตือนทุจริตข้อสอบไปอยู่หน้า "🚨 ตรวจสอบทุจริต" แยกต่างหากแล้ว (ตามที่ขอ) — ที่นี่เหลือเฉพาะแจ้งเตือนทั่วไปของนักเรียนเท่านั้น
+      if (notifs.length === 0) {
         listEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:20px 0">📭 ไม่มีการแจ้งเตือนตามเงื่อนไขที่เลือก</p>';
         return;
       }
-      const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' };
-      const examAlertsHtml = examAlerts.map(a => {
-        const student = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : a.student_id;
-        return `
-          <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
-            <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0">🚨 สงสัยทุจริต — ${name} <span style="font-size:11px;color:#94a3b8;font-weight:400">(${a.student_id})</span></p>
-            <p style="font-size:13px;color:#7f1d1d;margin:2px 0">${typeLabel[a.violation_type] || a.violation_type} · ${a.subject_name||'-'}</p>
-            <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${a.created_at ? new Date(a.created_at).toLocaleString('th-TH') : ''}</p>
-            <button onclick="openExamAlertControlPanel('${a.__backendId}')" style="padding:6px 14px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔍 ตรวจสอบ/จัดการ</button>
-          </div>`;
-      }).join('');
-      const notifsHtml = notifs.map(n => {
+      listEl.innerHTML = notifs.map(n => {
         const student = allData.find(s => s.type === 'student' && s.student_id === n.student_id);
         const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : n.student_id;
         return `
@@ -7830,8 +7834,67 @@
             <button onclick="adminDeleteStudentNotifications(['${n.__backendId}'])" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex-shrink-0">🗑️</button>
           </div>`;
       }).join('');
-      listEl.innerHTML = examAlertsHtml + notifsHtml;
     }
+
+    // ══════════════════════════════════════════════════
+    // 🚨 หน้า "ตรวจสอบทุจริต" แยกต่างหาก — เปิดค้างไว้ระหว่างช่วงสอบเพื่อเห็นการแจ้งเตือนทันที
+    // ══════════════════════════════════════════════════
+    function loadExamCheatTab() {
+      const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
+      const classes = [...new Set(alerts.map(a => a.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(alerts.map(a => a.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(alerts.map(a => a.subject_name).filter(Boolean))].sort();
+      const classSel = document.getElementById('examcheat-filter-class');
+      const roomSel = document.getElementById('examcheat-filter-room');
+      const subjSel = document.getElementById('examcheat-filter-subject');
+      if (classSel) classSel.innerHTML = '<option value="">-- ทุกชั้น --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (roomSel) roomSel.innerHTML = '<option value="">-- ทุกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      if (subjSel) subjSel.innerHTML = '<option value="">-- ทุกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      renderExamCheatList();
+    }
+    function renderExamCheatList() {
+      const listEl = document.getElementById('examcheat-list');
+      if (!listEl) return;
+      const fClass = document.getElementById('examcheat-filter-class')?.value || '';
+      const fRoom = document.getElementById('examcheat-filter-room')?.value || '';
+      const fSubject = document.getElementById('examcheat-filter-subject')?.value || '';
+      let alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
+      if (fClass) alerts = alerts.filter(a => a.class_name === fClass);
+      if (fRoom) alerts = alerts.filter(a => a.room_number === fRoom);
+      if (fSubject) alerts = alerts.filter(a => a.subject_name === fSubject);
+      alerts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      if (alerts.length === 0) {
+        listEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:20px 0">📭 ไม่มีรายการสงสัยทุจริตตามเงื่อนไขที่เลือก</p>';
+        return;
+      }
+      const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' };
+      listEl.innerHTML = alerts.map(a => {
+        const student = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
+        const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : a.student_id;
+        return `
+          <div class="flex items-start gap-3" style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
+            <input type="checkbox" class="examcheat-select-cb mt-1" value="${a.__backendId}" style="width:16px;height:16px;flex-shrink:0">
+            <div class="flex-1">
+              <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0">🚨 สงสัยทุจริต — ${name} <span style="font-size:11px;color:#94a3b8;font-weight:400">(${a.student_id})</span></p>
+              <p style="font-size:13px;color:#7f1d1d;margin:2px 0">${typeLabel[a.violation_type] || a.violation_type} ${a.class_name ? '· '+a.class_name+'/'+a.room_number : ''} · ${a.subject_name||'-'}</p>
+              <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${a.created_at ? new Date(a.created_at).toLocaleString('th-TH') : ''}</p>
+              <button onclick="openExamAlertControlPanel('${a.__backendId}')" style="padding:6px 14px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔍 ตรวจสอบ/จัดการ</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+    function toggleAllExamCheatSelection(checked) {
+      document.querySelectorAll('.examcheat-select-cb').forEach(cb => { cb.checked = checked; });
+    }
+    async function deleteSelectedExamCheatAlerts() {
+      const selected = [...document.querySelectorAll('.examcheat-select-cb:checked')].map(cb => cb.value);
+      if (selected.length === 0) { showToast('กรุณาเลือกรายการที่ต้องการลบก่อน', 'error'); return; }
+      if (!confirm(`ยืนยันลบรายการสงสัยทุจริตที่เลือกไว้ ${selected.length} รายการ?`)) return;
+      await adminDeleteStudentNotifications(selected);
+      showToast(`✅ ลบรายการสำเร็จ ${selected.length} รายการ`);
+      loadExamCheatTab();
+    }
+
     function toggleAllNotifSelection(checked) {
       document.querySelectorAll('.notif-select-cb').forEach(cb => { cb.checked = checked; });
     }
@@ -7863,7 +7926,8 @@
     }
     // แอดมินลบแจ้งเตือน (ทีละคน/หลายคน/ทั้งหมด) — ลบจริงจากฐานข้อมูล ฝั่งนักเรียนก็หายไปด้วยเพราะข้อมูลชุดเดียวกัน
     async function adminDeleteStudentNotifications(notifIds) {
-      const notifs = notifIds.map(id => allData.find(d => d.__backendId === id && d.type === 'student_notification')).filter(Boolean);
+      // 🔧 ทำให้ลบได้ทั้ง student_notification และ exam_alert (ตอนนี้เลือกลบพร้อมกันได้ทั้ง 2 แบบในหน้ารวมแจ้งเตือน)
+      const notifs = notifIds.map(id => allData.find(d => d.__backendId === id && (d.type === 'student_notification' || d.type === 'exam_alert'))).filter(Boolean);
       await Promise.all(notifs.map(n => window.dataSdk.delete(n)));
       refreshCurrentView();
     }
@@ -10701,6 +10765,8 @@
         loadHomeworkTab();
       } else if (tabName === 'stunotif') {
         loadStuNotifTab();
+      } else if (tabName === 'examcheat') {
+        loadExamCheatTab();
       } else if (tabName === 'uploadscore') {
         loadUploadScoreTab();
       } else if (tabName === 'gradedist') {
@@ -18739,6 +18805,7 @@
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
       {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
+      {id:'examcheat',icon:'🚨',label:'ตรวจสอบทุจริต',fn:"mShowDesktopAdminTab('examcheat','🚨 ตรวจสอบทุจริต')"},
     ],
     'mn-hw': [
       {id:'homework',icon:'📝',label:'การบ้าน',fn:"mShowDesktopAdminTab('homework','📝 จัดการการบ้าน')"},
