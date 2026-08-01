@@ -10046,10 +10046,6 @@
       const activeBtn = document.getElementById('mm-role-btn-' + role);
       if (activeBtn) { activeBtn.classList.remove('bg-gray-300','text-gray-700'); activeBtn.classList.add('bg-blue-500','text-white'); }
       _mmCurrentItems = (_mmCurrentPlatform === 'desktop' ? getSidebarItemsForRole(role) : getMobileItemsForRole(role)).map(item => ({ ...item }));
-      // 🔕 เอาเมนูแจ้งเตือนออกจากรายการที่ปรับแต่งได้ในเครื่องมือ "จัดการเมนู" ฝั่งคอม ตามที่ขอ (ยังทำงานปกติในเมนูจริง แค่ไม่ให้ปรับแต่งลำดับ/ไอคอนตรงนี้)
-      if (_mmCurrentPlatform === 'desktop') {
-        _mmCurrentItems = _mmCurrentItems.filter(item => item.id !== 'notif' && item.id !== 'st-notif' && item.id !== 'stunotif');
-      }
       renderMenuManagerList();
     }
     function renderMenuManagerList() {
