@@ -991,7 +991,7 @@
          </div>
         </div>
        </div>
-       <button onclick="showStudentNotificationPage()" id="student-notif-bell-btn" class="relative px-2 py-2 rounded-lg hover:bg-white/10 transition hidden" title="การแจ้งเตือน">
+       <button onclick="showPage('student-management');showStudentTab('notif')" id="student-notif-bell-btn" class="relative px-2 py-2 rounded-lg hover:bg-white/10 transition hidden" title="การแจ้งเตือน">
          🔔<span id="student-notif-count" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">0</span>
        </button>
        <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
@@ -3915,7 +3915,7 @@
     // การเชื่อมต่อฟังก์ชันจริง แยกจากข้อมูลเมนู เพื่อให้แก้แค่ข้อมูล (ลำดับ/ไอคอน) โดยไม่กระทบฟังก์ชันการทำงาน
     const SIDEBAR_ACTIONS = {
       student: {
-        home:'goToHomePage()', notif:'showStudentNotificationPage()', reg:"showPage('student-management');showStudentTab('register')",
+        home:'goToHomePage()', notif:"showPage('student-management');showStudentTab('notif')", reg:"showPage('student-management');showStudentTab('register')",
         grades:"showPage('student-management');showStudentTab('grades')", hw:"showPage('student-management');showStudentTab('homework')",
         attend:"showPage('student-management');showStudentTab('attendance')", eval:"showPage('student-management');showStudentTab('evaluate')",
         profile:"showPage('student-management');showStudentTab('profile')",
@@ -7690,32 +7690,33 @@
     // นักเรียนกด "รับทราบ" — ลบแจ้งเตือนนี้ทิ้ง (ฝั่งแอดมินจะหายไปด้วยเพราะอ่านจากข้อมูลเดียวกัน)
     // 📄 หน้าแจ้งเตือนของนักเรียน (แบบ popup) — แสดงรายการทั้งหมด พร้อมปุ่มรับทราบทีละรายการ
     function showStudentNotificationPage() {
-      document.getElementById('student-notif-modal')?.remove();
+      // 🔔 เปลี่ยนจาก popup เป็นหน้าแท็บปกติ (เหมือนแท็บอื่นๆ) ตามที่ขอ ไม่ต้องเป็นหน้าต่างลอยอีกต่อไป
+      showPage('student-management');
+      showStudentTab('notif');
+    }
+    // 📄 แสดงรายการแจ้งเตือนของนักเรียนในแท็บปกติ (แทนที่ popup เดิม)
+    function renderStudentNotificationTab() {
+      const content = document.getElementById('student-content');
+      if (!content) return;
       const myNotifs = allData.filter(d => d.type === 'student_notification' && d.student_id === currentUser?.student_id)
         .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      const overlay = document.createElement('div');
-      overlay.id = 'student-notif-modal';
-      overlay.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
-      overlay.innerHTML = `
-        <div style="background:white;border-radius:16px;max-width:480px;width:100%;padding:20px;max-height:85vh;overflow-y:auto">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-            <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0">🔔 การแจ้งเตือน</h3>
-            <button onclick="document.getElementById('student-notif-modal')?.remove()" style="width:28px;height:28px;background:#e2e8f0;border:none;border-radius:50%;font-size:14px;cursor:pointer;color:#475569">✕</button>
-          </div>
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6">
+          <h3 class="text-xl font-bold text-gray-800 mb-4">🔔 การแจ้งเตือน</h3>
           ${myNotifs.length === 0
-            ? `<p style="text-align:center;color:#94a3b8;font-size:13px;padding:30px 0">📭 ไม่มีการแจ้งเตือนใหม่</p>`
+            ? `<p style="text-align:center;color:#94a3b8;font-size:14px;padding:40px 0">📭 ไม่มีการแจ้งเตือนใหม่</p>`
             : myNotifs.map(n => `
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px">
-                <p style="font-size:13px;color:#1e293b;margin:0 0 4px">${n.message}</p>
-                <p style="font-size:10px;color:#94a3b8;margin:0 0 8px">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH') : ''}</p>
-                <button onclick="acknowledgeStudentNotification('${n.__backendId}')" style="width:100%;padding:7px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">✅ รับทราบ</button>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px">
+                <p style="font-size:14px;color:#1e293b;margin:0 0 4px">${n.message}</p>
+                <p style="font-size:11px;color:#94a3b8;margin:0 0 10px">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH') : ''}</p>
+                <button onclick="acknowledgeStudentNotification('${n.__backendId}')" style="padding:8px 16px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✅ รับทราบ</button>
               </div>
             `).join('')
           }
         </div>
       `;
-      document.body.appendChild(overlay);
     }
+
     // 🔔 นับจำนวนแจ้งเตือนที่ยังไม่รับทราบของนักเรียนคนปัจจุบัน — ใช้แสดงตัวเลขที่กระดิ่ง
     function getMyNotificationCount() {
       if (!currentUser?.student_id) return 0;
@@ -7802,7 +7803,11 @@
     async function acknowledgeStudentNotification(notifId) {
       const notif = allData.find(d => d.__backendId === notifId && d.type === 'student_notification');
       if (notif) await window.dataSdk.delete(notif);
-      refreshCurrentView();
+      if (document.getElementById('tab-notif')?.classList.contains('bg-blue-500')) {
+        renderStudentNotificationTab(); // อยู่ในแท็บแจ้งเตือนพอดี ให้รีเฟรชรายการทันที
+      } else {
+        refreshCurrentView();
+      }
     }
     // ลบแจ้งเตือนอัตโนมัติเมื่อเหตุการณ์ต้นตอถูกจัดการแล้ว (เช่น สอบเสร็จแล้ว ลบแจ้งเตือน "มีสอบใหม่" ของข้อสอบชุดนั้นทิ้ง)
     async function autoRemoveNotificationsByRelatedId(relatedId) {
@@ -15622,7 +15627,7 @@
     }
     function showStudentTab(tabName) {
       currentStudentTab = tabName;
-      const allTabIds = ['tab-profile', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
+      const allTabIds = ['tab-profile', 'tab-notif', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
       allTabIds.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -15639,6 +15644,8 @@
       }
       if (tabName === 'profile') {
         showStudentProfile();
+      } else if (tabName === 'notif') {
+        renderStudentNotificationTab();
       } else if (tabName === 'register') {
         showStudentRegister();
         lastRegisterEligibilitySignature = getStudentEligibilitySignature();
@@ -17814,7 +17821,7 @@
           <p id="m-header-title" style="font-size:13px;font-weight:700;margin:0">KPAC Score</p>
           <p id="m-header-user" style="font-size:10px;opacity:0.7;margin:0"></p>
         </div>
-        <button onclick="showStudentNotificationPage()" id="m-student-notif-bell-btn" style="position:relative;background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-right:6px;display:none">
+        <button onclick="mShowDesktopStudentTab('notif','🔔 การแจ้งเตือน')" id="m-student-notif-bell-btn" style="position:relative;background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-right:6px;display:none">
           🔔<span id="m-student-notif-count" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:white;font-size:9px;font-weight:700;border-radius:50%;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 2px">0</span>
         </button>
         <button onclick="handleLogout()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:10px;cursor:pointer">🚪 ออก</button>
@@ -18738,7 +18745,7 @@
     admin: { 'mn-overview':"mShowDesktopAnnouncementManagement()", 'mn-datainfo':"mShowSection('home')" },
     subadmin_linked: {
       'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')",
-      'mn-notif':"showStudentNotificationPage()",
+      'mn-notif':"mShowDesktopStudentTab('notif','🔔 การแจ้งเตือน')",
       'mn-sa-profile':"mShowDesktopStudentTabFromSubAdmin('profile','👤 แก้ไขข้อมูลส่วนตัว')",
       'mn-sa-eval':"mShowDesktopStudentTabFromSubAdmin('evaluate','📝 ประเมินการสอน')",
     },
@@ -18748,7 +18755,7 @@
       grade:"mShowDirectorGradeNative()", attend:"mShowDirectorScoreNative()",
       gradedist:"mShowDirectorGradeSummaryNative()", eval:"mShowDirectorEvalNative()",
     },
-    student: { 'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')", 'mn-notif':"showStudentNotificationPage()" },
+    student: { 'mn-overview':"mShowDesktopHomeFeed('student','📢 ประกาศจากแอดมิน')", 'mn-notif':"mShowDesktopStudentTab('notif','🔔 การแจ้งเตือน')" },
   };
   function mBuildNav() {
     var nav = document.getElementById('m-bottom-nav');
