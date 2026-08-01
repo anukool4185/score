@@ -3959,7 +3959,12 @@
         let lastKnownOrder = -1;
         const withOrder = defaults.map(item => {
           const o = overrideMap[item.id];
-          if (o) { lastKnownOrder = o.order; return { ...item, icon: o.icon || item.icon, __order: o.order }; }
+          if (o) {
+            lastKnownOrder = o.order;
+            // 🗂️ ใช้ section ที่แอดมินตั้งไว้เอง (ถ้ามี) แทนค่าเริ่มต้น เพื่อรองรับการจัดกลุ่มเมนูเองตามที่ขอ
+            const effectiveSection = o.section !== undefined ? o.section : item.section;
+            return { ...item, icon: o.icon || item.icon, section: effectiveSection, __order: o.order };
+          }
           lastKnownOrder += 0.01;
           return { ...item, __order: lastKnownOrder };
         });
@@ -4017,10 +4022,18 @@
         const overrides = JSON.parse(configRecord.items_json);
         const overrideMap = {};
         overrides.forEach(o => { overrideMap[o.id] = o; });
+        // ⚠️ ใช้แก้แบบเดียวกับฝั่งเดสก์ท็อป: ไอเทมใหม่ที่ยังไม่มี order บันทึกไว้ ให้แทรกต่อจากไอเทมก่อนหน้าแทนกระเด็นไปท้ายสุด
+        let lastKnownOrder = -1;
         return defaults
           .map(item => {
             const o = overrideMap[item.id];
-            return o ? { ...item, icon: o.icon || item.icon, __order: o.order } : { ...item, __order: 999 };
+            if (o) {
+              lastKnownOrder = o.order;
+              const effectiveSection = o.section !== undefined ? o.section : item.section;
+              return { ...item, icon: o.icon || item.icon, section: effectiveSection, __order: o.order };
+            }
+            lastKnownOrder += 0.01;
+            return { ...item, __order: lastKnownOrder };
           })
           .sort((a, b) => (a.__order ?? 999) - (b.__order ?? 999));
       } catch (e) {
@@ -9922,6 +9935,10 @@
       const activeBtn = document.getElementById('mm-role-btn-' + role);
       if (activeBtn) { activeBtn.classList.remove('bg-gray-300','text-gray-700'); activeBtn.classList.add('bg-blue-500','text-white'); }
       _mmCurrentItems = (_mmCurrentPlatform === 'desktop' ? getSidebarItemsForRole(role) : getMobileItemsForRole(role)).map(item => ({ ...item }));
+      // 🔕 เอาเมนูแจ้งเตือนออกจากรายการที่ปรับแต่งได้ในเครื่องมือ "จัดการเมนู" ฝั่งคอม ตามที่ขอ (ยังทำงานปกติในเมนูจริง แค่ไม่ให้ปรับแต่งลำดับ/ไอคอนตรงนี้)
+      if (_mmCurrentPlatform === 'desktop') {
+        _mmCurrentItems = _mmCurrentItems.filter(item => item.id !== 'notif' && item.id !== 'st-notif' && item.id !== 'stunotif');
+      }
       renderMenuManagerList();
     }
     function renderMenuManagerList() {
@@ -9944,8 +9961,13 @@
             </div>
             <input type="text" value="${item.icon}" onchange="updateMenuItemIcon(${idx}, this.value)" class="w-14 text-center px-2 py-1.5 border-2 border-gray-200 rounded-lg text-lg" maxlength="4">
             <span class="text-sm text-gray-700 flex-1">${item.label}${condNote}</span>
+            <input type="text" value="${item.section || ''}" onchange="updateMenuItemSection(${idx}, this.value)" placeholder="🗂️ ชื่อกลุ่ม" title="ตั้งชื่อกลุ่มเพื่อรวมเมนูหลายอันไว้ด้วยกัน (พิมพ์ชื่อกลุ่มเดียวกันในหลายเมนู)" class="w-24 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-xs">
           </div>`;
       }).join('');
+    }
+    // 🗂️ ตั้งชื่อกลุ่มให้เมนูนี้ — พิมพ์ชื่อกลุ่มเดียวกันในหลายเมนู เพื่อรวมเป็นกลุ่มเดียวกัน (แอดมินจัดกลุ่มเองได้อิสระ)
+    function updateMenuItemSection(idx, newSection) {
+      if (_mmCurrentItems[idx]) _mmCurrentItems[idx].section = newSection.trim() || undefined;
     }
     function moveMenuItem(idx, direction) {
       const newIdx = idx + direction;
@@ -9959,7 +9981,7 @@
       if (_mmCurrentItems[idx]) _mmCurrentItems[idx].icon = newIcon.trim() || _mmCurrentItems[idx].icon;
     }
     async function saveMenuManagerConfig() {
-      const itemsToSave = _mmCurrentItems.map((item, idx) => ({ id: item.id, icon: item.icon, order: idx }));
+      const itemsToSave = _mmCurrentItems.map((item, idx) => ({ id: item.id, icon: item.icon, order: idx, section: item.section }));
       const configType = _mmCurrentPlatform === 'desktop' ? 'menu_config' : 'mobile_menu_config';
       const existing = allData.find(d => d.type === configType && d.role === _mmCurrentRole);
       const record = { type: configType, role: _mmCurrentRole, items_json: JSON.stringify(itemsToSave) };
@@ -18820,8 +18842,24 @@
         .filter(item => !item.conditional || currentUser[item.conditional])
         .map(item => ({ ...item, fn: MOBILE_ACTIONS.student[item.id] || '' }));
     }
-    nav.innerHTML = btns.map(b => `
-      <button id="${b.id}" onclick="${b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')"}"
+    // 🗂️ จัดกลุ่มปุ่มที่แอดมินตั้งชื่อกลุ่มเดียวกันไว้ (ผ่านเครื่องมือ "จัดการเมนู") ให้รวมเป็นปุ่มเดียว เปิดเป็นเมนูย่อยแบบไดนามิก
+    var groupedBtns = [];
+    var seenGroups = {};
+    btns.forEach(b => {
+      if (b.section) {
+        if (seenGroups[b.section]) {
+          seenGroups[b.section].__groupItems.push(b);
+        } else {
+          const groupBtn = { id: 'mn-group-' + b.section, icon: b.icon, label: b.section, __isGroup: true, __groupItems: [b] };
+          seenGroups[b.section] = groupBtn;
+          groupedBtns.push(groupBtn);
+        }
+      } else {
+        groupedBtns.push(b);
+      }
+    });
+    nav.innerHTML = groupedBtns.map(b => `
+      <button id="${b.id}" onclick="${b.__isGroup ? "mCloseAllOverlays();mOpenDynamicGroupTray('"+b.section+"')" : (b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')")}"
         style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">${b.icon}</span>
         <span>${b.label}</span>
@@ -18829,6 +18867,22 @@
       `<button onclick="handleLogout()" style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#dc2626;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">🚪</span><span>ออก</span>
       </button>`;
+    window._mCurrentDynamicGroups = seenGroups; // เก็บไว้ใช้ตอนเปิดเมนูย่อยแบบไดนามิก
+  }
+  // 🗂️ เปิดเมนูย่อยแบบไดนามิก (สำหรับกลุ่มที่แอดมินตั้งชื่อเองผ่านเครื่องมือ "จัดการเมนู") — แยกจาก mOpenTray เดิมที่ใช้ M_NAV_SUBTABS ตายตัว
+  function mOpenDynamicGroupTray(sectionName) {
+    const group = window._mCurrentDynamicGroups && window._mCurrentDynamicGroups[sectionName];
+    if (!group || !group.__groupItems) return;
+    mCloseTray();
+    const tray = document.createElement('div');
+    tray.id = 'm-tray';
+    tray.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;background:white;border-top:1px solid #e2e8f0;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:9998;padding:16px;display:flex;flex-wrap:wrap;gap:8px;max-height:50vh;overflow-y:auto';
+    tray.innerHTML = group.__groupItems.map(item => `
+      <button onclick="mCloseAllOverlays();${item.fn || "mOpenTray('"+item.id+"')"}" style="flex:0 0 calc(25% - 6px);background:#f8fafc;border:none;border-radius:12px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer">
+        <span style="font-size:22px">${item.icon}</span>
+        <span style="font-size:10px;color:#334155;text-align:center">${item.label}</span>
+      </button>`).join('');
+    document.body.appendChild(tray);
   }
 
   // ดึงรายการในเมนูย่อย (tray) พร้อมลำดับ+ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี)
