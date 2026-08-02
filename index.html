@@ -19009,7 +19009,8 @@
         if (seenGroups[b.section]) {
           seenGroups[b.section].__groupItems.push(b);
         } else {
-          const groupBtn = { id: 'mn-group-' + b.section, icon: b.icon, label: b.section, __isGroup: true, __groupItems: [b] };
+          // ⚠️ บั๊กสำคัญที่พบ: เดิมไม่ได้ใส่ property "section" ให้ groupBtn เอง (มีแค่ "label" ที่ใช้แสดงผล) ทำให้ตอน render ปุ่มแล้วเรียก b.section เพื่อสร้าง onclick จะได้ค่า undefined เสมอ กดปุ่มกลุ่มแล้วไม่มีอะไรเกิดขึ้นเลย
+          const groupBtn = { id: 'mn-group-' + b.section, icon: b.icon, label: b.section, section: b.section, __isGroup: true, __groupItems: [b] };
           seenGroups[b.section] = groupBtn;
           groupedBtns.push(groupBtn);
         }
