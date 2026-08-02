@@ -4053,12 +4053,17 @@
       const roleActions = MOBILE_ACTIONS[configRole] || {};
       const defaults = [];
       rawDefaults.forEach(item => {
-        defaults.push(item);
-        // ถ้าไอเทมนี้ไม่มี action ตรงๆ (ไปเปิด tray แทน) และมีรายการย่อยกำหนดไว้ ให้แตกออกมา
-        if (!roleActions[item.id] && M_NAV_SUBTABS[item.id] && Array.isArray(M_NAV_SUBTABS[item.id])) {
-          M_NAV_SUBTABS[item.id].forEach((sub, subIdx) => {
+        // ถ้าไอเทมนี้ไม่มี action ตรงๆ (ไปเปิด tray แทน) และมีรายการย่อยกำหนดไว้ ให้แตกออกมาแทนที่ไอเทมเดิม
+        // ⚠️ บั๊กที่พบ: เดิมเก็บทั้งไอเทมต้นฉบับ (ตัวเปิด tray แบบเก่า) ไว้ด้วย พร้อมกับไอเทมย่อยที่แตกออกมา
+        // ทำให้เกิดปุ่มซ้อนกัน 2 ปุ่มสำหรับเนื้อหาเดียวกัน (ปุ่มเก่าใช้ mOpenTray ปุ่มใหม่ใช้ mOpenDynamicGroupTray) สร้างความสับสน/หน้าว่างได้
+        // แก้โดยไม่เก็บไอเทมต้นฉบับไว้แล้ว ถ้ามีการแตกไอเทมย่อยออกมาแทนที่
+        const subTabs = M_NAV_SUBTABS[item.id];
+        if (!roleActions[item.id] && subTabs && Array.isArray(subTabs) && subTabs.length > 0) {
+          subTabs.forEach((sub, subIdx) => {
             defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label });
           });
+        } else {
+          defaults.push(item);
         }
       });
       const configRecord = allData.find(d => d.type === 'mobile_menu_config' && d.role === configRole);
