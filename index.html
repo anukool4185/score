@@ -7973,7 +7973,9 @@
     async function acknowledgeStudentNotification(notifId) {
       const notif = allData.find(d => d.__backendId === notifId && d.type === 'student_notification');
       if (notif) await window.dataSdk.delete(notif);
-      if (document.getElementById('tab-notif')?.classList.contains('bg-blue-500')) {
+      // ⚠️ บั๊กที่พบ: เดิมเช็คจากปุ่ม "tab-notif" ที่ถูกลบไปแล้ว (ตอนแก้ปัญหาแท็บซ้ำก่อนหน้านี้) ทำให้เช็คนี้เป็นเท็จเสมอ
+      // แก้ให้เช็คจากตัวแปรสถานะ currentStudentTab แทน ซึ่งน่าเชื่อถือกว่า ไม่ขึ้นกับว่ามีปุ่มอยู่จริงหรือไม่
+      if (typeof currentStudentTab !== 'undefined' && currentStudentTab === 'notif') {
         renderStudentNotificationTab(); // อยู่ในแท็บแจ้งเตือนพอดี ให้รีเฟรชรายการทันที
       } else {
         refreshCurrentView();
@@ -11993,10 +11995,6 @@
          <td class="px-2 py-2 whitespace-nowrap text-sm">${s.phone_number||'-'}</td>
         </tr>`).join('');
       updateNoEnrollCount();
-    }
-    function getNoEnrollStudents() {
-      return allData.filter(s => s.type === 'student' &&
-        !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
     }
     function updateNoEnrollCount() {
       const n = document.querySelectorAll('.noenroll-cb:checked').length;
