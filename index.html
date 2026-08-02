@@ -713,6 +713,10 @@
       <!-- ซ้าย: ประชาสัมพันธ์ (กล่องแจ้งเตือน+แถบเลื่อน อยู่บน / ประกาศหน้าแรกเว็บ อยู่ล่าง ใต้หัวข้อเดียวกัน) -->
       <div class="bg-white rounded-2xl card-shadow p-4 md:p-8 fade-in w-full">
        <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4 text-center">📢 ประชาสัมพันธ์</h2>
+       <!-- 🔝 ย้ายมาไว้บนสุด (ใต้หัวข้อทันที) ตามที่ขอ — รูปภาพ+ประกาศจากแท็บ "หน้าแรกของเว็บ" -->
+       <div id="landing-announcements">
+        <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
+       </div>
        <!-- กล่องบน: รายการแจ้งเตือน + แถบเลื่อนรายชื่อ -->
        <div id="notification-marquee-box" class="border-2 border-gray-200 rounded-xl p-3 mb-4">
         <!-- ข้อความหัว -->
@@ -768,9 +772,6 @@
          <button onclick="document.getElementById('login-student-search').value=''; document.getElementById('login-search-result').innerHTML='';" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">ล้าง</button>
         </div>
         <div id="login-search-result"></div>
-       </div>
-       <div id="landing-announcements">
-        <p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>
        </div>
       </div>
       <!-- ขวา: ฟอร์ม login -->
@@ -4894,7 +4895,7 @@
       const box = document.getElementById('notification-marquee-box');
       if (!box) return;
       const textEl = document.getElementById('notification-marquee-text');
-      const announcements = allData.filter(d => d.type === 'announcement' && d.target === 'notification')
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === 'notification' && !d.is_hidden)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       const announcementsHtml = announcements.length === 0
         ? ''
@@ -5254,7 +5255,7 @@
         }
       }
       const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
-      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text))
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text) && !d.is_hidden)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
         content.innerHTML = warningHtml + `
@@ -5282,7 +5283,7 @@
     function buildAnnouncementsFeedHtml(target) {
       // กรองประกาศที่มีโค้ด JS ออก (ป้องกัน injection)
       const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
-      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text))
+      const announcements = allData.filter(d => d.type === 'announcement' && d.target === target && !isJsCode(d.text) && !d.is_hidden)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       if (announcements.length === 0) {
         return '<p class="text-gray-400 text-center py-8">ยังไม่มีประกาศ</p>';
@@ -5377,8 +5378,12 @@
         return;
       }
       container.innerHTML = announcements.map(a => `
-        <div class="bg-white border-2 border-gray-200 rounded-lg p-4">
+        <div class="bg-white border-2 ${a.is_hidden ? 'border-gray-300 opacity-60' : 'border-gray-200'} rounded-lg p-4">
           <div class="flex justify-between items-start gap-3">
+            <label class="flex items-center gap-2 flex-shrink-0 cursor-pointer" title="ติ๊กเพื่อแสดง ยกเลิกติ๊กเพื่อซ่อนชั่วคราว (ไม่ลบ)">
+              <input type="checkbox" ${a.is_hidden ? '' : 'checked'} onchange="toggleAnnouncementVisibility('${a.__backendId}', !this.checked)" class="w-5 h-5">
+              <span class="text-xs text-gray-500 whitespace-nowrap">${a.is_hidden ? 'ซ่อนอยู่' : 'แสดงอยู่'}</span>
+            </label>
             <div class="flex-1 min-w-0">
               ${a.image_url ? `<img src="${a.image_url}" alt="" class="max-h-32 rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
               <p class="text-gray-700 whitespace-pre-wrap text-sm">${escHtml(a.text)}</p>
@@ -5390,6 +5395,16 @@
           </div>
         </div>
       `).join('');
+    }
+    // ✅/⬜ ติ๊ก/ยกเลิกติ๊ก เพื่อแสดง/ซ่อนประกาศนี้ชั่วคราว (ไม่ลบ) — มีผลทันทีทุกหน้าที่แสดงประกาศ (login, หน้าแรกนักเรียน/ผู้นิเทศ, ประกาศพร้อมรูปหน้าเว็บ)
+    async function toggleAnnouncementVisibility(id, hidden) {
+      const ann = allData.find(d => d.__backendId === id && d.type === 'announcement');
+      if (!ann) return;
+      await window.dataSdk.update({ ...ann, is_hidden: hidden });
+      updateAnnouncementList(ann.target);
+      // รีเฟรชจุดแสดงผลจริงทันที ไม่ต้องรอ poll รอบถัดไป
+      if (typeof renderNotificationMarquee === 'function') renderNotificationMarquee();
+      if (typeof renderLandingAnnouncements === 'function') renderLandingAnnouncements();
     }
     async function addAnnouncement(target) {
       const textInput = document.getElementById('new-announcement-text');
