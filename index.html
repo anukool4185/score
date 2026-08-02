@@ -19022,7 +19022,7 @@
       }
     });
     nav.innerHTML = groupedBtns.map(b => `
-      <button id="${b.id}" onclick="${b.__isGroup ? "mCloseAllOverlays();mOpenDynamicGroupTray('"+b.section+"')" : (b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')")}"
+      <button id="${b.id}" onclick="${b.__isGroup ? "mCloseAllOverlays();mOpenDynamicGroupTray('"+b.section+"', this)" : (b.fn ? "mCloseAllOverlays();"+b.fn : "mOpenTray('"+b.id+"')")}"
         style="flex:0 0 auto;min-width:56px;height:100%;background:transparent;border:none;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 8px;font-size:7px">
         <span style="font-size:20px;line-height:1">${b.icon}</span>
         <span>${b.label}</span>
@@ -19033,7 +19033,7 @@
     window._mCurrentDynamicGroups = seenGroups; // เก็บไว้ใช้ตอนเปิดเมนูย่อยแบบไดนามิก
   }
   // 🗂️ เปิดเมนูย่อยแบบไดนามิก (สำหรับกลุ่มที่แอดมินตั้งชื่อเองผ่านเครื่องมือ "จัดการเมนู") — แยกจาก mOpenTray เดิมที่ใช้ M_NAV_SUBTABS ตายตัว
-  function mOpenDynamicGroupTray(sectionName) {
+  function mOpenDynamicGroupTray(sectionName, clickedBtn) {
     const group = window._mCurrentDynamicGroups && window._mCurrentDynamicGroups[sectionName];
     if (!group || !group.__groupItems) {
       // 🔍 เพิ่มการวินิจฉัยชั่วคราว: เดิมถ้าหาไม่เจอจะไม่มีอะไรเกิดขึ้นเลย (เงียบ) ทำให้ยากต่อการหาสาเหตุตอนทดสอบจริง
@@ -19042,24 +19042,39 @@
       return;
     }
     mCloseTray();
-    // ⚠️ บั๊กสำคัญที่พบ: เดิมตั้ง id="m-tray" ซ้ำกับ tray แบบเก่า (mOpenTray/mCloseTray ใช้ id นี้อยู่แล้ว)
-    // ทำให้ mCloseAllOverlays() ไม่รู้จัก/ไม่ลบเมนูย่อยนี้ทิ้งเลย เพราะมันมองหาแค่ .m-native-overlay/#m-eval-overlay/#m-evaluators-overlay เท่านั้น
-    // แก้โดยเปลี่ยนเป็น id ใหม่ที่ไม่ซ้ำใคร และเพิ่มฉากหลังคลิกปิดได้ + ปุ่มลบ id นี้ทิ้งเองตรงๆ ไม่พึ่งพา mCloseAllOverlays()
     document.getElementById('m-dynamic-group-tray')?.remove();
     document.getElementById('m-dynamic-group-backdrop')?.remove();
     const backdrop = document.createElement('div');
     backdrop.id = 'm-dynamic-group-backdrop';
-    backdrop.style.cssText = 'position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.3)';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.15)';
     backdrop.onclick = function() { mCloseDynamicGroupTray(); };
     document.body.appendChild(backdrop);
+    // 🗨️ ทำเป็นกรอบลอยแบบ "ลูกโป่งข้อความ" ชี้ลงไปยังไอคอนหลักที่กด แทนแบบ bottom-sheet เต็มความกว้างเดิม
+    const btnRect = clickedBtn ? clickedBtn.getBoundingClientRect() : null;
+    const itemCount = group.__groupItems.length;
+    const iconSize = itemCount <= 4 ? 20 : itemCount <= 6 ? 17 : itemCount <= 8 ? 14 : 11;
+    const fontSize = itemCount <= 4 ? 9 : itemCount <= 6 ? 8 : itemCount <= 8 ? 7 : 6;
+    const btnW = 46; // ความกว้างปุ่มย่อยแต่ละอันโดยประมาณ
+    const trayWidth = Math.min(window.innerWidth - 20, itemCount * btnW + 20);
+    // จัดให้กึ่งกลางอยู่แนวเดียวกับไอคอนที่กด แต่ไม่ให้ล้นขอบจอซ้าย/ขวา
+    let leftPos = btnRect ? (btnRect.left + btnRect.width / 2 - trayWidth / 2) : (window.innerWidth / 2 - trayWidth / 2);
+    leftPos = Math.max(8, Math.min(leftPos, window.innerWidth - trayWidth - 8));
+    const bottomPos = btnRect ? (window.innerHeight - btnRect.top + 12) : 70;
+    const pointerLeft = btnRect ? (btnRect.left + btnRect.width / 2 - leftPos - 8) : (trayWidth / 2 - 8);
     const tray = document.createElement('div');
     tray.id = 'm-dynamic-group-tray';
-    tray.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;background:white;border-top:1px solid #e2e8f0;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:9998;padding:16px;display:flex;flex-wrap:wrap;gap:8px;max-height:50vh;overflow-y:auto';
-    tray.innerHTML = group.__groupItems.map(item => `
-      <button onclick="mCloseDynamicGroupTray();mCloseAllOverlays();${item.fn || "mOpenTray('"+item.id+"')"}" style="flex:0 0 calc(25% - 6px);background:#f8fafc;border:none;border-radius:12px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer">
-        <span style="font-size:22px">${item.icon}</span>
-        <span style="font-size:10px;color:#334155;text-align:center">${item.label}</span>
-      </button>`).join('');
+    tray.style.cssText = `position:fixed;bottom:${bottomPos}px;left:${leftPos}px;width:${trayWidth}px;background:white;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.18);z-index:9998;padding:10px 8px;max-height:40vh;overflow-y:auto`;
+    tray.innerHTML = `
+      <div style="display:flex;flex-wrap:nowrap;gap:3px;width:100%">
+        ${group.__groupItems.map(item => `
+          <button onclick="mCloseDynamicGroupTray();mCloseAllOverlays();${item.fn || "mOpenTray('"+item.id+"')"}" style="flex:1 1 0;min-width:0;background:#f8fafc;border:none;border-radius:10px;padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;overflow:hidden">
+            <span style="font-size:${iconSize}px;line-height:1">${item.icon}</span>
+            <span style="font-size:${fontSize}px;color:#334155;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%">${item.label}</span>
+          </button>`).join('')}
+      </div>
+      <!-- 🔽 หางลูกโป่งชี้ลงไปยังไอคอนหลักที่กด -->
+      <div style="position:absolute;bottom:-8px;left:${pointerLeft}px;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid white"></div>`;
+    tray.style.position = 'fixed';
     document.body.appendChild(tray);
   }
   // ปิดเมนูย่อยแบบไดนามิก (แยกจาก mCloseTray เดิมที่ใช้กับ id="m-tray" แบบเก่า เพื่อกันชนกัน)
