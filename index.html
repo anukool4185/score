@@ -7769,7 +7769,10 @@
     function renderStudentNotificationTab() {
       const content = document.getElementById('student-content');
       if (!content) return;
-      const myNotifs = allData.filter(d => d.type === 'student_notification' && d.student_id === currentUser?.student_id)
+      // ⚠️ บั๊กที่พบ: เดิมใช้ currentUser?.student_id ตรงๆ ซึ่งจะว่างเปล่าถ้าเป็นผู้ช่วยแอดมิน (subadmin) ที่เชื่อมโยงกับนักเรียน แต่ยังไม่ได้สวมตัวตนเป็นนักเรียน (เข้าถึงผ่าน mShowDesktopStudentTab ตรงๆ ไม่ผ่าน FromSubAdmin)
+      // แก้ให้ใช้ตัวช่วยเดียวกับกระดิ่งแจ้งเตือน ที่รู้จักหา student_id ให้ถูกต้องไม่ว่าจะเข้าทางไหน
+      const effectiveStudentId = _getEffectiveStudentIdForNotifications();
+      const myNotifs = allData.filter(d => d.type === 'student_notification' && d.student_id === effectiveStudentId)
         .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6">
@@ -19103,13 +19106,14 @@
       hws = (allData||[]).filter(function(d){return d.type==='homework';});
     }
 
+    var _effectiveSidForFeed = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser.student_id;
     var cards = type==='admin'||type==='subadmin' ? [
       {color:'#4da6e8',icon:'👥',label:'นักเรียน',value:students.length,fn:"mShowSection('students')"},
       {color:'#48c87a',icon:'📚',label:'ลงทะเบียนแล้ว',value:regs.length,fn:"mShowSection('enrollments')"},
       {color:'#f0b040',icon:'⏳',label:'รอการอนุมัติ',value:pending.length,fn:"mShowSection('pending_requests')"},
       {color:'#f07070',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('homework')"},
     ] : [
-      {color:'#4da6e8',icon:'📚',label:'วิชาที่ลงทะเบียน',value:(regs.filter(function(r){return r.student_id===currentUser.student_id;})).length,fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"},
+      {color:'#4da6e8',icon:'📚',label:'วิชาที่ลงทะเบียน',value:(regs.filter(function(r){return r.student_id===_effectiveSidForFeed;})).length,fn:"mShowDesktopStudentTab('register','📚 ลงทะเบียนเรียน')"},
       {color:'#48c87a',icon:'📊',label:'คะแนนของฉัน',value:'-',fn:"mShowSection('my_grades')"},
       {color:'#f0b040',icon:'📝',label:'การบ้าน',value:hws.length,fn:"mShowSection('my_homework')"},
     ];
@@ -19216,7 +19220,8 @@
   }
   function mRenderMyRegister() {
     var c = document.getElementById('m-content');
-    var myRegs = (allData||[]).filter(d=>d.type==='student_registration'&&d.student_id===currentUser?.student_id);
+    var _sid1 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
+    var myRegs = (allData||[]).filter(d=>d.type==='student_registration'&&d.student_id===_sid1);
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📚 วิชาที่ลงทะเบียน</h2>
       ${myRegs.length ? myRegs.map(r=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${r.subject_name||'วิชา'}</p>
@@ -19225,7 +19230,8 @@
   }
   function mRenderMyGrades() {
     var c = document.getElementById('m-content');
-    var grades = (allData||[]).filter(d=>d.type==='grade'&&d.student_id===currentUser?.student_id);
+    var _sid2 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
+    var grades = (allData||[]).filter(d=>d.type==='grade'&&d.student_id===_sid2);
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
       ${grades.length ? grades.map(g=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
