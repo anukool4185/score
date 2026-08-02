@@ -19357,6 +19357,7 @@
         <span style="font-weight:600">${hw.study_date===todayStr?'📖 เรียนวันนี้':'⏰ ส่งวันนี้'}</span>
         <span>${hw.subject_name||''}</span>
         <span style="color:#a16207">ครั้งที่ ${hw.work_number||'-'}</span>
+        <span style="color:#a16207;opacity:0.7">${hw.class_name||'-'}/${hw.room_number||'-'}</span>
        </div>`).join('');
     container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,hws.length*1.5)}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
