@@ -10084,6 +10084,12 @@
       const activeBtn = document.getElementById('mm-role-btn-' + role);
       if (activeBtn) { activeBtn.classList.remove('bg-gray-300','text-gray-700'); activeBtn.classList.add('bg-blue-500','text-white'); }
       _mmCurrentItems = (_mmCurrentPlatform === 'desktop' ? getSidebarItemsForRole(role) : getMobileItemsForRole(role)).map(item => ({ ...item }));
+      // 🔕 เอาไอเทมแบบมีเงื่อนไข (เช่น "ผู้ช่วยแอดมิน" ที่โผล่เฉพาะบัญชีที่ผูก linked_admin_id) ออกจากแท็บ "นักเรียน" ธรรมดา
+      // เพราะนักเรียนที่มีสถานะเดียว (ไม่ได้เป็นผู้ช่วยแอดมิน) ไม่จำเป็นต้องจัดการไอคอนที่ไม่มีวันโผล่ให้ตัวเองเห็นเลย
+      // ยังจัดการรายการเหล่านี้ได้ตามปกติผ่านแท็บ "ผู้ช่วยแอดมิน (นักเรียน)" ที่มีแยกไว้ให้อยู่แล้ว
+      if (role === 'student') {
+        _mmCurrentItems = _mmCurrentItems.filter(item => !item.conditional);
+      }
       renderMenuManagerList();
     }
     function renderMenuManagerList() {
@@ -19694,4 +19700,4 @@
 
   </script>
 </body>
-</html>
+</html>ป
