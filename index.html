@@ -18157,6 +18157,9 @@
     document.querySelectorAll('.m-native-overlay').forEach(function(el) { el.remove(); });
     document.getElementById('m-eval-overlay')?.remove();
     document.getElementById('m-evaluators-overlay')?.remove();
+    // ⚠️ บั๊กที่พบ: ลืมลบเมนูย่อยแบบไดนามิก (mOpenDynamicGroupTray) ทิ้งด้วย ทำให้ค้างบังหน้าจอไม่ยอมหายหลังกดเมนูย่อยข้างในแล้ว
+    document.getElementById('m-dynamic-group-tray')?.remove();
+    document.getElementById('m-dynamic-group-backdrop')?.remove();
     if (currentUser && currentUser.__fromSubAdmin && _subAdminOriginalUser) {
       currentUser = _subAdminOriginalUser;
       _subAdminOriginalUser = null;
@@ -19039,15 +19042,30 @@
       return;
     }
     mCloseTray();
+    // ⚠️ บั๊กสำคัญที่พบ: เดิมตั้ง id="m-tray" ซ้ำกับ tray แบบเก่า (mOpenTray/mCloseTray ใช้ id นี้อยู่แล้ว)
+    // ทำให้ mCloseAllOverlays() ไม่รู้จัก/ไม่ลบเมนูย่อยนี้ทิ้งเลย เพราะมันมองหาแค่ .m-native-overlay/#m-eval-overlay/#m-evaluators-overlay เท่านั้น
+    // แก้โดยเปลี่ยนเป็น id ใหม่ที่ไม่ซ้ำใคร และเพิ่มฉากหลังคลิกปิดได้ + ปุ่มลบ id นี้ทิ้งเองตรงๆ ไม่พึ่งพา mCloseAllOverlays()
+    document.getElementById('m-dynamic-group-tray')?.remove();
+    document.getElementById('m-dynamic-group-backdrop')?.remove();
+    const backdrop = document.createElement('div');
+    backdrop.id = 'm-dynamic-group-backdrop';
+    backdrop.style.cssText = 'position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.3)';
+    backdrop.onclick = function() { mCloseDynamicGroupTray(); };
+    document.body.appendChild(backdrop);
     const tray = document.createElement('div');
-    tray.id = 'm-tray';
+    tray.id = 'm-dynamic-group-tray';
     tray.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;background:white;border-top:1px solid #e2e8f0;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:9998;padding:16px;display:flex;flex-wrap:wrap;gap:8px;max-height:50vh;overflow-y:auto';
     tray.innerHTML = group.__groupItems.map(item => `
-      <button onclick="mCloseAllOverlays();${item.fn || "mOpenTray('"+item.id+"')"}" style="flex:0 0 calc(25% - 6px);background:#f8fafc;border:none;border-radius:12px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer">
+      <button onclick="mCloseDynamicGroupTray();mCloseAllOverlays();${item.fn || "mOpenTray('"+item.id+"')"}" style="flex:0 0 calc(25% - 6px);background:#f8fafc;border:none;border-radius:12px;padding:12px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer">
         <span style="font-size:22px">${item.icon}</span>
         <span style="font-size:10px;color:#334155;text-align:center">${item.label}</span>
       </button>`).join('');
     document.body.appendChild(tray);
+  }
+  // ปิดเมนูย่อยแบบไดนามิก (แยกจาก mCloseTray เดิมที่ใช้กับ id="m-tray" แบบเก่า เพื่อกันชนกัน)
+  function mCloseDynamicGroupTray() {
+    document.getElementById('m-dynamic-group-tray')?.remove();
+    document.getElementById('m-dynamic-group-backdrop')?.remove();
   }
 
   // ดึงรายการในเมนูย่อย (tray) พร้อมลำดับ+ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี)
