@@ -4059,9 +4059,15 @@
         // แก้โดยไม่เก็บไอเทมต้นฉบับไว้แล้ว ถ้ามีการแตกไอเทมย่อยออกมาแทนที่
         const subTabs = M_NAV_SUBTABS[item.id];
         if (!roleActions[item.id] && subTabs && Array.isArray(subTabs) && subTabs.length > 0) {
-          subTabs.forEach((sub, subIdx) => {
-            defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label });
-          });
+          if (subTabs.length === 1) {
+            // 🎯 ถ้ามีรายการย่อยแค่ 1 รายการ ไม่ต้องจัดกลุ่ม (section) ให้เป็นปุ่มตรงๆ เลย ไม่ต้องแตะ 2 ครั้ง (เปิดกลุ่ม → เลือกรายการ) กันหน้าว่าง/สับสน
+            const sub = subTabs[0];
+            defaults.push({ id: sub.id || item.id, icon: item.icon, label: item.label, fn: sub.fn });
+          } else {
+            subTabs.forEach((sub, subIdx) => {
+              defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label });
+            });
+          }
         } else {
           defaults.push(item);
         }
