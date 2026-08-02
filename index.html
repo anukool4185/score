@@ -5190,8 +5190,6 @@
       const section = document.getElementById('today-exam-marquee-section');
       if (!section) return;
       const isHidden = section.classList.contains('hidden');
-      document.getElementById('today-homework-marquee-section')?.classList.add('hidden');
-      document.getElementById('approved-requests-marquee-section')?.classList.add('hidden');
       if (isHidden) {
         section.classList.remove('hidden');
         renderTodayExamMarquee();
@@ -5244,7 +5242,6 @@
       const section = document.getElementById('today-homework-marquee-section');
       if (!section) return;
       const isHidden = section.classList.contains('hidden');
-      document.getElementById('approved-requests-marquee-section')?.classList.add('hidden');
       if (isHidden) {
         section.classList.remove('hidden');
         renderTodayHomeworkMarquee();
@@ -5305,7 +5302,6 @@
       const section = document.getElementById('approved-requests-marquee-section');
       if (!section) return;
       const isHidden = section.classList.contains('hidden');
-      document.getElementById('today-homework-marquee-section')?.classList.add('hidden');
       if (isHidden) {
         section.classList.remove('hidden');
         renderApprovedRequestsMarquee();
