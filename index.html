@@ -5227,9 +5227,12 @@
       await saveMarqueeSettings();
     }
     function renderLandingAnnouncements() {
+      const html = buildAnnouncementsFeedHtml('website');
       const container = document.getElementById('landing-announcements');
-      if (!container) return;
-      container.innerHTML = buildAnnouncementsFeedHtml('website');
+      if (container) container.innerHTML = html;
+      // 📱 เติมเนื้อหาเดียวกันให้ฝั่งมือถือด้วย (เดิมไม่มีเลย ทำให้ประกาศ+รูปภาพหน้าเพจไม่ปรากฏบนมือถือ)
+      const mContainer = document.getElementById('m-landing-announcements');
+      if (mContainer) mContainer.innerHTML = html;
     }
     function renderAnnouncementsFeed(target) {
       const content = document.getElementById('home-content');
@@ -11935,14 +11938,11 @@
     }
 
     function getNoEnrollStudents() {
-      const filterClass = document.getElementById('noenroll-filter-class')?.value || '';
-      const filterRoom = document.getElementById('noenroll-filter-room')?.value || '';
-      return allData.filter(s => {
-        if (s.type !== 'student') return false;
-        if (filterClass && s.class_name !== filterClass) return false;
-        if (filterRoom && s.room_number !== filterRoom) return false;
-        return !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
-      }).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
+      // ⚠️ ปรับให้ตรงกับพฤติกรรมจริงของตารางหลัก (renderNoEnrollTable) ซึ่งไม่มีการกรองตามชั้น/ห้องเลย (dropdown ที่เคยคาดว่ามีไม่เคยมีอยู่จริงในหน้า)
+      // ฟังก์ชันนี้ใช้สำหรับส่งออก Excel/PDF เท่านั้น จึงควรแสดงรายการเดียวกับที่เห็นในตารางเป๊ะ (นักเรียนที่ยังไม่ลงทะเบียนทั้งหมด เรียงลำดับให้อ่านง่าย)
+      return allData.filter(s => s.type === 'student' &&
+        !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id)
+      ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
     }
 
     function renderNoEnrollTable() {
@@ -17925,6 +17925,9 @@
         <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
       </div>
 
+      <!-- 📢 ประชาสัมพันธ์หน้าเพจ (target='website' พร้อมรูปภาพ) — เดิมไม่มีเลยบนมือถือ อยู่เหนือแถบเลื่อนตามที่ต้องการ -->
+      <div id="m-landing-announcements" style="margin-bottom:10px"></div>
+
       <!-- Mobile Announcements Marquee -->
       <div id="m-login-announcements" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
         <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">📢 ประกาศ</p>
@@ -18848,6 +18851,7 @@
     'mn-stu': [
       {id:'import',icon:'📥',label:'นำเข้า',fn:"mShowDesktopAdminTab('import','📥 นำเข้าข้อมูลวิชา')"},
       {id:'students',icon:'👨‍🎓',label:'นักเรียน',fn:"mShowDesktopAdminTab('students','👨‍🎓 นักเรียน')"},
+      {id:'noenroll',icon:'📋',label:'ยังไม่ลงทะเบียน',fn:"mShowNoEnrollList()"},
       {id:'admins',icon:'👥',label:'ผู้ช่วยแอดมิน',fn:"mShowDesktopAdminTab('admins','👥 ผู้ช่วยแอดมิน')"},
     ],
     'mn-score': [
@@ -19372,6 +19376,73 @@
     if (!s) return;
     s.style.display = s.style.display === 'none' ? 'block' : 'none';
     if (s.style.display !== 'none') mRenderApprovedRequests('mc-approved-count', 'mc-approved-track-container');
+  }
+
+  // 📋 หน้า "ยังไม่ลงทะเบียน" แบบเนทีฟมือถือ (แยกจากฝั่งคอม ใช้ card แทนตาราง) — ตรงตามพฤติกรรมจริงฝั่งคอม (ไม่มีการกรองชั้น/ห้อง แสดงทุกคนที่ยังไม่ลงทะเบียน)
+  function mShowNoEnrollList() {
+    document.getElementById('m-noenroll-overlay')?.remove();
+    const subjects = [...new Set((allData||[]).filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+    const list = (allData||[]).filter(s => s.type === 'student' &&
+      !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id)
+    ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
+
+    const overlay = document.createElement('div');
+    overlay.id = 'm-noenroll-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#f1f5f9;overflow-y:auto';
+    overlay.innerHTML = `
+      <div style="background:#4da6e8;color:white;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10">
+        <button onclick="document.getElementById('m-noenroll-overlay')?.remove()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer">←</button>
+        <span style="font-weight:700;font-size:14px">📋 ยังไม่ลงทะเบียน (${list.length} คน)</span>
+      </div>
+      <div style="padding:12px">
+        <div style="background:white;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+          <p style="font-size:11px;font-weight:700;color:#475569;margin:0 0 6px">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก</p>
+          <select id="m-noenroll-subject" style="width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;margin-bottom:6px"><option value="">-- เลือกวิชา --</option>${subjects.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
+            <input type="number" id="m-noenroll-k" placeholder="K%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+            <input type="number" id="m-noenroll-p" placeholder="P%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+            <input type="number" id="m-noenroll-a" placeholder="A%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+            <input type="number" id="m-noenroll-c" placeholder="C%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+          </div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;margin-bottom:8px"><input type="checkbox" id="m-noenroll-select-all" onchange="document.querySelectorAll('.m-noenroll-cb').forEach(cb=>cb.checked=this.checked)"> เลือกทั้งหมด</label>
+          <button onclick="mEnrollNoEnrollSelected()" style="width:100%;padding:10px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">📚 ลงทะเบียนให้ผู้ที่เลือก</button>
+        </div>
+        <div id="m-noenroll-list">
+          ${list.length === 0 ? '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:30px 0">✅ นักเรียนทุกคนลงทะเบียนครบแล้ว</p>' : list.map(s => `
+            <div style="background:white;border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,0.05)">
+              <input type="checkbox" class="m-noenroll-cb" data-sid="${s.student_id}" style="width:16px;height:16px;flex-shrink:0">
+              <div style="flex:1">
+                <p style="font-size:12px;font-weight:600;color:#1e293b;margin:0">${s.prefix||''}${s.first_name||''} ${s.last_name||''}</p>
+                <p style="font-size:10px;color:#94a3b8;margin:0">${s.student_id} · ${s.class_name||'-'}/${s.room_number||'-'} · ${s.phone_number||'-'}</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  // ลงทะเบียนให้ผู้ที่เลือกในหน้ามือถือ — ใช้ตรรกะเดียวกับฝั่งคอมทุกประการ (K/P/A/C, กันวิชาซ้ำ, เชื่อมคะแนนค้างไว้)
+  async function mEnrollNoEnrollSelected() {
+    const sn = document.getElementById('m-noenroll-subject')?.value;
+    if (!sn) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
+    const k = parseFloat(document.getElementById('m-noenroll-k')?.value) || 0;
+    const p = parseFloat(document.getElementById('m-noenroll-p')?.value) || 0;
+    const a = parseFloat(document.getElementById('m-noenroll-a')?.value) || 0;
+    const c = parseFloat(document.getElementById('m-noenroll-c')?.value) || 0;
+    const ids = Array.from(document.querySelectorAll('.m-noenroll-cb:checked')).map(cb => cb.dataset.sid);
+    if (ids.length === 0) { showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน', 'error'); return; }
+    let enrolled = 0, skipped = 0;
+    for (const sid of ids) {
+      const s = allData.find(s => s.type === 'student' && s.student_id === sid);
+      if (!s) { skipped++; continue; }
+      const ex = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === sn);
+      if (ex) { skipped++; continue; }
+      const res = await window.dataSdk.create({ type: 'student_registration', student_id: sid, class_name: s.class_name, room_number: s.room_number, subject_name: sn, class_subject_id: `${s.class_name}_${s.room_number}_${sn}`, k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString() });
+      if (res.isOk) { enrolled++; await applyPendingScoresOnRegistration(sid, sn); }
+    }
+    showToast(`✅ ลงทะเบียนวิชา ${sn} ให้ ${enrolled} คน${skipped > 0 ? ` (ข้าม ${skipped} คน)` : ''}`);
+    mShowNoEnrollList(); // รีเฟรชรายการให้ทันที
   }
 
   function mShowEvaluatorsList() {
