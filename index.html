@@ -19341,6 +19341,26 @@
     container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${totalSec}s linear infinite">${unit}${unit}</div>`;
   }
 
+  // ⚠️ บั๊กที่พบ: เดิมมือถือใช้ keyframe คงที่ (marquee-scroll-up ใน <style> ต้นไฟล์) ที่ไม่มีช่วงหยุดนิ่งเลย เลื่อนตลอดเวลาไม่มีพัก
+  // ต่างจากฝั่งคอมที่หยุดนิ่งรอ (ตามเวลาที่แอดมินตั้งไว้) ก่อนค่อยเริ่มเลื่อนทุกรอบ — สร้าง keyframe แบบไดนามิกให้มือถือเหมือนกันทุกประการ
+  function mApplyMarqueeKeyframes(keyframeName, scrollSec, pauseSec) {
+    const totalSec = scrollSec + pauseSec;
+    const pausePercent = totalSec > 0 ? (pauseSec / totalSec) * 100 : 0;
+    let styleEl = document.getElementById('m-marquee-dynamic-keyframes-' + keyframeName);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'm-marquee-dynamic-keyframes-' + keyframeName;
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      @keyframes ${keyframeName} {
+        0% { transform: translateY(0); }
+        ${pausePercent}% { transform: translateY(0); }
+        100% { transform: translateY(-50%); }
+      }
+    `;
+    return totalSec;
+  }
   function mRenderTodayHomework(countId, containerId) {
     countId = countId || 'm-today-hw-count';
     containerId = containerId || 'm-hw-track-container';
@@ -19359,7 +19379,16 @@
         <span style="color:#a16207">ครั้งที่ ${hw.work_number||'-'}</span>
         <span style="color:#a16207;opacity:0.7">${hw.class_name||'-'}/${hw.room_number||'-'}</span>
        </div>`).join('');
-    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,hws.length*1.5)}s linear infinite">${rowHtml}${rowHtml}</div>`;
+    // ⚠️ บั๊กที่พบ: เดิมเลื่อนขึ้นเสมอไม่ว่ามีกี่รายการ ไม่ตรงกับฝั่งคอมที่เช็คจำนวนแถวที่แอดมินตั้งไว้ก่อน (hwMarqueeRows) ถ้าน้อยกว่าหรือเท่ากับจำนวนแถว จะไม่เลื่อน
+    var effectiveHwRows = (typeof hwMarqueeRows !== 'undefined') ? hwMarqueeRows : 3;
+    if (hws.length <= effectiveHwRows) {
+      container.innerHTML = `<div>${rowHtml}</div>`;
+      return;
+    }
+    var hwScrollSec = Math.max(3, hws.length * 1.5);
+    var hwPauseSec = (typeof hwMarqueePauseDelaySec !== 'undefined') ? hwMarqueePauseDelaySec : 3;
+    var hwTotalSec = mApplyMarqueeKeyframes('m-hw-scroll-dynamic', hwScrollSec, hwPauseSec);
+    container.innerHTML = `<div class="marquee-track" style="animation:m-hw-scroll-dynamic ${hwTotalSec}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
 
   function mRenderApprovedRequests(countId, containerId) {
@@ -19376,7 +19405,16 @@
       `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#065f46;white-space:nowrap">
         ✅ ${r.student_id||''} — ${r.subject_name||''} กรุณาลงทะเบียนกับผู้ช่วยแอดมิน
        </div>`).join('');
-    container.innerHTML = `<div class="marquee-track" style="animation:marquee-scroll-up ${Math.max(3,approved.length*2)}s linear infinite">${rowHtml}${rowHtml}</div>`;
+    // ⚠️ บั๊กเดียวกับ "การบ้านวันนี้" — เดิมเลื่อนขึ้นเสมอไม่เช็คจำนวนแถวที่แอดมินตั้งไว้ (approvedMarqueeRows)
+    var effectiveApprovedRows = (typeof approvedMarqueeRows !== 'undefined') ? approvedMarqueeRows : 3;
+    if (approved.length <= effectiveApprovedRows) {
+      container.innerHTML = `<div>${rowHtml}</div>`;
+      return;
+    }
+    var apScrollSec = Math.max(3, approved.length * 2);
+    var apPauseSec = (typeof approvedMarqueePauseDelaySec !== 'undefined') ? approvedMarqueePauseDelaySec : 3;
+    var apTotalSec = mApplyMarqueeKeyframes('m-approved-scroll-dynamic', apScrollSec, apPauseSec);
+    container.innerHTML = `<div class="marquee-track" style="animation:m-approved-scroll-dynamic ${apTotalSec}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
 
   function mToggleHomework() {
