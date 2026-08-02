@@ -19031,7 +19031,12 @@
   // 🗂️ เปิดเมนูย่อยแบบไดนามิก (สำหรับกลุ่มที่แอดมินตั้งชื่อเองผ่านเครื่องมือ "จัดการเมนู") — แยกจาก mOpenTray เดิมที่ใช้ M_NAV_SUBTABS ตายตัว
   function mOpenDynamicGroupTray(sectionName) {
     const group = window._mCurrentDynamicGroups && window._mCurrentDynamicGroups[sectionName];
-    if (!group || !group.__groupItems) return;
+    if (!group || !group.__groupItems) {
+      // 🔍 เพิ่มการวินิจฉัยชั่วคราว: เดิมถ้าหาไม่เจอจะไม่มีอะไรเกิดขึ้นเลย (เงียบ) ทำให้ยากต่อการหาสาเหตุตอนทดสอบจริง
+      console.error('[mOpenDynamicGroupTray Debug] ไม่พบกลุ่ม:', sectionName, '| กลุ่มที่มีอยู่ตอนนี้:', window._mCurrentDynamicGroups ? Object.keys(window._mCurrentDynamicGroups) : 'ไม่มีข้อมูลกลุ่มเลย (undefined)');
+      if (typeof showToast === 'function') showToast('ไม่พบเมนูย่อยของกลุ่ม "' + sectionName + '" กรุณาลองออกจากระบบแล้วเข้าใหม่', 'error');
+      return;
+    }
     mCloseTray();
     const tray = document.createElement('div');
     tray.id = 'm-tray';
