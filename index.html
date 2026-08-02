@@ -4063,10 +4063,12 @@
           if (subTabs.length === 1) {
             // 🎯 ถ้ามีรายการย่อยแค่ 1 รายการ ไม่ต้องจัดกลุ่ม (section) ให้เป็นปุ่มตรงๆ เลย ไม่ต้องแตะ 2 ครั้ง (เปิดกลุ่ม → เลือกรายการ) กันหน้าว่าง/สับสน
             const sub = subTabs[0];
-            defaults.push({ id: sub.id || item.id, icon: item.icon, label: item.label, fn: sub.fn });
+            // ⚠️ บั๊กสำคัญที่พบ: เดิมไม่ได้ส่งต่อ item.conditional (เช่น linked_admin_id) ให้ไอเทมย่อยที่แตกออกมา
+            // ทำให้เมนูที่ควรแสดงเฉพาะนักเรียนที่เป็นผู้ช่วยแอดมิน กลับไปแสดงให้นักเรียนทุกคนเห็นหมด (ไม่มีการกรองเลย)
+            defaults.push({ id: sub.id || item.id, icon: item.icon, label: item.label, fn: sub.fn, conditional: item.conditional });
           } else {
             subTabs.forEach((sub, subIdx) => {
-              defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label });
+              defaults.push({ id: sub.id || (item.id + '-sub' + subIdx), icon: sub.icon, label: sub.label, fn: sub.fn, section: item.label, conditional: item.conditional });
             });
           }
         } else {
