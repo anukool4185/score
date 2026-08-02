@@ -4896,16 +4896,18 @@
       const textEl = document.getElementById('notification-marquee-text');
       const announcements = allData.filter(d => d.type === 'announcement' && d.target === 'notification')
         .sort((a, b) => (a.order || 0) - (b.order || 0));
-      if (textEl) {
-        textEl.innerHTML = announcements.length === 0
-          ? ''
-          : announcements.map(a => `
-              <div class="mb-2">
-                ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-32 object-cover rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
-                <p class="text-gray-700 text-sm whitespace-pre-wrap">${escHtml(a.text)}</p>
-              </div>
-            `).join('');
-      }
+      const announcementsHtml = announcements.length === 0
+        ? ''
+        : announcements.map(a => `
+            <div class="mb-2">
+              ${a.image_url ? `<img src="${a.image_url}" alt="" class="w-full max-h-32 object-cover rounded-lg mb-2" onerror="this.style.display='none'">` : ''}
+              <p class="text-gray-700 text-sm whitespace-pre-wrap">${escHtml(a.text)}</p>
+            </div>
+          `).join('');
+      if (textEl) textEl.innerHTML = announcementsHtml;
+      // 📱 เติมเนื้อหาเดียวกันให้ฝั่งมือถือด้วย (เดิมไม่มีเลย ทำให้ประกาศจากแท็บ "ประกาศหน้าเพจ" ไม่ปรากฏบนมือถือ)
+      const mTextEl = document.getElementById('m-notification-marquee-text');
+      if (mTextEl) mTextEl.innerHTML = announcementsHtml;
       updateMarqueeApplicantsList();
     }
     let lastMarqueeApplicantsSignature = '';
@@ -10093,7 +10095,10 @@
     }
     // 🗂️ ตั้งชื่อกลุ่มให้เมนูนี้ — พิมพ์ชื่อกลุ่มเดียวกันในหลายเมนู เพื่อรวมเป็นกลุ่มเดียวกัน (แอดมินจัดกลุ่มเองได้อิสระ)
     function updateMenuItemSection(idx, newSection) {
-      if (_mmCurrentItems[idx]) _mmCurrentItems[idx].section = newSection.trim() || undefined;
+      // ⚠️ บั๊กที่พบ: เดิมใช้ undefined เมื่อลบชื่อกลุ่มออก แต่ JSON.stringify() จะตัดค่า undefined ทิ้งไปเลย (ไม่เก็บ key นี้ไว้เลย)
+      // ทำให้ตอนโหลดกลับมา ระบบไม่รู้ว่า "ตั้งใจลบกลุ่มออก" กับ "ไม่เคยตั้งค่าอะไรเลย" ต่างกันอย่างไร เลยกลับไปใช้ค่ากลุ่มเริ่มต้นเดิม (ทำให้ดูเหมือนไอคอนที่ย้ายออกมา "หายไป" กลับไปซ่อนอยู่ในกลุ่มเดิมอีกครั้ง)
+      // แก้โดยใช้ null แทน ซึ่ง JSON.stringify() จะเก็บค่านี้ไว้จริง ทำให้แยกแยะ "ลบกลุ่มออกแล้ว" กับ "ยังไม่เคยตั้งค่า" ได้ถูกต้อง
+      if (_mmCurrentItems[idx]) _mmCurrentItems[idx].section = newSection.trim() || null;
     }
     function moveMenuItem(idx, direction) {
       const newIdx = idx + direction;
@@ -17931,6 +17936,8 @@
       <!-- Mobile Announcements Marquee -->
       <div id="m-login-announcements" style="background:white;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
         <p style="font-size:11px;font-weight:600;color:#475569;margin:0 0 8px">📢 ประกาศ</p>
+        <!-- 📢 รายการประกาศจากแท็บ "ประกาศหน้าเพจ" (target='notification' พร้อมรูปภาพ) — เดิมไม่มีเลยบนมือถือ อยู่เหนือแถบเลื่อนตามที่ต้องการ ตรงตำแหน่งเดียวกับเดสก์ท็อป -->
+        <div id="m-notification-marquee-text" style="margin-bottom:8px"></div>
         <!-- marquee scroll -->
         <div style="position:relative;overflow:hidden;border-radius:8px;background:#f8fafc;height:80px;margin-bottom:10px">
           <div id="m-marquee-band" style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:28px;background:rgba(167,130,220,0.15);pointer-events:none;border-radius:4px"></div>
