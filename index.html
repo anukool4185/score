@@ -736,6 +736,9 @@
           <button onclick="toggleTodayHomeworkMarquee()" class="flex items-center gap-1 px-2 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium whitespace-nowrap">
            📝 การบ้านวันนี้ <span class="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 ml-0.5" id="today-homework-count">0</span>
           </button>
+          <button onclick="toggleTodayExamMarquee()" class="flex items-center gap-1 px-2 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-medium whitespace-nowrap">
+           🗓️ สอบวันนี้ <span class="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 ml-0.5" id="today-exam-count">0</span>
+          </button>
           <button onclick="toggleApprovedRequestsMarquee()" class="flex items-center gap-1 px-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-medium whitespace-nowrap">
            ✅ สถานะอนุมัติ <span class="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5 ml-0.5" id="approved-requests-count">0</span>
           </button>
@@ -748,6 +751,12 @@
          <p class="text-xs font-semibold text-amber-700 mb-1">📝 การบ้านที่สั่งวันนี้ / การบ้านที่ต้องส่งวันนี้ | วันที่ <span id="today-homework-date-label"></span></p>
          <div class="overflow-hidden rounded-lg bg-amber-50 w-full" id="today-homework-viewport" style="height: 96px;">
           <div id="today-homework-track-container"></div>
+         </div>
+        </div>
+        <div id="today-exam-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
+         <p class="text-xs font-semibold text-rose-700 mb-1">🗓️ ตารางสอบวันนี้ (แสดงตามห้อง) | วันที่ <span id="today-exam-date-label"></span></p>
+         <div class="overflow-hidden rounded-lg bg-rose-50 w-full" id="today-exam-viewport" style="height: 96px;">
+          <div id="today-exam-track-container"></div>
          </div>
         </div>
         <div id="approved-requests-marquee-section" class="hidden mt-3 pt-3 border-t border-gray-200">
@@ -1212,6 +1221,70 @@
         <p id="timekeeping-empty-message" class="text-gray-400 text-center py-4">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>
        </div>
       </div>
+      <div id="admin-tab-marqueesettings" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-2">🎞️ การกำหนด Marquee</h3>
+        <p class="text-gray-500 text-sm mb-4">รวมการตั้งค่าแถบเลื่อนทั้งหมดที่แสดงบนหน้า login ไว้ที่เดียว — ปรับความเร็ว/จำนวนแถว/หน่วงเวลาได้ตามต้องการ</p>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-blue-800 mb-2">⚙️ ปรับแถบเลื่อนรายชื่อ (มีผลกับทุกคนที่เห็นหน้า login)</p>
+         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+          <span>ความเร็ว: <span id="marquee-speed-display" class="font-bold">5</span>/10</span>
+          <button onclick="adjustMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">3</span></span>
+          <button onclick="adjustMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="marquee-delay-display" class="font-bold">3</span>s</span>
+          <button onclick="adjustMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+         </div>
+         <p class="text-xs text-gray-500 mt-1">(หน่วงแค่ตอนเข้าหน้าใหม่/กลับมาที่หน้าเว็บ ไม่หยุดซ้ำทุกรอบที่วน)</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-amber-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "การบ้านวันนี้" (หน้า login)</p>
+         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+          <span>ความเร็ว: <span id="hw-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <button onclick="adjustHwMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustHwMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">จำนวนแถวที่เห็น: <span id="hw-marquee-rows-display" class="font-bold">3</span></span>
+          <button onclick="adjustHwMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustHwMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="hw-marquee-delay-display" class="font-bold">3</span>s</span>
+          <button onclick="adjustHwMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustHwMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+         </div>
+        </div>
+        <div class="bg-rose-50 border border-rose-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-rose-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "การสอบวันนี้" (หน้า login)</p>
+         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+          <span>ความเร็ว: <span id="exam-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <button onclick="adjustExamMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustExamMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">จำนวนแถวที่เห็น: <span id="exam-marquee-rows-display" class="font-bold">3</span></span>
+          <button onclick="adjustExamMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustExamMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="exam-marquee-delay-display" class="font-bold">3</span>s</span>
+          <button onclick="adjustExamMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustExamMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+         </div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+         <p class="text-sm font-semibold text-emerald-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "สถานะอนุมัติคำขอ" (หน้า login)</p>
+         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
+          <span>ความเร็ว: <span id="approved-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <button onclick="adjustApprovedMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustApprovedMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">จำนวนแถวที่เห็น: <span id="approved-marquee-rows-display" class="font-bold">3</span></span>
+          <button onclick="adjustApprovedMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustApprovedMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="approved-marquee-delay-display" class="font-bold">3</span>s</span>
+          <button onclick="adjustApprovedMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
+          <button onclick="adjustApprovedMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
+         </div>
+        </div>
+        <p class="text-xs text-gray-400">💡 ต่อไปหากมีการตั้งค่าแถบเลื่อนใหม่เพิ่มเติม จะถูกนำมารวมไว้ที่แท็บนี้เสมอ</p>
+       </div>
+      </div>
       <div id="admin-tab-stunotif" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">🔔 แจ้งเตือนนักเรียน</h3>
@@ -1248,20 +1321,6 @@
       <div id="admin-tab-homework" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📝 จัดการการบ้าน</h3>
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-         <p class="text-sm font-semibold text-amber-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "การบ้านวันนี้" (หน้า login)</p>
-         <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-          <span>ความเร็ว: <span id="hw-marquee-speed-display" class="font-bold">5</span>/10</span>
-          <button onclick="adjustHwMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-          <button onclick="adjustHwMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          <span class="ml-3">จำนวนแถวที่เห็น: <span id="hw-marquee-rows-display" class="font-bold">3</span></span>
-          <button onclick="adjustHwMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-          <button onclick="adjustHwMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="hw-marquee-delay-display" class="font-bold">3</span>s</span>
-          <button onclick="adjustHwMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-          <button onclick="adjustHwMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-         </div>
-        </div>
         <div class="flex items-center gap-3 flex-wrap mb-4">
          <select id="hw-filter-class" onchange="updateHomeworkSubjectFilter(); updateHomeworkTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           <option value="">ทุกชั้น</option>
@@ -1788,20 +1847,6 @@
         </div>
         </div>
         <div id="students-subtab-applicants" class="hidden">
-         <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
-          <p class="text-sm font-semibold text-emerald-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "สถานะอนุมัติคำขอ" (หน้า login)</p>
-          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-           <span>ความเร็ว: <span id="approved-marquee-speed-display" class="font-bold">5</span>/10</span>
-           <button onclick="adjustApprovedMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-           <button onclick="adjustApprovedMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-           <span class="ml-3">จำนวนแถวที่เห็น: <span id="approved-marquee-rows-display" class="font-bold">3</span></span>
-           <button onclick="adjustApprovedMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-           <button onclick="adjustApprovedMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-           <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="approved-marquee-delay-display" class="font-bold">3</span>s</span>
-           <button onclick="adjustApprovedMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-           <button onclick="adjustApprovedMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          </div>
-         </div>
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <p class="text-sm text-gray-500">รายชื่อนักเรียนที่สมัครเข้าระบบทั้งหมด</p>
           <button onclick="addStudentPopup()" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium whitespace-nowrap">➕ เพิ่มนักเรียนใหม่</button>
@@ -2601,6 +2646,7 @@
         updateMarqueeApplicantsList();
         // อัปเดตตัวเลขจำนวนการบ้านวันนี้ + จำนวนคำขอที่อนุมัติแล้ว บนปุ่มแบบสด
         updateTodayHomeworkCount();
+        updateTodayExamCount();
         updateApprovedRequestsCount();
         // อัปเดต badge kpac_request บนแท็บนักเรียนผู้ช่วยแอดมิน (ถ้าเปิดหน้า subadmin อยู่)
         const kpacBadgeEl = document.getElementById('subadmin-kpac-request-badge');
@@ -2667,6 +2713,9 @@
           if (settingsRecord.approved_marquee_speed_level) approvedMarqueeSpeedLevel = settingsRecord.approved_marquee_speed_level;
           if (settingsRecord.approved_marquee_rows) approvedMarqueeRows = settingsRecord.approved_marquee_rows;
           if (settingsRecord.approved_marquee_pause_delay_sec !== undefined) approvedMarqueePauseDelaySec = settingsRecord.approved_marquee_pause_delay_sec;
+          if (settingsRecord.exam_marquee_speed_level) examMarqueeSpeedLevel = settingsRecord.exam_marquee_speed_level;
+          if (settingsRecord.exam_marquee_rows) examMarqueeRows = settingsRecord.exam_marquee_rows;
+          if (settingsRecord.exam_marquee_pause_delay_sec !== undefined) examMarqueePauseDelaySec = settingsRecord.exam_marquee_pause_delay_sec;
         }
         const classRecords = data.filter(d => d.type === 'class');
         const subjectRecords = data.filter(d => d.type === 'subject');
@@ -2742,6 +2791,7 @@
           renderLandingAnnouncements();
           renderNotificationMarquee();
           updateTodayHomeworkCount();
+          updateTodayExamCount();
           updateApprovedRequestsCount();
         }
       } else {
@@ -3943,6 +3993,7 @@
         {id:'timekeeping', icon:'⏱️', label:'ลงเวลาเรียน', section:'อื่นๆ'},
         {id:'homework',    icon:'📝', label:'การบ้าน',     section:'อื่นๆ'},
         {id:'stunotif',    icon:'🔔', label:'แจ้งเตือนนักเรียน', section:'อื่นๆ'},
+        {id:'marqueesettings', icon:'🎞️', label:'การกำหนด Marquee', section:'อื่นๆ'},
         {id:'menumanager', icon:'🎨', label:'จัดการเมนู',  section:'ระบบ'},
       ],
     };
@@ -3974,7 +4025,7 @@
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", studentdata:"goToAdminTabDirect('studentdata')",
         examquestions:"goToAdminTabDirect('examquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", examcheat:"goToAdminTabDirect('examcheat')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
-        timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", menumanager:"goToAdminTabDirect('menumanager')",
+        timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", marqueesettings:"goToAdminTabDirect('marqueesettings')", menumanager:"goToAdminTabDirect('menumanager')",
       },
     };
     // ดึงลำดับ/ไอคอนที่แอดมินปรับแต่งไว้ (ถ้ามี) มาผสานกับค่าเริ่มต้น
@@ -4887,6 +4938,9 @@
     let hwMarqueeSpeedLevel = 5; // ความเร็วแถบเลื่อน "การบ้านวันนี้" (ระดับ 1-10)
     let hwMarqueeRows = 3;
     let hwMarqueePauseDelaySec = 3;
+    let examMarqueeSpeedLevel = 5; // ความเร็วแถบเลื่อน "สอบวันนี้" (ระดับ 1-10)
+    let examMarqueeRows = 3;
+    let examMarqueePauseDelaySec = 3;
     let approvedMarqueeSpeedLevel = 5; // ความเร็วแถบเลื่อน "สถานะอนุมัติคำขอ" (ตั้งค่าที่แท็บนักเรียนที่สมัคร)
     let approvedMarqueeRows = 3;
     let approvedMarqueePauseDelaySec = 3;
@@ -5056,7 +5110,8 @@
       const fields = {
         marquee_speed_level: marqueeSpeedLevel, marquee_rows: marqueeRows, marquee_pause_delay_sec: marqueePauseDelaySec,
         hw_marquee_speed_level: hwMarqueeSpeedLevel, hw_marquee_rows: hwMarqueeRows, hw_marquee_pause_delay_sec: hwMarqueePauseDelaySec,
-        approved_marquee_speed_level: approvedMarqueeSpeedLevel, approved_marquee_rows: approvedMarqueeRows, approved_marquee_pause_delay_sec: approvedMarqueePauseDelaySec
+        approved_marquee_speed_level: approvedMarqueeSpeedLevel, approved_marquee_rows: approvedMarqueeRows, approved_marquee_pause_delay_sec: approvedMarqueePauseDelaySec,
+        exam_marquee_speed_level: examMarqueeSpeedLevel, exam_marquee_rows: examMarqueeRows, exam_marquee_pause_delay_sec: examMarqueePauseDelaySec
       };
       const result = existing
         ? await window.dataSdk.update({ ...existing, ...fields })
@@ -5105,6 +5160,85 @@
     }
     function getHwMarqueeDurationSec() {
       return Math.max(3, 30 - hwMarqueeSpeedLevel * 2.5);
+    }
+    async function adjustExamMarqueeSpeed(delta) {
+      examMarqueeSpeedLevel = Math.max(1, Math.min(10, examMarqueeSpeedLevel + delta));
+      const display = document.getElementById('exam-marquee-speed-display');
+      if (display) display.textContent = examMarqueeSpeedLevel;
+      renderTodayExamMarquee();
+      await saveMarqueeSettings();
+    }
+    async function adjustExamMarqueeRows(delta) {
+      examMarqueeRows = Math.max(1, Math.min(8, examMarqueeRows + delta));
+      const display = document.getElementById('exam-marquee-rows-display');
+      if (display) display.textContent = examMarqueeRows;
+      const viewport = document.getElementById('today-exam-viewport');
+      if (viewport) viewport.style.height = `${examMarqueeRows * 32}px`;
+      await saveMarqueeSettings();
+    }
+    async function adjustExamMarqueeDelay(delta) {
+      examMarqueePauseDelaySec = Math.max(0, Math.min(15, examMarqueePauseDelaySec + delta));
+      const display = document.getElementById('exam-marquee-delay-display');
+      if (display) display.textContent = examMarqueePauseDelaySec;
+      renderTodayExamMarquee();
+      await saveMarqueeSettings();
+    }
+    function getExamMarqueeDurationSec() {
+      return Math.max(3, 30 - examMarqueeSpeedLevel * 2.5);
+    }
+    function toggleTodayExamMarquee() {
+      const section = document.getElementById('today-exam-marquee-section');
+      if (!section) return;
+      const isHidden = section.classList.contains('hidden');
+      document.getElementById('today-homework-marquee-section')?.classList.add('hidden');
+      document.getElementById('approved-requests-marquee-section')?.classList.add('hidden');
+      if (isHidden) {
+        section.classList.remove('hidden');
+        renderTodayExamMarquee();
+      } else {
+        section.classList.add('hidden');
+      }
+    }
+    function updateTodayExamCount() {
+      const todayStr = getTodayDateStr();
+      const count = allData.filter(d => d.type === 'exam_set' && d.start_time && d.start_time.slice(0, 10) === todayStr).length;
+      const countEl = document.getElementById('today-exam-count');
+      if (countEl) countEl.textContent = count;
+    }
+    // 🗓️ แสดงตารางสอบวันนี้ — จัดกลุ่มตามห้อง (ไม่ใช่รายบุคคล) เพราะ exam_set 1 รายการ = 1 ห้อง/1 วิชา/1 ครั้งอยู่แล้ว พร้อมแสดงเวลาสอบ
+    function renderTodayExamMarquee() {
+      const viewport = document.getElementById('today-exam-viewport');
+      const trackContainer = document.getElementById('today-exam-track-container');
+      const dateLabel = document.getElementById('today-exam-date-label');
+      if (!trackContainer) return;
+      const today = new Date();
+      const todayStr = getTodayDateStr();
+      if (dateLabel) dateLabel.textContent = today.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      if (viewport) viewport.style.height = `${examMarqueeRows * 32}px`;
+      const todayExams = allData.filter(d => d.type === 'exam_set' && d.start_time && d.start_time.slice(0, 10) === todayStr)
+        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+      if (todayExams.length === 0) {
+        trackContainer.innerHTML = '<p class="text-gray-400 text-xs text-center py-8">วันนี้ไม่มีสอบ</p>';
+        return;
+      }
+      const timeStr = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      const rowHtml = (ex) => `
+        <div style="height:32px" class="flex items-center px-3 text-xs text-gray-700 gap-2">
+          <span class="font-semibold whitespace-nowrap">🗓️ สอบ</span>
+          <span class="whitespace-nowrap">${ex.subject_name}</span>
+          <span class="whitespace-nowrap text-gray-500">K ครั้งที่ ${ex.k_round || '-'}</span>
+          <span class="text-gray-400 whitespace-nowrap">${ex.class_name}/${ex.room_number}</span>
+          <span class="text-rose-500 whitespace-nowrap">${timeStr(ex.start_time)}-${timeStr(ex.end_time)}</span>
+        </div>
+      `;
+      const listHtml = todayExams.map(rowHtml).join('');
+      // เลื่อนเฉพาะตอนรายการมีมากกว่าจำนวนแถวที่แสดงเท่านั้น (เหมือนหลักการเดียวกับการบ้านวันนี้)
+      if (todayExams.length <= examMarqueeRows) {
+        trackContainer.innerHTML = `<div>${listHtml}</div>`;
+        return;
+      }
+      const totalSec = applyGenericMarqueeKeyframes('exam-marquee-scroll', getExamMarqueeDurationSec(), examMarqueePauseDelaySec);
+      trackContainer.innerHTML = `<div class="hw-marquee-el" style="animation: exam-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
     }
     function toggleTodayHomeworkMarquee() {
       const section = document.getElementById('today-homework-marquee-section');
@@ -5341,23 +5475,8 @@
       }
       const container = document.getElementById('announcement-tab-content');
       if (!container) return;
-      const marqueeControlsHtml = target === 'notification' ? `
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-          <p class="text-sm font-semibold text-blue-800 mb-2">⚙️ ปรับแถบเลื่อนรายชื่อ (มีผลกับทุกคนที่เห็นหน้า login)</p>
-          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-            <span>ความเร็ว: <span id="marquee-speed-display" class="font-bold">${marqueeSpeedLevel}</span>/10</span>
-            <button onclick="adjustMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-            <button onclick="adjustMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-            <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">${marqueeRows}</span></span>
-            <button onclick="adjustMarqueeRows(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-            <button onclick="adjustMarqueeRows(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-            <span class="ml-3">หน่วงเวลานิ่งก่อนเลื่อน (วินาที): <span id="marquee-delay-display" class="font-bold">${marqueePauseDelaySec}</span>s</span>
-            <button onclick="adjustMarqueeDelay(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
-            <button onclick="adjustMarqueeDelay(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
-          </div>
-          <p class="text-xs text-gray-500 mt-1">(หน่วงแค่ตอนเข้าหน้าใหม่/กลับมาที่หน้าเว็บ ไม่หยุดซ้ำทุกรอบที่วน)</p>
-        </div>
-      ` : '';
+      // 🔀 ย้ายการตั้งค่าแถบเลื่อนไปไว้ที่แท็บ "การกำหนด Marquee" แล้ว (รวมทุกแถบเลื่อนไว้ที่เดียวตามที่ขอ)
+      const marqueeControlsHtml = '';
       container.innerHTML = `
         ${marqueeControlsHtml}
         <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
@@ -5689,7 +5808,7 @@
       });
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'examcheat', 'gradedist', 'menumanager', 'stunotif'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'examassign', 'examgrading', 'examcheat', 'gradedist', 'menumanager', 'stunotif', 'marqueesettings'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -17968,11 +18087,15 @@
             <div id="m-marquee-track-container"></div>
           </div>
         </div>
-        <!-- ปุ่มการบ้าน + สถานะอนุมัติ -->
+        <!-- ปุ่มการบ้าน + สอบวันนี้ + สถานะอนุมัติ -->
         <div style="display:flex;gap:8px">
           <button onclick="mToggleHomework()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer">
             📝 การบ้านวันนี้
             <span id="m-today-hw-count" style="background:#dc2626;color:white;font-size:8px;font-weight:700;border-radius:999px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 3px">0</span>
+          </button>
+          <button onclick="mToggleExam()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;background:#f43f5e;color:white;border:none;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer">
+            🗓️ สอบวันนี้
+            <span id="m-today-exam-count" style="background:#dc2626;color:white;font-size:8px;font-weight:700;border-radius:999px;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;padding:0 3px">0</span>
           </button>
           <button onclick="mToggleApproved()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;padding:8px;background:#10b981;color:white;border:none;border-radius:10px;font-size:10px;font-weight:600;cursor:pointer">
             ✅ สถานะอนุมัติ
@@ -17984,6 +18107,13 @@
           <p style="font-size:10px;font-weight:600;color:#d97706;margin:0 0 6px">📝 การบ้านวันนี้</p>
           <div style="overflow:hidden;border-radius:8px;background:#fffbeb;height:80px">
             <div id="m-hw-track-container"></div>
+          </div>
+        </div>
+        <!-- exam expand -->
+        <div id="m-exam-section" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+          <p style="font-size:10px;font-weight:600;color:#e11d48;margin:0 0 6px">🗓️ ตารางสอบวันนี้ (แสดงตามห้อง)</p>
+          <div style="overflow:hidden;border-radius:8px;background:#fff1f2;height:80px">
+            <div id="m-exam-track-container"></div>
           </div>
         </div>
         <!-- approved expand -->
@@ -18909,6 +19039,8 @@
       {id:'hours',icon:'⏰',label:'หน่วยกิต',fn:"mShowDesktopAdminTab('hours','⏰ หน่วยกิต')"},
       {id:'schedule',icon:'📅',label:'ตารางลงทะเบียน',fn:"mShowDesktopAdminTab('schedule','📅 ตารางลงทะเบียน')"},
       {id:'evaltopics',icon:'📋',label:'หัวข้อประเมิน',fn:"mShowDesktopAdminTab('evaltopics','📋 หัวข้อประเมินการสอน')"},
+      {id:'stunotif',icon:'🔔',label:'แจ้งเตือนนักเรียน',fn:"mShowDesktopAdminTab('stunotif','🔔 แจ้งเตือนนักเรียน')"},
+      {id:'marqueesettings',icon:'🎞️',label:'การกำหนด Marquee',fn:"mShowDesktopAdminTab('marqueesettings','🎞️ การกำหนด Marquee')"},
     ],
     'mn-settings': [
       {id:'settings',icon:'⚙️',label:'ตั้งค่า M/F',fn:"mShowDesktopAdminTab('settings','⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)')"},
@@ -19422,6 +19554,46 @@
     if (!s) return;
     s.style.display = s.style.display === 'none' ? 'block' : 'none';
     if (s.style.display !== 'none') mRenderTodayHomework();
+  }
+
+  function mToggleExam() {
+    var s = document.getElementById('m-exam-section');
+    if (!s) return;
+    s.style.display = s.style.display === 'none' ? 'block' : 'none';
+    if (s.style.display !== 'none') mRenderTodayExam();
+  }
+  // 🗓️ ตารางสอบวันนี้ฝั่งมือถือ — จัดกลุ่มตามห้อง (ไม่ใช่รายบุคคล) พร้อมแสดงเวลาสอบ ใช้กลไกเดียวกับ "การบ้านวันนี้" ทุกประการ
+  function mRenderTodayExam(countId, containerId) {
+    countId = countId || 'm-today-exam-count';
+    containerId = containerId || 'm-exam-track-container';
+    var todayStr = typeof getTodayDateStr==='function' ? getTodayDateStr() : new Date().toISOString().split('T')[0];
+    var exams = (allData||[]).filter(d=>d.type==='exam_set'&&d.start_time&&d.start_time.slice(0,10)===todayStr)
+      .sort(function(a,b){ return new Date(a.start_time) - new Date(b.start_time); });
+    var count = exams.length;
+    var el = document.getElementById(countId);
+    if (el) { el.textContent = count; el.style.display = count > 0 ? 'flex' : 'none'; }
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    if (!exams.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">วันนี้ไม่มีสอบ</div>'; return; }
+    var timeStr = function(iso){ return new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}); };
+    var rowHtml = exams.map(function(ex){
+      return `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#9f1239;white-space:nowrap;gap:6px">
+        <span style="font-weight:600">🗓️ สอบ</span>
+        <span>${ex.subject_name||''}</span>
+        <span style="color:#be123c">K ครั้งที่ ${ex.k_round||'-'}</span>
+        <span style="color:#be123c;opacity:0.7">${ex.class_name||'-'}/${ex.room_number||'-'}</span>
+        <span style="color:#e11d48">${timeStr(ex.start_time)}-${timeStr(ex.end_time)}</span>
+       </div>`;
+    }).join('');
+    var effectiveExamRows = (typeof examMarqueeRows !== 'undefined') ? examMarqueeRows : 3;
+    if (exams.length <= effectiveExamRows) {
+      container.innerHTML = `<div>${rowHtml}</div>`;
+      return;
+    }
+    var exScrollSec = Math.max(3, exams.length * 1.5);
+    var exPauseSec = (typeof examMarqueePauseDelaySec !== 'undefined') ? examMarqueePauseDelaySec : 3;
+    var exTotalSec = mApplyMarqueeKeyframes('m-exam-scroll-dynamic', exScrollSec, exPauseSec);
+    container.innerHTML = `<div class="marquee-track" style="animation:m-exam-scroll-dynamic ${exTotalSec}s linear infinite">${rowHtml}${rowHtml}</div>`;
   }
 
   function mToggleApproved() {
