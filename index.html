@@ -9430,6 +9430,7 @@
             ${imgHtml}
             <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
             ${choicesHtml}
+            <div id="exam-save-status" style="min-height:20px;margin:6px 0"></div>
             ${confirmBtnHtml}
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
@@ -9444,7 +9445,15 @@
 
     // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
     async function confirmExamAnswer(submissionId, questionId, answer, idx) {
+      // ⏳ แสดงสถานะ "กำลังบันทึก" ให้เห็นทันทีที่กดเลือกคำตอบ (ก่อนที่กล่องยืนยันจะขึ้นด้วยซ้ำ) ตามที่ขอให้ระบบรับคำตอบทันทีเห็นชัดเจน
+      const statusEl = document.getElementById('exam-save-status');
+      if (statusEl) statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#2563eb;font-size:12px;font-weight:600">⏳ กำลังบันทึกคำตอบ...</span>`;
       const savePromise = saveExamAnswer(submissionId, questionId, answer); // เริ่มบันทึกเบื้องหลังทันที ไม่รอ ให้กล่องยืนยันขึ้นเร็ว
+      savePromise.then(() => {
+        // อัปเดตสถานะเป็น "บันทึกแล้ว" ทันทีที่เสร็จ (แม้ผู้ใช้จะยังไม่ทันกดกล่องยืนยันก็ตาม เห็นความคืบหน้าจริง)
+        const s = document.getElementById('exam-save-status');
+        if (s) s.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#16a34a;font-size:12px;font-weight:600">✅ บันทึกคำตอบแล้ว</span>`;
+      });
       if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
         // ⚠️ ก่อนกลับไปกระดาษคำตอบ ต้องรอให้การบันทึกเสร็จสมบูรณ์ก่อนเสมอ ไม่งั้นจะกลับไปเจอข้อมูลเก่าที่ยังไม่มีคำตอบ (มาร์คสีเขียวไม่ขึ้น)
         await savePromise;
