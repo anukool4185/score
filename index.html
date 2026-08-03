@@ -2277,7 +2277,7 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
-           <select id="ea-subject" onchange="renderEaQuestionPicker();updateEaRandomInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-subject" onchange="renderEaChapterFilter();renderEaQuestionPicker();updateEaRandomInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกวิชา --</option>
            </select>
           </div>
@@ -2320,6 +2320,14 @@
           <button type="button" onclick="switchEaPickerMode('random')" id="ea-mode-random-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-600">🎲 สุ่มข้อสอบอัตโนมัติ</button>
          </div>
          <input type="hidden" id="ea-picker-mode" value="manual">
+
+         <!-- 🏷️ กรองเรื่อง/บทที่จะนำมาใช้ ก่อนเลือกข้อสอบเอง/สุ่มข้อสอบ ให้เจาะจงได้มากขึ้น (ติ๊กว่างหมด = ใช้ทุกเรื่อง) -->
+         <div id="ea-chapter-filter-section" class="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+          <p class="text-xs font-semibold text-indigo-800 mb-2">🏷️ กรองเฉพาะเรื่อง/บท (ไม่ติ๊กเลย = ใช้ข้อสอบทุกเรื่องในคลัง)</p>
+          <div id="ea-chapter-checkboxes" class="flex flex-wrap gap-2">
+           <p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>
+          </div>
+         </div>
 
          <div id="ea-manual-picker-section">
           <div class="mb-2 flex items-center justify-between">
@@ -7755,11 +7763,18 @@
       const choiceCount = parseInt(document.getElementById('answer-sheet-choice-count')?.value) || 5;
       const existing = allData.find(d => d.type === 'answer_sheet_config');
       const record = { type: 'answer_sheet_config', total_slots: totalSlots, choice_count: choiceCount };
-      const result = existing ? await window.dataSdk.update({ ...existing, ...record }) : await window.dataSdk.create(record);
-      if (result.isOk) {
+      // ⚠️ บั๊กที่พบ: เดิมไม่มีการลองใหม่เลยถ้าบันทึกไม่สำเร็จ (ล้มเหลวครั้งเดียวก็ขึ้น error ทันที) ทำให้เจอ "บันทึกไม่สำเร็จ" บ่อยจากเซิร์ฟเวอร์แน่นชั่วคราว
+      // แก้โดยลองซ้ำสูงสุด 3 ครั้ง (หน่วงเวลาเพิ่มขึ้นทุกครั้ง) เหมือนที่แก้ในระบบสอบ ก่อนจะยอมแพ้และแจ้งเตือนจริง
+      let result = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        result = existing ? await window.dataSdk.update({ ...existing, ...record }) : await window.dataSdk.create(record);
+        if (result && result.isOk) break;
+        if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 800));
+      }
+      if (result && result.isOk) {
         showToast('✅ บันทึกรูปแบบกระดาษคำตอบสำเร็จ');
       } else {
-        showToast('บันทึกไม่สำเร็จ', 'error');
+        showToast('บันทึกไม่สำเร็จ (ลองแล้ว 3 ครั้ง) กรุณาลองใหม่อีกครั้ง', 'error');
       }
     }
 
@@ -7817,6 +7832,27 @@
     }
 
     // 🎯🎲 สลับโหมดจัดสอบ ระหว่างเลือกเอง กับสุ่มอัตโนมัติ
+    // 🏷️ แสดงเช็คบ๊อกเรื่อง/บทที่มีอยู่จริงในคลังของวิชานี้ ให้กรองก่อนเลือกข้อสอบเอง/สุ่มข้อสอบได้เจาะจงมากขึ้น
+    function renderEaChapterFilter() {
+      const subjectName = document.getElementById('ea-subject')?.value || '';
+      const container = document.getElementById('ea-chapter-checkboxes');
+      if (!container) return;
+      if (!subjectName) { container.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
+      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      const chapters = [...new Set(questions.map(q => q.chapter || 'ไม่ระบุบท'))].sort();
+      if (chapters.length === 0) { container.innerHTML = '<p class="text-gray-400 text-xs">ยังไม่มีข้อสอบในคลังสำหรับวิชานี้</p>'; return; }
+      container.innerHTML = chapters.map(ch => `
+        <label class="flex items-center gap-1.5 px-2.5 py-1 bg-white border border-indigo-200 rounded-full cursor-pointer text-xs hover:bg-indigo-100">
+          <input type="checkbox" class="ea-chapter-check w-3.5 h-3.5" value="${ch}" onchange="renderEaQuestionPicker();updateEaRandomInfo()">
+          <span>${ch}</span>
+        </label>
+      `).join('');
+    }
+    // ดึงรายการ "เรื่อง/บท" ที่ติ๊กเลือกไว้ (คืน null ถ้าไม่ได้ติ๊กเลย = หมายถึงใช้ทุกเรื่อง ไม่กรอง)
+    function _getEaSelectedChapters() {
+      const checked = Array.from(document.querySelectorAll('.ea-chapter-check:checked')).map(c => c.value);
+      return checked.length > 0 ? checked : null;
+    }
     function switchEaPickerMode(mode) {
       document.getElementById('ea-picker-mode').value = mode;
       document.getElementById('ea-manual-picker-section').classList.toggle('hidden', mode !== 'manual');
@@ -7828,7 +7864,9 @@
     // 📊 แสดงจำนวนข้อสอบที่มีอยู่จริงในคลังตรงกับวิชา/บทที่เลือก ให้แอดมินรู้ว่าคลังพอไหม
     function updateEaRandomInfo() {
       const subjectName = document.getElementById('ea-subject')?.value || '';
-      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      const selectedChapters = _getEaSelectedChapters();
+      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      if (selectedChapters) questions = questions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
       const count = parseInt(document.getElementById('ea-random-count')?.value) || 0;
       const label = document.getElementById('ea-random-info-label');
       if (label) {
@@ -7842,8 +7880,10 @@
       const picker = document.getElementById('ea-question-picker');
       if (!picker) return;
       if (!subjectName) { picker.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">กรุณาเลือกวิชาก่อน</p>'; updateEaTotalScore(); return; }
-      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
-      if (questions.length === 0) { picker.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ยังไม่มีข้อสอบในคลังสำหรับวิชานี้ กรุณาเพิ่มที่แท็บ "🗂️ คลังข้อสอบ" ก่อน</p>'; updateEaTotalScore(); return; }
+      const selectedChapters = _getEaSelectedChapters();
+      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      if (selectedChapters) questions = questions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
+      if (questions.length === 0) { picker.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ไม่พบข้อสอบที่ตรงกับเรื่อง/บทที่กรองไว้ ลองติ๊กเรื่องอื่นเพิ่ม หรือยกเลิกการกรองทั้งหมด</p>'; updateEaTotalScore(); return; }
       picker.innerHTML = questions.map((q, idx) => `
         <label class="flex items-start gap-2 p-2 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50">
           <input type="checkbox" class="ea-question-check mt-1 w-4 h-4" value="${q.__backendId}" data-score="${q.score_per_question}" onchange="updateEaTotalScore()">
@@ -8229,13 +8269,16 @@
       let totalScore = 0;
       let questionSnapshot = [];
       let randomCount = 0;
+      // 🏷️ กรองเรื่อง/บทที่เลือกไว้ (ถ้าไม่ติ๊กเลย = ใช้ทุกเรื่อง) — ใช้ทั้งตอนคำนวณคะแนนเต็มตอนนี้ และต้องเก็บไว้ให้ตอนสุ่มจริงใช้ด้วย
+      const selectedChapters = _getEaSelectedChapters();
 
       if (pickerMode === 'random') {
         // 🎲 โหมดสุ่ม: ยังไม่กำหนดข้อสอบตายตัวตอนนี้ — จะสุ่มให้แต่ละคนตอนเริ่มทำข้อสอบจริงแทน (เก็บแค่เงื่อนไข+จำนวนไว้)
         randomCount = parseInt(document.getElementById('ea-random-count')?.value) || 0;
         if (randomCount < 1) { showToast('กรุณากำหนดจำนวนข้อที่ต้องการสุ่มอย่างน้อย 1 ข้อ', 'error'); return; }
-        const poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
-        if (poolQuestions.length === 0) { showToast('ไม่มีข้อสอบในคลังสำหรับวิชานี้เลย กรุณาเพิ่มข้อสอบก่อน', 'error'); return; }
+        let poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+        if (selectedChapters) poolQuestions = poolQuestions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
+        if (poolQuestions.length === 0) { showToast('ไม่มีข้อสอบในคลังที่ตรงกับเรื่อง/บทที่กรองไว้เลย กรุณาติ๊กเรื่องอื่นเพิ่ม หรือยกเลิกการกรอง', 'error'); return; }
         // ⚠️ บั๊กสำคัญที่พบ: เดิมสมมติว่า "1 ข้อ = 1 คะแนน" เสมอ แต่ระบบสุ่มจริงเลือกข้อสอบแบบกระจายตามคะแนนต่อข้อ (ยากง่าย)
         // ถ้าคลังมีข้อ 2-3 คะแนนปนอยู่ คะแนนเต็มที่ตั้งไว้ (=จำนวนข้อ) จะไม่ตรงกับคะแนนที่นักเรียนทำได้จริง
         // แก้ให้คำนวณคะแนนเต็มจากสัดส่วนการสุ่มแบบเดียวกับตอนเริ่มสอบจริงเป๊ะๆ การันตีว่าตรงกันเสมอ
@@ -8268,6 +8311,7 @@
         k_round: kRound,
         is_random_mode: pickerMode === 'random',
         random_count: randomCount,
+        selected_chapters: selectedChapters ? selectedChapters.join(',') : '', // 🏷️ เก็บเรื่อง/บทที่กรองไว้ (ว่าง = ทุกเรื่อง) ให้ตอนสุ่มจริงใช้กรองพูลด้วย
         question_ids: questionIds.join(','),
         question_snapshot_json: JSON.stringify(questionSnapshot),
         total_score: totalScore,
@@ -8711,7 +8755,12 @@
       let orderedIds = [];
       let submissionSnapshot = null;
       if (examSet.is_random_mode) {
-        const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        let pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        // 🏷️ กรองเฉพาะเรื่อง/บทที่แอดมินเลือกไว้ตอนจัดสอบ (ถ้ามี) ให้สุ่มจริงตรงกับที่ตั้งใจไว้เป๊ะ
+        if (examSet.selected_chapters) {
+          const scopedChapters = examSet.selected_chapters.split(',').filter(Boolean);
+          if (scopedChapters.length > 0) pool = pool.filter(q => scopedChapters.includes(q.chapter || 'ไม่ระบุบท'));
+        }
         const wantCount = examSet.random_count || 0;
         const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
         let picked = [];
@@ -8793,7 +8842,12 @@
         // 🎲 โหมดสุ่ม: สุ่มข้อสอบให้นักเรียนคนนี้โดยเฉพาะ ตอนเริ่มทำข้อสอบจริง (ไม่ใช่ตอนจัดสอบ) — แต่ละคนอาจได้ข้อไม่เหมือนกัน
         // ⚖️ ใช้แผนสุ่มเดียวกับตอนตั้งคะแนนเต็ม (_computeRandomExamTierPlan) การันตีว่าทุกคนได้ "จำนวนข้อต่อระดับความยาก" เท่ากันเป๊ะ
         // ต่างกันแค่ "ข้อไหน" ภายในแต่ละระดับเท่านั้น ทำให้คะแนนเต็มที่ทำได้จริงตรงกับที่ตั้งไว้ และเท่ากันทุกคนเสมอ
-        const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        let pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        // 🏷️ กรองเฉพาะเรื่อง/บทที่แอดมินเลือกไว้ตอนจัดสอบ (ถ้ามี) ให้สุ่มจริงตรงกับที่ตั้งใจไว้เป๊ะ
+        if (examSet.selected_chapters) {
+          const scopedChapters = examSet.selected_chapters.split(',').filter(Boolean);
+          if (scopedChapters.length > 0) pool = pool.filter(q => scopedChapters.includes(q.chapter || 'ไม่ระบุบท'));
+        }
         const wantCount = examSet.random_count || 0;
         const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
         let picked = [];
@@ -9326,21 +9380,21 @@
       }).join('');
 
       body.innerHTML = `
-        <div style="padding:16px">
-          <div style="background:white;border:2px solid #1e293b;border-radius:10px;padding:16px;margin-bottom:14px">
-            <p style="text-align:center;font-size:14px;font-weight:700;color:#1e293b;margin:0 0 10px;letter-spacing:1px">📄 กระดาษคำตอบ</p>
-            <div style="font-size:12px;color:#334155;line-height:1.9;border-top:1px dashed #cbd5e1;padding-top:8px">
+        <div style="padding:22px">
+          <div style="background:white;border:2px solid #1e293b;border-radius:12px;padding:20px;margin-bottom:18px">
+            <p style="text-align:center;font-size:15px;font-weight:700;color:#1e293b;margin:0 0 12px;letter-spacing:1px">📄 กระดาษคำตอบ</p>
+            <div style="font-size:13px;color:#334155;line-height:2;border-top:1px dashed #cbd5e1;padding-top:10px">
               <p style="margin:0"><b>วิชา</b>............ ${examSet.subject_name} ............</p>
               <p style="margin:0"><b>ชื่อ-สกุล</b>............ ${studentName} ............</p>
               <p style="margin:0"><b>ชั้น/ห้อง</b>............ ${examSet.class_name}/${examSet.room_number} ............ <b>ชุดข้อสอบ K ครั้งที่</b> ${examSet.k_round}</p>
             </div>
-            <p style="text-align:center;font-size:12px;color:#16a34a;font-weight:700;margin:10px 0 0;border-top:1px dashed #cbd5e1;padding-top:8px">✅ ทำแล้ว ${answeredCount}/${orderedIds.length} ข้อ</p>
+            <p style="text-align:center;font-size:13px;color:#16a34a;font-weight:700;margin:12px 0 0;border-top:1px dashed #cbd5e1;padding-top:10px">✅ ทำแล้ว ${answeredCount}/${orderedIds.length} ข้อ</p>
           </div>
-          <div style="background:white;border:2px solid #1e293b;border-radius:10px;padding:14px">
-            <p style="font-size:11px;color:#64748b;margin:0 0 10px;text-align:center">แตะหมายเลขข้อเพื่อทำข้อสอบ (✓ เขียว = ทำแล้ว)</p>
-            <div style="display:flex;flex-wrap:wrap;gap:14px;justify-content:center;overflow-x:auto">${blocksHtml}</div>
+          <div style="background:white;border:2px solid #1e293b;border-radius:12px;padding:20px">
+            <p style="font-size:12px;color:#64748b;margin:0 0 14px;text-align:center">แตะหมายเลขข้อเพื่อทำข้อสอบ (✓ เขียว = ทำแล้ว)</p>
+            <div style="display:flex;flex-wrap:wrap;gap:20px;justify-content:center;overflow-x:auto">${blocksHtml}</div>
           </div>
-          <button onclick="confirmSubmitExam('${submissionId}')" style="width:100%;margin-top:16px;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">✅ ส่งคำตอบ</button>
+          <button onclick="confirmSubmitExam('${submissionId}')" style="width:100%;margin-top:18px;padding:16px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer">✅ ส่งคำตอบ</button>
         </div>
       `;
     }
