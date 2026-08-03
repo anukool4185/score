@@ -8804,7 +8804,7 @@
     let _examViewMode = 'sheet';
     // ⚠️ กู้คืนฟังก์ชันตัวจับเวลาสอบที่หายไปโดยไม่ได้ตั้งใจระหว่างแก้ไขก่อนหน้านี้ — ทำให้เรียก _startExamTimer/_examTimerInterval แล้ว throw error เงียบๆ มาตลอด
     let _examTimerInterval = null;
-    function _startExamTimer(examSet) {
+    function _startExamTimer(examSet, submissionId) {
       if (_examTimerInterval) clearInterval(_examTimerInterval);
       const update = () => {
         const label = document.getElementById('exam-timer-label');
@@ -8813,7 +8813,16 @@
         if (remainMs <= 0) {
           label.textContent = 'เวลาที่เหลือ: หมดเวลาแล้ว — กำลังส่งคำตอบอัตโนมัติ...';
           clearInterval(_examTimerInterval);
-          if (_examAntiCheatSubmissionId) submitExam(_examAntiCheatSubmissionId);
+          // ⚠️ บั๊กร้ายแรงที่พบ: เดิมใช้ _examAntiCheatSubmissionId ซึ่งจะเป็นค่าว่างถ้าระบบตรวจทุจริตไม่ได้เริ่มทำงานสำเร็จ (เช่น กล้องมีปัญหา)
+          // ทำให้ตอนหมดเวลา ไม่มีการเรียก submitExam() เลย นักเรียนติดค้างที่ข้อความ "กำลังส่งคำตอบอัตโนมัติ..." ตลอดไป ส่งไม่ได้จริง
+          // แก้โดยใช้ submissionId ที่ส่งเข้ามาโดยตรงเป็นหลัก (เชื่อถือได้แน่นอน ไม่ขึ้นกับระบบตรวจทุจริต) ใช้ _examAntiCheatSubmissionId เป็นแค่ตัวสำรอง
+          const sid = submissionId || _examAntiCheatSubmissionId;
+          if (sid) {
+            submitExam(sid);
+          } else {
+            console.error('[Exam Timer Debug] หมดเวลาแล้วแต่หา submissionId ไม่เจอเลย ไม่สามารถส่งคำตอบอัตโนมัติได้');
+            if (label) label.textContent = 'เวลาที่เหลือ: หมดเวลาแล้ว — เกิดข้อผิดพลาด กรุณากดปุ่ม "ส่งคำตอบ" ด้วยตนเอง';
+          }
           return;
         }
         const totalSec = Math.floor(remainMs / 1000);
@@ -9134,7 +9143,7 @@
         const body = document.getElementById('exam-modal-body');
         if (body) body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">⚠️ เกิดข้อผิดพลาดตอนแสดงกระดาษคำตอบ</p><p style="color:#64748b;font-size:12px">${err.message}</p></div>`;
       }
-      _startExamTimer(examSet);
+      _startExamTimer(examSet, submissionId);
     }
 
     // 📄 หน้ากระดาษคำตอบหลัก — ตารางเลขข้อ กดแล้วไปทำข้อนั้น พร้อมหัวกระดาษข้อมูลการสอบ
