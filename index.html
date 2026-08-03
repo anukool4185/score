@@ -9196,17 +9196,19 @@
       }
     }
     function _renderAnswerSheetViewInner(submissionId, examSet, studentName, submissionObj, body) {
-      // ⚠️ กันบั๊ก race condition: ถ้า allData เพิ่งถูกแทนที่ด้วยข้อมูลจาก poll พื้นหลังที่ยังไม่มีกระดาษคำตอบที่เพิ่งสร้าง
-      // (เพราะ backend อาจตอบช้ากว่ารอบ poll ถัดไปเล็กน้อย) ให้ใช้ตัวที่ส่งมาให้ตรงๆ (submissionObj) แทนการหาใหม่
-      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission && submissionObj) submission = submissionObj;
-      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
+      // ⚠️ บั๊กร้ายแรงที่พบ (race condition คู่กับ saveExamAnswer): เดิมหาจาก allData ก่อนเสมอ ซึ่งอาจเป็นข้อมูลเก่ากว่า _lastKnownExamSubmission
+      // (allData อัปเดตแค่ตอน poll รอบถัดไปเท่านั้น ช้ากว่าการบันทึกจริงเสมอ) และที่ร้ายแรงกว่านั้น โค้ดเดิมยังเอาผลลัพธ์ที่อาจเก่านี้ไปทับ _lastKnownExamSubmission ต่อ
+      // กลายเป็นทำให้ cache ที่เคยถูกต้องกลับ "เสีย" ไปด้วย ส่งผลลบบั๊กต่อไปยัง saveExamAnswer() ครั้งถัดไปอีกที ตรงกับอาการ "เด้งไม่นำคำตอบลงกระดาษคำตอบ"
+      // แก้โดยให้ความสำคัญกับ _lastKnownExamSubmission ก่อนเสมอ และไม่เขียนทับ cache ด้วยข้อมูลที่อาจเก่ากว่า
+      let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
+      if (!submission) submission = submissionObj || allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) {
         console.error('[Exam Popup Debug] renderAnswerSheetView: submission not found even with fallback, id:', submissionId);
         body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700">⚠️ ไม่พบกระดาษคำตอบ กรุณาลองกดเข้าสอบใหม่อีกครั้ง</p></div>`;
         return;
       }
-      _lastKnownExamSubmission = submission;
+      // อัปเดต cache เฉพาะตอนที่ยังไม่เคยมี หรือกำลังใช้ตัวเดียวกันอยู่แล้ว (ไม่เขียนทับด้วยข้อมูลที่อาจเก่ากว่าจาก allData)
+      if (!_lastKnownExamSubmission || _lastKnownExamSubmission.__backendId !== submissionId) _lastKnownExamSubmission = submission;
       examSet = examSet || allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!examSet) {
         body.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700">⚠️ ไม่พบข้อมูลชุดสอบ</p></div>`;
@@ -9265,8 +9267,17 @@
             </button>`;
           }
           // ข้อปรนัย: แสดงวงกลมตัวเลือก ก ข ค ง จ ตามจำนวนที่ตั้งค่าไว้ ตัวที่ตอบไว้จะถูกทำเครื่องหมายสีเขียว
+          // ⚠️ บั๊กร้ายแรงที่พบ: เดิม map ตำแหน่งกับ letterKeys ('a','b','c'...) แบบตายตัว ไม่คำนึงถึงการสลับตัวเลือกต่อคน (shuffle_enabled)
+          // ทำให้นักเรียนกดเลือก "ก" ในหน้าคำถาม (ซึ่งจริงๆ คือ choice 'c' ที่ถูกสลับมาอยู่ตำแหน่งแรก) แต่กระดาษคำตอบกลับไปติ๊ก "ค" แทน (ตำแหน่งเดิมของ 'c' แบบไม่สลับ)
+          // แก้โดยคำนวณลำดับสลับเดียวกับหน้าคำถามเป๊ะ (seed เดียวกัน) แล้วหาตำแหน่งที่คำตอบจริงไปอยู่ในลำดับที่สลับแล้ว ก่อนจะ mark ให้ตรงกับที่นักเรียนเห็นบนจอจริง
+          let displayLetterKeys = letterKeys;
+          if (examSetIsShuffleEnabled(submission)) {
+            const rawKeysForQ = ['a','b','c','d','e'].filter(l => question && question[`choice_${l}`]);
+            const seedForQ = _seedFromString(currentUser.student_id + item.qid);
+            displayLetterKeys = _seededShuffle(rawKeysForQ, seedForQ);
+          }
           const lettersHtml = choiceLetters.map((letter, li) => {
-            const chosen = studentAnswer === letterKeys[li];
+            const chosen = studentAnswer === displayLetterKeys[li];
             return `<span style="width:22px;height:22px;border-radius:50%;background:${chosen ? '#16a34a' : 'white'};color:${chosen ? 'white' : '#94a3b8'};border:1.5px solid ${chosen ? '#16a34a' : '#94a3b8'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
           }).join('');
           return `<button onclick="examGoQuestion(${idx})" style="display:flex;align-items:center;gap:6px;padding:2px 0;background:transparent;border:none;cursor:pointer;width:100%;text-align:left">
@@ -9481,18 +9492,35 @@
 
     // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
     async function confirmExamAnswer(submissionId, questionId, answer, idx) {
+      // 🌫️ เบลอหน้าข้อสอบ + ขึ้นนาฬิการอ ป้องกันไม่ให้กดไปข้ออื่นก่อนบันทึกคำตอบเสร็จสมบูรณ์ ตามที่ขอ
+      const modalBody = document.getElementById('exam-modal-body');
+      const savingOverlay = document.createElement('div');
+      savingOverlay.id = 'exam-saving-overlay';
+      savingOverlay.style.cssText = 'position:fixed;inset:0;z-index:999996;background:rgba(255,255,255,0.5);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px';
+      savingOverlay.innerHTML = `
+        <p style="font-size:40px;margin:0;animation:spin 1.5s linear infinite">⏳</p>
+        <p style="font-size:14px;color:#1e293b;font-weight:700;margin:0">กำลังบันทึกคำตอบ กรุณารอสักครู่...</p>
+      `;
+      if (!document.getElementById('exam-spin-keyframes')) {
+        const kfStyle = document.createElement('style');
+        kfStyle.id = 'exam-spin-keyframes';
+        kfStyle.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        document.head.appendChild(kfStyle);
+      }
+      document.body.appendChild(savingOverlay);
+      if (modalBody) modalBody.style.filter = 'blur(2px)';
+
       // ⏳ แสดงสถานะ "กำลังบันทึก" ให้เห็นทันทีที่กดเลือกคำตอบ (ก่อนที่กล่องยืนยันจะขึ้นด้วยซ้ำ) ตามที่ขอให้ระบบรับคำตอบทันทีเห็นชัดเจน
       const statusEl = document.getElementById('exam-save-status');
       if (statusEl) statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#2563eb;font-size:12px;font-weight:600">⏳ กำลังบันทึกคำตอบ...</span>`;
       const savePromise = saveExamAnswer(submissionId, questionId, answer); // เริ่มบันทึกเบื้องหลังทันที ไม่รอ ให้กล่องยืนยันขึ้นเร็ว
-      savePromise.then(() => {
-        // อัปเดตสถานะเป็น "บันทึกแล้ว" ทันทีที่เสร็จ (แม้ผู้ใช้จะยังไม่ทันกดกล่องยืนยันก็ตาม เห็นความคืบหน้าจริง)
-        const s = document.getElementById('exam-save-status');
-        if (s) s.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#16a34a;font-size:12px;font-weight:600">✅ บันทึกคำตอบแล้ว</span>`;
-      });
+      await savePromise; // 🔒 รอให้บันทึกเสร็จสมบูรณ์ก่อนเสมอ ก่อนจะปลดล็อกให้ทำอะไรต่อได้ (กันข้ามไปข้ออื่นก่อนบันทึกเสร็จ)
+      document.getElementById('exam-saving-overlay')?.remove();
+      if (modalBody) modalBody.style.filter = '';
+      const s = document.getElementById('exam-save-status');
+      if (s) s.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#16a34a;font-size:12px;font-weight:600">✅ บันทึกคำตอบแล้ว</span>`;
+
       if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
-        // ⚠️ ก่อนกลับไปกระดาษคำตอบ ต้องรอให้การบันทึกเสร็จสมบูรณ์ก่อนเสมอ ไม่งั้นจะกลับไปเจอข้อมูลเก่าที่ยังไม่มีคำตอบ (มาร์คสีเขียวไม่ขึ้น)
-        await savePromise;
         renderAnswerSheetView(submissionId);
       } else {
         examGoQuestion(idx); // อยู่ที่ข้อเดิม แสดงปุ่ม "✅ ยืนยันคำตอบข้อนี้" ให้กดทีหลังได้
@@ -9527,8 +9555,12 @@
 
     // บันทึกคำตอบทันทีที่เลือก/พิมพ์ — ป้องกันคำตอบหายก่อนกดส่ง (สำคัญที่สุด)
     async function saveExamAnswer(submissionId, questionId, answer) {
-      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
+      // ⚠️ บั๊กร้ายแรงที่พบ (race condition): เดิมหาจาก allData ก่อนเสมอ ซึ่งอาจเป็นข้อมูลเก่า (อัปเดตแค่ตอน poll รอบถัดไปเท่านั้น)
+      // ถ้านักเรียนตอบหลายข้อเร็วๆ ติดกัน (เร็วกว่ารอบ poll) การบันทึกข้อถัดไปจะไปอ้างอิง allData ที่ยังไม่มีคำตอบข้อก่อนหน้า
+      // แล้วเขียนทับกลับไป ทำให้คำตอบข้อก่อนหน้า "หาย" ไปจากฐานข้อมูลจริงๆ (แม้จะเคยบันทึกสำเร็จแล้วก็ตาม) ตรงกับอาการ "เด้งไม่นำคำตอบลงกระดาษคำตอบ"
+      // แก้โดยให้ความสำคัญกับ _lastKnownExamSubmission ก่อนเสมอ (อัปเดตทันทีทุกครั้งที่บันทึกสำเร็จ เชื่อถือได้กว่า allData ที่รอ poll)
+      let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
+      if (!submission) submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) { console.error('[Exam Popup Debug] saveExamAnswer: submission not found, answer NOT saved!', submissionId); showToast('⚠️ บันทึกคำตอบไม่สำเร็จ ลองกดใหม่อีกครั้ง', 'error'); return; }
       const answers = JSON.parse(submission.answers || '{}');
       answers[questionId] = answer;
