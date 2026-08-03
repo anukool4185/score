@@ -10252,6 +10252,16 @@
     async function _triggerExamViolation(violationType) {
       if (!_examAntiCheatActive) return;
       const info = window._examInfoForAntiCheat || {};
+      const submission = allData.find(d => d.__backendId === _examAntiCheatSubmissionId && d.type === 'exam_submission');
+      // ⚠️ ปรับตามที่ขอ: ครั้งแรกที่ตรวจพบในการสอบครั้งนี้ ให้เตือนแค่นักเรียนเอง (ไม่แจ้งแอดมิน ไม่หยุดจอ) ให้กดรับทราบข้อปฏิบัติก่อน
+      // เก็บจำนวนครั้งไว้ที่ตัว submission เอง (ไม่ใช่แค่ตัวแปรฝั่ง client) กันนักเรียนรีเฟรชหน้าเพื่อรีเซ็ตนับใหม่หนีได้
+      const priorWarnings = parseInt(submission?.cheat_warning_count) || 0;
+      if (priorWarnings < 1) {
+        if (submission) await window.dataSdk.update({ ...submission, cheat_warning_count: priorWarnings + 1 });
+        showExamCheatWarningPopup(violationType);
+        return; // ยังไม่ถ่ายภาพ/แจ้งแอดมิน/หยุดจอ ตามที่ขอ — รอให้ผิดครั้งที่ 2 ก่อน
+      }
+      // ครั้งที่ 2 เป็นต้นไป — ทำตามเงื่อนไขเดิมทันที (แจ้งแอดมิน + หยุดจอ + ถ่ายภาพ)
       // 📸 ถ่ายภาพจากกล้องทันทีที่ตรวจพบความผิดปกติ — จังหวะที่มีประโยชน์ที่สุด ให้แอดมินดูเป็นหลักฐานประกอบ
       _captureExamCameraSnapshot(_examAntiCheatSubmissionId, violationType);
       // หยุดหน้าจอทันที (freeze) — ก่อนจะรอแอดมินตัดสินใจ
@@ -10270,10 +10280,25 @@
         created_at: new Date().toISOString(),
       });
       // บันทึกสถานะ frozen ไว้ที่ตัวกระดาษคำตอบด้วย เผื่อรีเฟรชหน้าแล้วยังต้องค้างอยู่
-      const submission = allData.find(d => d.__backendId === _examAntiCheatSubmissionId && d.type === 'exam_submission');
       if (submission) {
         await window.dataSdk.update({ ...submission, frozen: true, frozen_reason: violationType });
       }
+    }
+    // ⚠️ ป๊อปอัพเตือนนักเรียนสำหรับการทุจริตครั้งแรก — ให้กดรับทราบข้อปฏิบัติก่อนทำต่อ ไม่แจ้งแอดมิน ไม่หยุดจอทั้งหน้า
+    function showExamCheatWarningPopup(violationType) {
+      if (document.getElementById('exam-cheat-warning-overlay')) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'exam-cheat-warning-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,0.85);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:28px;max-width:360px;text-align:center">
+          <p style="font-size:40px;margin:0 0 12px">⚠️</p>
+          <p style="font-size:16px;font-weight:700;color:#d97706;margin:0 0 8px">ตรวจพบความผิดปกติระหว่างสอบ</p>
+          <p style="font-size:13px;color:#475569;margin:0 0 4px">กรุณาอยู่ในหน้าจอทำข้อสอบตลอดเวลา ห้ามสลับแท็บ/แอปอื่น</p>
+          <p style="font-size:13px;color:#dc2626;font-weight:700;margin:8px 0 0">⚠️ หากพบครั้งที่ 2 ระบบจะหยุดการสอบทันทีและแจ้งแอดมิน</p>
+          <button onclick="document.getElementById('exam-cheat-warning-overlay')?.remove()" style="width:100%;margin-top:16px;padding:12px;background:#d97706;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">✅ รับทราบข้อปฏิบัติ</button>
+        </div>`;
+      document.body.appendChild(overlay);
     }
     function showExamFreezeOverlay() {
       console.log('[Exam Popup Debug] showExamFreezeOverlay() called - anti-cheat froze the exam!', new Error().stack);
