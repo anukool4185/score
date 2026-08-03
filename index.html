@@ -2375,6 +2375,8 @@
     // ============================================================
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     const POLL_INTERVAL_MS = 3000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time — ตั้งไว้ระดับที่ปลอดภัยจากโควต้า Google Apps Script
+    // 📝 รับข้อเสนอแนะ: ช่วงทำข้อสอบ (มีคนสอบพร้อมกันได้ถึง 200 คน) ให้ยืด poll ออกไปนานขึ้น ลดภาระเซิร์ฟเวอร์ลงเกือบครึ่ง แลกกับความหน่วงเห็นข้อมูลอัปเดตช้าลงเล็กน้อย (ยอมรับได้ เพราะข้อสอบไม่ต้อง real-time ขนาดนั้น)
+    const POLL_INTERVAL_EXAM_MS = 6000;
 
     // ============================================================
     // 🖼️ ระบบอัปโหลด/ลบรูปการบ้านใน Google Drive (เก็บแยกโฟลเดอร์ ห้อง>วิชา>วันที่)
@@ -2477,16 +2479,23 @@
       },
 
       _startPolling() {
-        if (this._pollTimer) clearInterval(this._pollTimer);
-        this._pollTimer = setInterval(async () => {
-          try {
-            const data = await this._fetchAll();
-            this._cache = data;
-            this._handler.onDataChanged(this._cache);
-          } catch (err) {
-            console.error('❌ sheetsDataSdk polling error:', err);
-          }
-        }, POLL_INTERVAL_MS);
+        if (this._pollTimer) clearTimeout(this._pollTimer);
+        const scheduleNext = () => {
+          // 🎯 เช็คว่าตอนนี้กำลังทำข้อสอบอยู่หรือไม่ (ใช้ flag ที่มีอยู่แล้วของระบบตรวจทุจริต) ถ้าใช่ ยืด poll ออกไปนานขึ้น ลดภาระเซิร์ฟเวอร์ตอนมีคนสอบพร้อมกันเยอะ
+          const isExamActive = typeof _examAntiCheatActive !== 'undefined' && _examAntiCheatActive;
+          const intervalToUse = isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_MS;
+          this._pollTimer = setTimeout(async () => {
+            try {
+              const data = await this._fetchAll();
+              this._cache = data;
+              this._handler.onDataChanged(this._cache);
+            } catch (err) {
+              console.error('❌ sheetsDataSdk polling error:', err);
+            }
+            scheduleNext(); // จัดตารางรอบถัดไปใหม่เสมอ (เช็ค flag สดทุกรอบ ไม่ใช่ตายตัวตั้งแต่ตอนเริ่ม)
+          }, intervalToUse);
+        };
+        scheduleNext();
       },
 
       async _fetchAll() {
@@ -3209,6 +3218,16 @@
         return;
       }
       
+      // ⚠️ บั๊กร้ายแรงที่พบ: ทั้งการตรวจสอบผู้ช่วยแอดมินและนักเรียน ต้องพึ่ง allData ทั้งคู่ แต่เดิมไม่เช็คเลยว่าโหลดเสร็จหรือยัง
+      // ถ้ามีคนล็อกอินพร้อมกันเยอะ (เช่น 200 คน ก่อนสอบ) การโหลดข้อมูลครั้งแรกอาจยังไม่เสร็จตอนกดล็อกอิน
+      // ทำให้หาไม่เจอ (เพราะข้อมูลยังไม่มาถึงเลย) แล้วขึ้น "Username หรือ Password ไม่ถูกต้อง" ซึ่งเป็นข้อความที่ทำให้เข้าใจผิด (จริงๆ รหัสถูกต้อง แค่ข้อมูลยังโหลดไม่เสร็จ)
+      // แก้โดยเช็ค window.__dataReady ก่อนเสมอ ครอบคลุมทั้ง 2 กรณี ถ้ายังไม่พร้อม แจ้งข้อความที่ถูกต้องแทน ไม่กล่าวโทษว่ารหัสผิด
+      if (!window.__dataReady) {
+        console.log('⏳ ข้อมูลยังโหลดไม่เสร็จ รอสักครู่ก่อนตรวจสอบ username/password');
+        errorDiv.textContent = '⏳ ระบบกำลังโหลดข้อมูล กรุณารอสักครู่แล้วกด "เข้าสู่ระบบ" อีกครั้ง (ไม่ใช่ Username/Password ผิด)';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
       // ตรวจสอบ Admin อื่นๆ
       console.log('🔍 Checking admins:', allAdmins.length);
       const adminRecord = allAdmins.find(a => a.username === username && a.password === password);
@@ -9492,14 +9511,18 @@
 
     // ✅ บันทึกคำตอบแล้วถามยืนยันทันที — ยืนยัน = ออกจากข้อนี้กลับไปกระดาษคำตอบ / ไม่ยืนยัน = อยู่ต่อเพื่อเปลี่ยนคำตอบ (มีปุ่มยืนยันทีหลังได้)
     async function confirmExamAnswer(submissionId, questionId, answer, idx) {
-      // 🌫️ เบลอหน้าข้อสอบ + ขึ้นนาฬิการอ ป้องกันไม่ให้กดไปข้ออื่นก่อนบันทึกคำตอบเสร็จสมบูรณ์ ตามที่ขอ
+      // 🔒 ปิดการใช้งานตัวเลือกคำตอบ + ปุ่มต่างๆ ชั่วคราว (ไม่เบลอทั้งจอแล้วตามที่ขอ) ป้องกันกดซ้ำ/ไปข้ออื่นก่อนบันทึกเสร็จ
       const modalBody = document.getElementById('exam-modal-body');
-      const savingOverlay = document.createElement('div');
-      savingOverlay.id = 'exam-saving-overlay';
-      savingOverlay.style.cssText = 'position:fixed;inset:0;z-index:999996;background:rgba(255,255,255,0.5);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px';
-      savingOverlay.innerHTML = `
-        <p style="font-size:40px;margin:0;animation:spin 1.5s linear infinite">⏳</p>
-        <p style="font-size:14px;color:#1e293b;font-weight:700;margin:0">กำลังบันทึกคำตอบ กรุณารอสักครู่...</p>
+      if (modalBody) {
+        modalBody.querySelectorAll('input, textarea, button').forEach(el => { el.disabled = true; el.style.opacity = '0.6'; el.style.pointerEvents = 'none'; });
+      }
+      // ⏳ ป๊อปอัพเล็กๆ มุมจอ พร้อมนาฬิกาทราย (แทนการเบลอทั้งหน้าจอแบบเดิม) ตามที่ขอ
+      const savingPopup = document.createElement('div');
+      savingPopup.id = 'exam-saving-overlay';
+      savingPopup.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999996;background:white;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.2);padding:14px 18px;display:flex;align-items:center;gap:10px;border:2px solid #2563eb';
+      savingPopup.innerHTML = `
+        <span style="font-size:24px;animation:spin 1.2s linear infinite">⏳</span>
+        <span style="font-size:13px;color:#1e293b;font-weight:700">กำลังบันทึกคำตอบ...</span>
       `;
       if (!document.getElementById('exam-spin-keyframes')) {
         const kfStyle = document.createElement('style');
@@ -9507,24 +9530,22 @@
         kfStyle.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
         document.head.appendChild(kfStyle);
       }
-      document.body.appendChild(savingOverlay);
-      if (modalBody) modalBody.style.filter = 'blur(2px)';
+      document.body.appendChild(savingPopup);
 
-      // ⏳ แสดงสถานะ "กำลังบันทึก" ให้เห็นทันทีที่กดเลือกคำตอบ (ก่อนที่กล่องยืนยันจะขึ้นด้วยซ้ำ) ตามที่ขอให้ระบบรับคำตอบทันทีเห็นชัดเจน
-      const statusEl = document.getElementById('exam-save-status');
-      if (statusEl) statusEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#2563eb;font-size:12px;font-weight:600">⏳ กำลังบันทึกคำตอบ...</span>`;
-      const savePromise = saveExamAnswer(submissionId, questionId, answer); // เริ่มบันทึกเบื้องหลังทันที ไม่รอ ให้กล่องยืนยันขึ้นเร็ว
-      await savePromise; // 🔒 รอให้บันทึกเสร็จสมบูรณ์ก่อนเสมอ ก่อนจะปลดล็อกให้ทำอะไรต่อได้ (กันข้ามไปข้ออื่นก่อนบันทึกเสร็จ)
+      const saveSucceeded = await saveExamAnswer(submissionId, questionId, answer); // 🔒 รอให้บันทึกเสร็จสมบูรณ์ก่อนเสมอ ก่อนจะปลดล็อกให้ทำอะไรต่อได้ (กันข้ามไปข้ออื่นก่อนบันทึกเสร็จ)
       document.getElementById('exam-saving-overlay')?.remove();
-      if (modalBody) modalBody.style.filter = '';
-      const s = document.getElementById('exam-save-status');
-      if (s) s.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;color:#16a34a;font-size:12px;font-weight:600">✅ บันทึกคำตอบแล้ว</span>`;
-
-      if (confirm('ยืนยันคำตอบข้อนี้?\n\nกด "ตกลง" เพื่อยืนยันคำตอบและกลับไปที่กระดาษคำตอบ\nกด "ยกเลิก" เพื่ออยู่ที่ข้อนี้ต่อ (เปลี่ยนคำตอบได้ก่อนค่อยยืนยัน)')) {
-        renderAnswerSheetView(submissionId);
-      } else {
-        examGoQuestion(idx); // อยู่ที่ข้อเดิม แสดงปุ่ม "✅ ยืนยันคำตอบข้อนี้" ให้กดทีหลังได้
+      if (modalBody) {
+        modalBody.querySelectorAll('input, textarea, button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
       }
+      // ⚠️ บั๊กสำคัญที่พบ: เดิมขึ้น "บันทึกแล้ว" เสมอ ไม่เช็คผลจริงเลยว่าบันทึกสำเร็จจริงหรือไม่
+      // สำคัญมากตอนมีคนสอบพร้อมกันเยอะ (200 คน) เพราะเซิร์ฟเวอร์อาจปฏิเสธ/ตอบช้าจนบันทึกไม่สำเร็จได้ ต้องแจ้งนักเรียนตามจริง ไม่ใช่หลอกว่าสำเร็จ
+      if (!saveSucceeded) {
+        showToast('⚠️ บันทึกคำตอบไม่สำเร็จ กรุณาลองเลือกคำตอบข้อนี้อีกครั้ง', 'error');
+        examGoQuestion(idx); // อยู่ที่ข้อเดิมต่อ ให้ลองใหม่ได้ทันที ไม่ไปกระดาษคำตอบทั้งที่ยังไม่ได้บันทึกจริง
+        return;
+      }
+      // 🚫 ไม่มีกล่องยืนยัน/ปุ่มไปข้อต่อไปอีกต่อไปตามที่ขอ — บันทึกสำเร็จแล้วกลับไปกระดาษคำตอบทันทีเสมอ นักเรียนกดเลือกข้อถัดไปจากกระดาษคำตอบเองแทน
+      renderAnswerSheetView(submissionId);
     }
 
     // 📸 ดึงข้อมูลข้อสอบจาก snapshot ของชุดสอบเอง (ไม่พึ่งพาคลังข้อสอบต้นฉบับ) — ใช้กับชุดสอบเก่าที่ยังไม่มี snapshot เป็น fallback เท่านั้น
@@ -9561,11 +9582,25 @@
       // แก้โดยให้ความสำคัญกับ _lastKnownExamSubmission ก่อนเสมอ (อัปเดตทันทีทุกครั้งที่บันทึกสำเร็จ เชื่อถือได้กว่า allData ที่รอ poll)
       let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
       if (!submission) submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission) { console.error('[Exam Popup Debug] saveExamAnswer: submission not found, answer NOT saved!', submissionId); showToast('⚠️ บันทึกคำตอบไม่สำเร็จ ลองกดใหม่อีกครั้ง', 'error'); return; }
+      if (!submission) { console.error('[Exam Popup Debug] saveExamAnswer: submission not found, answer NOT saved!', submissionId); showToast('⚠️ บันทึกคำตอบไม่สำเร็จ ลองกดใหม่อีกครั้ง', 'error'); return false; }
       const answers = JSON.parse(submission.answers || '{}');
       answers[questionId] = answer;
-      const result = await window.dataSdk.update({ ...submission, answers: JSON.stringify(answers) });
-      if (result.isOk) _lastKnownExamSubmission = result.data; // อัปเดต cache ให้ตรงกับข้อมูลล่าสุดที่บันทึกสำเร็จ
+      // ⚠️ บั๊กสำคัญอีกจุดที่พบ: เดิมไม่มีการลองใหม่เลยถ้าบันทึกไม่สำเร็จ (result.isOk === false ก็แค่เงียบๆ ไม่ทำอะไร ไม่แจ้งนักเรียนด้วย)
+      // สำคัญมากเมื่อมีคนสอบพร้อมกันเยอะ (เช่น 200 คน) เพราะเซิร์ฟเวอร์ (Google Apps Script) อาจตอบช้า/ปฏิเสธคำขอชั่วคราวจากโหลดสูง
+      // แก้โดยลองซ้ำสูงสุด 3 ครั้ง (หน่วงเวลาเพิ่มขึ้นทุกครั้ง) ก่อนจะยอมแพ้และแจ้งเตือนนักเรียนอย่างชัดเจนว่าบันทึกไม่สำเร็จจริงๆ
+      let result = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        result = await window.dataSdk.update({ ...submission, answers: JSON.stringify(answers) });
+        if (result && result.isOk) break;
+        if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 800)); // หน่วง 0.8s, 1.6s ก่อนลองใหม่ (เผื่อเซิร์ฟเวอร์แน่นชั่วคราว)
+      }
+      if (result && result.isOk) {
+        _lastKnownExamSubmission = result.data; // อัปเดต cache ให้ตรงกับข้อมูลล่าสุดที่บันทึกสำเร็จ
+        return true;
+      } else {
+        console.error('[Exam Popup Debug] saveExamAnswer: ลองบันทึก 3 ครั้งแล้วยังไม่สำเร็จ (อาจเกิดจากเซิร์ฟเวอร์แน่นตอนมีคนสอบพร้อมกันเยอะ)', submissionId, questionId);
+        return false;
+      }
       // หมายเหตุ: ไม่ต้อง render กระดาษคำตอบใหม่ตรงนี้ เพราะ renderAnswerSheetView อ่านสถานะสดจาก allData ทุกครั้งที่กลับไปดูอยู่แล้ว
     }
 
