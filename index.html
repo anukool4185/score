@@ -8667,9 +8667,44 @@
         }
       }
 
-      const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
+      // ⚠️ บั๊กสำคัญที่พบ: เดิมสอบแก้ (retry) รองรับแค่โหมดเลือกข้อสอบเองเท่านั้น ไม่มีการจัดการโหมดสุ่มเลย
+      // ถ้าชุดสอบเป็นโหมดสุ่ม (is_random_mode) examSet.question_ids จะว่างเปล่า ทำให้สอบแก้ได้กระดาษคำตอบที่ไม่มีข้อสอบเลยสักข้อ
+      // แก้โดยใช้ตรรกะเดียวกับตอนเริ่มสอบครั้งแรกเป๊ะ (สุ่มชุดใหม่ให้เฉพาะคนนี้ ด้วย seed ที่ต่างจากครั้งก่อน)
       const seed = _seedFromString(currentUser.student_id + examSetId + '_retry_' + Date.now());
-      const orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+      let orderedIds = [];
+      let submissionSnapshot = null;
+      if (examSet.is_random_mode) {
+        const pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
+        const wantCount = examSet.random_count || 0;
+        const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
+        let picked = [];
+        if (groupKeys.length > 1 && pool.length > 0) {
+          plan.forEach((tier, gi) => {
+            const groupPool = _seededShuffle(tier.poolInThisTier, seed + gi);
+            picked.push(...groupPool.slice(0, Math.min(tier.count, groupPool.length)));
+          });
+          if (picked.length < wantCount) {
+            const pickedIds = new Set(picked.map(q => q.__backendId));
+            const leftoverPool = _seededShuffle(pool.filter(q => !pickedIds.has(q.__backendId)), seed + 999);
+            picked.push(...leftoverPool.slice(0, wantCount - picked.length));
+          }
+        } else {
+          const shuffledPool = _seededShuffle(pool, seed);
+          picked = shuffledPool.slice(0, Math.min(wantCount, pool.length));
+        }
+        while (picked.length < wantCount && pool.length > 0) {
+          picked.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+        orderedIds = picked.map(q => q.__backendId);
+        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+      } else {
+        const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
+        orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+      }
       const result = await window.dataSdk.create({
         type: 'exam_submission',
         exam_set_id: examSetId,
@@ -8680,6 +8715,7 @@
         room_number: examSet.room_number,
         exam_id: examSetId,
         question_order: orderedIds.join(','),
+        question_snapshot_json: submissionSnapshot ? JSON.stringify(submissionSnapshot) : '',
         answers: '{}',
         status: 'in_progress',
         is_retry_attempt: true,
