@@ -8408,13 +8408,22 @@
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
-          const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          // ⚠️ บั๊กที่อาจเกิดขึ้น: ถ้าหา grade ไม่เจอจาก registration_id (เช่น ข้อมูลไม่ตรงกันด้วยเหตุผลใดก็ตาม) จะข้ามการคืนคะแนนไปเงียบๆ ทำให้คะแนนค้างอยู่ถาวร
+          // แก้โดยเพิ่มการค้นหาสำรอง (fallback) ด้วยชั้น/ห้อง/วิชา ถ้าหาจาก registration_id ตรงๆ ไม่เจอ
+          let grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          if (!grade) {
+            grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
+          }
           if (grade) {
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
             scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+          } else {
+            // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
+            console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
+            showToast(`⚠️ ไม่พบข้อมูลคะแนนของนักเรียน ${sub.student_id} — คะแนน K ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจสอบและแก้ไขด้วยตนเองที่หน้า "ให้คะแนน"`, 'error');
           }
         }
         // 3) ลบการทำข้อสอบเดิมทิ้ง + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้อง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
@@ -8464,13 +8473,22 @@
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
-          const grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          // ⚠️ บั๊กที่อาจเกิดขึ้น: ถ้าหา grade ไม่เจอจาก registration_id (เช่น ข้อมูลไม่ตรงกันด้วยเหตุผลใดก็ตาม) จะข้ามการคืนคะแนนไปเงียบๆ ทำให้คะแนนค้างอยู่ถาวร
+          // แก้โดยเพิ่มการค้นหาสำรอง (fallback) ด้วยชั้น/ห้อง/วิชา ถ้าหาจาก registration_id ตรงๆ ไม่เจอ
+          let grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
+          if (!grade) {
+            grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
+          }
           if (grade) {
             let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
             scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+          } else {
+            // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
+            console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
+            showToast(`⚠️ ไม่พบข้อมูลคะแนนของนักเรียน ${sub.student_id} — คะแนน K ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจสอบและแก้ไขด้วยตนเองที่หน้า "ให้คะแนน"`, 'error');
           }
         }
         // ⚠️ สำคัญ: ลบกระดาษคำตอบ + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องทั้งหมด กันค้างแจ้งเตือนไปตลอด
@@ -9687,6 +9705,17 @@
 
     // เขียนคะแนนเข้า k_scores ที่ตำแหน่ง k_round-1 — ใช้ logic เดียวกับที่แก้บั๊ก "อัตนัยหาย" ไว้ก่อนหน้า (ไม่เลื่อนตำแหน่งกัน)
     async function _writeExamScoreToKField(submission, examSet, score) {
+      // ⚠️ บั๊กร้ายแรงที่พบ: เดิมไม่เคยเช็คเลยว่า exam_set ที่ส่งเข้ามายังมีอยู่จริงในระบบหรือถูกลบ/รีเซ็ตไปแล้ว
+      // สถานการณ์ที่เกิดปัญหาจริง: แอดมินสั่งให้นักเรียนออกจากระบบระหว่างสอบ (เพราะระบบมีปัญหา) แล้ว "รีเซ็ต" หรือ "ลบ" ชุดสอบทิ้ง
+      // แต่นักเรียนบางคนไม่ได้ออกจริง แท็บเบราว์เซอร์ยังเปิดค้างพร้อมตัวจับเวลาเดิมทำงานต่อ พอหมดเวลา/กดส่ง จะยังคงเขียนคะแนนทับเข้าไปอีก
+      // ทั้งที่ฝั่งแอดมินมองว่า "ยังไม่เคยมีใครสอบเลย" (เพราะลบ/รีเซ็ตไปแล้ว) ทำให้คะแนนเกินคะแนนเต็มโดยไม่ทราบสาเหตุ
+      // แก้โดยเช็คก่อนเสมอว่า exam_set นี้ยังมีอยู่จริงในข้อมูลปัจจุบันหรือไม่ ถ้าถูกลบ/รีเซ็ตไปแล้ว ไม่เขียนคะแนนเลย
+      const examSetStillExists = allData.some(d => d.__backendId === examSet.__backendId && d.type === 'exam_set');
+      if (!examSetStillExists) {
+        console.error('[_writeExamScoreToKField Debug] ชุดสอบนี้ถูกลบ/รีเซ็ตไปแล้วโดยแอดมิน (อาจเป็นเซสชันเก่าที่นักเรียนไม่ได้ออกจากระบบตามที่แจ้ง) — ข้ามการเขียนคะแนนทิ้งเพื่อป้องกันคะแนนเกินคะแนนเต็ม', examSet.__backendId, submission.student_id);
+        showToast('⚠️ ชุดข้อสอบนี้ถูกยกเลิกไปแล้ว คะแนนของคุณจะไม่ถูกบันทึกในรอบนี้ กรุณาติดต่อครูผู้สอน', 'error');
+        return;
+      }
       const reg = allData.find(d => d.__backendId === submission.registration_id && d.type === 'student_registration');
       const grade = allData.find(d => d.type === 'grade' && d.registration_id === submission.registration_id);
       const round = parseInt(examSet.k_round) || 1;
