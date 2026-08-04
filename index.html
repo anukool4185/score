@@ -1004,7 +1004,7 @@
        <button onclick="showPage('student-management');showStudentTab('notif')" id="student-notif-bell-btn" class="relative px-2 py-2 rounded-lg hover:bg-white/10 transition hidden" title="การแจ้งเตือน">
          🔔<span id="student-notif-count" class="hidden absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-0.5">0</span>
        </button>
-       <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
+       <button onclick="openChangeAdminPasswordModal()" id="change-pwd-btn" class="px-3 py-2 rounded-lg bg-indigo-500/80 hover:bg-indigo-600/80 transition text-sm hidden">🔑 เปลี่ยนรหัสผ่าน</button> <button onclick="handleLogout()" id="logout-btn" class="px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-600/80 transition text-sm hidden">🚪 ออกจากระบบ</button> <span id="user-display" class="px-3 py-2 text-white text-sm hidden"></span>
       </div>
      </div>
     </nav>
@@ -2382,6 +2382,8 @@
     // ตั้งค่า URL ที่ได้จากการ Deploy Apps Script (ดูไฟล์ google_apps_script_backend.gs)
     // ============================================================
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
+    // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
+    const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
     const POLL_INTERVAL_MS = 3000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time — ตั้งไว้ระดับที่ปลอดภัยจากโควต้า Google Apps Script
     // 📝 รับข้อเสนอแนะ: ช่วงทำข้อสอบ (มีคนสอบพร้อมกันได้ถึง 200 คน) ให้ยืด poll ออกไปนานขึ้น ลดภาระเซิร์ฟเวอร์ลงเกือบครึ่ง แลกกับความหน่วงเห็นข้อมูลอัปเดตช้าลงเล็กน้อย (ยอมรับได้ เพราะข้อสอบไม่ต้อง real-time ขนาดนั้น)
     const POLL_INTERVAL_EXAM_MS = 6000;
@@ -2403,6 +2405,7 @@
         method: 'POST',
         body: JSON.stringify({
           action: 'uploadHomeworkImage',
+          key: API_KEY,
           roomFolderName: classNameRoom,
           subjectFolderName: subjectName,
           dateFolderName: dateStr,
@@ -2420,7 +2423,7 @@
       try {
         await fetch(SHEETS_API_URL, {
           method: 'POST',
-          body: JSON.stringify({ action: 'deleteHomeworkImages', fileIds })
+          body: JSON.stringify({ action: 'deleteHomeworkImages', fileIds, key: API_KEY })
         });
       } catch (err) {
         console.error('ลบรูปการบ้านไม่สำเร็จ:', err);
@@ -2508,7 +2511,7 @@
 
       async _fetchAll() {
         // หมายเหตุ: ไม่ตั้งค่า headers เอง เพื่อเลี่ยง CORS preflight ที่ Apps Script ไม่รองรับ
-        const res = await fetch(`${SHEETS_API_URL}?action=list`);
+        const res = await fetch(`${SHEETS_API_URL}?action=list&key=${encodeURIComponent(API_KEY)}`);
         const json = await res.json();
         if (!json.ok) throw new Error(json.error || 'ไม่สามารถดึงข้อมูลได้');
         return json.data;
@@ -2519,7 +2522,7 @@
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'create', record })
+            body: JSON.stringify({ action: 'create', record, key: API_KEY })
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
@@ -2541,7 +2544,7 @@
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'update', record })
+            body: JSON.stringify({ action: 'update', record, key: API_KEY })
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
@@ -2563,7 +2566,7 @@
         try {
           const res = await fetch(SHEETS_API_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'delete', record })
+            body: JSON.stringify({ action: 'delete', record, key: API_KEY })
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
@@ -2613,6 +2616,32 @@
       onDataChanged(data) {
         allData = data;
         window.__dataReady = true;
+        // 🔐 ตรวจสอบสิทธิ์ซ้ำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก (กันคนแก้ localStorage เองแล้วสวมรอยเป็นคนอื่น)
+        // ⚠️ บั๊กร้ายแรงที่พบ: เดิมตอน refresh หน้า ระบบอ่าน currentUser จาก localStorage มาเชื่อทันที โดยไม่เคยตรวจสอบกับฐานข้อมูลจริงเลย
+        // ใครก็ตามที่แก้ localStorage ในเบราว์เซอร์ตัวเอง (ผ่าน dev tools) เช่นตั้ง is_main_admin:true หรือเปลี่ยน __backendId เป็นของคนอื่น จะกลายเป็นคนนั้นได้ทันที
+        // แก้โดยตรวจสอบว่า currentUser ที่ restore มา ตรงกับ record จริงในฐานข้อมูลหรือไม่ (เฉพาะบัญชีที่มี record จริงให้ตรวจสอบได้ คือนักเรียน/ผู้ช่วยแอดมิน) ถ้าไม่ตรง บังคับออกจากระบบทันที
+        if (!window._sessionValidated && currentUser) {
+          window._sessionValidated = true;
+          let isValid = true;
+          if (currentUser.user_type === 'student' && currentUser.type !== 'admin') {
+            const realStudent = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId && d.student_id === currentUser.student_id);
+            if (!realStudent) isValid = false;
+          } else if (currentUser.user_type === 'admin' && currentUser.username !== 'admin') {
+            // ผู้ช่วยแอดมิน (custom) — ต้องมี record จริงในฐานข้อมูลที่ username ตรงกัน
+            const realAdmin = allData.find(d => d.type === 'admin' && d.username === currentUser.username);
+            if (!realAdmin) isValid = false;
+          }
+          // หมายเหตุ: บัญชี admin/director เริ่มต้น (username === 'admin'/'director') ไม่มี record ในฐานข้อมูลให้ตรวจสอบได้ (เป็นบัญชีพิเศษ)
+          // จุดนี้ยังเป็นข้อจำกัดที่เหลืออยู่ — แนะนำให้สร้างบัญชีแอดมินแบบกำหนดเองแทนการใช้บัญชีเริ่มต้นต่อไป
+          if (!isValid) {
+            console.error('[Security] ตรวจพบ currentUser ใน localStorage ไม่ตรงกับข้อมูลจริงในฐานข้อมูล บังคับออกจากระบบ');
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            showToast('⚠️ พบข้อมูลผู้ใช้ที่ไม่ถูกต้อง กรุณาเข้าสู่ระบบใหม่', 'error');
+            location.reload();
+            return;
+          }
+        }
         // 🔔 อัปเดตตัวเลขที่กระดิ่งแจ้งเตือนของนักเรียนให้สดใหม่ทุกครั้งที่ข้อมูลเปลี่ยน
         if (currentUser && currentUser.user_type === 'student' && typeof updateStudentNotificationBadge === 'function') {
           updateStudentNotificationBadge();
@@ -3149,8 +3178,12 @@
       
       console.log('🔍 Login attempt:', username, 'password length:', password.length);
       
-      // ✅ ขั้นที่ 1: ตรวจสอบ Admin เริ่มต้น (admin / admin123)
-      if (username === 'admin' && password === 'admin123') {
+      // ✅ ขั้นที่ 1: ตรวจสอบ Admin เริ่มต้น
+      // 🔐 แก้ไข: เดิมเทียบกับ string ตายตัว 'admin123' ทำให้เปลี่ยนรหัสผ่านไปก็ไม่มีผลจริง (ยังใช้ admin123 ได้เสมอ)
+      // ตอนนี้เทียบกับรหัสผ่านที่เก็บไว้ในฐานข้อมูลจริง (system_credentials) ถ้ายังไม่เคยตั้งค่า จะ fallback เป็น admin123 (ค่าเริ่มต้นตอนยังไม่มีใครเปลี่ยน)
+      const adminCredRecord = allData.find(d => d.type === 'system_credentials' && d.account === 'admin');
+      const effectiveAdminPassword = adminCredRecord ? adminCredRecord.password : 'admin123';
+      if (username === 'admin' && password === effectiveAdminPassword) {
         console.log('✅✅✅ Admin default credentials matched!');
         
         // 📋 ขั้นที่ 2: กำหนด currentUser object (เก็บข้อมูล admin ไว้ในหน่วยความจำ)
@@ -3201,7 +3234,10 @@
       }
       
       // ตรวจสอบ Director
-      if (username === 'director' && password === 'director123') {
+      // 🔐 แก้ไขแบบเดียวกับ admin — ใช้รหัสผ่านจากฐานข้อมูลจริงแทนค่าตายตัว
+      const directorCredRecord = allData.find(d => d.type === 'system_credentials' && d.account === 'director');
+      const effectiveDirectorPassword = directorCredRecord ? directorCredRecord.password : 'director123';
+      if (username === 'director' && password === effectiveDirectorPassword) {
         currentUser = { 
           user_type: 'director',
           username: username
@@ -3333,6 +3369,14 @@
       clearRegFieldErrors();
       if (!studentId || !prefix || !firstName || !lastName || !className || !roomNumber || !studentNumber || !phoneNumber || !username || !password) {
         errorDiv.textContent = '❌ กรุณากรอกข้อมูลให้ครบ';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      // 🔐 บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมไม่มีการจำกัดอักขระในชื่อ/นามสกุล/username เลย
+      // ทำให้สามารถใส่โค้ด HTML/JavaScript ปลอมเป็นชื่อได้ (XSS) แล้วไปทำงานตอนแอดมินเปิดดูรายชื่อนักเรียน (เพราะหลายจุดในระบบแสดงชื่อโดยไม่ escape)
+      // แก้โดยปฏิเสธอักขระอันตราย < > ตั้งแต่ตอนกรอกฟอร์มเลย กันไม่ให้เข้าระบบได้ตั้งแต่ต้นทาง
+      if (/[<>]/.test(firstName) || /[<>]/.test(lastName) || /[<>]/.test(username)) {
+        errorDiv.textContent = '❌ ชื่อ/นามสกุล/username ห้ามมีอักขระ < หรือ > กรุณาแก้ไข';
         errorDiv.classList.remove('hidden');
         return;
       }
@@ -4271,6 +4315,8 @@
       
       const logoutBtn = document.getElementById('logout-btn');
       if (logoutBtn) logoutBtn.classList.remove('hidden');
+      const changePwdBtn = document.getElementById('change-pwd-btn');
+      if (changePwdBtn) changePwdBtn.classList.remove('hidden');
 
       // แสดง/ซ่อนปุ่มเมนูการจัดการ ตามบทบาท
       buildDesktopSidebar();
@@ -5680,7 +5726,7 @@
       ['login-username','login-password'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
       safeHide('login-error');
       // รีเซ็ตปุ่มเมนูตามบทบาท
-      ['student-reg-nav-btn','student-grades-nav-btn','student-hw-nav-btn','student-attend-nav-btn','student-eval-nav-btn','student-profile-nav-btn','subadmin-hw-nav-btn','subadmin-time-nav-btn','subadmin-grade-nav-btn','subadmin-stu-nav-btn','director-mgmt-nav-btn','admin-nav-btn','logout-btn','user-display'].forEach(safeHide);
+      ['student-reg-nav-btn','student-grades-nav-btn','student-hw-nav-btn','student-attend-nav-btn','student-eval-nav-btn','student-profile-nav-btn','subadmin-hw-nav-btn','subadmin-time-nav-btn','subadmin-grade-nav-btn','subadmin-stu-nav-btn','director-mgmt-nav-btn','admin-nav-btn','logout-btn','change-pwd-btn','user-display'].forEach(safeHide);
       // รีเซ็ตแท็บนักเรียน
       ['tab-profile','tab-register','tab-grades','tab-homework-student','tab-evaluate','tab-attendance'].forEach(id => {
         safeRemoveClass(id,'bg-blue-500','text-white');
@@ -13826,7 +13872,33 @@
         showToast('ไม่สามารถลบแอดมิน', 'error');
       }
     }
-    function changeAdminPassword() {
+    // 🔑 หน้าต่างเปลี่ยนรหัสผ่าน — เดิมไม่มีหน้าจอนี้อยู่เลยในระบบทั้งที่มีฟังก์ชัน changeAdminPassword() รออยู่แล้ว (เรียกไม่ได้เพราะไม่มีปุ่ม/ฟอร์มเชื่อมถึง)
+    function openChangeAdminPasswordModal() {
+      document.getElementById('change-pwd-modal')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'change-pwd-modal';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px">
+          <h3 style="font-size:18px;font-weight:700;color:#1e293b;margin:0 0 4px">🔑 เปลี่ยนรหัสผ่าน</h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px">บัญชี: ${escHtml(currentUser?.username || '')}</p>
+          <label style="font-size:12px;color:#475569;font-weight:600">รหัสผ่านปัจจุบัน</label>
+          <input id="current-password" type="password" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+          <label style="font-size:12px;color:#475569;font-weight:600">รหัสผ่านใหม่</label>
+          <input id="new-password" type="password" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+          <label style="font-size:12px;color:#475569;font-weight:600">ยืนยันรหัสผ่านใหม่</label>
+          <input id="confirm-password" type="password" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+          <p id="change-password-error" style="color:#dc2626;font-size:12px;margin:0 0 8px;display:none"></p>
+          <p id="change-password-success" style="color:#16a34a;font-size:12px;margin:0 0 8px;display:none"></p>
+          <div style="display:flex;gap:8px">
+            <button onclick="document.getElementById('change-pwd-modal').remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ปิด</button>
+            <button onclick="changeAdminPassword()" style="flex:1;padding:10px;background:#4f46e5;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✅ บันทึกรหัสผ่านใหม่</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    async function changeAdminPassword() {
       const currentPwd = document.getElementById('current-password').value;
       const newPwd = document.getElementById('new-password').value;
       const confirmPwd = document.getElementById('confirm-password').value;
@@ -13844,7 +13916,10 @@
         errorDiv.classList.remove('hidden');
         return;
       }
-      if (currentUser.type === 'admin' && currentUser.username === 'admin' && currentPwd !== 'admin123') {
+      // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมเช็คกับ 'admin123' แบบตายตัวเสมอ ไม่ว่าจะเคยเปลี่ยนรหัสไปกี่ครั้งก็ตาม
+      const adminCredRecordForCheck = allData.find(d => d.type === 'system_credentials' && d.account === 'admin');
+      const effectivePwdForCheck = adminCredRecordForCheck ? adminCredRecordForCheck.password : 'admin123';
+      if (currentUser.type === 'admin' && currentUser.username === 'admin' && currentPwd !== effectivePwdForCheck) {
         errorDiv.textContent = '❌ รหัสผ่านปัจจุบันไม่ถูกต้อง';
         errorDiv.classList.remove('hidden');
         return;
@@ -13855,9 +13930,25 @@
         errorDiv.classList.remove('hidden');
         return;
       }
-      // ลบรหัสผ่านเดิม
+      // ✅ แก้ไข: บันทึกรหัสผ่านใหม่ลงฐานข้อมูลจริง (system_credentials) แทนตัวแปรความจำที่หายไปตอนรีเฟรชหน้า
       if (currentUser.username === 'admin') {
-        DEFAULT_ADMIN['admin'] = newPwd;
+        const existingCred = allData.find(d => d.type === 'system_credentials' && d.account === 'admin');
+        const saveOp = existingCred
+          ? window.dataSdk.update({ ...existingCred, password: newPwd })
+          : window.dataSdk.create({ type: 'system_credentials', account: 'admin', password: newPwd });
+        saveOp.then(result => {
+          if (result.isOk) {
+            successDiv.textContent = '✅ เปลี่ยนรหัสผ่านสำเร็จ (มีผลจริงตั้งแต่ตอนนี้)';
+            successDiv.classList.remove('hidden');
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+          } else {
+            errorDiv.textContent = '❌ บันทึกไม่สำเร็จ กรุณาลองใหม่';
+            errorDiv.classList.remove('hidden');
+          }
+        });
+        return;
       } else if (currentAdmin) {
         window.dataSdk.update({
           ...currentAdmin,
