@@ -7723,17 +7723,13 @@
       const totalSlots = Math.min(parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120, 500);
       const choiceCount = parseInt(document.getElementById('answer-sheet-choice-count')?.value) || 5;
       const choiceLetters = THAI_CHOICE_LETTERS.slice(0, choiceCount);
-      // แสดงตัวอย่างจำลอง: สมมติทำไปแล้ว 3 ข้อแรก (เลือกตัวเลือกต่างกัน) ที่เหลือยังไม่ทำ — จัดเป็นบล็อกละ 10 ข้อวางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (แบบย่อ กะทัดรัด)
-      const sampleAnswered = Math.min(3, totalSlots);
+      // 🔄 ปรับตามที่ขอ: กระดาษคำตอบที่สร้างใหม่ต้องไม่มีคำตอบมาให้ตั้งแต่แรก — เปลี่ยนพรีวิวให้แสดงแบบ "ว่างเปล่าทั้งหมด" แทนตัวอย่างสมมติที่เคยทำเป็นตอบไปแล้ว 3 ข้อ
       const blockCount = Math.ceil(totalSlots / 10);
       const blocksHtml = Array.from({ length: blockCount }, (_, b) => {
         const rowsHtml = Array.from({ length: Math.min(10, totalSlots - b*10) }, (_, r) => {
           const num = b*10 + r + 1;
-          const answered = num <= sampleAnswered;
-          const chosenIdx = answered ? (num - 1) % choiceCount : -1;
-          const lettersHtml = choiceLetters.map((letter, li) => {
-            const chosen = li === chosenIdx;
-            return `<span style="width:11px;height:11px;border-radius:50%;background:${chosen ? '#16a34a' : 'white'};color:${chosen ? 'white' : '#94a3b8'};border:1px solid ${chosen ? '#16a34a' : '#cbd5e1'};font-size:6px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
+          const lettersHtml = choiceLetters.map((letter) => {
+            return `<span style="width:11px;height:11px;border-radius:50%;background:white;color:#94a3b8;border:1px solid #cbd5e1;font-size:6px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
           }).join('');
           return `<div style="display:flex;align-items:center;gap:3px;padding:1px 0">
             <span style="width:12px;font-size:7px;color:#64748b;text-align:right;flex-shrink:0">${num}</span>
@@ -8251,6 +8247,17 @@
     }
 
     async function saveExamSet() {
+      // ⏳ ปิดปุ่มชั่วคราว + แสดงสถานะกำลังบันทึก กันแอดมินคิดว่า "ค้าง" (เห็นความคืบหน้าจริง) และกันกดซ้ำซ้อน
+      const saveBtn = document.getElementById('ea-save-btn');
+      const originalBtnText = saveBtn ? saveBtn.textContent : '';
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ กำลังบันทึก...'; saveBtn.style.opacity = '0.6'; }
+      try {
+        await _saveExamSetInner();
+      } finally {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalBtnText; saveBtn.style.opacity = ''; }
+      }
+    }
+    async function _saveExamSetInner() {
       const className = document.getElementById('ea-class')?.value;
       const roomNumber = document.getElementById('ea-room')?.value;
       const subjectName = document.getElementById('ea-subject')?.value;
@@ -8337,15 +8344,17 @@
         // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที ในเบื้องหลังทันทีที่บันทึกสำเร็จ — ไม่ต้องกดปุ่มซ่อมเองอีกต่อไป ทำงานอัตโนมัติทุกครั้ง
         const delta = totalScore - oldTotalScore;
         await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta);
-        // 🔔 แจ้งเตือนนักเรียนทุกคนในชั้น/ห้อง/วิชานี้ เมื่อมีการจัดสอบใหม่ (แจ้งเฉพาะตอนสร้างใหม่ กันแจ้งซ้ำทุกครั้งที่แก้ไข)
+        // ⚠️ บั๊กสำคัญที่พบ: เดิม await การสร้างแจ้งเตือนของนักเรียนทุกคนให้เสร็จก่อน ถึงจะขึ้น "สำเร็จ" — ถ้ามีนักเรียนเยอะ (200 คน)
+        // การสร้าง 200 รายการพร้อมกันใช้เวลานานมาก (Google Apps Script มีข้อจำกัดจำนวนคำขอพร้อมกัน) ทำให้แอดมินเห็นเหมือน "ค้าง"
+        // ทั้งที่ตัวชุดสอบจริงบันทึกเสร็จไปนานแล้ว (นักเรียนถึงเห็นปุ่มสอบขึ้นได้ทันที) — แก้โดยไม่ต้องรอแจ้งเตือนเสร็จก่อนแสดงผลสำเร็จ ปล่อยให้ทำงานเบื้องหลังแทน
         if (!editId) {
           const savedSetId = result.data.__backendId;
           const affectedRegs = allData.filter(d => d.type === 'student_registration' &&
             d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
-          await Promise.all(affectedRegs.map(reg => createStudentNotification({
+          Promise.all(affectedRegs.map(reg => createStudentNotification({
             studentId: reg.student_id, message: `📝 มีการจัดสอบใหม่: ${subjectName} K ครั้งที่ ${kRound}`,
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
-          })));
+          }))).catch(err => console.error('[saveExamSet] สร้างแจ้งเตือนบางรายการอาจไม่สำเร็จ (ไม่กระทบชุดสอบที่บันทึกไปแล้ว):', err));
         }
         showToast(editId ? '✅ แก้ไขชุดสอบสำเร็จ (ปรับคะแนนเต็มตามส่วนต่างแล้ว)' : '✅ มอบหมายชุดสอบสำเร็จ (ตั้งคะแนนเต็มให้ทันที)');
         resetExamSetForm();
@@ -8625,19 +8634,23 @@
         const isOpen = isExamSetOpen(examSet);
         let btnHtml = '';
         if (!submission) {
+          const notYetOpen = new Date() < new Date(examSet.start_time);
+          // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
             ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white">📝 เข้าสอบ ${kLabel}</button>`
-            : `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ยังไม่ถึงเวลา ${kLabel}</span>`;
+            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ยังไม่ถึงเวลา ${kLabel}</span>` : '');
         } else if (submission.status === 'in_progress') {
           if (isOpen) {
             btnHtml = `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white">✏️ ทำต่อ ${kLabel}</button>`;
           } else {
-            // ปิดสอบแล้วแต่ยังทำไม่เสร็จ (in_progress) → เสนอทางขออนุญาต/เช็คสถานะคำขอสอบแก้
-            btnHtml = renderRetryRequestButton(examSet, submission, kLabel);
+            // ⚠️ ปรับตามที่ขอ: หมดเวลาสอบแล้ว ปิดปุ่มไปเลย (ไม่เสนอ "ขอสอบแก้" อีกต่อไปตรงนี้) — ปกติจะไม่ถึงจุดนี้เพราะระบบส่งคำตอบอัตโนมัติเมื่อหมดเวลาอยู่แล้ว
+            btnHtml = `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาสอบ ${kLabel}</span>`;
           }
         } else if (submission.status === 'submitted') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          btnHtml = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>`;
+          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>`;
+          // 🔄 ปรับตามที่ขอ: ถ้ายังอยู่ในเวลาสอบ ให้ขอแก้ไขคำตอบได้จนหมดเวลา (เดิมชื่อ "ขอสอบแก้ตัว") — พอหมดเวลาสอบ ปุ่มนี้หายไปเลย ไม่มีทางขอแก้ไขได้อีก
+          btnHtml = isOpen ? `${scoreLabel} ` + renderRetryRequestButton(examSet, submission, kLabel) : scoreLabel;
         } else if (submission.status === 'terminated') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
           btnHtml = `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${kLabel} (${scoreText}/${examSet.total_score})</span> ` + renderRetryRequestButton(examSet, submission, kLabel);
@@ -8656,26 +8669,26 @@
       const perm = allData.filter(d => d.type === 'exam_retry_permission' && d.student_id === currentUser.student_id && d.exam_id === examSet.__backendId)
         .sort((a,b) => new Date(b.granted_at) - new Date(a.granted_at))[0];
       if (perm?.allowed) {
-        return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 สอบแก้ (ได้รับอนุญาต) ${kLabel}</button>`;
+        return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 แก้ไขคำตอบ (ได้รับอนุญาต) ${kLabel}</button>`;
       }
       // เช็คคำขอที่นักเรียนส่งเอง (exam_retry_request)
       const request = allData.filter(d => d.type === 'exam_retry_request' && d.student_id === currentUser.student_id && d.exam_set_id === examSet.__backendId)
         .sort((a,b) => new Date(b.requested_at) - new Date(a.requested_at))[0];
       if (request) {
-        if (request.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ รออนุมัติสอบแก้ ${kLabel}</span>`;
-        if (request.status === 'denied') return `<span style="${spanBase};background:#fee2e2;color:#dc2626">🚫 ไม่อนุญาตสอบแก้ ${kLabel}</span>`;
+        if (request.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ รออนุมัติแก้ไขคำตอบ ${kLabel}</span>`;
+        if (request.status === 'denied') return `<span style="${spanBase};background:#fee2e2;color:#dc2626">🚫 ไม่อนุญาตแก้ไขคำตอบ ${kLabel}</span>`;
         if (request.status === 'approved') {
           const start = new Date(request.approved_start_time);
           const end = new Date(request.approved_end_time);
           if (now >= start && now <= end) {
-            return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 สอบแก้ ${kLabel}</button>`;
+            return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 แก้ไขคำตอบ ${kLabel}</button>`;
           }
           if (now < start) return `<span style="${spanBase};background:#dbeafe;color:#2563eb">🟢 อนุญาตแล้ว รอถึง ${start.toLocaleString('th-TH',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>`;
-          return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาสอบแก้ ${kLabel}</span>`;
+          return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาแก้ไขคำตอบ ${kLabel}</span>`;
         }
       }
       // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต
-      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white">🙋 ขอสอบแก้ ${kLabel}</button>`;
+      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white">🙋 ขอแก้ไขคำตอบ ${kLabel}</button>`;
     }
 
     function openRetryRequestForm(examSetId, submissionId) {
@@ -9368,7 +9381,10 @@
             displayLetterKeys = _seededShuffle(rawKeysForQ, seedForQ);
           }
           const lettersHtml = choiceLetters.map((letter, li) => {
-            const chosen = studentAnswer === displayLetterKeys[li];
+            // ⚠️ บั๊กร้ายแรงที่พบ: เดิมเทียบ studentAnswer === displayLetterKeys[li] ตรงๆ โดยไม่เช็คก่อนว่า studentAnswer มีค่าจริงหรือไม่
+            // ถ้าหาคำถามไม่เจอ (question เป็น undefined) หรือลำดับสลับว่างเปล่าด้วยเหตุผลใดก็ตาม displayLetterKeys[li] จะเป็น undefined
+            // ถ้า studentAnswer ก็เป็น undefined ด้วย (ยังไม่ได้ตอบ) จะกลายเป็น undefined === undefined = true ทำให้ทุกตัวเลือกขึ้นสีเขียวหมดทั้งที่ยังไม่ได้ตอบ
+            const chosen = studentAnswer !== undefined && studentAnswer !== '' && studentAnswer === displayLetterKeys[li];
             return `<span style="width:22px;height:22px;border-radius:50%;background:${chosen ? '#16a34a' : 'white'};color:${chosen ? 'white' : '#94a3b8'};border:1.5px solid ${chosen ? '#16a34a' : '#94a3b8'};font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">${letter}</span>`;
           }).join('');
           return `<button onclick="examGoQuestion(${idx})" style="display:flex;align-items:center;gap:6px;padding:2px 0;background:transparent;border:none;cursor:pointer;width:100%;text-align:left">
@@ -9522,11 +9538,15 @@
     function examGoQuestion(idx) {
       _examViewMode = 'question';
       const submissionId = _examAntiCheatSubmissionId;
-      let submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      if (!submission && _lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) submission = _lastKnownExamSubmission;
+      // ⚠️ บั๊กร้ายแรงที่พบ (จุดที่ 3 ที่ตกหล่นไปตอนแก้รอบก่อน): เดิมหาจาก allData ก่อนเสมอ ซึ่งอาจเก่ากว่า _lastKnownExamSubmission (รอ poll ตามทัน)
+      // แล้วยังเอาผลลัพธ์เก่านั้นไปทับ _lastKnownExamSubmission ต่อ ทำให้ cache ที่ถูกต้อง (มีคำตอบข้อก่อนหน้าครบ) เสียหายไปด้วย
+      // พอบันทึกคำตอบข้อถัดไป จะไปอ้างอิง cache ที่เสียหายนี้ ทำให้คำตอบข้อก่อนหน้า "หายไป" จริงๆ จากฐานข้อมูล ตรงกับอาการที่พบ
+      // แก้ให้ตรรกะเดียวกับอีก 2 จุดที่แก้ไปแล้ว: ให้ความสำคัญกับ _lastKnownExamSubmission ก่อนเสมอ และไม่เขียนทับด้วยข้อมูลที่อาจเก่ากว่า
+      let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
+      if (!submission) submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       const body = document.getElementById('exam-modal-body');
       if (!submission || !body) return;
-      _lastKnownExamSubmission = submission; // เก็บไว้เป็น fallback เผื่อ allData รีเฟรชไม่ทัน
+      if (!_lastKnownExamSubmission || _lastKnownExamSubmission.__backendId !== submissionId) _lastKnownExamSubmission = submission;
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       if (idx < 0 || idx >= orderedIds.length) return;
       _examCurrentQuestionIdx = idx;
@@ -9677,7 +9697,9 @@
     }
 
     function confirmSubmitExam(submissionId) {
-      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
+      if (!submission) submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      if (!submission) return;
       const orderedIds = (submission.question_order || '').split(',').filter(Boolean);
       const answers = JSON.parse(submission.answers || '{}');
       const unanswered = orderedIds.filter(qid => !answers[qid]).length;
@@ -9688,8 +9710,11 @@
     }
 
     async function submitExam(submissionId) {
-      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
-      const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
+      // ⚠️ บั๊กเดียวกันที่พบ: เดิมหาจาก allData ก่อนเสมอ ถ้านักเรียนเพิ่งตอบข้อสุดท้ายแล้วรีบกดส่งทันที (เร็วกว่ารอบ poll)
+      // อาจส่งคำตอบชุดที่ขาดข้อล่าสุดไปได้ แก้ให้ใช้ตรรกะเดียวกับจุดอื่นๆ ที่แก้ไปแล้ว
+      let submission = (_lastKnownExamSubmission && _lastKnownExamSubmission.__backendId === submissionId) ? _lastKnownExamSubmission : null;
+      if (!submission) submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
+      const examSet = submission ? allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set') : null;
       if (!submission || !examSet) return;
 
       // ⏳ แสดงนาฬิการอทันที กันกดส่งซ้ำ (ทั้งกดเองและหมดเวลาอัตโนมัติ)
