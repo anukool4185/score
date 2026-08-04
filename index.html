@@ -12346,6 +12346,12 @@
       if (part1) await window.dataSdk.delete(part1);
       const part2 = allData.find(d => d.type === 'attendance_part2' && d.registration_id === reg.__backendId);
       if (part2) await window.dataSdk.delete(part2);
+      // 🧹 บั๊กที่พบและแก้แล้ว: เดิมลบการลงทะเบียนแล้ว ไม่เคยลบกระดาษคำตอบสอบ (exam_submission) ที่ผูกกับการลงทะเบียนนี้เลย กลายเป็นข้อมูลตกค้างถาวร
+      const relatedSubmissions = allData.filter(d => d.type === 'exam_submission' && d.registration_id === reg.__backendId);
+      for (const sub of relatedSubmissions) {
+        await cleanupExamSubmissionRelatedRecords(sub.__backendId); // ลบการแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องด้วย
+        await window.dataSdk.delete(sub);
+      }
     }
     // ============================================================
     // 📚 โหมด 2: นักเรียนที่ลงทะเบียนแล้ว (ตาราง)
