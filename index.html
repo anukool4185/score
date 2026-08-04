@@ -3126,7 +3126,7 @@
       // 📋 ขั้นที่ 7: หน้าแรกที่เห็นคือ "หน้าหลัก" (หน้าประชาสัมพันธ์)
       console.log('📋 Step 7: Showing announcements home page');
 
-      showToast(`ยินดีต้อนรับ ${student.prefix} ${student.first_name} ✅`);
+      showToast(`ยินดีต้อนรับ ${escHtml(student.prefix)} ${escHtml(student.first_name)} ✅`);
       if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
         if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
         return;
@@ -3753,7 +3753,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-lg font-bold text-gray-800 mb-1">📋 แจ้ง KPAC ไปยังผู้ช่วยแอดมิน</h3>
-          <p class="text-sm text-gray-600 mb-4">${student.prefix}${student.first_name} ${student.last_name} | ${studentClass}/${studentRoom}</p>
+          <p class="text-sm text-gray-600 mb-4">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${studentClass}/${studentRoom}</p>
           <div class="mb-3">
            <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
            <select id="kpac-req-subject" onchange="updateKpacReqLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
@@ -4755,7 +4755,7 @@
                 return `
                 <tr class="hover:bg-gray-50">
                   <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
-                  <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
+                  <td class="px-2 py-2 whitespace-nowrap">${escHtml(s.prefix)} ${escHtml(s.first_name)} ${escHtml(s.last_name)}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
                   <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
                   <td class="px-2 py-2 text-center">${kpacCell}</td>
@@ -4781,7 +4781,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-lg font-bold text-gray-800 mb-2">📚 ขออนุญาตแอดมินลงทะเบียน</h3>
-          <p class="text-gray-600 mb-4 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
+          <p class="text-gray-600 mb-4 text-sm">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
           ${alreadyPending
             ? '<p class="text-amber-600 text-sm mb-4">⏳ มีคำขอลงทะเบียนของนักเรียนคนนี้ค้างอยู่แล้ว รอแอดมินดำเนินการ</p>'
             : '<p class="text-gray-500 text-sm mb-4">ระบบจะส่งคำขอไปแจ้งเตือนแอดมิน เพื่อให้แอดมินเข้ามาลงทะเบียน/กำหนดคะแนน KPAC ให้นักเรียนคนนี้</p>'
@@ -4836,7 +4836,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-md w-full relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-lg font-bold text-gray-800 mb-2">📚 ลงทะเบียนวิชาให้นักเรียน</h3>
-          <p class="text-gray-600 mb-1 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
+          <p class="text-gray-600 mb-1 text-sm">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
           <p class="text-xs text-green-600 mb-2">✅ ได้รับอนุญาตจากแอดมินให้ลงทะเบียนนักเรียนคนนี้แล้ว</p>
           <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
             ${kpacNote}
@@ -11597,7 +11597,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-xl font-bold text-gray-800 mb-1">👤 แต่งตั้งผู้ช่วยแอดมิน</h3>
-          <p class="text-sm text-gray-600 mb-4">${student.prefix}${student.first_name} ${student.last_name} | ${student.student_id}</p>
+          <p class="text-sm text-gray-600 mb-4">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${student.student_id}</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
            <div>
             <label class="block text-xs text-gray-600 mb-1">👤 Username</label>
@@ -11675,7 +11675,7 @@
       }
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
-        showToast(`✅ แต่งตั้ง ${student.first_name} เป็นผู้ช่วยแอดมินสำเร็จ`);
+        showToast(`✅ แต่งตั้ง ${escHtml(student.first_name)} เป็นผู้ช่วยแอดมินสำเร็จ`);
         refreshCurrentView();
         updateStudentsList();
         updateAdminList();
@@ -12238,7 +12238,7 @@
         <tr class="hover:bg-gray-50">
           <td class="px-2 py-2 text-center whitespace-nowrap"><input type="checkbox" class="student-select-checkbox w-4 h-4" data-id="${s.__backendId}" onchange="updateBulkDeleteButton()"></td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
-          <td class="px-2 py-2 whitespace-nowrap">${s.prefix} ${s.first_name} ${s.last_name}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${escHtml(s.prefix)} ${escHtml(s.first_name)} ${escHtml(s.last_name)}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.class_name}/${s.room_number}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
@@ -13301,7 +13301,7 @@
       editDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-md w-full">
           <h3 class="text-lg font-bold text-gray-800 mb-2">✏️ แก้ไขการลงทะเบียน</h3>
-          <p class="text-gray-600 mb-4 text-sm">${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id} | 📖 ${reg.subject_name}</p>
+          <p class="text-gray-600 mb-4 text-sm">${student ? `${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)}` : reg.student_id} | 📖 ${reg.subject_name}</p>
           <div class="grid grid-cols-2 gap-3 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">K%</label>
@@ -13356,7 +13356,7 @@
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-md w-full">
           <p class="text-lg font-semibold text-gray-800 mb-2">⚠️ ลบการลงทะเบียนนี้ใช่หรือไม่?</p>
-          <p class="text-sm text-gray-600 mb-5">${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id} วิชา ${reg.subject_name} — จะลบคะแนนและเวลาเรียนที่ผูกกับการลงทะเบียนนี้ไปด้วย แต่<strong>ไม่กระทบ</strong>ข้อมูลนักเรียนคนนี้ หรือการลงทะเบียนวิชาอื่นของเขาเลย</p>
+          <p class="text-sm text-gray-600 mb-5">${student ? `${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)}` : reg.student_id} วิชา ${reg.subject_name} — จะลบคะแนนและเวลาเรียนที่ผูกกับการลงทะเบียนนี้ไปด้วย แต่<strong>ไม่กระทบ</strong>ข้อมูลนักเรียนคนนี้ หรือการลงทะเบียนวิชาอื่นของเขาเลย</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="confirmDeleteRegistrationRow('${regId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -13453,7 +13453,7 @@
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
-          <p class="text-lg font-semibold text-gray-800 mb-4">ลบนักเรียน "${student.prefix} ${student.first_name}" ใช่หรือไม่?</p>
+          <p class="text-lg font-semibold text-gray-800 mb-4">ลบนักเรียน "${escHtml(student.prefix)} ${escHtml(student.first_name)}" ใช่หรือไม่?</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="confirmDeleteStudent('${studentId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -13469,7 +13469,7 @@
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
-          <p class="text-lg font-semibold text-gray-800 mb-4">ลบนักเรียน "${student.prefix} ${student.first_name}" ใช่หรือไม่?</p>
+          <p class="text-lg font-semibold text-gray-800 mb-4">ลบนักเรียน "${escHtml(student.prefix)} ${escHtml(student.first_name)}" ใช่หรือไม่?</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="confirmDeleteStudentConfirm('${studentId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -13535,11 +13535,11 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">✍️ ชื่อ</label>
-              <input type="text" id="edit-first-name" value="${student.first_name}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <input type="text" id="edit-first-name" value="${escHtml(student.first_name)}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">📌 นามสกุล</label>
-              <input type="text" id="edit-last-name" value="${student.last_name}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <input type="text" id="edit-last-name" value="${escHtml(student.last_name)}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">🏫 ชั้นเรียน</label>
@@ -13765,7 +13765,7 @@
         <div class="bg-white rounded-2xl p-6 max-w-lg w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
           <h3 class="text-xl font-bold text-gray-800 mb-2">📚 ลงทะเบียนวิชาให้นักเรียน</h3>
-          <p class="text-gray-600 mb-1 text-sm">${student.prefix}${student.first_name} ${student.last_name} | ${student.class_name}/${student.room_number}</p>
+          <p class="text-gray-600 mb-1 text-sm">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${student.class_name}/${student.room_number}</p>
           <p class="text-xs text-orange-600 mb-4">⚠️ การลงทะเบียนนี้ไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน</p>
           ${availableSubjects.length === 0 ? `
             <p class="text-red-500 text-sm py-4 text-center">❌ ยังไม่มีวิชาสำหรับชั้น ${student.class_name} ห้อง ${student.room_number}</p>
@@ -15398,7 +15398,7 @@
         return `
           <div class="bg-white rounded-lg border-2 border-blue-200 p-6 hover:shadow-lg transition">
             <div class="mb-4 pb-4 border-b-2 border-gray-200">
-              <h3 class="text-lg font-bold text-gray-800">${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : 'ไม่ทราบ'}</h3>
+              <h3 class="text-lg font-bold text-gray-800">${student ? `${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)}` : 'ไม่ทราบ'}</h3>
               <p class="text-sm text-gray-600">🆔 ${reg.student_id} | 📚 ${className} | 📖 ${subjectName}</p>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -15851,7 +15851,7 @@
         return `
           <div class="max-w-2xl space-y-3 mb-4 pb-4">
             <div class="mb-3">
-              <h3 class="text-base font-bold text-gray-800">#${student?.student_number || '-'} ${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : 'ไม่ทราบ'}</h3>
+              <h3 class="text-base font-bold text-gray-800">#${student?.student_number || '-'} ${student ? `${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)}` : 'ไม่ทราบ'}</h3>
               <p class="text-xs text-gray-600">🆔 ${reg.student_id}</p>
             </div>
             <!-- ส่วนที่ 1: ลงเวลาเรียน (เวลารวม) -->
@@ -16023,7 +16023,7 @@
             <div class="mb-4 pb-4 border-b-2 border-gray-200">
               <div class="flex items-center justify-between">
                 <div>
-                  <h3 class="text-lg font-bold text-gray-800">#${student?.student_number || '-'} ${student ? `${student.prefix} ${student.first_name} ${student.last_name}` : 'ไม่ทราบ'}</h3>
+                  <h3 class="text-lg font-bold text-gray-800">#${student?.student_number || '-'} ${student ? `${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)}` : 'ไม่ทราบ'}</h3>
                   <p class="text-sm text-gray-600">🆔 ${reg.student_id}</p>
                 </div>
                 <div class="text-right">
@@ -16396,11 +16396,11 @@
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">✍️ ชื่อ</label>
-                <input type="text" id="profile-first-name" value="${student.first_name}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
+                <input type="text" id="profile-first-name" value="${escHtml(student.first_name)}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">📌 นามสกุล</label>
-                <input type="text" id="profile-last-name" value="${student.last_name}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
+                <input type="text" id="profile-last-name" value="${escHtml(student.last_name)}" ${disabledAttr} class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-500" required>
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">🏫 ชั้นเรียน</label>
@@ -16631,7 +16631,7 @@
           <div id="student-grades-print-area">
            <div id="student-grades-print-header" class="hidden mb-4 text-center">
             <h2 class="text-xl font-bold">ผลการเรียน</h2>
-            <p class="text-sm">${student.prefix} ${student.first_name} ${student.last_name} | รหัสนักเรียน ${student.student_id} | ${student.class_name}/${student.room_number}</p>
+            <p class="text-sm">${escHtml(student.prefix)} ${escHtml(student.first_name)} ${escHtml(student.last_name)} | รหัสนักเรียน ${student.student_id} | ${student.class_name}/${student.room_number}</p>
            </div>
            ${cardsHtml}
           </div>
