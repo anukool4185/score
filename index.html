@@ -7159,7 +7159,10 @@
           if (fullMode === 'max') newVal = Math.max(existing, newFullScore);
           else if (fullMode === 'add') newVal = existing + newFullScore;
           arr[round-1] = String(newVal);
-          await window.dataSdk.update({ ...rec, [fullScoreField]: arr.join(',') });
+          // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมอัปเดตแค่ฟิลด์พหูพจน์ (เช่น k_full_scores) แต่สูตรคำนวณเกรดจริงใช้ฟิลด์เอกพจน์ (k_full_score) เป็นตัวหาร
+          // ทำให้คะแนนเต็มรายรอบแสดงถูกต้อง แต่ยอดรวมที่ใช้คำนวณเกรดจริงไม่อัปเดตตาม แก้โดยคำนวณผลรวมใหม่แล้วอัปเดตฟิลด์เอกพจน์ควบคู่กันเสมอ
+          const singularField = fullScoreField.slice(0, -1); // 'k_full_scores' -> 'k_full_score'
+          await window.dataSdk.update({ ...rec, [fullScoreField]: arr.join(','), [singularField]: sumFullScoresArray(arr) });
         }
       }
 
@@ -7428,7 +7431,9 @@
           if (fullMode === 'max') newVal = Math.max(existing, newFullScore);
           else if (fullMode === 'add') newVal = existing + newFullScore;
           arr[round-1] = String(newVal);
-          await window.dataSdk.update({ ...rec, [fullScoreField]: arr.join(',') });
+          // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมอัปเดตแค่ฟิลด์พหูพจน์ ไม่อัปเดตฟิลด์เอกพจน์ที่สูตรคำนวณเกรดจริงใช้เป็นตัวหาร (เหมือนจุดที่แก้ใน importSelectedRows)
+          const singularField = fullScoreField.slice(0, -1);
+          await window.dataSdk.update({ ...rec, [fullScoreField]: arr.join(','), [singularField]: sumFullScoresArray(arr) });
         }
       }
       // อัปเดตคะแนนดิบ
@@ -8500,10 +8505,13 @@
       await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyApplied);
 
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
-      // ⚡ ทำแบบขนาน (Promise.all) แทนการรอทีละคนตามลำดับ — เดิมช้ามากเพราะแต่ละคนต้องรอครบก่อนถึงจะเริ่มคนถัดไป
+      // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมทำแบบขนาน (Promise.all) เพื่อความเร็ว แต่ถ้านักเรียนคนเดียวมี submission มากกว่า 1 รายการ
+      // (เช่น มีการ "ขอแก้ไขคำตอบ"/สอบแก้ ทำให้มี submission เดิม + submission ใหม่ ผูกกับ exam_set เดียวกัน)
+      // การประมวลผลพร้อมกันทำให้ทั้ง 2 รายการอ่านค่า grade เดิมพร้อมกัน แล้วเขียนทับกัน คะแนนที่ควรถูกหักออกจริง 2 รอบ กลับถูกหักแค่รอบเดียว
+      // แก้โดยเปลี่ยนเป็นทำทีละคนตามลำดับ (sequential) แทน — ช้าลงเล็กน้อยแต่ถูกต้องแน่นอน เพราะ dataSdk.update() รีเฟรชข้อมูลให้สดใหม่ทุกครั้งอยู่แล้ว
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
-      await Promise.all(submissions.map(async sub => {
-        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); return; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
+      for (const sub of submissions) {
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -8528,8 +8536,8 @@
         // 3) ลบการทำข้อสอบเดิมทิ้ง + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้อง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
-      }));
-      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนานเช่นกัน
+      }
+      // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนานได้ปลอดภัย เพราะแต่ละรายการเป็นคนละ record ไม่ชนกัน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
@@ -8565,10 +8573,12 @@
 
       // 2) ถ้ามีนักเรียนสอบไปแล้ว (มีคะแนนเขียนลง K ไปแล้ว) ให้ลบเฉพาะ "ส่วนที่ข้อสอบนี้ทำให้ได้เพิ่มมา" ออกจากยอดปัจจุบัน
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
-      // ⚡ ทำแบบขนาน (Promise.all) แทนการรอทีละคนตามลำดับ — เร็วขึ้นมากถ้ามีคนสอบหลายคน
+      // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมทำแบบขนาน (Promise.all) ทำให้นักเรียนที่มี submission มากกว่า 1 รายการสำหรับชุดสอบเดียวกัน
+      // (เช่น มีการขอแก้ไขคำตอบ/สอบแก้) เขียนทับคะแนนกันเอง คะแนนที่ควรถูกหักออก 2 รอบ กลับถูกหักแค่รอบเดียว
+      // แก้โดยเปลี่ยนเป็นทำทีละคนตามลำดับ (sequential) แทน ให้ผลลัพธ์ถูกต้องแน่นอนเสมอ
       const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
-      await Promise.all(submissions.map(async sub => {
-        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); return; }
+      for (const sub of submissions) {
+        if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; }
         const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
           : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
         if (scoreGiven !== null) {
@@ -8593,7 +8603,7 @@
         // ⚠️ สำคัญ: ลบกระดาษคำตอบ + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องทั้งหมด กันค้างแจ้งเตือนไปตลอด
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
-      }));
+      }
       // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนาน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
@@ -9846,14 +9856,21 @@
       const round = parseInt(examSet.k_round) || 1;
       let scoresArr = (grade?.k_scores || '').split(',').map(s => s.trim());
       while (scoresArr.length < round) scoresArr.push('');
-      // บวกเพิ่มจากคะแนนเดิมที่มีอยู่ (เช่น ครูกรอกมือไว้ก่อนแล้ว) ไม่ทับคะแนนเดิมทิ้ง
+      // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิม "บวกเพิ่ม" เข้าไปตรงๆ เสมอ ถ้าฟังก์ชันนี้ถูกเรียกซ้ำสำหรับ submission เดียวกัน
+      // (เช่น ตรวจข้ออัตนัยใหม่, ตั้งคะแนนใหม่หลังยุติสอบ) คะแนนจะถูกบวกซ้ำเข้าไปทุกครั้งที่เรียก ทำให้คะแนนสูงเกินจริง
+      // แก้โดยจำไว้ที่ตัว submission เองว่า "ครั้งก่อนหน้าเคยเขียนคะแนนไปเท่าไหร่แล้ว" (k_score_contributed) แล้วหักส่วนนั้นออกก่อนบวกคะแนนใหม่เข้าไป
+      // ผลคือเหมือน "แทนที่" ค่าเดิมของ submission นี้ ไม่ใช่ "บวกซ้ำ" แต่ยังคงบวกร่วมกับคะแนนจากแหล่งอื่น (เช่น ที่ครูกรอกมือแยกไว้ก่อน) ได้ถูกต้อง
+      const previousContribution = parseFloat(submission.k_score_contributed) || 0;
       const existingScore = parseFloat(scoresArr[round - 1]) || 0;
-      scoresArr[round - 1] = String(existingScore + score);
+      const newTotal = existingScore - previousContribution + score;
+      scoresArr[round - 1] = newTotal > 0 ? String(newTotal) : '';
       if (grade) {
         await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
       } else {
         await window.dataSdk.create({ type: 'grade', registration_id: submission.registration_id, student_id: submission.student_id, class_name: submission.class_name, subject_name: submission.subject_name, k_scores: scoresArr.join(','), created_at: new Date().toISOString() });
       }
+      // บันทึกไว้ว่า submission นี้เขียนคะแนนไปเท่าไหร่แล้ว ให้ครั้งถัดไป (ถ้ามีการเขียนซ้ำ) หักออกได้ถูกต้อง
+      await window.dataSdk.update({ ...submission, k_score_contributed: score });
       // ตั้งคะแนนเต็มของ K ครั้งนี้ให้ตรงกับคะแนนเต็มของชุดสอบด้วย (ถ้ายังไม่เคยตั้งไว้ก่อน ไม่ทับของที่ครูตั้งเองไว้แล้ว)
       if (reg?.class_subject_id) {
         const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
