@@ -7421,8 +7421,12 @@
       const fullMode = pendingRecord.full_mode || 'overwrite';
       const newFullScore = parseFloat(pendingRecord.new_full_score) || 0;
       // อัปเดตคะแนนเต็มใน class_subject_scores ถ้ามี
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมกรองแค่ชื่อวิชาอย่างเดียว ถ้าชื่อวิชาเดียวกันเปิดสอนหลายชั้น/ห้อง จะกระทบคะแนนเต็มของทุกห้องพร้อมกันโดยไม่ตั้งใจ
+      // แก้โดยใช้ class_subject_id ของนักเรียนคนนี้โดยเฉพาะ (มีอยู่แล้วใน reg ที่หาไว้ด้านบน) ให้กระทบเฉพาะห้องของนักเรียนคนนี้เท่านั้น เหมือนจุดอื่นๆ ในระบบที่ทำถูกต้องอยู่แล้ว
       if (newFullScore > 0) {
-        const scoreRecs = allData.filter(d => d.type === 'class_subject_scores' && d.subject_name === pendingRecord.subject_name);
+        const scoreRecs = reg.class_subject_id
+          ? allData.filter(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id)
+          : allData.filter(d => d.type === 'class_subject_scores' && d.subject_name === pendingRecord.subject_name); // สำรอง เผื่อ reg เก่าไม่มี class_subject_id
         for (const rec of scoreRecs) {
           let arr = (rec[fullScoreField] || '').split(',').map(s => s.trim());
           while (arr.length < round) arr.push('');
