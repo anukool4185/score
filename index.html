@@ -7799,6 +7799,16 @@
     function previewAnswerSheetFormat() {
       const previewEl = document.getElementById('answer-sheet-preview');
       if (!previewEl) return;
+      // 🛡️ ป้องกันบั๊กแบบที่เพิ่งเจอ (ตัวแปรไม่มีอยู่จริงทำให้พรีวิวค้างว่างเปล่าแบบเงียบๆ) — เพิ่ม try/catch แบบเดียวกับฝั่งนักเรียนที่มีอยู่แล้ว
+      // ถ้าเกิดข้อผิดพลาดใดๆ ในอนาคต จะขึ้นข้อความแจ้งเตือนชัดเจนแทนที่จะว่างเปล่าให้เข้าใจผิดว่า "ไม่มีอะไรเกิดขึ้น"
+      try {
+        _previewAnswerSheetFormatInner(previewEl);
+      } catch (err) {
+        console.error('[AnswerSheetPreview Debug] เกิดข้อผิดพลาด:', err, err.stack);
+        previewEl.innerHTML = `<div style="padding:20px;text-align:center"><p style="color:#dc2626;font-weight:700;font-size:12px;margin-bottom:6px">⚠️ เกิดข้อผิดพลาดตอนแสดงตัวอย่าง</p><p style="color:#64748b;font-size:11px">${escHtml(err.message)}</p></div>`;
+      }
+    }
+    function _previewAnswerSheetFormatInner(previewEl) {
       const totalSlots = Math.min(parseInt(document.getElementById('answer-sheet-slot-count')?.value) || 120, 500);
       const choiceCount = parseInt(document.getElementById('answer-sheet-choice-count')?.value) || 5;
       const choiceLetters = THAI_CHOICE_LETTERS.slice(0, choiceCount);
@@ -7826,7 +7836,7 @@
               <p style="margin:0"><b>ชื่อ-สกุล</b>.... (ตย.) ชื่อ นามสกุล ....</p>
               <p style="margin:0"><b>ชั้น/ห้อง</b>.... ม.6/1 .... <b>K ครั้งที่</b> 1</p>
             </div>
-            <p style="text-align:center;font-size:7px;color:#16a34a;font-weight:700;margin:5px 0 0;border-top:1px dashed #cbd5e1;padding-top:4px">✅ ทำแล้ว ${sampleAnswered}/${totalSlots} ข้อ</p>
+            <p style="text-align:center;font-size:7px;color:#94a3b8;font-weight:700;margin:5px 0 0;border-top:1px dashed #cbd5e1;padding-top:4px">ยังไม่มีคำตอบ (ตัวอย่างกระดาษเปล่า)</p>
           </div>
           <p class="text-xs text-gray-500 mb-2 text-center" style="font-size:9px">รวม ${totalSlots} ช่อง · ${choiceCount} ตัวเลือกต่อข้อ</p>
           <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-height:200px;overflow-y:auto">${blocksHtml}</div>
