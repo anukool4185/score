@@ -9725,23 +9725,39 @@
       if (modalBody) {
         modalBody.querySelectorAll('input, textarea, button').forEach(el => { el.disabled = true; el.style.opacity = '0.6'; el.style.pointerEvents = 'none'; });
       }
-      // ⏳ ป๊อปอัพเล็กๆ มุมจอ พร้อมนาฬิกาทราย (แทนการเบลอทั้งหน้าจอแบบเดิม) ตามที่ขอ
+      // ⏳ ป๊อปอัพเล็กๆ มุมจอ พร้อมวงหมุนโหลด (ปรับให้ดูทันสมัย นุ่มนวลขึ้น ตามที่ขอ)
       const savingPopup = document.createElement('div');
       savingPopup.id = 'exam-saving-overlay';
-      savingPopup.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999996;background:white;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,0.2);padding:14px 18px;display:flex;align-items:center;gap:10px;border:2px solid #2563eb';
+      savingPopup.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999996;background:white;border-radius:16px;box-shadow:0 8px 30px rgba(37,99,235,0.25);padding:14px 20px;display:flex;align-items:center;gap:12px;border:1px solid #dbeafe;animation:examPopupSlideIn 0.3s cubic-bezier(0.34,1.56,0.64,1)';
       savingPopup.innerHTML = `
-        <span style="font-size:24px;animation:spin 1.2s linear infinite">⏳</span>
-        <span style="font-size:13px;color:#1e293b;font-weight:700">กำลังบันทึกคำตอบ...</span>
+        <span id="exam-saving-spinner" style="width:22px;height:22px;border:3px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;display:inline-block;animation:examSpin 0.7s linear infinite;flex-shrink:0"></span>
+        <span id="exam-saving-text" style="font-size:13px;color:#1e293b;font-weight:700;white-space:nowrap">กำลังบันทึกคำตอบ...</span>
       `;
       if (!document.getElementById('exam-spin-keyframes')) {
         const kfStyle = document.createElement('style');
         kfStyle.id = 'exam-spin-keyframes';
-        kfStyle.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        kfStyle.textContent = `
+          @keyframes examSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+          @keyframes examPopupSlideIn { from { opacity:0; transform:translateY(12px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
+          @keyframes examPopupSlideOut { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(12px) scale(0.95); } }
+        `;
         document.head.appendChild(kfStyle);
       }
       document.body.appendChild(savingPopup);
 
       const saveSucceeded = await saveExamAnswer(submissionId, questionId, answer); // 🔒 รอให้บันทึกเสร็จสมบูรณ์ก่อนเสมอ ก่อนจะปลดล็อกให้ทำอะไรต่อได้ (กันข้ามไปข้ออื่นก่อนบันทึกเสร็จ)
+      // ✨ ถ้าบันทึกสำเร็จ โชว์เครื่องหมายถูกสั้นๆ ก่อนค่อยเลื่อนหายไป ให้รู้สึกว่า "เสร็จแล้วจริงๆ" ชัดเจนกว่าหายไปดื้อๆ
+      const stillThere = document.getElementById('exam-saving-overlay');
+      if (stillThere && saveSucceeded) {
+        const spinnerEl = document.getElementById('exam-saving-spinner');
+        const textEl = document.getElementById('exam-saving-text');
+        if (spinnerEl) spinnerEl.outerHTML = '<span style="font-size:18px;flex-shrink:0">✅</span>';
+        if (textEl) textEl.textContent = 'บันทึกแล้ว';
+        stillThere.style.borderColor = '#bbf7d0';
+        await new Promise(r => setTimeout(r, 350)); // ค้างไว้แป๊บเดียวให้เห็นเครื่องหมายถูกทัน
+        stillThere.style.animation = 'examPopupSlideOut 0.25s ease-in forwards';
+        await new Promise(r => setTimeout(r, 250));
+      }
       document.getElementById('exam-saving-overlay')?.remove();
       if (modalBody) {
         modalBody.querySelectorAll('input, textarea, button').forEach(el => { el.disabled = false; el.style.opacity = ''; el.style.pointerEvents = ''; });
