@@ -9940,7 +9940,10 @@
       const previousContribution = parseFloat(submission.k_score_contributed) || 0;
       const existingScore = parseFloat(scoresArr[round - 1]) || 0;
       const newTotal = existingScore - previousContribution + score;
-      scoresArr[round - 1] = newTotal > 0 ? String(newTotal) : '';
+      // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมเช็ค newTotal > 0 ทำให้ "สอบได้ 0 คะแนน" ถูกเข้าใจผิดว่า "ไม่มีคะแนน" แล้วเคลียร์เป็นค่าว่างเปล่า
+      // ทั้งที่ 0 คือผลการสอบจริงที่ต้องบันทึกและแสดงไว้เสมอ (นักเรียนสอบแล้ว ตอบผิดหมดก็ต้องเห็นว่า "สอบแล้วได้ 0" ไม่ใช่ "ยังไม่ได้สอบ")
+      // แก้โดยเปลี่ยนเป็น >= 0 แทน (ยังกันค่าติดลบซึ่งไม่ควรเกิดในกรณีบันทึกคะแนนใหม่อยู่ดี แต่ไม่เคลียร์ 0 ทิ้งอีกต่อไป)
+      scoresArr[round - 1] = newTotal >= 0 ? String(newTotal) : '';
       if (grade) {
         await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
       } else {
