@@ -2616,6 +2616,30 @@
       onDataChanged(data) {
         allData = data;
         window.__dataReady = true;
+        // 🔑 ตรวจสอบ "โทเค็นล็อกอินอัตโนมัติ" ก่อนเสมอ (ถ้ามีติดมากับลิงก์ ?alt=...) — ทำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก
+        // ใช้เวลาที่นักเรียนกดปุ่ม "เข้าสอบ K" ผ่านแอปในตัว (เช่น LINE) แล้วระบบเปิดเบราว์เซอร์จริงให้อัตโนมัติ
+        // จะได้ล็อกอินให้ทันที ไม่ต้องพิมพ์ username/password ซ้ำในเบราว์เซอร์ใหม่ (ปลอดภัย เพราะไม่เคยส่งรหัสผ่านจริงไปกับลิงก์เลย)
+        if (!window._autoLoginChecked) {
+          window._autoLoginChecked = true;
+          const urlParams = new URLSearchParams(window.location.search);
+          const autoLoginToken = urlParams.get('alt');
+          if (autoLoginToken) {
+            const tokenRecord = allData.find(d => d.type === 'auto_login_token' && d.token === autoLoginToken);
+            const tokenAgeMs = tokenRecord ? (Date.now() - new Date(tokenRecord.created_at).getTime()) : Infinity;
+            if (tokenRecord && tokenAgeMs < 5 * 60 * 1000) { // ใช้ได้แค่ 5 นาที กันเอาลิงก์เก่ามาใช้ซ้ำ
+              const matchedStudent = allData.find(d => d.type === 'student' && d.__backendId === tokenRecord.student_backend_id && d.student_id === tokenRecord.student_id);
+              if (matchedStudent) {
+                _completeStudentLogin(matchedStudent);
+                if (typeof mobileAfterLogin === 'function') mobileAfterLogin(); // สำคัญ: ผู้ที่เจอสถานการณ์นี้ (เปิดผ่าน LINE/FB) มักใช้มือถือแทบทั้งหมด ต้องเรียกส่วนนี้ด้วยเสมอ
+              }
+            }
+            // ลบโทเค็นทิ้งทันทีไม่ว่าจะใช้ได้จริงหรือไม่ (ใช้ได้แค่ครั้งเดียวเสมอ) + ล้าง token ออกจาก URL ที่เห็น กันแชร์ลิงก์ต่อโดยไม่ตั้งใจ
+            if (tokenRecord) window.dataSdk.delete(tokenRecord);
+            urlParams.delete('alt');
+            const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+            window.history.replaceState({}, '', cleanUrl);
+          }
+        }
         // 🔐 ตรวจสอบสิทธิ์ซ้ำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก (กันคนแก้ localStorage เองแล้วสวมรอยเป็นคนอื่น)
         // ⚠️ บั๊กร้ายแรงที่พบ: เดิมตอน refresh หน้า ระบบอ่าน currentUser จาก localStorage มาเชื่อทันที โดยไม่เคยตรวจสอบกับฐานข้อมูลจริงเลย
         // ใครก็ตามที่แก้ localStorage ในเบราว์เซอร์ตัวเอง (ผ่าน dev tools) เช่นตั้ง is_main_admin:true หรือเปลี่ยน __backendId เป็นของคนอื่น จะกลายเป็นคนนั้นได้ทันที
@@ -9115,7 +9139,7 @@
       ];
       const detectedApp = inAppBrowserPatterns.find(p => p.regex.test(ua));
       if (detectedApp) {
-        _showInAppBrowserWarning(detectedApp.name);
+        _prepareAutoLoginTokenThenShowWarning(detectedApp.name);
         return;
       }
       const overlay = document.createElement('div');
@@ -9144,7 +9168,7 @@
     // ⚠️ เตือนเมื่อเปิดผ่านเบราว์เซอร์ในตัวแอป (LINE/Facebook/ฯลฯ) — กล้องอาจใช้งานไม่ได้ ต้องเปิดในเบราว์เซอร์จริงก่อน
     // 🚀 พยายามเปิดในเบราว์เซอร์จริงอัตโนมัติ — ใช้ URL scheme เฉพาะระบบ (ได้ผลไม่แน่นอน บาง in-app browser เช่น LINE บล็อกไว้ตั้งใจ)
     function _attemptAutoOpenBrowser() {
-      const url = window.location.href;
+      const url = _pendingAutoLoginUrl || window.location.href; // ใช้ลิงก์ที่มีโทเค็นล็อกอินอัตโนมัติแนบอยู่ ถ้ามี (ปกติจะมีเสมอ ยกเว้นสร้างโทเค็นไม่สำเร็จ)
       const ua = navigator.userAgent || '';
       const isIOS = /iPhone|iPad|iPod/.test(ua);
       try {
@@ -9161,13 +9185,36 @@
     // 📋 คัดลอกลิงก์ปัจจุบันไปยัง clipboard — วิธีที่เชื่อถือได้ที่สุด ให้ผู้ใช้ไปวางในเบราว์เซอร์เอง
     async function _copyExamUrlToClipboard() {
       try {
-        await navigator.clipboard.writeText(window.location.href);
-        showToast('📋 คัดลอกลิงก์แล้ว — เปิด Chrome/Safari แล้ววางลิงก์ในช่อง URL ได้เลย');
+        await navigator.clipboard.writeText(_pendingAutoLoginUrl || window.location.href); // แนบโทเค็นล็อกอินอัตโนมัติไปด้วย ถ้ามี
+        showToast('📋 คัดลอกลิงก์แล้ว — เปิด Chrome/Safari แล้ววางลิงก์ในช่อง URL ได้เลย (จะล็อกอินให้อัตโนมัติ)');
       } catch (e) {
         showToast('⚠️ คัดลอกไม่สำเร็จ กรุณาคัดลอกที่อยู่จากช่อง URL ด้วยตัวเองแทน', 'error');
       }
     }
 
+    // 🔑 สร้าง "โทเค็นล็อกอินอัตโนมัติ" แบบใช้ครั้งเดียว หมดอายุเร็ว (5 นาที) ก่อนเปิดเบราว์เซอร์จริง
+    // เพื่อให้เบราว์เซอร์ใหม่ที่เปิดขึ้นมา ล็อกอินให้อัตโนมัติได้ โดยไม่ต้องส่งรหัสผ่านจริงไปกับลิงก์เลย (ปลอดภัยกว่าการฝังรหัสผ่านตรงๆ)
+    let _pendingAutoLoginUrl = null;
+    async function _prepareAutoLoginTokenThenShowWarning(appName) {
+      try {
+        const token = 'alt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+        const result = await window.dataSdk.create({
+          type: 'auto_login_token',
+          token: token,
+          student_id: currentUser?.student_id || '',
+          student_backend_id: currentUser?.__backendId || '',
+          created_at: new Date().toISOString(),
+        });
+        if (result.isOk) {
+          const url = new URL(window.location.href);
+          url.searchParams.set('alt', token); // alt = auto-login token
+          _pendingAutoLoginUrl = url.toString();
+        }
+      } catch (e) {
+        console.error('[AutoLogin Debug] สร้างโทเค็นไม่สำเร็จ:', e);
+      }
+      _showInAppBrowserWarning(appName);
+    }
     function _showInAppBrowserWarning(appName) {
       const overlay = document.createElement('div');
       overlay.id = 'exam-monitoring-gate';
