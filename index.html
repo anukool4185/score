@@ -9842,6 +9842,25 @@
       if (confirm(msg)) submitExam(submissionId);
     }
 
+    async function _cleanupExamCameraSnapshotsIfExamFinished(examSetId) {
+      try {
+        // เช็คว่ายังมีใครกำลังทำข้อสอบชุดนี้ค้างอยู่ไหม (สถานะ in_progress)
+        const stillInProgress = allData.some(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.status === 'in_progress');
+        if (stillInProgress) return; // ยังมีคนสอบไม่เสร็จ ยังไม่ลบ รอให้ทุกคนเสร็จก่อน
+
+        // ทุกคนสอบเสร็จหมดแล้ว (บันทึกคะแนนเรียบร้อยแล้ว) → ลบภาพจากกล้องของทุก submission ในชุดสอบนี้ทิ้งได้เลย
+        const submissionIds = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === examSetId).map(d => d.__backendId);
+        const snapshotsToDelete = allData.filter(d => d.type === 'exam_camera_snapshot' && submissionIds.includes(d.submission_id));
+        if (snapshotsToDelete.length === 0) return;
+        // ลบทีละรายการตามลำดับ (ไม่ใช่พร้อมกันหมด) กันสร้างภาระให้เซิร์ฟเวอร์มากเกินไปในจังหวะเดียว โดยเฉพาะช่วงที่หลายคนอาจสอบเสร็จพร้อมกัน
+        for (const snap of snapshotsToDelete) {
+          await window.dataSdk.delete(snap);
+        }
+        console.log(`[Exam Cleanup Debug] ลบภาพจากกล้องของชุดสอบ ${examSetId} ทิ้งแล้ว ${snapshotsToDelete.length} รูป (ทุกคนสอบเสร็จบันทึกคะแนนครบแล้ว)`);
+      } catch (e) {
+        console.log('[Exam Cleanup Debug] ลบภาพจากกล้องไม่สำเร็จ (ไม่ร้ายแรง จะลองใหม่ตอนคนถัดไปสอบเสร็จ):', e.message);
+      }
+    }
     async function submitExam(submissionId) {
       // ⚠️ บั๊กเดียวกันที่พบ: เดิมหาจาก allData ก่อนเสมอ ถ้านักเรียนเพิ่งตอบข้อสุดท้ายแล้วรีบกดส่งทันที (เร็วกว่ารอบ poll)
       // อาจส่งคำตอบชุดที่ขาดข้อล่าสุดไปได้ แก้ให้ใช้ตรรกะเดียวกับจุดอื่นๆ ที่แก้ไปแล้ว
@@ -9891,6 +9910,11 @@
         const fresh = await window.dataSdk._fetchAll();
         if (fresh) allData = fresh;
       } catch (e) { console.log('[Exam Popup Debug] force refresh after submit failed (ไม่ร้ายแรง):', e.message); }
+
+      // 🧹 ถ้าไม่มีใครกำลังทำข้อสอบชุดนี้อยู่แล้ว (ทุกคนส่งครบ/บันทึกคะแนนเสร็จหมดแล้ว) ให้ลบภาพจากกล้องตรวจทุจริตทั้งหมดของชุดสอบนี้ทิ้ง
+      // เพราะการบันทึกคะแนนทำเสร็จไปแล้ว ไม่จำเป็นต้องเก็บภาพหลักฐานไว้ต่อ ช่วยลดข้อมูลค้างไม่ให้สะสมและลดภาระระบบ
+      // ทำแบบไม่รอผลลัพธ์ (ไม่ await ก่อนแสดงผลคะแนน) ให้นักเรียนเห็นผลทันที ไม่ต้องรอการลบเสร็จก่อน
+      _cleanupExamCameraSnapshotsIfExamFinished(submission.exam_set_id);
 
       stopExamAntiCheatGuard();
       window.removeEventListener('beforeunload', _examBeforeUnloadHandler);
@@ -10365,13 +10389,20 @@
         canvas.width = 240; canvas.height = 180;
         canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
         const imageData = canvas.toDataURL('image/jpeg', 0.5);
-        // 🗑️ ถ้าเป็นภาพ "ตามรอบเวลาปกติ" (periodic) ให้ลบภาพ periodic เก่าของคนเดียวกันทิ้งก่อน (เก็บแค่ภาพล่าสุดพอ ไม่สะสม)
-        // ภาพที่ถ่ายตอนตรวจพบความผิดปกติ (ไม่ใช่ periodic) จะไม่ลบ เก็บไว้เป็นหลักฐานทุกภาพเสมอ
+        // ⚡ ปรับให้เร็วขึ้น (แก้ปัญหาสอบพร้อมกันเยอะแล้วช้ามาก): เดิม "ลบภาพเก่า" แล้ว "สร้างภาพใหม่" (2 ครั้งต่อรอบ)
+        // ตอนนี้เปลี่ยนเป็น "อัปเดตภาพเดิม" แทน (1 ครั้งต่อรอบ) ลดจำนวนการเขียนข้อมูลลงครึ่งหนึ่ง
+        // ผลลัพธ์เหมือนเดิมทุกประการ: ยังเก็บแค่ภาพล่าสุดของแต่ละคน ไม่มีภาพเก่าสะสมค้างอยู่ แค่ทำได้เร็วขึ้นมาก
         if (reason === 'periodic') {
-          const oldPeriodicShots = allData.filter(d => d.type === 'exam_camera_snapshot' && d.submission_id === submissionId && d.reason === 'periodic');
-          await Promise.all(oldPeriodicShots.map(s => window.dataSdk.delete(s)));
+          const existingPeriodicShot = allData.find(d => d.type === 'exam_camera_snapshot' && d.submission_id === submissionId && d.reason === 'periodic');
+          if (existingPeriodicShot) {
+            await window.dataSdk.update({ ...existingPeriodicShot, image_data: imageData, captured_at: new Date().toISOString() });
+          } else {
+            await window.dataSdk.create({ type: 'exam_camera_snapshot', submission_id: submissionId, image_data: imageData, reason, captured_at: new Date().toISOString() });
+          }
+        } else {
+          // ภาพที่ถ่ายตอนตรวจพบความผิดปกติ (ไม่ใช่ periodic) ยังคงสร้างใหม่ทุกครั้งเหมือนเดิม เก็บไว้เป็นหลักฐานทุกภาพ
+          await window.dataSdk.create({ type: 'exam_camera_snapshot', submission_id: submissionId, image_data: imageData, reason, captured_at: new Date().toISOString() });
         }
-        await window.dataSdk.create({ type: 'exam_camera_snapshot', submission_id: submissionId, image_data: imageData, reason, captured_at: new Date().toISOString() });
       } catch (err) {
         console.log('[Exam Popup Debug] ถ่ายภาพไม่สำเร็จ:', err.message);
       }
