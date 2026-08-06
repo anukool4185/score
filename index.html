@@ -3196,6 +3196,20 @@
 
     function handleLogin(event) {
       event.preventDefault();
+      // 🛡️ ป้องกันปัญหาแบบเดียวกับที่เจอในหน้าจัดสอบ (error เกิดขึ้นเงียบๆ ไม่มีอะไรแสดงให้เห็นเลย)
+      // ห่อด้วย try/catch ให้แน่ใจว่าถ้าเกิดข้อผิดพลาดใดๆ จะมีข้อความแจ้งเตือนที่เข้าใจง่ายแสดงให้เห็นเสมอ ไม่เงียบหายไปเฉยๆ
+      try {
+        _handleLoginInner();
+      } catch (err) {
+        console.error('[handleLogin Debug] เกิดข้อผิดพลาด:', err, err.stack);
+        const errorDiv = document.getElementById('login-error');
+        if (errorDiv) {
+          errorDiv.textContent = '⚠️ เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง (ถ้ายังไม่ได้ ลองปิดแอปแล้วเปิดใหม่)';
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    }
+    function _handleLoginInner() {
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
       const errorDiv = document.getElementById('login-error');
