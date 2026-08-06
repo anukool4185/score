@@ -8342,6 +8342,11 @@
       if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ กำลังบันทึก...'; saveBtn.style.opacity = '0.6'; }
       try {
         await _saveExamSetInner();
+      } catch (err) {
+        // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมไม่มี catch เลย ถ้าเกิด error ข้างในจะเงียบหายไปเฉยๆ (ปุ่มแค่กลับมาปกติ ไม่มีอะไรบอกว่าพลาดตรงไหน)
+        // แก้โดยจับ error แล้วแสดงข้อความจริงให้เห็นชัดเจน จะได้รู้สาเหตุที่แท้จริงและแก้ไขได้ตรงจุด
+        console.error('[saveExamSet Debug] เกิดข้อผิดพลาด:', err, err.stack);
+        showToast(`⚠️ บันทึกไม่สำเร็จ: ${err.message}`, 'error');
       } finally {
         if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalBtnText; saveBtn.style.opacity = ''; }
       }
@@ -15732,10 +15737,12 @@
           });
       if (result.isOk) {
         // 🔔 แจ้งเตือนนักเรียนว่ามีการอัพเดทคะแนน
-        await createStudentNotification({
+        // ⚡ ปรับให้เร็วขึ้น: เดิม await ตรงนี้ทำให้แอดมินต้องรอ 2 ครั้ง (บันทึกคะแนน + สร้างแจ้งเตือน) กว่าจะเห็นข้อความสำเร็จ
+        // ตอนนี้ไม่รอแล้ว ให้แจ้งเตือนทำงานเบื้องหลังแทน แอดมินเห็นข้อความสำเร็จได้ทันทีหลังบันทึกคะแนนเสร็จ (ซึ่งเป็นส่วนที่สำคัญจริงๆ)
+        createStudentNotification({
           studentId: reg.student_id, message: `📊 คะแนนวิชา ${reg.subject_name} ได้รับการอัพเดทแล้ว`,
           category: 'grade_update', className: reg.class_name, roomNumber: reg.room_number, subjectName: reg.subject_name,
-        });
+        }).catch(e => console.log('[SaveGrades Debug] สร้างแจ้งเตือนไม่สำเร็จ (ไม่ร้ายแรง คะแนนบันทึกสำเร็จแล้ว):', e.message));
         // แสดงข้อความสำเร็จสั้นๆ
         const successMsg = document.createElement('div');
         successMsg.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-green-500 text-white px-6 py-4 rounded-xl shadow-lg text-center font-semibold fade-in';
