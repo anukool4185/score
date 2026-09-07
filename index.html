@@ -598,7 +598,192 @@
       document.head.appendChild(s);
     })();
   </script>
- </head>
+   <!-- 🔧 HTML Fix Patch - อ่านจากชีทระบบใหม่ -->
+  <script>
+/**
+ * 🔧 HTML FIX PATCH - ปรับทุกฟังก์ชันให้อ่านจากชีทใหม่
+ * 
+ * วิธีใช้:
+ * 1. เปิด index.html ในเบราว์เซอร์
+ * 2. เปิด Browser Console (F12)
+ * 3. คัดลอกโค้ดทั้งไฟล์นี้ และวางลง Console
+ * 4. กด Enter
+ * 5. Refresh หน้า (F5)
+ * 
+ * ⚠️ หรือสำหรับทำเป็นถาวร:
+ * - แก้ไฟล์ index.html
+ * - หา </head> เพิ่มโค้ดนี้ก่อน </head>
+ * - Save และ Upload ใหม่
+ */
+
+// ============================================================
+// 🔧 Override: ฟังก์ชันที่ใช้ allData
+// ============================================================
+
+/**
+ * ✅ ขั้นที่ 1: ลง Grade Report
+ * เปลี่ยน: ค้นหา grade จากชีท score_ม.X_Y แทน Data
+ */
+window._findGradeForStudent = function(studentId, subjectName, className, roomNumber) {
+  if (!allData || !Array.isArray(allData)) return null;
+  
+  // ค้นหา grade ตรงกับนักเรียน + วิชา + ชั้น + ห้อง
+  const grade = allData.find(function(d) {
+    return d.type === 'grade' &&
+           String(d.student_id) === String(studentId) &&
+           d.subject_name === subjectName &&
+           d.class_name === className &&
+           String(d.room_number) === String(roomNumber);
+  });
+  
+  return grade || null;
+};
+
+/**
+ * ✅ ขั้นที่ 2: ค้นหา class_subject ใหม่
+ * เปลี่ยน: ใช้ room_number ที่ถูกต้อง ไม่ใช่ "ไม่ระบุ"
+ */
+window._findClassSubject = function(className, roomNumber, subjectName) {
+  if (!allData || !Array.isArray(allData)) return null;
+  
+  const cs = allData.find(function(d) {
+    return d.type === 'class_subject' &&
+           d.class_name === className &&
+           String(d.room_number) === String(roomNumber) &&
+           d.subject_name === subjectName;
+  });
+  
+  return cs || null;
+};
+
+/**
+ * ✅ ขั้นที่ 3: ค้นหา class_subject_scores ใหม่
+ * เปลี่ยน: ใช้ room_number จริง
+ */
+window._findClassSubjectScores = function(classSubjectId, className, roomNumber, subjectName) {
+  if (!allData || !Array.isArray(allData)) return null;
+  
+  // ลองค้นหาแบบ class_subject_id ก่อน
+  let scores = allData.find(function(d) {
+    return d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId;
+  });
+  
+  // ถ้าไม่พบ ลองค้นหาแบบ className/roomNumber/subjectName
+  if (!scores) {
+    scores = allData.find(function(d) {
+      return d.type === 'class_subject_scores' &&
+             d.class_name === className &&
+             String(d.room_number) === String(roomNumber) &&
+             d.subject_name === subjectName;
+    });
+  }
+  
+  return scores || null;
+};
+
+/**
+ * ✅ ขั้นที่ 4: ค้นหา student_registration ใหม่
+ */
+window._findStudentRegistration = function(studentId, className, roomNumber, subjectName) {
+  if (!allData || !Array.isArray(allData)) return null;
+  
+  const reg = allData.find(function(d) {
+    return d.type === 'student_registration' &&
+           String(d.student_id) === String(studentId) &&
+           d.class_name === className &&
+           String(d.room_number) === String(roomNumber) &&
+           d.subject_name === subjectName;
+  });
+  
+  return reg || null;
+};
+
+/**
+ * ✅ ขั้นที่ 5: ดึงวิชาทั้งหมดที่มีข้อมูล (ไม่ใช่ "ไม่ระบุ")
+ */
+window._getSubjectsWithRealRooms = function() {
+  if (!allData || !Array.isArray(allData)) return [];
+  
+  // ดึง class_subject ที่มี room_number จริง (ไม่ใช่ "ไม่ระบุ" หรือ "")
+  const classSubjects = allData.filter(function(d) {
+    return d.type === 'class_subject' &&
+           d.room_number &&
+           String(d.room_number).trim() !== 'ไม่ระบุ' &&
+           String(d.room_number).trim() !== '';
+  });
+  
+  // ดึงข้อมูลสำคัญ: class_name, room_number, subject_name, class_subject_id
+  return classSubjects.map(function(cs) {
+    return {
+      class_name: cs.class_name,
+      room_number: cs.room_number,
+      subject_name: cs.subject_name,
+      class_subject_id: cs.class_subject_id || (cs.class_name + '_' + cs.room_number + '_' + cs.subject_name)
+    };
+  });
+};
+
+/**
+ * ✅ ขั้นที่ 6: Override getGradeDropdownOptions
+ * (ฟังก์ชันในหน้า "ลงคะแนน")
+ */
+window._getGradeDropdownOptions = function(className, roomNumber) {
+  if (!allData || !Array.isArray(allData)) return [];
+  
+  // ดึงวิชาทั้งหมดตามชั้น/ห้อง (ไม่ใช่ "ไม่ระบุ")
+  const subjects = allData
+    .filter(function(d) {
+      return d.type === 'class_subject' &&
+             d.class_name === className &&
+             String(d.room_number) === String(roomNumber) &&
+             d.subject_name &&
+             String(d.room_number).trim() !== 'ไม่ระบุ';
+    })
+    .map(function(d) { return d.subject_name; });
+  
+  // ลบชื่อซ้ำ
+  return [...new Set(subjects)].sort();
+};
+
+/**
+ * ✅ ขั้นที่ 7: ดึงข้อมูลนักเรียนตามห้อง
+ */
+window._getStudentsByClass = function(className, roomNumber) {
+  if (!allData || !Array.isArray(allData)) return [];
+  
+  return allData
+    .filter(function(d) {
+      return d.type === 'student' &&
+             d.class_name === className &&
+             String(d.room_number) === String(roomNumber);
+    })
+    .sort(function(a, b) {
+      return (a.student_number || 0) - (b.student_number || 0);
+    });
+};
+
+/**
+ * ✅ ขั้นที่ 8: ดึง class_subject_id ที่ถูกต้อง
+ */
+window._buildClassSubjectId = function(className, roomNumber, subjectName) {
+  // เหมือนกับ Backend
+  return className + '_' + roomNumber + '_' + subjectName;
+};
+
+// ============================================================
+// 🔧 เตือนเมื่อ Load เสร็จ
+// ============================================================
+console.log('✅ HTML Fix Patch Loaded!');
+console.log('หน้า UI ตอนนี้สามารถอ่านข้อมูลจากชีทระบบใหม่แล้ว');
+console.log('');
+console.log('📊 ข้อมูลปัจจุบัน:');
+console.log('   • ทั้งหมด: ' + (allData?.length || 0) + ' records');
+console.log('   • class_subject: ' + (allData?.filter(d => d.type === 'class_subject' && d.room_number && d.room_number !== 'ไม่ระบุ').length || 0) + ' (มี room_number)');
+console.log('   • grade: ' + (allData?.filter(d => d.type === 'grade').length || 0));
+console.log('   • student: ' + (allData?.filter(d => d.type === 'student').length || 0));
+
+  </script>
+</head>
  <body class="h-full bg-gray-100 overflow-auto">
   <script>
   (function() {
