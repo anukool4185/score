@@ -17112,7 +17112,204 @@ console.log('   • student: ' + (allData?.filter(d => d.type === 'student').len
       const win = window.open('', '_blank');
       win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
         <style>body{font-family:sans-serif;padding:20px;font-size:13px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f3f4f6}@media print{button{display:none}}</style>
-      </head><body>${bodyHtml}<br><button onclick="window.print()">🖨️ พิมพ์</button></body></html>`);
+      </head><body>${bodyHtml}<br><button onclick="window.print()">🖨️ พิมพ์</button>
+  <!-- 🔧 Grade Report Fix - embedded -->
+  <script>
+/**
+ * 🔄 COMPLETE OVERRIDE - แก้หน้า "ลงคะแนน" ให้เห็นข้อมูล
+ * 
+ * วิธีใช้:
+ * 1. Copy code นี้ทั้งหมด
+ * 2. เปิด Browser Console (F12)
+ * 3. วาง (Ctrl+V)
+ * 4. Enter
+ * 5. Refresh (F5)
+ * 
+ * หรือแทรกก่อน </body> ในไฟล์ HTML เพื่อ permanent fix
+ */
+
+(function() {
+  console.log('🔄 Loading Grade Report Fix...');
+
+  // ============================================================
+  // 🔧 Fix ฟังก์ชัน: findGradeForStudent
+  // ============================================================
+  window.findGradeForStudentNew = function(studentId, subjectName, className, roomNumber) {
+    if (!allData) return null;
+    
+    const grade = allData.find(function(g) {
+      return g.type === 'grade' &&
+             String(g.student_id) === String(studentId) &&
+             g.subject_name === subjectName &&
+             g.class_name === className &&
+             String(g.room_number) === String(roomNumber);
+    });
+
+    return grade || null;
+  };
+
+  // ============================================================
+  // 🔧 Fix ฟังก์ชัน: getSubjectsForGradeInput
+  // ============================================================
+  window.getSubjectsForGradeInputNew = function(className, roomNumber) {
+    if (!allData) return [];
+
+    // ดึงจาก class_subject ที่มี room_number จริง
+    const classSubjects = allData.filter(function(cs) {
+      return cs.type === 'class_subject' &&
+             cs.class_name === className &&
+             String(cs.room_number) === String(roomNumber) &&
+             String(cs.room_number) !== 'ไม่ระบุ' &&
+             cs.subject_name;
+    });
+
+    // ดึง subject_name ไม่ให้ซ้ำ
+    const subjects = classSubjects.map(function(cs) { return cs.subject_name; });
+    const unique = [];
+    subjects.forEach(function(s) {
+      if (unique.indexOf(s) === -1) unique.push(s);
+    });
+
+    return unique.sort();
+  };
+
+  // ============================================================
+  // 🔧 Fix ฟังก์ชัน: getStudentsForGradeInput
+  // ============================================================
+  window.getStudentsForGradeInputNew = function(className, roomNumber) {
+    if (!allData) return [];
+
+    const students = allData.filter(function(s) {
+      return s.type === 'student' &&
+             s.class_name === className &&
+             String(s.room_number) === String(roomNumber);
+    });
+
+    // เรียงตามเลขที่
+    return students.sort(function(a, b) {
+      return (a.student_number || 0) - (b.student_number || 0);
+    });
+  };
+
+  // ============================================================
+  // 🔧 Fix ฟังก์ชัน: showGradeReport
+  // ============================================================
+  window.showGradeReportFixed = function() {
+    const className = document.getElementById('grade-class')?.value;
+    const roomNumber = document.getElementById('grade-room')?.value;
+    const subjectName = document.getElementById('grade-subject')?.value;
+
+    if (!className || !roomNumber || !subjectName) {
+      alert('⚠️ กรุณาเลือก ชั้น/ห้อง/วิชา ให้ครบ');
+      return;
+    }
+
+    // ตรวจสอบเงื่อนไข
+    if (className !== 'ม.6' && className !== 'ม.5') {
+      alert('⚠️ ระบบนี้รองรับเฉพาะ ม.5, ม.6');
+      return;
+    }
+
+    console.log('📊 Show Grade Report:');
+    console.log('  Class:', className);
+    console.log('  Room:', roomNumber);
+    console.log('  Subject:', subjectName);
+
+    // ดึงนักเรียนในห้อง
+    const students = window.getStudentsForGradeInputNew(className, roomNumber);
+    console.log('  Students found:', students.length);
+
+    if (students.length === 0) {
+      alert('⚠️ ไม่พบนักเรียนในห้อง ' + className + '/' + roomNumber);
+      return;
+    }
+
+    // สร้าง HTML แสดงคะแนน
+    let html = '<div style="max-height: 600px; overflow-y: auto;">';
+    html += '<table style="width:100%; border-collapse: collapse;">';
+    html += '<thead><tr style="background: #f0f0f0; position: sticky; top: 0;">';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">เลขที่</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">รหัสนักเรียน</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">ชื่อ</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">K</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">P</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">A</th>';
+    html += '<th style="border: 1px solid #ccc; padding: 10px;">C</th>';
+    html += '</tr></thead><tbody>';
+
+    students.forEach(function(student, idx) {
+      const grade = window.findGradeForStudentNew(
+        student.student_id,
+        subjectName,
+        className,
+        roomNumber
+      );
+
+      html += '<tr>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px; text-align: center;">' + (idx + 1) + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px;">' + (student.student_id || '-') + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px;">' + 
+              (student.prefix || '') + (student.first_name || '') + ' ' + (student.last_name || '') + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px; text-align: right;">' + 
+              (grade?.k_scores || '-') + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px; text-align: right;">' + 
+              (grade?.p_scores || '-') + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px; text-align: right;">' + 
+              (grade?.a_scores || '-') + '</td>';
+      html += '<td style="border: 1px solid #ccc; padding: 10px; text-align: right;">' + 
+              (grade?.c_scores || '-') + '</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // แสดง modal
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+    modal.innerHTML = '<div style="background: white; border-radius: 12px; padding: 20px; max-width: 900px; width: 90%;">' +
+      '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">' +
+      '<h2 style="margin: 0;">คะแนน ' + className + ' ห้อง ' + roomNumber + ' วิชา ' + subjectName + '</h2>' +
+      '<button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: #dc2626; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px;">ปิด</button>' +
+      '</div>' + html + '</div>';
+
+    document.body.appendChild(modal);
+
+    console.log('✅ Grade Report displayed!');
+  };
+
+  // ============================================================
+  // 🔄 Override ฟังก์ชัน showGradeReport เดิม
+  // ============================================================
+  const originalShowGradeReport = window.showGradeReport;
+  window.showGradeReport = function() {
+    try {
+      return window.showGradeReportFixed();
+    } catch (err) {
+      console.error('❌ Error:', err.message);
+      return originalShowGradeReport ? originalShowGradeReport.apply(this, arguments) : null;
+    }
+  };
+
+  // ============================================================
+  // 📊 ตรวจสอบข้อมูล
+  // ============================================================
+  console.log('');
+  console.log('✅ Grade Report Fix Loaded!');
+  console.log('');
+  console.log('📊 Data Summary:');
+  console.log('  • Total records: ' + (allData?.length || 0));
+  console.log('  • Grades: ' + (allData?.filter(d => d.type === 'grade')?.length || 0));
+  console.log('  • Registrations: ' + (allData?.filter(d => d.type === 'student_registration')?.length || 0));
+  console.log('  • Students: ' + (allData?.filter(d => d.type === 'student')?.length || 0));
+  console.log('  • Class Subject: ' + (allData?.filter(d => d.type === 'class_subject')?.length || 0));
+  console.log('');
+  console.log('✨ ตอนนี้คลิก "แสดงข้อมูล" ในหน้า "ลงคะแนน" จะเห็นคะแนนแล้ว!');
+
+})();
+
+  </script>
+
+</body></html>`);
       win.document.close();
     }
     function showStudentAttendance() {
