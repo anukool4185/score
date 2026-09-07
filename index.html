@@ -8925,6 +8925,7 @@
         subject_name: examSet.subject_name,
         class_name: examSet.class_name,
         room_number: examSet.room_number,
+        k_round: examSet.k_round, // 📂 เก็บไว้ตรงๆ ที่ตัว submission เอง (ไม่ต้องย้อนไปหา exam_set อีกที) ใช้ตอนแยกชีทเก็บข้อมูลตามชั้น/ห้อง/ครั้งที่
         exam_id: examSetId,
         question_order: orderedIds.join(','),
         question_snapshot_json: submissionSnapshot ? JSON.stringify(submissionSnapshot) : '',
@@ -9016,6 +9017,7 @@
         subject_name: examSet.subject_name,
         class_name: examSet.class_name,
         room_number: examSet.room_number,
+        k_round: examSet.k_round, // 📂 เก็บไว้ตรงๆ ที่ตัว submission เอง (ไม่ต้องย้อนไปหา exam_set อีกที) ใช้ตอนแยกชีทเก็บข้อมูลตามชั้น/ห้อง/ครั้งที่
         exam_id: examSetId,
         question_order: orderedIds.join(','),
         question_snapshot_json: submissionSnapshot ? JSON.stringify(submissionSnapshot) : '', // 🎲 เฉพาะโหมดสุ่ม เก็บชุดข้อสอบเฉพาะของคนนี้ไว้ที่นี่
