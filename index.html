@@ -7162,7 +7162,7 @@
       let saved = 0;
       for (const item of selected) {
         if (!item.studentId || !item.score) continue;
-        const ex = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round);
+        const ex = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round));
         if (!ex) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, source: 'manual', created_at: new Date().toISOString() });
         saved++;
       }
@@ -7213,14 +7213,14 @@
         if (!student) {
           // ไม่พบในระบบ → pending (source: not_found)
           notFound.push({ studentId: item.studentId, score: item.score });
-          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round && d.source === 'not_found');
+          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_found');
           if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, score_mode: scoreMode, full_mode: fullMode, new_full_score: newFullScore, source: 'not_found', created_at: new Date().toISOString() });
         }
         const reg = allData.find(r => r.type === 'student_registration' && r.student_id === item.studentId && r.subject_name === subjectName);
         if (!reg) {
           // พบในระบบ แต่ไม่ลงทะเบียน → pending (source: not_registered)
           notReg.push({ studentId: item.studentId, studentName: `${student.prefix}${student.first_name} ${student.last_name}`, className: student.class_name, roomNumber: student.room_number, score: item.score });
-          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && d.score_round === round && d.source === 'not_registered');
+          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_registered');
           if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, score_mode: scoreMode, full_mode: fullMode, new_full_score: newFullScore, source: 'not_registered', class_name: student.class_name, room_number: student.room_number, created_at: new Date().toISOString() });
           continue;
         }
@@ -7437,7 +7437,7 @@
       // ดึงคะแนน pending ที่ตรงรหัส + ลงทะเบียนแล้ว เข้าระบบคะแนน
       const filterSubject = document.getElementById('us-pending-filter-subject')?.value || '';
       const filterExam = document.getElementById('us-pending-filter-examtype')?.value || '';
-      let list = allData.filter(d => d.type === 'pending_score' && d.score_round === round);
+      let list = allData.filter(d => d.type === 'pending_score' && String(d.score_round) === String(round));
       if (filterSubject) list = list.filter(d => d.subject_name === filterSubject);
       if (filterExam) list = list.filter(d => d.exam_type === filterExam);
       let applied = 0;
