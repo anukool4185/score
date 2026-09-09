@@ -955,7 +955,10 @@
    <div id="app-main" class="h-full overflow-auto flex flex-col hidden">
     <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-      <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
+      <div class="flex flex-col">
+       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
+       <span class="text-[10px] text-white/70 leading-tight">เวอร์ชัน <span id="app-version">-</span></span>
+      </div>
       <div class="flex flex-wrap gap-2 items-center">
        <div id="admin-bells-container" class="hidden gap-3">
         <div class="relative flex flex-col items-center">
@@ -2381,6 +2384,9 @@
     // แทนที่ window.dataSdk เดิมของแพลตฟอร์มต้นฉบับ
     // ตั้งค่า URL ที่ได้จากการ Deploy Apps Script (ดูไฟล์ google_apps_script_backend.gs)
     // ============================================================
+    // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
+    // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
+    const APP_VERSION = '2026.09.08.3';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2895,6 +2901,19 @@
       // เพิ่มเฉพาะแอดมินเริ่มต้นเท่านั้น ไม่เพิ่มข้อมูลวิชาอัตโนมัติ
       // ผู้ใช้ต้อง นำเข้าข้อมูลวิชา เอง ผ่านแท็บ "📥 นำเข้า"
       console.log('✅ ระบบพร้อมใช้งาน - รอการนำเข้าข้อมูลวิชา');
+    }
+    // 🏷️ แสดงเลขเวอร์ชันบนหน้าจอ ให้ตรวจสอบได้ว่ากำลังใช้ไฟล์เวอร์ชันไหนอยู่
+    function _displayAppVersion() {
+      const el = document.getElementById('app-version');
+      if (el) el.textContent = APP_VERSION;
+      const mEl = document.getElementById('m-app-version');
+      if (mEl) mEl.textContent = APP_VERSION;
+      console.log('🏷️ เวอร์ชันของระบบ: ' + APP_VERSION);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', _displayAppVersion);
+    } else {
+      _displayAppVersion();
     }
     // เรียก initApp ทันที
     console.log('📌 Page readyState:', document.readyState);
@@ -8514,6 +8533,7 @@
                 <p class="text-xs mt-1">${statusBadge}</p>
               </div>
               <div class="flex gap-1 flex-shrink-0">
+                ${_countPendingImportForExamSet(s.__backendId) > 0 ? `<button onclick="importExamScoresToGrade('${s.__backendId}')" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-semibold" title="นำคะแนนสอบเข้าสู่ระบบคะแนนหลัก แล้วลบชีทชั่วคราวทิ้ง">📥 นำเข้าคะแนน (${_countPendingImportForExamSet(s.__backendId)})</button>` : ''}
                 <button onclick="editExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
                 <button onclick="resetExamSet('${s.__backendId}')" class="px-2 py-1 ${resetBtnClass} text-white rounded text-xs" title="${hasAnySubmission ? 'รีเซ็ทให้สอบใหม่ทั้งห้อง (มีคนสอบไปแล้ว)' : 'ยังไม่มีใครสอบ พร้อมให้สอบได้เลย'}">${resetBtnLabel}</button>
                 <button onclick="deleteExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
@@ -8550,6 +8570,66 @@
     }
 
     // 🔄 จัดสอบอีกครั้ง — รีเซ็ทให้นักเรียนทุกคนสอบใหม่ได้ (ล้างคะแนนเดิม แต่ไม่ลบชุดสอบทิ้ง)
+    /** 📊 นับจำนวนคำตอบสอบที่รอนำเข้าคะแนน (ส่งแล้ว/ถูกยุติ + ตรวจครบแล้ว + ยังไม่เคยนำเข้า) */
+    function _countPendingImportForExamSet(examSetId) {
+      return allData.filter(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId
+        && (d.status === 'submitted' || d.status === 'terminated')
+        && !d.imported_to_grade
+        && !d.needs_manual_grading // ถ้ายังมีข้ออัตนัยที่ครูยังไม่ตรวจ ยังนำเข้าไม่ได้
+      ).length;
+    }
+
+    /** 📥 นำคะแนนสอบจากชีทชั่วคราวเข้าสู่ระบบคะแนนหลัก แล้วลบชีทชั่วคราวทิ้ง */
+    async function importExamScoresToGrade(examSetId) {
+      const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
+      if (!examSet) { showToast('ไม่พบชุดสอบนี้', 'error'); return; }
+
+      const pending = allData.filter(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId
+        && (d.status === 'submitted' || d.status === 'terminated')
+        && !d.imported_to_grade
+        && !d.needs_manual_grading);
+
+      if (pending.length === 0) { showToast('ไม่มีคะแนนที่รอนำเข้า', 'info'); return; }
+
+      // เตือนถ้ายังมีข้ออัตนัยที่ครูยังไม่ตรวจ (จะยังนำเข้าไม่ได้ ต้องตรวจให้ครบก่อน)
+      const stillGrading = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.needs_manual_grading && !d.manual_grading_done).length;
+      let confirmMsg = `ยืนยันนำเข้าคะแนนของนักเรียน ${pending.length} คน เข้าสู่ระบบคะแนนหลัก (K ครั้งที่ ${examSet.k_round})?`;
+      if (stillGrading > 0) confirmMsg += `\n\n⚠️ หมายเหตุ: ยังมีข้ออัตนัยที่ยังไม่ได้ตรวจอีก ${stillGrading} คน (จะยังไม่ถูกนำเข้าในรอบนี้ ต้องตรวจให้เสร็จแล้วกดนำเข้าอีกครั้ง)`;
+      if (!confirm(confirmMsg)) return;
+
+      let success = 0;
+      let failed = 0;
+      for (const sub of pending) {
+        try {
+          const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '')
+            ? parseFloat(sub.manual_score) : (parseFloat(sub.auto_score) || 0);
+          await _writeExamScoreToKField(sub, examSet, score);
+          await window.dataSdk.update({ ...sub, imported_to_grade: true }); // ทำเครื่องหมายว่านำเข้าแล้ว กันนำเข้าซ้ำ
+          success++;
+        } catch (e) {
+          console.error('[ImportScores Debug] นำเข้าไม่สำเร็จ:', sub.student_id, e.message);
+          failed++;
+        }
+      }
+
+      // 🗑️ ถ้านำเข้าครบทุกคนแล้ว (ไม่เหลือใครค้าง) ให้ลบชีทชั่วคราวทิ้ง เพื่อไม่ให้มีชีทว่างสะสมมากเกินไป
+      const stillPendingAfter = _countPendingImportForExamSet(examSetId) + stillGrading;
+      if (stillPendingAfter === 0) {
+        try {
+          const sheetName = `waittest_${examSet.subject_name}_${examSet.class_name}_${examSet.room_number}_ครั้งที่${examSet.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
+          await fetch(SHEETS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteWaitTestSheet', sheetName: sheetName, key: API_KEY })
+          });
+        } catch (e) { console.log('[ImportScores Debug] ลบชีทชั่วคราวไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
+      }
+
+      showToast(`✅ นำเข้าคะแนนสำเร็จ ${success} คน${failed > 0 ? ` (ไม่สำเร็จ ${failed} คน)` : ''}`);
+      renderExamSetList();
+    }
+
     async function resetExamSet(id) {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
@@ -8619,6 +8699,11 @@
     }
 
     async function deleteExamSet(id) {
+      // ⚠️ เตือนก่อนถ้ายังมีคะแนนค้างที่ยังไม่ได้นำเข้าระบบหลัก (คะแนนเหล่านี้จะหายถาวรถ้าลบชุดสอบทิ้งตอนนี้)
+      const pendingCount = _countPendingImportForExamSet(id);
+      if (pendingCount > 0) {
+        if (!confirm(`⚠️ คำเตือน: ยังมีคะแนนสอบของนักเรียน ${pendingCount} คน ที่ยังไม่ได้กด "นำเข้าคะแนน" เข้าสู่ระบบหลัก\n\nถ้าลบชุดสอบตอนนี้ คะแนนเหล่านั้นจะหายไปถาวร กู้คืนไม่ได้\n\nแนะนำให้กดปุ่ม "📥 นำเข้าคะแนน" ก่อน แล้วค่อยลบ\n\nยืนยันลบทั้งที่ยังไม่ได้นำเข้าคะแนน?`)) return;
+      }
       if (!confirm('ยืนยันลบการมอบหมายชุดสอบนี้?\\n\\nระบบจะดึงคะแนนเต็มที่เคยเพิ่มไว้ตอนมอบหมายออกอัตโนมัติ\\nถ้ามีนักเรียนสอบไปแล้ว จะลบเฉพาะคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมาออกเท่านั้น (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)')) return;
       const s = allData.find(d => d.__backendId === id);
       if (!s) return;
@@ -9923,10 +10008,10 @@
       // 🔔 ลบแจ้งเตือน "มีการจัดสอบใหม่" ของข้อสอบชุดนี้ทิ้ง เพราะสอบเสร็จแล้ว (จัดการเรียบร้อยแล้ว ไม่ต้องเตือนอีก)
       await autoRemoveNotificationsByRelatedId(submission.exam_set_id);
 
-      // ถ้าไม่มีข้ออัตนัยเลย (ตรวจได้ครบอัตโนมัติ) ให้บันทึกคะแนนเข้า k_scores ทันที ตำแหน่งตรงตาม k_round (index-based ไม่เลื่อนตำแหน่ง)
-      if (!hasWritten) {
-        await _writeExamScoreToKField(submission, examSet, autoScore);
-      }
+      // 🗂️ ปรับตามที่ขอ: ไม่บันทึกคะแนนเข้าช่อง K ทันทีอีกต่อไป
+      // คะแนนจะถูกเก็บไว้ในชีทชั่วคราว (waittest_) ก่อน แล้วรอให้แอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบ
+      // เหตุผล: ป้องกันไม่ให้การเขียนข้อมูลระหว่างสอบ (ซึ่งเกิดถี่มาก) ไปกระทบชีทคะแนนหลัก
+      // (คะแนนที่คำนวณได้ถูกเก็บไว้ในฟิลด์ auto_score ของ submission เรียบร้อยแล้วตั้งแต่บรรทัดด้านบน)
 
       // ⚠️ บังคับดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์ซ้ำอีกครั้ง ก่อนที่นักเรียนจะกลับไปหน้าคะแนน
       // กันปัญหากรณี allData ยังไม่ทันอัปเดตครบ (เช่น การเขียนคะแนนสำเร็จที่ฝั่งเซิร์ฟเวอร์ แต่ฝั่งเบราว์เซอร์ยังไม่รีเฟรชทัน)
@@ -11407,6 +11492,7 @@
         loadScheduleData();
       } else if (tabName === 'timekeeping') {
         loadTimekeepingFilters();
+        updateTimekeepingStudents(); // เรียกแสดงรายชื่อด้วย ให้เหมือนแท็บอื่นๆ (เดิมขาดบรรทัดนี้ไป)
       } else if (tabName === 'grading') {
         loadGradingFilters();
         // 🔧 ซ่อมคะแนนเต็มให้สัมพันธ์กันอัตโนมัติแบบเงียบๆ (แค่ครั้งแรกที่เข้าแท็บนี้ในแต่ละครั้งที่เปิดเว็บ) ไม่ต้องกดปุ่มเองอีกต่อไป
@@ -18580,6 +18666,7 @@
         <div style="font-size:40px;margin-bottom:8px">📊</div>
         <h1 style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0">KPAC Score</h1>
         <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
+        <p style="font-size:9px;color:#94a3b8;margin:2px 0 0">เวอร์ชัน <span id="m-app-version">-</span></p>
       </div>
 
       <!-- 📢 ประชาสัมพันธ์หน้าเพจ (target='website' พร้อมรูปภาพ) — เดิมไม่มีเลยบนมือถือ อยู่เหนือแถบเลื่อนตามที่ต้องการ -->
