@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.22';
+    const APP_VERSION = '2026.09.08.25';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3226,23 +3226,8 @@
 
       document.getElementById('purpose-view-btn').onclick = () => overlay.remove();
       document.getElementById('purpose-exam-btn').onclick = async () => {
-        const btn = document.getElementById('purpose-exam-btn');
-        btn.disabled = true;
-        btn.innerHTML = '⏳ กำลังเปิดเบราว์เซอร์...';
-        // 🚀 สร้างโทเค็นล็อกอินอัตโนมัติ แล้วเปิดเบราว์เซอร์ทันทีเลย (ไม่ต้องผ่านหน้าเตือนอีก ตามที่ขอ)
-        await _createAutoLoginTokenOnly();
-        _attemptAutoOpenBrowser();
-        // เปลี่ยนเนื้อหาเป็นทางสำรอง เผื่อเปิดเบราว์เซอร์อัตโนมัติไม่สำเร็จ (บางเครื่อง/บางแอปบล็อกไว้)
-        setTimeout(() => {
-          const box = overlay.querySelector('div');
-          if (!box) return;
-          box.innerHTML = `
-            <p style="font-size:34px;margin:0 0 10px">🌐</p>
-            <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">กำลังเปิดเบราว์เซอร์ให้...</p>
-            <p style="font-size:12px;color:#475569;margin:0 0 16px;line-height:1.6">ถ้าเบราว์เซอร์ไม่เปิดขึ้นมาเอง<br>กดปุ่มด้านล่างเพื่อคัดลอกลิงก์ แล้วนำไปวางใน Chrome หรือ Safari</p>
-            <button onclick="_copyExamUrlToClipboard()" style="width:100%;padding:12px;background:#4f46e5;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">📋 คัดลอกลิงก์ (ล็อกอินให้อัตโนมัติ)</button>
-            <button onclick="document.getElementById('purpose-gate')?.remove()" style="width:100%;padding:11px;background:#e2e8f0;color:#475569;border:none;border-radius:12px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้</button>`;
-        }, 2500);
+        overlay.remove(); // ปิดหน้าถามก่อน แล้วให้ฟังก์ชันกลางจัดการเปิดเบราว์เซอร์ (ใช้ตัวเดียวกับตอนกดปุ่มสอบทีหลัง)
+        await _openBrowserForExamImmediately(detected.name);
       };
     }
 
@@ -9557,7 +9542,9 @@
       ];
       const detectedApp = inAppBrowserPatterns.find(p => p.regex.test(ua));
       if (detectedApp) {
-        _prepareAutoLoginTokenThenShowWarning(detectedApp.name);
+        // 🚀 เปิดเบราว์เซอร์ให้ทันทีเลย (ไม่ใช่แค่แสดงคำเตือน) ให้เหมือนตอนเลือก "เข้าสอบ" หลังล็อกอิน
+        // การกดปุ่มสอบในแอปยังไม่ถือว่าเริ่มสอบ ต้องไปกดอีกครั้งในเบราว์เซอร์จริงถึงจะเริ่มสอบ
+        _openBrowserForExamImmediately(detectedApp.name);
         return;
       }
       const overlay = document.createElement('div');
@@ -9614,6 +9601,79 @@
     // เพื่อให้เบราว์เซอร์ใหม่ที่เปิดขึ้นมา ล็อกอินให้อัตโนมัติได้ โดยไม่ต้องส่งรหัสผ่านจริงไปกับลิงก์เลย (ปลอดภัยกว่าการฝังรหัสผ่านตรงๆ)
     let _pendingAutoLoginUrl = null;
     /** 🔑 สร้างโทเค็นล็อกอินอัตโนมัติอย่างเดียว (ไม่แสดงหน้าเตือน) — ใช้ตอนต้องการเปิดเบราว์เซอร์ทันที */
+    /** 🚀 เปิดเบราว์เซอร์จริงทันทีเพื่อเข้าสอบ (ใช้ทั้งตอนเลือก "เข้าสอบ" หลังล็อกอิน และตอนกดปุ่มสอบทีหลัง)
+     *  สร้างโทเค็นล็อกอินอัตโนมัติ → เปิดเบราว์เซอร์ → ถ้าเปิดไม่สำเร็จใน 2.5 วินาที แสดงทางสำรองให้คัดลอกลิงก์ */
+    let _openingBrowserForExam = false; // 🔒 ล็อกกันกดซ้อนขณะกำลังเปิดเบราว์เซอร์เข้าสอบ
+    let _examBrowserLockedEls = [];
+    let _examBrowserUnlockTimer = null;
+    /** ปลดล็อกปุ่มเข้าระบบคืน (เรียกตอนผู้ใช้กดปิดหน้าต่างเอง หรือหมดเวลา) */
+    function _cancelExamBrowserOpen() {
+      document.getElementById('exam-open-browser-gate')?.remove();
+      clearTimeout(_examBrowserUnlockTimer);
+      _examBrowserLockedEls.forEach(el => { el.disabled = false; el.style.opacity = ''; });
+      _examBrowserLockedEls = [];
+      _openingBrowserForExam = false;
+    }
+    // 🔓 ปลดล็อกอัตโนมัติเมื่อผู้ใช้กลับมาที่หน้านี้อีกครั้ง
+    // (เช่น เปิดเบราว์เซอร์ไปแล้ว แต่สลับกลับมาที่แอปเดิม ต้องล็อกอินใช้งานต่อได้ตามปกติ ไม่ติดค้าง)
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden && _openingBrowserForExam) {
+        console.log('[ExamBrowser] ผู้ใช้กลับมาที่หน้าเดิม — ปลดล็อกให้ใช้งานต่อได้');
+        _cancelExamBrowserOpen();
+      }
+    });
+    async function _openBrowserForExamImmediately(appName) {
+      if (_openingBrowserForExam) { console.log('[ExamBrowser] กำลังเปิดอยู่แล้ว ไม่ให้กดซ้อน'); return; }
+      _openingBrowserForExam = true;
+      // 🔒 ปิดการใช้งานปุ่มเข้าสู่ระบบและฟอร์มล็อกอินทั้งหมดชั่วคราว กันเข้าระบบซ้อนกันจนข้อมูลผิดพลาด
+      _examBrowserLockedEls = [];
+      ['login-username', 'login-password', 'm-login-username', 'm-login-password'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.disabled) { el.disabled = true; _examBrowserLockedEls.push(el); }
+      });
+      document.querySelectorAll('button[type="submit"]').forEach(btn => {
+        if (!btn.disabled) { btn.disabled = true; btn.style.opacity = '0.5'; _examBrowserLockedEls.push(btn); }
+      });
+      // ปลดล็อกคืนอัตโนมัติหลัง 20 วินาที กันล็อกค้างถาวร (มีระบบปลดล็อกตอนกลับมาที่หน้าเป็นตัวหลักอยู่แล้ว)
+      _examBrowserUnlockTimer = setTimeout(() => {
+        _examBrowserLockedEls.forEach(el => { el.disabled = false; el.style.opacity = ''; });
+        _examBrowserLockedEls = [];
+        _openingBrowserForExam = false;
+      }, 20000);
+      document.getElementById('exam-open-browser-gate')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'exam-open-browser-gate';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483400;background:rgba(15,23,42,0.94);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">
+          <div style="width:44px;height:44px;margin:0 auto 14px;border:5px solid #ede9fe;border-top-color:#7c3aed;border-radius:50%;animation:autoLoginSpin 0.8s linear infinite"></div>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">🌐 กำลังเปิดเบราว์เซอร์ให้...</p>
+          <p style="font-size:12px;color:#475569;margin:0;line-height:1.6">การสอบต้องใช้กล้อง ซึ่งแอป ${appName} ใช้ไม่ได้<br>ระบบจะพาไปเบราว์เซอร์และล็อกอินให้อัตโนมัติ</p>
+        </div>`;
+      if (!document.getElementById('auto-login-spin-style')) {
+        const st = document.createElement('style');
+        st.id = 'auto-login-spin-style';
+        st.textContent = '@keyframes autoLoginSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        document.head.appendChild(st);
+      }
+      document.body.appendChild(overlay);
+
+      await _createAutoLoginTokenOnly();
+      _attemptAutoOpenBrowser();
+
+      // ทางสำรอง: ถ้าเปิดเบราว์เซอร์อัตโนมัติไม่สำเร็จ (บางแอป/บางเครื่องบล็อกไว้) ให้คัดลอกลิงก์ไปเปิดเอง
+      setTimeout(() => {
+        const box = overlay.querySelector('div');
+        if (!box) return;
+        box.innerHTML = `
+          <p style="font-size:34px;margin:0 0 10px">🌐</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">เบราว์เซอร์ยังไม่เปิดใช่ไหม?</p>
+          <p style="font-size:12px;color:#475569;margin:0 0 16px;line-height:1.6">กดปุ่มด้านล่างเพื่อคัดลอกลิงก์<br>แล้วนำไปวางใน Chrome หรือ Safari<br>ระบบจะล็อกอินให้อัตโนมัติ</p>
+          <button onclick="_copyExamUrlToClipboard()" style="width:100%;padding:12px;background:#7c3aed;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">📋 คัดลอกลิงก์</button>
+          <button onclick="_cancelExamBrowserOpen()" style="width:100%;padding:11px;background:#e2e8f0;color:#475569;border:none;border-radius:12px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้</button>`;
+      }, 2500);
+    }
+
     async function _createAutoLoginTokenOnly() {
       try {
         const token = 'alt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
