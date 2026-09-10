@@ -2386,7 +2386,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.6';
+    const APP_VERSION = '2026.09.08.7';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9072,8 +9072,10 @@
     async function startExamAttempt(examSetId, registrationId) {
       if (_examModalOpening) { console.log('[Exam Popup Debug] startExamAttempt: กำลังเปิดอยู่แล้ว ไม่ให้เปิดซ้อน'); return; }
       _examModalOpening = true;
-      // ⚠️ กันล็อกค้างถาวร: ถ้าเกิดอะไรผิดพลาดจนค้างไม่จบ (เช่น เครือข่ายค้าง) ปลดล็อกให้แน่นอนหลัง 8 วินาที ไม่ว่าจะเกิดอะไรขึ้น
-      const safetyRelease = setTimeout(() => { _examModalOpening = false; console.log('[Exam Popup Debug] force-released lock after timeout'); }, 8000);
+      // ⚠️ กันล็อกค้างถาวร: ถ้าเกิดอะไรผิดพลาดจนค้างไม่จบ (เช่น เครือข่ายค้าง) ปลดล็อกให้แน่นอนหลัง 30 วินาที
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมตั้งไว้แค่ 8 วินาที แต่ตอนมีคนสอบพร้อมกันเยอะ การบันทึกอาจใช้เวลานานกว่านั้น
+      // พอปลดล็อกก่อนบันทึกเสร็จ นักเรียนกดซ้ำได้ ทำให้เกิดแถวซ้ำ 2 แถว — ขยายเวลาให้เผื่อพอสำหรับกรณีเซิร์ฟเวอร์ช้า
+      const safetyRelease = setTimeout(() => { _examModalOpening = false; console.log('[Exam Popup Debug] force-released lock after timeout'); }, 30000);
       try {
         await _startExamAttemptInner(examSetId, registrationId);
       } finally {
@@ -9134,6 +9136,18 @@
       } else {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+      }
+
+      // 🛡️ ป้องกันแถวซ้ำชั้นที่ 2: ถ้ามีแถวที่กำลังสอบอยู่แล้ว (in_progress) ให้เปิดแถวเดิมต่อ ไม่สร้างใหม่
+      // กันกรณีกดปุ่มซ้ำเร็วๆ หรือระบบกันกดซ้ำชั้นแรกพลาด (เช่น เซิร์ฟเวอร์ช้าจนล็อกถูกปลดก่อนบันทึกเสร็จ)
+      const alreadyInProgress = allData.find(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId
+        && d.student_id === currentUser.student_id
+        && d.status === 'in_progress');
+      if (alreadyInProgress) {
+        console.log('[Exam Popup Debug] พบกระดาษคำตอบที่กำลังทำอยู่แล้ว เปิดอันเดิมต่อแทนการสร้างใหม่:', alreadyInProgress.__backendId);
+        renderExamModal(alreadyInProgress.__backendId);
+        return;
       }
 
       // 🗂️ ใช้แถวที่จองไว้ล่วงหน้าตอนสร้างชุดสอบ (สถานะ not_started) แทนการสร้างแถวใหม่ — กันแถวซ้ำ 1 คนมี 1 แถวเสมอ
