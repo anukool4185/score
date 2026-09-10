@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.9';
+    const APP_VERSION = '2026.09.08.10';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2907,6 +2907,11 @@
     }
     // 🏷️ แสดงเลขเวอร์ชันบนหน้าจอ ให้ตรวจสอบได้ว่ากำลังใช้ไฟล์เวอร์ชันไหนอยู่
     function _displayAppVersion() {
+      // 👁️ เปิดใช้งานระบบแสดงตัวอักษรล่าสุดชั่วครู่ กับช่องรหัสผ่านทั้งฝั่งคอมและมือถือ
+      if (typeof enablePasswordPeek === 'function') {
+        enablePasswordPeek('login-password');
+        enablePasswordPeek('m-login-password');
+      }
       const el = document.getElementById('app-version');
       if (el) el.textContent = APP_VERSION;
       const mEl = document.getElementById('m-app-version');
@@ -3217,11 +3222,30 @@
     }
 
     // 👁️ สลับระหว่างซ่อน/แสดงรหัสผ่าน — ใช้ได้กับทุกช่องรหัสผ่านในระบบ
+    // 👁️ แสดงตัวอักษรล่าสุดที่พิมพ์ชั่วครู่ (1.2 วินาที) แล้วค่อยเปลี่ยนเป็นจุด — เหมือนแอปมือถือทั่วไป
+    // ช่วยให้ตรวจสอบได้ขณะพิมพ์ว่าถูกต้องไหม โดยเฉพาะเบอร์โทรที่ต้องมีเลข 0 นำหน้าครบ 10 หลัก
+    const _peekTimers = {};
+    function enablePasswordPeek(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input || input.dataset.peekEnabled) return;
+      input.dataset.peekEnabled = '1';
+      input.addEventListener('input', function() {
+        if (input.dataset.userToggled === '1') return; // ถ้าผู้ใช้กดปุ่มดวงตาให้แสดงค้างไว้แล้ว ไม่ต้องทำอะไร
+        input.type = 'text'; // แสดงตัวอักษรทันทีที่พิมพ์
+        clearTimeout(_peekTimers[inputId]);
+        _peekTimers[inputId] = setTimeout(() => {
+          if (input.dataset.userToggled !== '1') input.type = 'password'; // ซ่อนกลับเป็นจุดหลังหยุดพิมพ์
+        }, 1200);
+      });
+    }
     function togglePasswordVisibility(inputId, btnEl) {
       const input = document.getElementById(inputId);
       if (!input) return;
       const isHidden = input.type === 'password';
       input.type = isHidden ? 'text' : 'password';
+      // จดจำว่าผู้ใช้กดปุ่มให้แสดงค้างไว้เอง — ระบบแสดงชั่วครู่ตอนพิมพ์จะได้ไม่มาซ่อนกลับให้
+      input.dataset.userToggled = isHidden ? '1' : '0';
+      clearTimeout(_peekTimers[inputId]);
       if (btnEl) {
         btnEl.textContent = isHidden ? '🙈' : '👁️'; // เปลี่ยนไอคอนให้เห็นสถานะชัดเจน
         btnEl.title = isHidden ? 'กดเพื่อซ่อนรหัสผ่าน' : 'กดเพื่อดูรหัสผ่าน';
