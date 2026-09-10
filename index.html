@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.21';
+    const APP_VERSION = '2026.09.08.22';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2450,6 +2450,32 @@
     let _customBusyMessage = null;
     function setBusyMessage(msg) { _customBusyMessage = msg; }
     function clearBusyMessage() { _customBusyMessage = null; }
+    /** 🔒 หน้าจอรอตอนล็อกอินอัตโนมัติ — ปิดกั้นการกดทุกอย่างจนกว่าจะเข้าระบบเสร็จสมบูรณ์
+     *  ป้องกันไม่ให้ผู้ใช้กดปุ่มอื่นระหว่างที่ระบบกำลังเข้าระบบให้ ซึ่งอาจทำให้เข้าไม่สมบูรณ์ */
+    function _showAutoLoginWaitScreen() {
+      if (document.getElementById('auto-login-wait')) return;
+      const overlay = document.createElement('div');
+      overlay.id = 'auto-login-wait';
+      // z-index สูงสุด + ครอบทั้งหน้าจอ = กดอะไรไม่ได้เลยจนกว่าจะปิด
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(15,23,42,0.94);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:18px;padding:30px 26px;max-width:330px;width:100%;text-align:center">
+          <div style="width:46px;height:46px;margin:0 auto 16px;border:5px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:autoLoginSpin 0.8s linear infinite"></div>
+          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 8px">⏳ กรุณารอสักครู่</p>
+          <p style="font-size:13px;color:#475569;margin:0;line-height:1.6">ระบบกำลังเข้าสู่ระบบให้อัตโนมัติ<br>กรุณาอย่ากดปุ่มใดๆ จนกว่าจะเสร็จสิ้น</p>
+        </div>`;
+      if (!document.getElementById('auto-login-spin-style')) {
+        const st = document.createElement('style');
+        st.id = 'auto-login-spin-style';
+        st.textContent = '@keyframes autoLoginSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        document.head.appendChild(st);
+      }
+      document.body.appendChild(overlay);
+    }
+    function _hideAutoLoginWaitScreen() {
+      // หน่วงเล็กน้อยให้หน้าจอหลักแสดงผลเสร็จก่อน จะได้ไม่เห็นหน้าจอกระพริบ
+      setTimeout(() => document.getElementById('auto-login-wait')?.remove(), 500);
+    }
     function showBusyOverlay(message) {
       const defaultMsg = '⏳ ระบบกำลังดำเนินการ กรุณารอสักครู่...';
       // 📢 ข้อความเฉพาะกิจมีความสำคัญสูงสุดเสมอ ไม่ให้ถูกเขียนทับด้วยข้อความมาตรฐาน
@@ -2662,6 +2688,7 @@
           const urlParams = new URLSearchParams(window.location.search);
           const autoLoginToken = urlParams.get('alt');
           if (autoLoginToken) {
+            _showAutoLoginWaitScreen(); // 🔒 แสดงหน้าจอรอ ป้องกันไม่ให้กดอะไรจนกว่าจะเข้าระบบเสร็จสมบูรณ์
             const tokenRecord = allData.find(d => d.type === 'auto_login_token' && d.token === autoLoginToken);
             const tokenAgeMs = tokenRecord ? (Date.now() - new Date(tokenRecord.created_at).getTime()) : Infinity;
             if (tokenRecord && tokenAgeMs < 5 * 60 * 1000) { // ใช้ได้แค่ 5 นาที กันเอาลิงก์เก่ามาใช้ซ้ำ
@@ -2676,6 +2703,7 @@
             urlParams.delete('alt');
             const cleanUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
             window.history.replaceState({}, '', cleanUrl);
+            _hideAutoLoginWaitScreen(); // ✅ เข้าระบบเสร็จแล้ว ปลดล็อกให้ใช้งานได้
           }
         }
         // 🔐 ตรวจสอบสิทธิ์ซ้ำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก (กันคนแก้ localStorage เองแล้วสวมรอยเป็นคนอื่น)
