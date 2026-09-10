@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.17';
+    const APP_VERSION = '2026.09.08.18';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2445,13 +2445,21 @@
     // กันไม่ให้กดปุ่มอะไรซ้ำได้เลยจนกว่าจะเสร็จ แล้วจะปิดให้ทันทีอัตโนมัติ
     // ============================================================
     let pendingRequestCount = 0;
+    // 📢 ข้อความเฉพาะกิจ — ตั้งค่าไว้ก่อนเรียกใช้งาน เพื่อให้แสดงข้อความที่เหมาะกับสถานการณ์
+    // (เช่น ตอนกดเข้าสอบ ควรขึ้นว่า "กำลังพาไปกระดาษคำตอบ" ไม่ใช่ "กำลังบันทึก" ซึ่งทำให้เข้าใจผิด)
+    let _customBusyMessage = null;
+    function setBusyMessage(msg) { _customBusyMessage = msg; }
+    function clearBusyMessage() { _customBusyMessage = null; }
     function showBusyOverlay(message) {
       const defaultMsg = '⏳ ระบบกำลังดำเนินการ กรุณารอสักครู่...';
+      // 📢 ข้อความเฉพาะกิจมีความสำคัญสูงสุดเสมอ ไม่ให้ถูกเขียนทับด้วยข้อความมาตรฐาน
+      // (แก้ปัญหาตอนกดเข้าสอบแล้วข้อความถูกเปลี่ยนกลับเป็น "กำลังบันทึก" โดยงานอื่นที่ทำงานพร้อมกัน)
+      const finalMsg = (typeof _customBusyMessage !== 'undefined' && _customBusyMessage) || message || defaultMsg;
       const existing = document.getElementById('global-busy-overlay');
       if (existing) {
         // ถ้ามี overlay อยู่แล้ว แค่อัปเดตข้อความให้ตรงกับงานล่าสุดที่กำลังทำ
         const msgEl = document.getElementById('global-busy-overlay-message');
-        if (msgEl) msgEl.textContent = message || defaultMsg;
+        if (msgEl) msgEl.textContent = finalMsg;
         return;
       }
       const overlay = document.createElement('div');
@@ -2462,7 +2470,7 @@
       overlay.innerHTML = `
         <div class="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-4">
           <div class="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
-          <p id="global-busy-overlay-message" class="text-gray-700 font-medium">${message || defaultMsg}</p>
+          <p id="global-busy-overlay-message" class="text-gray-700 font-medium">${finalMsg}</p>
         </div>
       `;
       document.body.appendChild(overlay);
@@ -2470,11 +2478,6 @@
     function hideBusyOverlay() {
       document.getElementById('global-busy-overlay')?.remove();
     }
-    // 📢 ข้อความเฉพาะกิจ — ตั้งค่าไว้ก่อนเรียกใช้งาน เพื่อให้แสดงข้อความที่เหมาะกับสถานการณ์
-    // (เช่น ตอนกดเข้าสอบ ควรขึ้นว่า "กำลังพาไปกระดาษคำตอบ" ไม่ใช่ "กำลังบันทึก" ซึ่งทำให้เข้าใจผิด)
-    let _customBusyMessage = null;
-    function setBusyMessage(msg) { _customBusyMessage = msg; }
-    function clearBusyMessage() { _customBusyMessage = null; }
     function beginRequest(message) {
       pendingRequestCount++;
       showBusyOverlay(_customBusyMessage || message);
@@ -3147,6 +3150,50 @@
     }
 
     // ✅ ทำขั้นตอนที่เหลือหลังยืนยันตัวตนนักเรียนสำเร็จแล้ว (แยกออกมาเพื่อเรียกซ้ำได้ทั้งจากล็อกอินปกติ และหลังกรอกเบอร์โทรครบแล้ว)
+    // 📱 ตรวจจับว่ากำลังเปิดผ่านเบราว์เซอร์ในแอป (LINE, Facebook ฯลฯ) หรือไม่ — ใช้ร่วมกันทั้งระบบ
+    function _detectInAppBrowser() {
+      const ua = navigator.userAgent || '';
+      const patterns = [
+        { name: 'LINE', regex: /Line\//i },
+        { name: 'Facebook', regex: /FBAN|FBAV/i },
+        { name: 'Instagram', regex: /Instagram/i },
+        { name: 'Messenger', regex: /FB_IAB/i },
+        { name: 'TikTok', regex: /musical_ly|TikTok/i },
+      ];
+      return patterns.find(p => p.regex.test(ua)) || null;
+    }
+
+    /** 🚪 ถามผู้ใช้หลังล็อกอินสำเร็จ ว่าต้องการดูข้อมูลเฉยๆ หรือต้องการเข้าสอบ
+     *  เพราะการสอบต้องใช้กล้อง ซึ่งเบราว์เซอร์ในแอป (LINE/FB) มักใช้ไม่ได้
+     *  ถ้าเลือกสอบ จะพาไปเปิดเบราว์เซอร์จริงพร้อมล็อกอินอัตโนมัติให้ทันที ไม่ต้องพิมพ์รหัสซ้ำ */
+    async function _askPurposeIfInAppBrowser() {
+      const detected = _detectInAppBrowser();
+      if (!detected) return; // เปิดผ่านเบราว์เซอร์จริงอยู่แล้ว ไม่ต้องถาม
+      if (document.getElementById('purpose-gate')) return; // ถามอยู่แล้ว ไม่ถามซ้ำ
+
+      const overlay = document.createElement('div');
+      overlay.id = 'purpose-gate';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483500;background:rgba(15,23,42,0.92);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:18px;padding:26px 22px;max-width:360px;width:100%;text-align:center">
+          <p style="font-size:38px;margin:0 0 10px">📱</p>
+          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">ตอนนี้เปิดผ่านแอป ${detected.name}</p>
+          <p style="font-size:13px;color:#475569;margin:0 0 18px;line-height:1.6">ท่านต้องการทำอะไรต่อครับ?</p>
+          <button id="purpose-view-btn" style="width:100%;padding:13px;background:#e0e7ff;color:#3730a3;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px">👀 ดูข้อมูล/คะแนน<br><span style="font-size:11px;font-weight:400;opacity:0.75">ใช้งานต่อในแอปนี้ได้เลย</span></button>
+          <button id="purpose-exam-btn" style="width:100%;padding:13px;background:#7c3aed;color:white;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">📝 เข้าสอบ<br><span style="font-size:11px;font-weight:400;opacity:0.9">ระบบจะเปิดเบราว์เซอร์และล็อกอินให้อัตโนมัติ</span></button>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      document.getElementById('purpose-view-btn').onclick = () => overlay.remove();
+      document.getElementById('purpose-exam-btn').onclick = async () => {
+        const btn = document.getElementById('purpose-exam-btn');
+        btn.disabled = true;
+        btn.innerHTML = '⏳ กำลังเตรียมเปิดเบราว์เซอร์...';
+        await _prepareAutoLoginTokenThenShowWarning(detected.name); // สร้างโทเค็นล็อกอินอัตโนมัติ แล้วแสดงวิธีเปิดเบราว์เซอร์
+        overlay.remove();
+      };
+    }
+
     function _completeStudentLogin(student) {
       const errorDiv = document.getElementById('login-error');
       // 📋 ขั้นที่ 2: สร้าง currentUser object (เก็บข้อมูลส่วนตัวของนักเรียน)
@@ -3194,6 +3241,9 @@
       console.log('📋 Step 7: Showing announcements home page');
 
       showToast(`ยินดีต้อนรับ ${escHtml(student.prefix)} ${escHtml(student.first_name)} ✅`);
+      // 📱 ถ้าเปิดผ่านแอป (LINE/FB ฯลฯ) ให้ถามว่าต้องการดูข้อมูลหรือเข้าสอบ
+      // หน่วงเล็กน้อยให้หน้าจอแสดงผลเสร็จก่อน จะได้ไม่ซ้อนทับกัน
+      setTimeout(() => { if (typeof _askPurposeIfInAppBrowser === 'function') _askPurposeIfInAppBrowser(); }, 700);
       if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
         if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
         return;
