@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.15';
+    const APP_VERSION = '2026.09.08.16';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9306,14 +9306,21 @@
           return;
         }
         console.log('[Exam Popup Debug] submission ready:', submissionId, '- calling renderExamModal');
-        // ⚠️ กันบั๊ก race condition: ข้อมูลที่เพิ่งสร้างอาจยังไม่เข้ามาใน allData ทันที (ต้องรอรอบ poll ถัดไป)
-        // เพิ่มเข้า allData เองทันทีแบบ optimistic ก่อน กัน renderExamModal หาไม่เจอแล้วเงียบไป
+        // ⚠️ บั๊กที่พบและแก้แล้ว: dataSdk.update() จะดึงข้อมูลใหม่ทั้งหมดมาแทนที่ allData ทั้งก้อน
+        // ข้อมูลที่เราเพิ่งเขียนอาจยังไม่ทันปรากฏในชุดข้อมูลใหม่ ทำให้ renderExamModal หาไม่เจอ หน้าไม่เปิด
+        // แก้โดยตรวจสอบให้แน่ใจว่าข้อมูลพร้อมจริงก่อนเปิดหน้า และลองซ้ำสูงสุด 3 รอบถ้ายังไม่พร้อม
         const finalData = { ...submissionPayload, __backendId: submissionId };
-        const existingIdx = allData.findIndex(d => d.__backendId === submissionId);
-        if (existingIdx >= 0) {
-          allData[existingIdx] = finalData; // อัปเดตแถวเดิมที่จองไว้ให้เป็นสถานะกำลังสอบ
-        } else {
-          allData.push(finalData);
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const idx = allData.findIndex(d => d.__backendId === submissionId);
+          if (idx >= 0) {
+            allData[idx] = { ...allData[idx], ...finalData }; // รวมข้อมูลให้ครบถ้วนที่สุด
+            break;
+          }
+          if (attempt < 3) {
+            await new Promise(r => setTimeout(r, 400)); // รอข้อมูลจากเซิร์ฟเวอร์อีกนิด
+            continue;
+          }
+          allData.push(finalData); // ครบ 3 รอบแล้วยังไม่มา เพิ่มเองเลย
         }
         try {
           renderExamModal(submissionId);
