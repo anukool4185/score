@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.13';
+    const APP_VERSION = '2026.09.08.14';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3430,7 +3430,17 @@
       let student = null;
       // 🔍 ระบบวินิจฉัย: เก็บข้อมูลไว้ช่วยหาสาเหตุถ้าล็อกอินไม่สำเร็จ
       const _diagStudents = allData.filter(d => d.type === 'student');
-      const _diagUsernameMatch = _diagStudents.filter(d => String(d.username || '').trim() === username);
+      const _cleanU = v => String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF\s]/g, '').toLowerCase();
+      const _diagUsernameMatch = _diagStudents.filter(d => _cleanU(d.username) === _cleanU(username));
+      // 🔍 ถ้าหาไม่เจอ แสดง username ที่ใกล้เคียงให้ดู ช่วยหาสาเหตุว่าพิมพ์ต่างกันตรงไหน
+      if (_diagUsernameMatch.length === 0 && _diagStudents.length > 0) {
+        const similar = _diagStudents
+          .filter(d => _cleanU(d.username).includes(_cleanU(username).slice(0, 4)) || _cleanU(username).includes(_cleanU(d.username).slice(0, 4)))
+          .slice(0, 5)
+          .map(d => `"${d.username}"`);
+        console.log(`🔍 [Login Debug] username ที่ใกล้เคียงในระบบ: ${similar.length > 0 ? similar.join(', ') : '(ไม่พบที่ใกล้เคียงเลย)'}`);
+        console.log(`🔍 [Login Debug] ตัวอย่าง username 5 คนแรกในระบบ: ${_diagStudents.slice(0, 5).map(d => `"${d.username}"`).join(', ')}`);
+      }
       console.log(`🔍 [Login Debug] นักเรียนทั้งหมดในระบบ: ${_diagStudents.length} คน | ที่ username ตรงกับ "${username}": ${_diagUsernameMatch.length} คน`);
       if (_diagUsernameMatch.length > 0) {
         const d = _diagUsernameMatch[0];
@@ -3448,7 +3458,10 @@
         const _inputPwd = _norm(password);
         const _pwdMatch = _norm(d.password) === _inputPwd || _fixPhone(d.password) === _inputPwd;
         const _phoneMatch = d.phone_number && (_norm(d.phone_number) === _inputPwd || _fixPhone(d.phone_number) === _inputPwd);
-        if (d.type === 'student' && _norm(d.username) === username && (_pwdMatch || _phoneMatch)) {
+        // 🔍 เทียบ username แบบยืดหยุ่น: ไม่สนใจตัวพิมพ์เล็ก-ใหญ่ + ตัดอักขระที่มองไม่เห็นออก
+        // (เช่น zero-width space ที่มักติดมาตอนคัดลอกข้อมูลจากที่อื่น มองด้วยตาไม่เห็น แต่ทำให้เทียบไม่ตรง)
+        const _cleanUser = v => String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF\s]/g, '').toLowerCase();
+        if (d.type === 'student' && _cleanUser(d.username) === _cleanUser(username) && (_pwdMatch || _phoneMatch)) {
           student = d;
           console.log('✅ Found student:', username);
           break;
