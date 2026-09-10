@@ -2386,7 +2386,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.3';
+    const APP_VERSION = '2026.09.08.5';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8483,6 +8483,12 @@
             studentId: reg.student_id, message: `📝 มีการจัดสอบใหม่: ${subjectName} K ครั้งที่ ${kRound}`,
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
           }))).catch(err => console.error('[saveExamSet] สร้างแจ้งเตือนบางรายการอาจไม่สำเร็จ (ไม่กระทบชุดสอบที่บันทึกไปแล้ว):', err));
+
+          // 🗂️ จองแถวในชีทชั่วคราว (waittest_) ให้ผู้มีสิทธิ์สอบทุกคนทันที — 1 คน 1 แถว
+          // ทำให้เห็นภาพรวมได้ทันทีว่าใครสอบแล้ว ใครยังไม่สอบ และชีทถูกสร้างพร้อมใช้งานตั้งแต่ตอนจัดสอบ
+          // ทำแบบเบื้องหลัง ไม่บล็อกหน้าจอ (เหมือนการแจ้งเตือน) เพราะถ้ามีนักเรียนเยอะจะใช้เวลานาน
+          _reserveWaitTestRows(savedSetId, affectedRegs, { className, roomNumber, subjectName, kRound })
+            .catch(err => console.error('[saveExamSet] จองแถวชีทชั่วคราวบางรายการอาจไม่สำเร็จ:', err));
         }
         showToast(editId ? '✅ แก้ไขชุดสอบสำเร็จ (ปรับคะแนนเต็มตามส่วนต่างแล้ว)' : '✅ มอบหมายชุดสอบสำเร็จ (ตั้งคะแนนเต็มให้ทันที)');
         resetExamSetForm();
@@ -8490,6 +8496,39 @@
       } else {
         showToast('บันทึกไม่สำเร็จ', 'error');
       }
+    }
+
+    /** 🗂️ จองแถวในชีทชั่วคราว (waittest_) ให้ผู้มีสิทธิ์สอบทุกคน — 1 คน 1 แถว
+     *  สร้างเป็นรายการเปล่าสถานะ not_started ไว้ก่อน พอนักเรียนเข้าสอบจริงจะมาเขียนทับแถวนี้
+     *  ทำทีละคนตามลำดับ (ไม่ใช่พร้อมกันหมด) กันสร้างภาระให้เซิร์ฟเวอร์มากเกินไปเมื่อมีนักเรียนเยอะ */
+    async function _reserveWaitTestRows(examSetId, registrations, info) {
+      let created = 0;
+      for (const reg of registrations) {
+        try {
+          // ข้ามถ้ามีแถวอยู่แล้ว (กันสร้างซ้ำ เผื่อกดบันทึกซ้ำหรือระบบทำงานซ้อน)
+          const existing = allData.find(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.student_id === reg.student_id);
+          if (existing) continue;
+          const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+          await window.dataSdk.create({
+            type: 'exam_submission',
+            exam_set_id: examSetId,
+            exam_id: examSetId,
+            registration_id: reg.__backendId,
+            student_id: reg.student_id,
+            student_name: student ? `${student.prefix}${student.first_name} ${student.last_name}` : (reg.student_name || ''),
+            subject_name: info.subjectName,
+            class_name: info.className,
+            room_number: info.roomNumber,
+            k_round: info.kRound,
+            status: 'not_started', // ยังไม่ได้เข้าสอบ — เห็นได้ทันทีว่าใครยังไม่สอบ
+            answers: '{}',
+          });
+          created++;
+        } catch (e) {
+          console.error('[ReserveWaitTest] จองแถวไม่สำเร็จ:', reg.student_id, e.message);
+        }
+      }
+      console.log(`[ReserveWaitTest] จองแถวในชีทชั่วคราวสำเร็จ ${created} คน (จากทั้งหมด ${registrations.length} คน)`);
     }
 
     function resetExamSetForm() {
@@ -8520,7 +8559,7 @@
           : (now < start ? '<span class="text-amber-600">⏳ ยังไม่ถึงเวลา</span>' : '<span class="text-gray-400">⚫ ปิดแล้ว</span>');
         const questionCount = (s.question_ids || '').split(',').filter(Boolean).length;
         // 🟢/🟡 สถานะปุ่มรีเซ็ท: เขียว = ยังไม่มีใครสอบเลย (พร้อมสอบ) / เหลือง = มีคนสอบไปแล้วอย่างน้อย 1 คน (กดรีเซ็ทได้มีความหมาย)
-        const hasAnySubmission = allData.some(d => d.type === 'exam_submission' && d.exam_set_id === s.__backendId);
+        const hasAnySubmission = allData.some(d => d.type === 'exam_submission' && d.exam_set_id === s.__backendId && d.status !== 'not_started'); // ไม่นับแถวที่จองไว้ล่วงหน้า (ยังไม่ได้สอบจริง)
         const resetBtnClass = hasAnySubmission ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-500 hover:bg-green-600';
         const resetBtnLabel = hasAnySubmission ? '🔄 จัดสอบอีกครั้ง' : '✅ พร้อมสอบ';
         return `
@@ -8832,7 +8871,8 @@
           d.exam_set_id === examSet.__backendId && d.student_id === currentUser.student_id);
         const isOpen = isExamSetOpen(examSet);
         let btnHtml = '';
-        if (!submission) {
+        // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
+        if (!submission || submission.status === 'not_started') {
           const notYetOpen = new Date() < new Date(examSet.start_time);
           // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
@@ -9096,7 +9136,13 @@
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
       }
 
-      const result = await window.dataSdk.create({
+      // 🗂️ ใช้แถวที่จองไว้ล่วงหน้าตอนสร้างชุดสอบ (สถานะ not_started) แทนการสร้างแถวใหม่ — กันแถวซ้ำ 1 คนมี 1 แถวเสมอ
+      const reservedRow = allData.find(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId
+        && d.student_id === currentUser.student_id
+        && d.status === 'not_started');
+
+      const submissionPayload = {
         type: 'exam_submission',
         exam_set_id: examSetId,
         registration_id: registrationId,
@@ -9112,7 +9158,10 @@
         answers: '{}',
         status: 'in_progress',
         started_at: new Date().toISOString(),
-      });
+      };
+      const result = reservedRow
+        ? await window.dataSdk.update({ ...reservedRow, ...submissionPayload }) // เขียนทับแถวที่จองไว้
+        : await window.dataSdk.create(submissionPayload); // ไม่เจอแถวจอง (เช่น ชุดสอบเก่าก่อนมีระบบนี้) ค่อยสร้างใหม่
       if (result.isOk) {
         console.log('[Exam Popup Debug] submission created:', result.data.__backendId, '- calling renderExamModal');
         // ⚠️ กันบั๊ก race condition: ข้อมูลที่เพิ่งสร้างอาจยังไม่เข้ามาใน allData ทันที (ต้องรอรอบ poll ถัดไป)
@@ -10249,10 +10298,12 @@
       }
 
       const finalScore = (submission.auto_score || 0) + writtenTotal;
-      await window.dataSdk.update({ ...submission, manual_score: finalScore, manual_grading_done: true });
-      await _writeExamScoreToKField(submission, examSet, finalScore);
+      // 🗂️ ปรับตามระบบใหม่: ไม่เขียนคะแนนเข้าช่อง K ทันที
+      // เก็บไว้ในฟิลด์ manual_score ก่อน แล้วรอแอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบพร้อมกันทีเดียว
+      // needs_manual_grading: false เพื่อให้ระบบรู้ว่าตรวจเสร็จแล้ว พร้อมนำเข้าได้
+      await window.dataSdk.update({ ...submission, manual_score: finalScore, manual_grading_done: true, needs_manual_grading: false });
 
-      showToast(`✅ บันทึกคะแนนรวม ${finalScore}/${examSet.total_score} สำเร็จ`);
+      showToast(`✅ บันทึกคะแนนรวม ${finalScore}/${examSet.total_score} สำเร็จ — กดปุ่ม "📥 นำเข้าคะแนน" ที่หน้าจัดสอบเพื่อนำเข้าระบบคะแนนหลัก`);
       document.getElementById('eg-grading-panel')?.remove();
       renderExamGradingList();
     }
@@ -10416,13 +10467,12 @@
       _disableExamAlertPanelButtons();
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (submission) {
-        const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
-        await window.dataSdk.update({ ...submission, manual_score: score, score_overridden_by_admin: true, status: 'terminated', frozen: true, terminated_reason: 'score_overridden' });
-        // ⚠️ บั๊กที่พบ: เดิมกำหนดคะแนนแล้วไม่เคยเขียนเข้าช่อง K จริง คะแนนที่กำหนดไม่มีผลกับเกรดเลย — แก้ให้เขียนเข้าจริง
-        if (examSet) await _writeExamScoreToKField(submission, examSet, score);
+        // 🗂️ ปรับตามระบบใหม่: ไม่เขียนคะแนนเข้าช่อง K ทันที เก็บไว้ใน manual_score รอแอดมินกดปุ่ม "นำเข้าคะแนน" พร้อมกันทีเดียว
+        // needs_manual_grading: false เพื่อให้ระบบรู้ว่าคะแนนพร้อมนำเข้าได้แล้ว
+        await window.dataSdk.update({ ...submission, manual_score: score, score_overridden_by_admin: true, status: 'terminated', frozen: true, terminated_reason: 'score_overridden', needs_manual_grading: false });
       }
       await markExamAlertHandled(alertId, 'score_set');
-      showToast(`✏️ กำหนดคะแนนเป็น ${score} แล้ว (จบการสอบครั้งนี้)`);
+      showToast(`✏️ กำหนดคะแนนเป็น ${score} แล้ว — กดปุ่ม "📥 นำเข้าคะแนน" ที่หน้าจัดสอบเพื่อนำเข้าระบบคะแนนหลัก`);
       document.getElementById('exam-alert-panel')?.remove();
     }
 
