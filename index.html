@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.16';
+    const APP_VERSION = '2026.09.08.17';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2470,9 +2470,14 @@
     function hideBusyOverlay() {
       document.getElementById('global-busy-overlay')?.remove();
     }
+    // 📢 ข้อความเฉพาะกิจ — ตั้งค่าไว้ก่อนเรียกใช้งาน เพื่อให้แสดงข้อความที่เหมาะกับสถานการณ์
+    // (เช่น ตอนกดเข้าสอบ ควรขึ้นว่า "กำลังพาไปกระดาษคำตอบ" ไม่ใช่ "กำลังบันทึก" ซึ่งทำให้เข้าใจผิด)
+    let _customBusyMessage = null;
+    function setBusyMessage(msg) { _customBusyMessage = msg; }
+    function clearBusyMessage() { _customBusyMessage = null; }
     function beginRequest(message) {
       pendingRequestCount++;
-      showBusyOverlay(message);
+      showBusyOverlay(_customBusyMessage || message);
     }
     function endRequest() {
       pendingRequestCount = Math.max(0, pendingRequestCount - 1);
@@ -9196,9 +9201,12 @@
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมตั้งไว้แค่ 8 วินาที แต่ตอนมีคนสอบพร้อมกันเยอะ การบันทึกอาจใช้เวลานานกว่านั้น
       // พอปลดล็อกก่อนบันทึกเสร็จ นักเรียนกดซ้ำได้ ทำให้เกิดแถวซ้ำ 2 แถว — ขยายเวลาให้เผื่อพอสำหรับกรณีเซิร์ฟเวอร์ช้า
       const safetyRelease = setTimeout(() => { _examModalOpening = false; console.log('[Exam Popup Debug] force-released lock after timeout'); }, 30000);
+      // 📢 ตั้งข้อความให้ตรงกับสิ่งที่กำลังทำจริง (เดิมขึ้นว่า "กำลังบันทึก" ทำให้นักเรียนเข้าใจผิดว่าระบบบันทึกผลสอบไปแล้ว)
+      setBusyMessage('📝 กำลังพาท่านไปยังกระดาษคำตอบ กรุณารอสักครู่...');
       try {
         await _startExamAttemptInner(examSetId, registrationId);
       } finally {
+        clearBusyMessage(); // คืนค่าข้อความปกติ ไม่ให้ค้างไปกระทบการทำงานอื่น
         clearTimeout(safetyRelease);
         _examModalOpening = false;
       }
