@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.11';
+    const APP_VERSION = '2026.09.08.13';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3260,6 +3260,27 @@
         btnEl.title = isHidden ? 'กดเพื่อซ่อนรหัสผ่าน' : 'กดเพื่อดูรหัสผ่าน';
       }
     }
+    // 📢 แสดงข้อความแจ้งเตือนการล็อกอิน — แสดงทั้งฝั่งคอมและมือถือพร้อมกัน
+    // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมเขียนข้อความลงช่องฝั่งคอมเท่านั้น (login-error)
+    // ฝั่งมือถือมีช่อง m-login-error อยู่แต่ไม่เคยถูกใช้เลย ทำให้ผู้ใช้มือถือล็อกอินผิดแล้วเงียบ ไม่รู้ว่าเกิดอะไรขึ้น
+    function showLoginError(message) {
+      ['login-error', 'm-login-error'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = message;
+        el.classList.remove('hidden');
+        el.style.display = message ? 'block' : 'none';
+      });
+    }
+    function clearLoginError() {
+      ['login-error', 'm-login-error'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        el.classList.add('hidden');
+        el.style.display = 'none';
+      });
+    }
     function handleLogin(event) {
       event.preventDefault();
       // 🛡️ ป้องกันปัญหาแบบเดียวกับที่เจอในหน้าจัดสอบ (error เกิดขึ้นเงียบๆ ไม่มีอะไรแสดงให้เห็นเลย)
@@ -3268,11 +3289,7 @@
         _handleLoginInner();
       } catch (err) {
         console.error('[handleLogin Debug] เกิดข้อผิดพลาด:', err, err.stack);
-        const errorDiv = document.getElementById('login-error');
-        if (errorDiv) {
-          errorDiv.textContent = '⚠️ เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง (ถ้ายังไม่ได้ ลองปิดแอปแล้วเปิดใหม่)';
-          errorDiv.classList.remove('hidden');
-        }
+        showLoginError('⚠️ เกิดข้อผิดพลาดในการเข้าสู่ระบบ กรุณาลองใหม่อีกครั้ง (ถ้ายังไม่ได้ ลองปิดแอปแล้วเปิดใหม่)');
       }
     }
     function _handleLoginInner() {
@@ -3373,7 +3390,7 @@
       if (!window.__dataReady) {
         console.log('⏳ ข้อมูลยังโหลดไม่เสร็จ รอสักครู่ก่อนตรวจสอบ username/password');
         errorDiv.textContent = '⏳ ระบบกำลังโหลดข้อมูล กรุณารอสักครู่แล้วกด "เข้าสู่ระบบ" อีกครั้ง (ไม่ใช่ Username/Password ผิด)';
-        errorDiv.classList.remove('hidden');
+        errorDiv.classList.remove('hidden'); showLoginError(errorDiv.textContent);
         return;
       }
       // ตรวจสอบ Admin อื่นๆ
@@ -3411,16 +3428,27 @@
       // ตรวจสอบ Student
       console.log('🔍 Checking students:', allData.filter(d => d.type === 'student').length);
       let student = null;
+      // 🔍 ระบบวินิจฉัย: เก็บข้อมูลไว้ช่วยหาสาเหตุถ้าล็อกอินไม่สำเร็จ
+      const _diagStudents = allData.filter(d => d.type === 'student');
+      const _diagUsernameMatch = _diagStudents.filter(d => String(d.username || '').trim() === username);
+      console.log(`🔍 [Login Debug] นักเรียนทั้งหมดในระบบ: ${_diagStudents.length} คน | ที่ username ตรงกับ "${username}": ${_diagUsernameMatch.length} คน`);
+      if (_diagUsernameMatch.length > 0) {
+        const d = _diagUsernameMatch[0];
+        console.log(`🔍 [Login Debug] พบ username แล้ว — password ในระบบ: "${d.password}" (ชนิด: ${typeof d.password}, ยาว: ${String(d.password||'').length}) | ที่พิมพ์มา: "${password}" (ยาว: ${password.length})`);
+        console.log(`🔍 [Login Debug] เบอร์โทรในระบบ: "${d.phone_number}" (ยาว: ${String(d.phone_number||'').length})`);
+      }
       for (let i = 0; i < allData.length; i++) {
         const d = allData[i];
         // ⚠️ เบอร์โทรใช้เป็นรหัสผ่านแทนได้ด้วย (เข้าได้ทั้งรหัสผ่านที่ตั้งเอง หรือเบอร์โทรที่ผูกไว้)
         // 📱 บั๊กที่พบและแก้แล้ว: Google Sheets ตัดเลข 0 นำหน้าเบอร์โทรออก (0812345678 → 812345678)
         // ทำให้นักเรียนที่ใช้เบอร์โทรเป็นรหัสผ่านล็อกอินไม่ได้ เพราะเทียบกันไม่ตรง
-        // แก้โดยเทียบแบบยืดหยุ่น: เติม 0 กลับคืนให้ค่าที่เก็บไว้ก่อนเทียบเสมอ (ครอบคลุมทั้งข้อมูลเก่าที่เสียหายและข้อมูลใหม่ที่ถูกต้อง)
-        const _fixPhone = v => { const s = String(v || '').trim(); return (s.length === 9 && /^[0-9]+$/.test(s)) ? '0' + s : s; };
-        const _pwdMatch = d.password === password || _fixPhone(d.password) === password;
-        const _phoneMatch = d.phone_number && (d.phone_number === password || _fixPhone(d.phone_number) === password);
-        if (d.type === 'student' && d.username === username && (_pwdMatch || _phoneMatch)) {
+        // แก้โดยเทียบแบบยืดหยุ่น: ตัดช่องว่างหัวท้าย + เติม 0 กลับคืนให้ค่าที่เก็บไว้ก่อนเทียบเสมอ
+        const _norm = v => String(v == null ? '' : v).trim();
+        const _fixPhone = v => { const s = _norm(v); return (s.length === 9 && /^[0-9]+$/.test(s)) ? '0' + s : s; };
+        const _inputPwd = _norm(password);
+        const _pwdMatch = _norm(d.password) === _inputPwd || _fixPhone(d.password) === _inputPwd;
+        const _phoneMatch = d.phone_number && (_norm(d.phone_number) === _inputPwd || _fixPhone(d.phone_number) === _inputPwd);
+        if (d.type === 'student' && _norm(d.username) === username && (_pwdMatch || _phoneMatch)) {
           student = d;
           console.log('✅ Found student:', username);
           break;
@@ -3443,8 +3471,13 @@
       }
       
       console.log('❌ Login failed for user:', username);
-      errorDiv.textContent = '❌ Username หรือ Password ไม่ถูกต้อง';
-      errorDiv.classList.remove('hidden');
+      // 🔍 แยกสาเหตุให้ชัดเจน ช่วยวินิจฉัยปัญหาได้ง่ายขึ้น
+      if (_diagUsernameMatch.length === 0) {
+        errorDiv.textContent = `❌ ไม่พบผู้ใช้ "${username}" ในระบบ กรุณาตรวจสอบ Username อีกครั้ง`;
+      } else {
+        errorDiv.textContent = '❌ Password ไม่ถูกต้อง (Username ถูกต้องแล้ว) กรุณาตรวจสอบรหัสผ่านอีกครั้ง';
+      }
+      errorDiv.classList.remove('hidden'); showLoginError(errorDiv.textContent);
       document.getElementById('login-password').value = '';
     }
     let pendingRegisterFormData = null;
