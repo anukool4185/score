@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.10';
+    const APP_VERSION = '2026.09.08.11';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2623,6 +2623,15 @@
     }
     const dataHandler = {
       onDataChanged(data) {
+        // 📱 ซ่อมเบอร์โทรที่เลข 0 นำหน้าหายไป (Google Sheets ตัดออกเพราะมองเป็นตัวเลข) ตั้งแต่ต้นทางที่รับข้อมูลเข้ามา
+        // ทำตรงนี้จุดเดียว ครอบคลุมทุกการใช้งานในระบบพร้อมกัน (ล็อกอิน แสดงผล ค้นหา ฯลฯ) และใช้ได้แม้ backend ยังไม่ได้อัปเดต
+        try {
+          const _fix = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+          data.forEach(rec => {
+            if (rec.phone_number) rec.phone_number = _fix(rec.phone_number);
+            if (rec.password) rec.password = _fix(rec.password);
+          });
+        } catch (e) { console.log('[PhoneFix] ซ่อมเบอร์โทรไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
         allData = data;
         window.__dataReady = true;
         // 🔑 ตรวจสอบ "โทเค็นล็อกอินอัตโนมัติ" ก่อนเสมอ (ถ้ามีติดมากับลิงก์ ?alt=...) — ทำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก
@@ -3369,7 +3378,9 @@
       }
       // ตรวจสอบ Admin อื่นๆ
       console.log('🔍 Checking admins:', allAdmins.length);
-      const adminRecord = allAdmins.find(a => a.username === username && a.password === password);
+      // 📱 รองรับกรณีเลข 0 นำหน้าเบอร์โทรหายไปจากชีท (เหมือนที่แก้ไว้ฝั่งนักเรียน) เพราะผู้ช่วยแอดมินก็ใช้เบอร์โทรเป็นรหัสผ่านได้
+      const _fixPhoneAdmin = v => { const s = String(v || '').trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+      const adminRecord = allAdmins.find(a => a.username === username && (a.password === password || _fixPhoneAdmin(a.password) === password));
       if (adminRecord) {
         console.log('✅ Found admin record:', username);
         currentUser = { 
@@ -3406,7 +3417,7 @@
         // 📱 บั๊กที่พบและแก้แล้ว: Google Sheets ตัดเลข 0 นำหน้าเบอร์โทรออก (0812345678 → 812345678)
         // ทำให้นักเรียนที่ใช้เบอร์โทรเป็นรหัสผ่านล็อกอินไม่ได้ เพราะเทียบกันไม่ตรง
         // แก้โดยเทียบแบบยืดหยุ่น: เติม 0 กลับคืนให้ค่าที่เก็บไว้ก่อนเทียบเสมอ (ครอบคลุมทั้งข้อมูลเก่าที่เสียหายและข้อมูลใหม่ที่ถูกต้อง)
-        const _fixPhone = v => { const s = String(v || '').trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+        const _fixPhone = v => { const s = String(v || '').trim(); return (s.length === 9 && /^[0-9]+$/.test(s)) ? '0' + s : s; };
         const _pwdMatch = d.password === password || _fixPhone(d.password) === password;
         const _phoneMatch = d.phone_number && (d.phone_number === password || _fixPhone(d.phone_number) === password);
         if (d.type === 'student' && d.username === username && (_pwdMatch || _phoneMatch)) {
