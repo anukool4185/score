@@ -3431,7 +3431,7 @@
       // 🔍 ระบบวินิจฉัย: เก็บข้อมูลไว้ช่วยหาสาเหตุถ้าล็อกอินไม่สำเร็จ
       const _diagStudents = allData.filter(d => d.type === 'student');
       const _cleanU = v => String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF\s]/g, '').toLowerCase();
-      const _diagUsernameMatch = _diagStudents.filter(d => _cleanU(d.username) === _cleanU(username));
+      const _diagUsernameMatch = _diagStudents.filter(d => _cleanU(d.username) === _cleanU(username) || _cleanU(d.student_id) === _cleanU(username));
       // 🔍 ถ้าหาไม่เจอ แสดง username ที่ใกล้เคียงให้ดู ช่วยหาสาเหตุว่าพิมพ์ต่างกันตรงไหน
       if (_diagUsernameMatch.length === 0 && _diagStudents.length > 0) {
         const similar = _diagStudents
@@ -3461,7 +3461,10 @@
         // 🔍 เทียบ username แบบยืดหยุ่น: ไม่สนใจตัวพิมพ์เล็ก-ใหญ่ + ตัดอักขระที่มองไม่เห็นออก
         // (เช่น zero-width space ที่มักติดมาตอนคัดลอกข้อมูลจากที่อื่น มองด้วยตาไม่เห็น แต่ทำให้เทียบไม่ตรง)
         const _cleanUser = v => String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF\s]/g, '').toLowerCase();
-        if (d.type === 'student' && _cleanUser(d.username) === _cleanUser(username) && (_pwdMatch || _phoneMatch)) {
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมเทียบเฉพาะ username ที่ตั้งเองเท่านั้น
+        // แต่ระบบต้องรองรับการล็อกอินด้วย "รหัสนักเรียน" ได้ด้วย (ตามที่ออกแบบไว้แต่แรก)
+        const _userMatch = _cleanUser(d.username) === _cleanUser(username) || _cleanUser(d.student_id) === _cleanUser(username);
+        if (d.type === 'student' && _userMatch && (_pwdMatch || _phoneMatch)) {
           student = d;
           console.log('✅ Found student:', username);
           break;
