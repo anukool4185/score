@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.14';
+    const APP_VERSION = '2026.09.08.15';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3003,7 +3003,9 @@
         renderForgotCredPhoneSetup(student, phone);
         return;
       }
-      if (String(student.phone_number).trim() !== phone) { showErr('❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง'); return; }
+      // 📱 รองรับกรณีเลข 0 นำหน้าเบอร์โทรหายไปจากชีท (เหมือนที่แก้ไว้ในระบบล็อกอิน)
+      const _fixP = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+      if (_fixP(student.phone_number) !== _fixP(phone)) { showErr('❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง'); return; }
       renderCredentialsEditForm(student, phone);
     }
     function renderForgotCredPhoneSetup(student, enteredPhone) {
@@ -3395,9 +3397,23 @@
       }
       // ตรวจสอบ Admin อื่นๆ
       console.log('🔍 Checking admins:', allAdmins.length);
-      // 📱 รองรับกรณีเลข 0 นำหน้าเบอร์โทรหายไปจากชีท (เหมือนที่แก้ไว้ฝั่งนักเรียน) เพราะผู้ช่วยแอดมินก็ใช้เบอร์โทรเป็นรหัสผ่านได้
-      const _fixPhoneAdmin = v => { const s = String(v || '').trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
-      const adminRecord = allAdmins.find(a => a.username === username && (a.password === password || _fixPhoneAdmin(a.password) === password));
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมผู้ช่วยแอดมินเทียบเฉพาะ username กับ password ที่ตั้งเองเท่านั้น
+      // แต่ผู้ช่วยแอดมินคือนักเรียนที่ได้รับสิทธิ์พิเศษ จึงต้องล็อกอินได้เหมือนนักเรียนทุกประการ
+      // คือใช้ได้ทั้ง username/รหัสนักเรียน และ รหัสผ่าน/เบอร์โทรศัพท์
+      const _cleanAdm = v => String(v == null ? '' : v).replace(/[\u200B-\u200D\uFEFF\s]/g, '').toLowerCase();
+      const _fixPhoneAdmin = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+      const adminRecord = allAdmins.find(a => {
+        // หาข้อมูลนักเรียนที่ผูกกับบัญชีผู้ช่วยแอดมินนี้ (ถ้ามี) เพื่อใช้เทียบรหัสนักเรียนและเบอร์โทร
+        const linkedStu = a.linked_student_id ? allData.find(s => s.type === 'student' && s.__backendId === a.linked_student_id) : null;
+        const userOk = _cleanAdm(a.username) === _cleanAdm(username)
+          || (linkedStu && _cleanAdm(linkedStu.student_id) === _cleanAdm(username));
+        if (!userOk) return false;
+        const inputPwd = String(password == null ? '' : password).trim();
+        const pwdOk = String(a.password || '').trim() === inputPwd || _fixPhoneAdmin(a.password) === inputPwd;
+        const phoneOk = (a.phone_number && (String(a.phone_number).trim() === inputPwd || _fixPhoneAdmin(a.phone_number) === inputPwd))
+          || (linkedStu && linkedStu.phone_number && (String(linkedStu.phone_number).trim() === inputPwd || _fixPhoneAdmin(linkedStu.phone_number) === inputPwd));
+        return pwdOk || phoneOk;
+      });
       if (adminRecord) {
         console.log('✅ Found admin record:', username);
         currentUser = { 
