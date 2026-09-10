@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.25';
+    const APP_VERSION = '2026.09.08.26';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8683,7 +8683,7 @@
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
           }))).catch(err => console.error('[saveExamSet] สร้างแจ้งเตือนบางรายการอาจไม่สำเร็จ (ไม่กระทบชุดสอบที่บันทึกไปแล้ว):', err));
 
-          // 🗂️ จองแถวในชีทชั่วคราว (waittest_) ให้ผู้มีสิทธิ์สอบทุกคนทันที — 1 คน 1 แถว
+          // 🗂️ จองแถวในชีทเก็บคะแนนสอบ (tscore_) ให้ผู้มีสิทธิ์สอบทุกคนทันที — 1 คน 1 แถว
           // ทำให้เห็นภาพรวมได้ทันทีว่าใครสอบแล้ว ใครยังไม่สอบ และชีทถูกสร้างพร้อมใช้งานตั้งแต่ตอนจัดสอบ
           // ทำแบบเบื้องหลัง ไม่บล็อกหน้าจอ (เหมือนการแจ้งเตือน) เพราะถ้ามีนักเรียนเยอะจะใช้เวลานาน
           _reserveWaitTestRows(savedSetId, affectedRegs, { className, roomNumber, subjectName, kRound })
@@ -8697,7 +8697,7 @@
       }
     }
 
-    /** 🗂️ จองแถวในชีทชั่วคราว (waittest_) ให้ผู้มีสิทธิ์สอบทุกคน — 1 คน 1 แถว
+    /** 🗂️ จองแถวในชีทเก็บคะแนนสอบ (tscore_) ให้ผู้มีสิทธิ์สอบทุกคน — 1 คน 1 แถว
      *  สร้างเป็นรายการเปล่าสถานะ not_started ไว้ก่อน พอนักเรียนเข้าสอบจริงจะมาเขียนทับแถวนี้
      *  ทำทีละคนตามลำดับ (ไม่ใช่พร้อมกันหมด) กันสร้างภาระให้เซิร์ฟเวอร์มากเกินไปเมื่อมีนักเรียนเยอะ */
     async function _reserveWaitTestRows(examSetId, registrations, info) {
@@ -8856,7 +8856,7 @@
       const stillPendingAfter = _countPendingImportForExamSet(examSetId) + stillGrading;
       if (stillPendingAfter === 0) {
         try {
-          const sheetName = `waittest_${examSet.subject_name}_${examSet.class_name}_${examSet.room_number}_ครั้งที่${examSet.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
+          const sheetName = `tscore_${examSet.subject_name}_${examSet.class_name}_${examSet.room_number}_ครั้งที่${examSet.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
           await fetch(SHEETS_API_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'deleteWaitTestSheet', sheetName: sheetName, key: API_KEY })
@@ -8992,6 +8992,15 @@
 
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
+        // 🗑️ ลบชีทเก็บคะแนนสอบของชุดนี้ทิ้งด้วย ไม่ให้เหลือชีทว่างค้างอยู่ (ตามที่ผู้ใช้ต้องการ)
+        try {
+          const sheetName = `tscore_${s.subject_name}_${s.class_name}_${s.room_number}_ครั้งที่${s.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
+          await fetch(SHEETS_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'deleteWaitTestSheet', sheetName: sheetName, key: API_KEY })
+          });
+          console.log('[DeleteExamSet] ลบชีทเก็บคะแนนสอบแล้ว:', sheetName);
+        } catch (e) { console.log('[DeleteExamSet] ลบชีทไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
         showToast('🗑️ ลบชุดสอบสำเร็จ (ปรับคะแนนเต็มและคะแนนที่ได้ของนักเรียนที่สอบไปแล้วให้ถูกต้องแล้ว)');
         renderExamSetList();
       } else {
@@ -10374,7 +10383,7 @@
       await autoRemoveNotificationsByRelatedId(submission.exam_set_id);
 
       // 🗂️ ปรับตามที่ขอ: ไม่บันทึกคะแนนเข้าช่อง K ทันทีอีกต่อไป
-      // คะแนนจะถูกเก็บไว้ในชีทชั่วคราว (waittest_) ก่อน แล้วรอให้แอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบ
+      // คะแนนจะถูกเก็บไว้ในชีท tscore_ ก่อน แล้วรอให้แอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบ
       // เหตุผล: ป้องกันไม่ให้การเขียนข้อมูลระหว่างสอบ (ซึ่งเกิดถี่มาก) ไปกระทบชีทคะแนนหลัก
       // (คะแนนที่คำนวณได้ถูกเก็บไว้ในฟิลด์ auto_score ของ submission เรียบร้อยแล้วตั้งแต่บรรทัดด้านบน)
 
@@ -10983,11 +10992,17 @@
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(15,23,42,0.95);display:flex;align-items:center;justify-content:center;padding:20px';
       overlay.innerHTML = `
         <div style="background:white;border-radius:16px;padding:28px;max-width:360px;text-align:center">
-          <p style="font-size:40px;margin:0 0 12px">⏸️</p>
-          <p style="font-size:16px;font-weight:700;color:#dc2626;margin:0 0 8px">ระบบตรวจพบความผิดปกติ</p>
-          <p style="font-size:13px;color:#475569;margin:0 0 4px">การสอบของคุณถูกหยุดชั่วคราว</p>
-          <p style="font-size:13px;color:#475569;margin:0">กรุณาติดต่อครู/แอดมินเพื่อดำเนินการต่อ</p>
+          <div style="width:44px;height:44px;margin:0 auto 14px;border:5px solid #fee2e2;border-top-color:#dc2626;border-radius:50%;animation:autoLoginSpin 0.9s linear infinite"></div>
+          <p style="font-size:17px;font-weight:700;color:#dc2626;margin:0 0 10px">⏸️ รอการตรวจสอบ</p>
+          <p style="font-size:14px;font-weight:700;color:#b91c1c;margin:0 0 10px;background:#fef2f2;padding:10px;border-radius:8px;line-height:1.6">ห้ามรีเฟรชหรือทำการใดๆ</p>
+          <p style="font-size:13px;color:#475569;margin:0;line-height:1.7">ระบบตรวจพบความผิดปกติระหว่างสอบ<br>การสอบถูกหยุดไว้ชั่วคราว<br><br>กรุณารอครู/แอดมินตรวจสอบ<br>หากอนุญาตให้สอบต่อ ระบบจะพากลับเข้าสอบให้อัตโนมัติ</p>
         </div>`;
+      if (!document.getElementById('auto-login-spin-style')) {
+        const st = document.createElement('style');
+        st.id = 'auto-login-spin-style';
+        st.textContent = '@keyframes autoLoginSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+        document.head.appendChild(st);
+      }
       document.body.appendChild(overlay);
     }
     // เช็คตอนโหลดหน้าทำข้อสอบใหม่ ว่ากระดาษคำตอบนี้ถูก freeze ไว้ก่อนหน้าหรือยัง (เผื่อรีเฟรชหนี)
