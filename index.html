@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.18';
+    const APP_VERSION = '2026.09.08.20';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2543,10 +2543,14 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
-          const fresh = await this._fetchAll();
-          this._cache = fresh;
-          this._handler.onDataChanged(this._cache);
+          // ⚡ ปรับให้เร็วขึ้นมาก: เดิมต้องรอดึงข้อมูล "ทั้งหมดทุกชีท" กลับมาใหม่ทุกครั้งที่บันทึก ซึ่งช้ามากเมื่อข้อมูลเยอะ
+          // ตอนนี้เพิ่มข้อมูลที่เพิ่งบันทึกเข้าไปในหน่วยความจำทันที แล้วค่อยดึงข้อมูลจริงเบื้องหลัง (ไม่ต้องรอ)
+          if (json.data) {
+            this._cache = [...this._cache, json.data];
+            this._handler.onDataChanged(this._cache);
+          }
+          this._fetchAll().then(fresh => { this._cache = fresh; this._handler.onDataChanged(this._cache); })
+            .catch(e => console.log('[SDK] ดึงข้อมูลเบื้องหลังไม่สำเร็จ (ไม่ร้ายแรง):', e.message));
           return { isOk: true, data: json.data };
         } catch (err) {
           console.error('❌ sheetsDataSdk.create error:', err);
@@ -2565,11 +2569,15 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
-          const fresh = await this._fetchAll();
-          this._cache = fresh;
-          this._handler.onDataChanged(this._cache);
-          return { isOk: true, data: json.data };
+          // ⚡ ปรับให้เร็วขึ้นมาก: อัปเดตข้อมูลในหน่วยความจำทันที แล้วดึงข้อมูลจริงเบื้องหลัง (ไม่ต้องรอ)
+          const updatedId = record.__backendId;
+          if (updatedId) {
+            this._cache = this._cache.map(d => d.__backendId === updatedId ? { ...d, ...record } : d);
+            this._handler.onDataChanged(this._cache);
+          }
+          this._fetchAll().then(fresh => { this._cache = fresh; this._handler.onDataChanged(this._cache); })
+            .catch(e => console.log('[SDK] ดึงข้อมูลเบื้องหลังไม่สำเร็จ (ไม่ร้ายแรง):', e.message));
+          return { isOk: true, data: json.data || { ...record } };
         } catch (err) {
           console.error('❌ sheetsDataSdk.update error:', err);
           return { isOk: false, error: { message: err.message } };
@@ -2587,10 +2595,14 @@
           });
           const json = await res.json();
           if (!json.ok) return { isOk: false, error: { message: json.error } };
-          // ดึงข้อมูลใหม่จาก server ทันที (ไม่รอ polling 4 วินาที)
-          const fresh = await this._fetchAll();
-          this._cache = fresh;
-          this._handler.onDataChanged(this._cache);
+          // ⚡ ปรับให้เร็วขึ้นมาก: ลบข้อมูลออกจากหน่วยความจำทันที แล้วดึงข้อมูลจริงเบื้องหลัง (ไม่ต้องรอ)
+          const deletedId = record.__backendId;
+          if (deletedId) {
+            this._cache = this._cache.filter(d => d.__backendId !== deletedId);
+            this._handler.onDataChanged(this._cache);
+          }
+          this._fetchAll().then(fresh => { this._cache = fresh; this._handler.onDataChanged(this._cache); })
+            .catch(e => console.log('[SDK] ดึงข้อมูลเบื้องหลังไม่สำเร็จ (ไม่ร้ายแรง):', e.message));
           return { isOk: true };
         } catch (err) {
           console.error('❌ sheetsDataSdk.delete error:', err);
@@ -3188,9 +3200,21 @@
       document.getElementById('purpose-exam-btn').onclick = async () => {
         const btn = document.getElementById('purpose-exam-btn');
         btn.disabled = true;
-        btn.innerHTML = '⏳ กำลังเตรียมเปิดเบราว์เซอร์...';
-        await _prepareAutoLoginTokenThenShowWarning(detected.name); // สร้างโทเค็นล็อกอินอัตโนมัติ แล้วแสดงวิธีเปิดเบราว์เซอร์
-        overlay.remove();
+        btn.innerHTML = '⏳ กำลังเปิดเบราว์เซอร์...';
+        // 🚀 สร้างโทเค็นล็อกอินอัตโนมัติ แล้วเปิดเบราว์เซอร์ทันทีเลย (ไม่ต้องผ่านหน้าเตือนอีก ตามที่ขอ)
+        await _createAutoLoginTokenOnly();
+        _attemptAutoOpenBrowser();
+        // เปลี่ยนเนื้อหาเป็นทางสำรอง เผื่อเปิดเบราว์เซอร์อัตโนมัติไม่สำเร็จ (บางเครื่อง/บางแอปบล็อกไว้)
+        setTimeout(() => {
+          const box = overlay.querySelector('div');
+          if (!box) return;
+          box.innerHTML = `
+            <p style="font-size:34px;margin:0 0 10px">🌐</p>
+            <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">กำลังเปิดเบราว์เซอร์ให้...</p>
+            <p style="font-size:12px;color:#475569;margin:0 0 16px;line-height:1.6">ถ้าเบราว์เซอร์ไม่เปิดขึ้นมาเอง<br>กดปุ่มด้านล่างเพื่อคัดลอกลิงก์ แล้วนำไปวางใน Chrome หรือ Safari</p>
+            <button onclick="_copyExamUrlToClipboard()" style="width:100%;padding:12px;background:#4f46e5;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px">📋 คัดลอกลิงก์ (ล็อกอินให้อัตโนมัติ)</button>
+            <button onclick="document.getElementById('purpose-gate')?.remove()" style="width:100%;padding:11px;background:#e2e8f0;color:#475569;border:none;border-radius:12px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้</button>`;
+        }, 2500);
       };
     }
 
@@ -9574,7 +9598,8 @@
     // 🔑 สร้าง "โทเค็นล็อกอินอัตโนมัติ" แบบใช้ครั้งเดียว หมดอายุเร็ว (5 นาที) ก่อนเปิดเบราว์เซอร์จริง
     // เพื่อให้เบราว์เซอร์ใหม่ที่เปิดขึ้นมา ล็อกอินให้อัตโนมัติได้ โดยไม่ต้องส่งรหัสผ่านจริงไปกับลิงก์เลย (ปลอดภัยกว่าการฝังรหัสผ่านตรงๆ)
     let _pendingAutoLoginUrl = null;
-    async function _prepareAutoLoginTokenThenShowWarning(appName) {
+    /** 🔑 สร้างโทเค็นล็อกอินอัตโนมัติอย่างเดียว (ไม่แสดงหน้าเตือน) — ใช้ตอนต้องการเปิดเบราว์เซอร์ทันที */
+    async function _createAutoLoginTokenOnly() {
       try {
         const token = 'alt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
         const result = await window.dataSdk.create({
@@ -9588,10 +9613,15 @@
           const url = new URL(window.location.href);
           url.searchParams.set('alt', token); // alt = auto-login token
           _pendingAutoLoginUrl = url.toString();
+          return true;
         }
       } catch (e) {
         console.error('[AutoLogin Debug] สร้างโทเค็นไม่สำเร็จ:', e);
       }
+      return false;
+    }
+    async function _prepareAutoLoginTokenThenShowWarning(appName) {
+      await _createAutoLoginTokenOnly();
       _showInAppBrowserWarning(appName);
     }
     function _showInAppBrowserWarning(appName) {
