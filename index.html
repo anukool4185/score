@@ -2386,7 +2386,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.5';
+    const APP_VERSION = '2026.09.08.6';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9163,20 +9163,32 @@
         ? await window.dataSdk.update({ ...reservedRow, ...submissionPayload }) // เขียนทับแถวที่จองไว้
         : await window.dataSdk.create(submissionPayload); // ไม่เจอแถวจอง (เช่น ชุดสอบเก่าก่อนมีระบบนี้) ค่อยสร้างใหม่
       if (result.isOk) {
-        console.log('[Exam Popup Debug] submission created:', result.data.__backendId, '- calling renderExamModal');
+        // ⚠️ บั๊กที่พบและแก้แล้ว: กรณีเขียนทับแถวที่จองไว้ (update) ข้อมูลที่คืนกลับมาอาจไม่มี __backendId ติดมาด้วย
+        // ทำให้เปิดหน้ากระดาษคำตอบไม่ได้ (บันทึกสำเร็จแต่หน้าไม่เด้ง) — แก้โดยใช้รหัสจากแถวที่จองไว้โดยตรง ซึ่งมีอยู่แน่นอน
+        const submissionId = (result.data && result.data.__backendId) || (reservedRow && reservedRow.__backendId);
+        if (!submissionId) {
+          console.error('[Exam Popup Debug] ไม่พบรหัสกระดาษคำตอบหลังบันทึก', result);
+          showToast('เกิดข้อผิดพลาด ไม่พบรหัสกระดาษคำตอบ กรุณาลองใหม่อีกครั้ง', 'error');
+          return;
+        }
+        console.log('[Exam Popup Debug] submission ready:', submissionId, '- calling renderExamModal');
         // ⚠️ กันบั๊ก race condition: ข้อมูลที่เพิ่งสร้างอาจยังไม่เข้ามาใน allData ทันที (ต้องรอรอบ poll ถัดไป)
         // เพิ่มเข้า allData เองทันทีแบบ optimistic ก่อน กัน renderExamModal หาไม่เจอแล้วเงียบไป
-        if (!allData.find(d => d.__backendId === result.data.__backendId)) {
-          allData.push(result.data);
+        const finalData = { ...submissionPayload, __backendId: submissionId };
+        const existingIdx = allData.findIndex(d => d.__backendId === submissionId);
+        if (existingIdx >= 0) {
+          allData[existingIdx] = finalData; // อัปเดตแถวเดิมที่จองไว้ให้เป็นสถานะกำลังสอบ
+        } else {
+          allData.push(finalData);
         }
         try {
-          renderExamModal(result.data.__backendId);
+          renderExamModal(submissionId);
         } catch (err) {
           console.error('[Exam Popup Debug] renderExamModal THREW AN ERROR:', err);
           showToast('เกิดข้อผิดพลาดตอนเปิดหน้าสอบ: ' + err.message, 'error');
         }
       } else {
-        console.log('[Exam Popup Debug] dataSdk.create FAILED:', result);
+        console.log('[Exam Popup Debug] บันทึกกระดาษคำตอบไม่สำเร็จ:', result);
         showToast('ไม่สามารถเริ่มสอบได้', 'error');
       }
     }
