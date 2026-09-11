@@ -2389,7 +2389,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.26';
+    const APP_VERSION = '2026.09.08.27';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3281,6 +3281,7 @@
       // 📱 ถ้าเปิดผ่านแอป (LINE/FB ฯลฯ) ให้ถามว่าต้องการดูข้อมูลหรือเข้าสอบ
       // หน่วงเล็กน้อยให้หน้าจอแสดงผลเสร็จก่อน จะได้ไม่ซ้อนทับกัน
       setTimeout(() => { if (typeof _askPurposeIfInAppBrowser === 'function') _askPurposeIfInAppBrowser(); }, 700);
+      if (typeof _resetIdleTimer === 'function') _resetIdleTimer(); // ⏰ เริ่มนับเวลาไม่ใช้งาน
       if (typeof IS_MOBILE !== 'undefined' && IS_MOBILE) {
         if (typeof mobileAfterLogin === 'function') mobileAfterLogin();
         return;
@@ -4523,6 +4524,7 @@
 
     function showLoggedInUI() {
       console.log('🔍 showLoggedInUI called - currentUser:', currentUser);
+      if (typeof _resetIdleTimer === 'function') _resetIdleTimer(); // ⏰ เริ่มนับเวลาไม่ใช้งาน (ครอบคลุมทุกบทบาท)
       
       // ซ่อนหน้า login และ register
       const pageLogin = document.getElementById('page-login');
@@ -5548,7 +5550,7 @@
         trackContainer.innerHTML = '<p class="text-gray-400 text-xs text-center py-8">วันนี้ไม่มีสอบ</p>';
         return;
       }
-      const timeStr = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      const timeStr = (iso) => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
       const rowHtml = (ex) => `
         <div style="height:32px" class="flex items-center px-3 text-xs text-gray-700 gap-2">
           <span class="font-semibold whitespace-nowrap">🗓️ สอบ</span>
@@ -5936,6 +5938,41 @@
         showToast('ไม่สามารถแก้ไขได้', 'error');
       }
     }
+    // ⏰ ระบบออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน 1 ชั่วโมง (เพื่อความปลอดภัย กันคนอื่นมาใช้เครื่องต่อ)
+    let _idleTimer = null, _idleWarnTimer = null;
+    const IDLE_LIMIT_MS = 60 * 60 * 1000; // 1 ชั่วโมง
+    function _resetIdleTimer() {
+      clearTimeout(_idleTimer);
+      clearTimeout(_idleWarnTimer);
+      document.getElementById('idle-warning-toast')?.remove();
+      if (!currentUser) return; // ยังไม่ได้ล็อกอิน ไม่ต้องนับ
+      // ⚠️ ขณะกำลังทำข้อสอบอยู่ ไม่ต้องนับเวลา (นักเรียนอาจนั่งคิดโจทย์นานโดยไม่แตะหน้าจอ)
+      if (typeof _examAntiCheatActive !== 'undefined' && _examAntiCheatActive) return;
+
+      // เตือนล่วงหน้า 1 นาทีก่อนออกจากระบบ ให้มีโอกาสขยับเมาส์ต่ออายุได้
+      _idleWarnTimer = setTimeout(() => {
+        if (document.getElementById('idle-warning-toast')) return;
+        const warn = document.createElement('div');
+        warn.id = 'idle-warning-toast';
+        warn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:2147483000;background:#f59e0b;color:white;padding:14px 20px;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,0.25);font-size:13px;font-weight:600;text-align:center;max-width:90%';
+        warn.innerHTML = '⏰ ไม่มีการใช้งานนาน<br><span style="font-weight:400;font-size:12px">ระบบจะออกจากระบบอัตโนมัติใน 1 นาที<br>แตะหน้าจอเพื่อใช้งานต่อ</span>';
+        document.body.appendChild(warn);
+      }, IDLE_LIMIT_MS - 60000);
+
+      _idleTimer = setTimeout(() => {
+        console.log('[Idle] ไม่มีการใช้งานครบ 1 ชั่วโมง — ออกจากระบบอัตโนมัติ');
+        alert('⏰ ไม่มีการใช้งานเป็นเวลานาน\nระบบออกจากระบบอัตโนมัติเพื่อความปลอดภัย\nกรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+        handleLogout();
+      }, IDLE_LIMIT_MS);
+    }
+    // เริ่มนับใหม่ทุกครั้งที่มีการใช้งาน (แตะจอ ขยับเมาส์ พิมพ์ เลื่อนหน้า)
+    ['click', 'touchstart', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (!currentUser) return;
+        clearTimeout(window._idleDebounce);
+        window._idleDebounce = setTimeout(_resetIdleTimer, 1000); // หน่วงกันเรียกถี่เกินไป
+      }, { passive: true });
+    });
     function handleLogout() {
       const safeHide = id => { const el=document.getElementById(id); if(el) el.classList.add('hidden'); };
       const safeShow = id => { const el=document.getElementById(id); if(el) el.classList.remove('hidden'); };
@@ -8296,7 +8333,7 @@
             : myNotifs.map(n => `
               <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px">
                 <p style="font-size:14px;color:#1e293b;margin:0 0 4px">${n.message}</p>
-                <p style="font-size:11px;color:#94a3b8;margin:0 0 10px">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH') : ''}</p>
+                <p style="font-size:11px;color:#94a3b8;margin:0 0 10px">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH', { hour12: false }) : ''}</p>
                 <button onclick="acknowledgeStudentNotification('${n.__backendId}')" style="padding:8px 16px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer">✅ รับทราบ</button>
               </div>
             `).join('')
@@ -8380,7 +8417,7 @@
             <div class="flex-1">
               <p class="text-sm font-semibold text-gray-800">${name} <span class="text-xs text-gray-400 font-normal">(${n.student_id})</span></p>
               <p class="text-sm text-gray-700">${n.message}</p>
-              <p class="text-xs text-gray-400">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH') : ''} ${n.class_name ? '· '+n.class_name+'/'+n.room_number+' · '+n.subject_name : ''}</p>
+              <p class="text-xs text-gray-400">${n.created_at ? new Date(n.created_at).toLocaleString('th-TH', { hour12: false }) : ''} ${n.class_name ? '· '+n.class_name+'/'+n.room_number+' · '+n.subject_name : ''}</p>
             </div>
             <button onclick="adminDeleteStudentNotifications(['${n.__backendId}'])" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs flex-shrink-0">🗑️</button>
           </div>`;
@@ -8435,7 +8472,7 @@
             <div class="flex-1">
               <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0">🚨 สงสัยทุจริต — ${name} <span style="font-size:11px;color:#94a3b8;font-weight:400">(${a.student_id})</span></p>
               <p style="font-size:13px;color:#7f1d1d;margin:2px 0">${typeLabel[a.violation_type] || a.violation_type} ${a.class_name ? '· '+a.class_name+'/'+a.room_number : ''} · ${a.subject_name||'-'}</p>
-              <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${a.created_at ? new Date(a.created_at).toLocaleString('th-TH') : ''}</p>
+              <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${a.created_at ? new Date(a.created_at).toLocaleString('th-TH', { hour12: false }) : ''}</p>
               <button onclick="openExamAlertControlPanel('${a.__backendId}')" style="padding:6px 14px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔍 ตรวจสอบ/จัดการ</button>
             </div>
           </div>`;
@@ -8767,7 +8804,7 @@
               <div>
                 <p class="font-semibold text-gray-800">🏫 ${s.class_name}/${s.room_number} · 📚 ${s.subject_name} · K ครั้งที่ ${s.k_round}</p>
                 <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'}</p>
-                <p class="text-xs text-gray-500 mt-1">🟢 เปิด: ${start.toLocaleString('th-TH')} → 🔴 ปิด: ${end.toLocaleString('th-TH')}</p>
+                <p class="text-xs text-gray-500 mt-1">🟢 เปิด: ${start.toLocaleString('th-TH', { hour12: false })} → 🔴 ปิด: ${end.toLocaleString('th-TH', { hour12: false })}</p>
                 <p class="text-xs mt-1">${statusBadge}</p>
               </div>
               <div class="flex gap-1 flex-shrink-0">
@@ -9130,7 +9167,7 @@
           if (now >= start && now <= end) {
             return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 แก้ไขคำตอบ ${kLabel}</button>`;
           }
-          if (now < start) return `<span style="${spanBase};background:#dbeafe;color:#2563eb">🟢 อนุญาตแล้ว รอถึง ${start.toLocaleString('th-TH',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>`;
+          if (now < start) return `<span style="${spanBase};background:#dbeafe;color:#2563eb">🟢 อนุญาตแล้ว รอถึง ${start.toLocaleString('th-TH',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})}</span>`;
           return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาแก้ไขคำตอบ ${kLabel}</span>`;
         }
       }
@@ -10497,7 +10534,7 @@
         return `
           <div class="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
             <p class="font-semibold text-gray-800">👤 ${name} (${req.student_id})</p>
-            <p class="text-xs text-gray-500 mt-1">📚 ${req.subject_name} · ${req.class_name}/${req.room_number} · ขอเมื่อ ${new Date(req.requested_at).toLocaleString('th-TH')}</p>
+            <p class="text-xs text-gray-500 mt-1">📚 ${req.subject_name} · ${req.class_name}/${req.room_number} · ขอเมื่อ ${new Date(req.requested_at).toLocaleString('th-TH', { hour12: false })}</p>
             <p class="text-sm text-gray-700 mt-2 bg-white rounded-lg p-2 border border-amber-100">💬 ${req.reason}</p>
             ${logHtml}
             <div class="flex gap-2 mt-3">
@@ -10697,7 +10734,7 @@
       if (log.length === 0) return '<p style="font-size:11px;color:#94a3b8;margin:8px 0">ไม่มีบันทึกกิจกรรมสำหรับกระดาษคำตอบนี้</p>';
       const rows = log.map((s, idx) => {
         const label = idx === log.length - 1 ? 'ล่าสุด' : 'ก่อนหน้า';
-        return `<p style="margin:2px 0;font-size:11px;color:#475569">🕐 ${new Date(s.time).toLocaleTimeString('th-TH')} (${label}) — อยู่ข้อ ${s.question_idx} · ตอบแล้ว ${s.answered_count} ข้อ</p>`;
+        return `<p style="margin:2px 0;font-size:11px;color:#475569">🕐 ${new Date(s.time).toLocaleTimeString('th-TH', { hour12: false })} (${label}) — อยู่ข้อ ${s.question_idx} · ตอบแล้ว ${s.answered_count} ข้อ</p>`;
       }).join('');
       return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:14px">
         <p style="font-size:11px;font-weight:700;color:#334155;margin:0 0 4px">📋 บันทึกกิจกรรม (ทุก 15 วิ)</p>
@@ -10732,7 +10769,7 @@
             <p style="margin:2px 0"><b>นักเรียน:</b> ${name} (${alert.student_id})</p>
             <p style="margin:2px 0"><b>วิชา:</b> ${alert.subject_name||'-'} · ${alert.class_name||'-'}/${alert.room_number||'-'}</p>
             <p style="margin:2px 0"><b>พฤติกรรม:</b> ${typeLabel}</p>
-            <p style="margin:2px 0"><b>เวลา:</b> ${alert.created_at ? new Date(alert.created_at).toLocaleString('th-TH') : '-'}</p>
+            <p style="margin:2px 0"><b>เวลา:</b> ${alert.created_at ? new Date(alert.created_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>
             <p style="margin:6px 0 0;color:#b91c1c;font-size:11px">⚠️ ระบบตรวจจับได้แค่พฤติกรรมนี้เท่านั้น ไม่สามารถยืนยันการทุจริตจริง 100% — โปรดใช้ดุลยพินิจ</p>
           </div>
           ${snapshotHtml}
@@ -14674,7 +14711,7 @@
       if (!el) return;
       const last = localStorage.getItem('kpac_last_backup');
       el.textContent = last
-        ? `🕐 สำรองข้อมูลล่าสุด: ${new Date(last).toLocaleString('th-TH')} (${allData.length.toLocaleString()} รายการในระบบตอนนี้)`
+        ? `🕐 สำรองข้อมูลล่าสุด: ${new Date(last).toLocaleString('th-TH', { hour12: false })} (${allData.length.toLocaleString()} รายการในระบบตอนนี้)`
         : `⚠️ ยังไม่เคยสำรองข้อมูลบนเครื่องนี้ แนะนำให้กดดาวน์โหลดข้อมูลสำรองเป็นประจำ`;
     }
 
@@ -20556,7 +20593,7 @@
     var container = document.getElementById(containerId);
     if (!container) return;
     if (!exams.length) { container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">วันนี้ไม่มีสอบ</div>'; return; }
-    var timeStr = function(iso){ return new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}); };
+    var timeStr = function(iso){ return new Date(iso).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',hour12:false}); };
     var rowHtml = exams.map(function(ex){
       return `<div style="height:28px;display:flex;align-items:center;padding:0 10px;font-size:10px;color:#9f1239;white-space:nowrap;gap:6px">
         <span style="font-weight:600">🗓️ สอบ</span>
