@@ -2403,7 +2403,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.29';
+    const APP_VERSION = '2026.09.08.30';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3492,14 +3492,28 @@
         return;
       }
       
-      // ⚠️ บั๊กร้ายแรงที่พบ: ทั้งการตรวจสอบผู้ช่วยแอดมินและนักเรียน ต้องพึ่ง allData ทั้งคู่ แต่เดิมไม่เช็คเลยว่าโหลดเสร็จหรือยัง
-      // ถ้ามีคนล็อกอินพร้อมกันเยอะ (เช่น 200 คน ก่อนสอบ) การโหลดข้อมูลครั้งแรกอาจยังไม่เสร็จตอนกดล็อกอิน
-      // ทำให้หาไม่เจอ (เพราะข้อมูลยังไม่มาถึงเลย) แล้วขึ้น "Username หรือ Password ไม่ถูกต้อง" ซึ่งเป็นข้อความที่ทำให้เข้าใจผิด (จริงๆ รหัสถูกต้อง แค่ข้อมูลยังโหลดไม่เสร็จ)
-      // แก้โดยเช็ค window.__dataReady ก่อนเสมอ ครอบคลุมทั้ง 2 กรณี ถ้ายังไม่พร้อม แจ้งข้อความที่ถูกต้องแทน ไม่กล่าวโทษว่ารหัสผิด
+      // ⚠️ ตอนมีคนล็อกอินพร้อมกันเยอะ (เช่น 200 คนก่อนสอบ) ข้อมูลอาจโหลดไม่ทัน
+      // ⚡ ปรับใหม่: แทนที่จะให้ผู้ใช้กดเองซ้ำ ระบบจะรอให้ข้อมูลพร้อมแล้วล็อกอินให้อัตโนมัติเลย
       if (!window.__dataReady) {
-        console.log('⏳ ข้อมูลยังโหลดไม่เสร็จ รอสักครู่ก่อนตรวจสอบ username/password');
-        errorDiv.textContent = '⏳ ระบบกำลังโหลดข้อมูล กรุณารอสักครู่แล้วกด "เข้าสู่ระบบ" อีกครั้ง (ไม่ใช่ Username/Password ผิด)';
-        errorDiv.classList.remove('hidden'); showLoginError(errorDiv.textContent);
+        console.log('⏳ ข้อมูลยังโหลดไม่เสร็จ — ระบบจะรอแล้วล็อกอินให้อัตโนมัติ');
+        showLoginError('⏳ ระบบกำลังเตรียมข้อมูล กรุณารอสักครู่ ระบบจะเข้าสู่ระบบให้อัตโนมัติ...');
+        const submitBtns = Array.from(document.querySelectorAll('button[type="submit"]'));
+        submitBtns.forEach(b => { b.disabled = true; b.style.opacity = '0.6'; }); // กันกดซ้ำระหว่างรอ
+        let waited = 0;
+        const waitTimer = setInterval(() => {
+          waited += 500;
+          if (window.__dataReady) {
+            clearInterval(waitTimer);
+            submitBtns.forEach(b => { b.disabled = false; b.style.opacity = ''; });
+            clearLoginError();
+            console.log('✅ ข้อมูลพร้อมแล้ว — ล็อกอินให้อัตโนมัติ');
+            _handleLoginInner(); // ลองล็อกอินใหม่ให้เองทันที ผู้ใช้ไม่ต้องกดซ้ำ
+          } else if (waited >= 30000) { // รอนานสุด 30 วินาที
+            clearInterval(waitTimer);
+            submitBtns.forEach(b => { b.disabled = false; b.style.opacity = ''; });
+            showLoginError('⚠️ โหลดข้อมูลนานผิดปกติ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง');
+          }
+        }, 500);
         return;
       }
       // ตรวจสอบ Admin อื่นๆ
