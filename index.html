@@ -2307,11 +2307,25 @@
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
            <label class="block text-xs text-gray-600 mb-1">🟢 เปิดสอบ (วันเวลาเริ่ม)</label>
-           <input type="datetime-local" lang="th-TH" id="ea-start" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <div class="flex gap-1">
+            <input type="date" lang="th-TH" id="ea-start-date" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+            <select id="ea-start-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"></select>
+            <span class="flex items-center text-gray-500 font-bold">:</span>
+            <select id="ea-start-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"></select>
+            <span class="flex items-center text-xs text-gray-500">น.</span>
+           </div>
+           <input type="hidden" id="ea-start">
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">🔴 ปิดสอบ (วันเวลาสิ้นสุด)</label>
-           <input type="datetime-local" lang="th-TH" id="ea-end" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <div class="flex gap-1">
+            <input type="date" lang="th-TH" id="ea-end-date" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+            <select id="ea-end-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"></select>
+            <span class="flex items-center text-gray-500 font-bold">:</span>
+            <select id="ea-end-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"></select>
+            <span class="flex items-center text-xs text-gray-500">น.</span>
+           </div>
+           <input type="hidden" id="ea-end">
           </div>
          </div>
 
@@ -2389,7 +2403,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.28';
+    const APP_VERSION = '2026.09.08.29';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8767,6 +8781,61 @@
       console.log(`[ReserveWaitTest] จองแถวในชีทชั่วคราวสำเร็จ ${created} คน (จากทั้งหมด ${registrations.length} คน)`);
     }
 
+    // 🕐 ระบบช่องเลือกเวลาแบบ 24 ชั่วโมง (00-23 น.) — สร้างเองทั้งหมด ไม่ขึ้นกับการตั้งค่าเครื่องผู้ใช้
+    // แก้ปัญหาบางเครื่องแสดงเป็น AM/PM ตามการตั้งค่าระบบปฏิบัติการ ซึ่งเว็บบังคับไม่ได้
+    function _initTimeSelectors() {
+      [['ea-start-hour', 'ea-start-min'], ['ea-end-hour', 'ea-end-min']].forEach(function(pair) {
+        const hourEl = document.getElementById(pair[0]);
+        const minEl = document.getElementById(pair[1]);
+        if (hourEl && !hourEl.dataset.filled) {
+          hourEl.dataset.filled = '1';
+          let html = '';
+          for (let h = 0; h < 24; h++) html += `<option value="${String(h).padStart(2,'0')}">${String(h).padStart(2,'0')}</option>`;
+          hourEl.innerHTML = html;
+        }
+        if (minEl && !minEl.dataset.filled) {
+          minEl.dataset.filled = '1';
+          let html = '';
+          for (let m = 0; m < 60; m += 5) html += `<option value="${String(m).padStart(2,'0')}">${String(m).padStart(2,'0')}</option>`;
+          minEl.innerHTML = html;
+        }
+      });
+      // ทุกครั้งที่เลือกค่าใหม่ ให้รวมเป็นรูปแบบมาตรฐานเก็บไว้ในช่องซ่อน (ระบบเดิมอ่านจากช่องนี้)
+      ['ea-start', 'ea-end'].forEach(function(prefix) {
+        [prefix + '-date', prefix + '-hour', prefix + '-min'].forEach(function(id) {
+          const el = document.getElementById(id);
+          if (el && !el.dataset.bound) {
+            el.dataset.bound = '1';
+            el.addEventListener('change', function() { _syncTimeToHidden(prefix); });
+          }
+        });
+      });
+    }
+    /** รวมค่าจากช่องวันที่+ชั่วโมง+นาที เป็นรูปแบบมาตรฐาน (2026-09-08T13:30) เก็บในช่องซ่อน */
+    function _syncTimeToHidden(prefix) {
+      const d = document.getElementById(prefix + '-date')?.value;
+      const h = document.getElementById(prefix + '-hour')?.value || '00';
+      const m = document.getElementById(prefix + '-min')?.value || '00';
+      const hidden = document.getElementById(prefix);
+      if (hidden) hidden.value = d ? `${d}T${h}:${m}` : '';
+    }
+    /** แยกค่าจากรูปแบบมาตรฐาน กลับไปใส่ช่องวันที่+ชั่วโมง+นาที (ใช้ตอนแก้ไขชุดสอบเดิม) */
+    function _fillTimeFromValue(prefix, isoLocal) {
+      if (!isoLocal) return;
+      const [datePart, timePart] = String(isoLocal).split('T');
+      const [hh, mm] = (timePart || '00:00').split(':');
+      const dEl = document.getElementById(prefix + '-date');
+      const hEl = document.getElementById(prefix + '-hour');
+      const mEl = document.getElementById(prefix + '-min');
+      if (dEl) dEl.value = datePart || '';
+      if (hEl) hEl.value = String(hh || '00').padStart(2, '0');
+      if (mEl) {
+        // ปัดนาทีให้ตรงกับตัวเลือกที่มี (ทีละ 5 นาที)
+        const rounded = String(Math.round(parseInt(mm || '0') / 5) * 5 % 60).padStart(2, '0');
+        mEl.value = rounded;
+      }
+      _syncTimeToHidden(prefix);
+    }
     function resetExamSetForm() {
       document.getElementById('ea-edit-id').value = '';
       document.getElementById('ea-form-title').textContent = '➕ สร้างชุดสอบใหม่';
@@ -8777,6 +8846,10 @@
       document.getElementById('ea-kround').value = '1';
       document.getElementById('ea-start').value = '';
       document.getElementById('ea-end').value = '';
+      // 🕐 ล้างช่องเลือกเวลาแบบ 24 ชั่วโมงด้วย
+      ['ea-start-date', 'ea-end-date'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['ea-start-hour', 'ea-end-hour'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '00'; });
+      ['ea-start-min', 'ea-end-min'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '00'; });
       document.getElementById('ea-shuffle').checked = true;
       renderEaQuestionPicker();
     }
@@ -8834,6 +8907,10 @@
       const toLocalInput = (iso) => { const d = new Date(iso); const pad = n => String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
       document.getElementById('ea-start').value = s.start_time ? toLocalInput(s.start_time) : '';
       document.getElementById('ea-end').value = s.end_time ? toLocalInput(s.end_time) : '';
+      // 🕐 ใส่ค่าลงช่องเลือกเวลาแบบ 24 ชั่วโมงด้วย
+      _initTimeSelectors();
+      if (s.start_time) _fillTimeFromValue('ea-start', toLocalInput(s.start_time));
+      if (s.end_time) _fillTimeFromValue('ea-end', toLocalInput(s.end_time));
       renderEaQuestionPicker();
       const selectedIds = (s.question_ids || '').split(',').filter(Boolean);
       selectedIds.forEach(qid => {
@@ -11939,6 +12016,7 @@
         loadExamQuestionsTab();
       } else if (tabName === 'examassign') {
         loadExamAssignTab();
+        if (typeof _initTimeSelectors === 'function') _initTimeSelectors(); // 🕐 เตรียมช่องเลือกเวลาแบบ 24 ชั่วโมง
       } else if (tabName === 'examgrading') {
         loadExamGradingTab();
       }
