@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.36';
+    const APP_VERSION = '2026.09.08.37';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9102,6 +9102,25 @@
     }
 
     /** 🔄 จัดสอบอีกครั้ง — ให้เลือกก่อนว่าจะจัดใหม่ทั้งห้อง หรือเฉพาะคนที่ยังไม่ได้สอบ */
+    /** 🕐 สร้างตัวเลือกชั่วโมงแบบ 24 ชั่วโมง (00-23) พร้อมเลือกค่าที่กำหนดไว้ */
+    function _hourOpts(selected) {
+      let html = '';
+      for (let h = 0; h < 24; h++) {
+        const v = String(h).padStart(2, '0');
+        html += `<option value="${v}"${v === selected ? ' selected' : ''}>${v}</option>`;
+      }
+      return html;
+    }
+    /** 🕐 สร้างตัวเลือกนาที (ทีละ 5 นาที) พร้อมปัดค่าให้ตรงกับตัวเลือกที่มี */
+    function _minOpts(selected) {
+      const rounded = String(Math.round(parseInt(selected || '0') / 5) * 5 % 60).padStart(2, '0');
+      let html = '';
+      for (let m = 0; m < 60; m += 5) {
+        const v = String(m).padStart(2, '0');
+        html += `<option value="${v}"${v === rounded ? ' selected' : ''}>${v}</option>`;
+      }
+      return html;
+    }
     function resetExamSet(id) {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
@@ -9121,9 +9140,21 @@
             <p style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 8px">⏰ หมดเวลาสอบไปแล้ว — กรุณาตั้งเวลาใหม่</p>
             <p style="font-size:11px;color:#78350f;margin:0 0 8px">ถ้าไม่ตั้งเวลาใหม่ นักเรียนจะกดเข้าสอบไม่ได้</p>
             <label style="display:block;font-size:11px;color:#78350f;margin-bottom:3px">🟢 เปิดสอบใหม่</label>
-            <input type="datetime-local" id="reset-new-start" value="${nowStr}" style="width:100%;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
+            <div style="display:flex;gap:4px;margin-bottom:8px;align-items:center">
+              <input type="date" id="reset-start-date" value="${nowStr.split('T')[0]}" style="flex:1;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;box-sizing:border-box">
+              <select id="reset-start-hour" style="padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px">${_hourOpts(nowStr.split('T')[1].split(':')[0])}</select>
+              <span style="font-weight:700;color:#78350f">:</span>
+              <select id="reset-start-min" style="padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px">${_minOpts(nowStr.split('T')[1].split(':')[1])}</select>
+              <span style="font-size:11px;color:#78350f">น.</span>
+            </div>
             <label style="display:block;font-size:11px;color:#78350f;margin-bottom:3px">🔴 ปิดสอบ</label>
-            <input type="datetime-local" id="reset-new-end" value="${tomorrowStr}" style="width:100%;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;box-sizing:border-box">
+            <div style="display:flex;gap:4px;align-items:center">
+              <input type="date" id="reset-end-date" value="${tomorrowStr.split('T')[0]}" style="flex:1;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;box-sizing:border-box">
+              <select id="reset-end-hour" style="padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px">${_hourOpts(tomorrowStr.split('T')[1].split(':')[0])}</select>
+              <span style="font-weight:700;color:#78350f">:</span>
+              <select id="reset-end-min" style="padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px">${_minOpts(tomorrowStr.split('T')[1].split(':')[1])}</select>
+              <span style="font-size:11px;color:#78350f">น.</span>
+            </div>
           </div>` : `
           <p style="font-size:11px;color:#059669;background:#d1fae5;padding:8px;border-radius:6px;margin:0 0 14px">✅ ยังอยู่ในช่วงเวลาสอบ (ปิดสอบ ${s.end_time ? new Date(s.end_time).toLocaleString('th-TH', {dateStyle:'short', timeStyle:'short', hour12:false}) : '-'}) ไม่ต้องตั้งเวลาใหม่</p>`;
 
@@ -9154,11 +9185,17 @@
     /** ดำเนินการจัดสอบอีกครั้งจริง — mode: 'all' = ทั้งห้อง, 'pending' = เฉพาะคนที่ยังไม่ได้สอบ */
     async function _doResetExamSet(id, mode) {
       // ⏰ อ่านค่าเวลาใหม่ก่อนลบหน้าต่าง (ถ้ามีช่องให้กรอก แปลว่าหมดเวลาสอบไปแล้ว)
-      const newStartEl = document.getElementById('reset-new-start');
-      const newEndEl = document.getElementById('reset-new-end');
-      const newStart = newStartEl?.value || '';
-      const newEnd = newEndEl?.value || '';
-      const needNewTime = !!newStartEl; // มีช่องนี้ = หมดเวลาแล้ว ต้องตั้งใหม่
+      // 🕐 อ่านค่าจากช่องแยก (วันที่ + ชั่วโมง + นาที) แล้วรวมเป็นรูปแบบมาตรฐาน
+      const sDateEl = document.getElementById('reset-start-date');
+      const needNewTime = !!sDateEl; // มีช่องนี้ = หมดเวลาแล้ว ต้องตั้งใหม่
+      const _joinDT = (prefix) => {
+        const d = document.getElementById(prefix + '-date')?.value || '';
+        const h = document.getElementById(prefix + '-hour')?.value || '00';
+        const m = document.getElementById(prefix + '-min')?.value || '00';
+        return d ? `${d}T${h}:${m}` : '';
+      };
+      const newStart = needNewTime ? _joinDT('reset-start') : '';
+      const newEnd = needNewTime ? _joinDT('reset-end') : '';
       if (needNewTime) {
         if (!newStart || !newEnd) { alert('⚠️ กรุณาตั้งเวลาเปิด-ปิดสอบใหม่ให้ครบ'); return; }
         if (new Date(newEnd) <= new Date(newStart)) { alert('⚠️ เวลาปิดสอบต้องอยู่หลังเวลาเปิดสอบ'); return; }
