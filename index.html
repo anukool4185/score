@@ -2271,24 +2271,31 @@
          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
           <div>
            <label class="block text-xs text-gray-600 mb-1">🏫 ชั้น</label>
-           <select id="ea-class" onchange="updateEaRoomOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-class" onchange="updateEaRoomOptions();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกชั้น --</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">🚪 ห้อง</label>
-           <select id="ea-room" onchange="updateEaSubjectOptions()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-room" onchange="updateEaSubjectOptions();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกห้อง --</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
-           <select id="ea-subject" onchange="renderEaChapterFilter();renderEaQuestionPicker();updateEaRandomInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-subject" onchange="renderEaChapterFilter();renderEaQuestionPicker();updateEaRandomInfo();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกวิชา --</option>
            </select>
           </div>
           <div>
-           <label class="block text-xs text-gray-600 mb-1">🔢 K ครั้งที่</label>
+           <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
+           <select id="ea-scoretype" onchange="_updateScoreTypeLabel()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+            <option value="k">K (ความรู้)</option>
+            <option value="c">C (คุณลักษณะ)</option>
+           </select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1"><span id="ea-round-label">🔢 K ครั้งที่</span></label>
            <select id="ea-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="1">ครั้งที่ 1</option>
             <option value="2">ครั้งที่ 2</option>
@@ -2340,6 +2347,20 @@
           <button type="button" onclick="switchEaPickerMode('random')" id="ea-mode-random-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-600">🎲 สุ่มข้อสอบอัตโนมัติ</button>
          </div>
          <input type="hidden" id="ea-picker-mode" value="manual">
+
+         <!-- 👥 เลือกนักเรียนที่จะให้สอบ (เลือกรายบุคคล หรือทั้งห้อง) -->
+         <div id="ea-student-picker-section" class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+           <p class="text-xs font-semibold text-emerald-800">👥 เลือกนักเรียนที่จะให้สอบ <span id="ea-student-count" class="text-emerald-600"></span></p>
+           <div class="flex gap-1">
+            <button type="button" onclick="_eaToggleAllStudents(true)" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs">✅ เลือกทั้งห้อง</button>
+            <button type="button" onclick="_eaToggleAllStudents(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✖️ ล้างทั้งหมด</button>
+           </div>
+          </div>
+          <div id="ea-student-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-48 overflow-y-auto bg-white rounded p-2 border border-emerald-100">
+           <p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>
+          </div>
+         </div>
 
          <!-- 🏷️ กรองเรื่อง/บทที่จะนำมาใช้ ก่อนเลือกข้อสอบเอง/สุ่มข้อสอบ ให้เจาะจงได้มากขึ้น (ติ๊กว่างหมด = ใช้ทุกเรื่อง) -->
          <div id="ea-chapter-filter-section" class="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
@@ -8180,7 +8201,7 @@
         const round = parseInt(s.k_round) || 1;
         const contribution = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
         if (contribution > 0) {
-          await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, contribution);
+          await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, contribution, s.score_type);
         }
         // ทำเครื่องหมายว่าซ่อมแล้ว + บันทึกว่าตอนนี้สมทบเท่าไหร่จริง กันซ่อมซ้ำในอนาคต
         await window.dataSdk.update({ ...s, repaired_full_score: true, applied_full_score_delta: contribution });
@@ -8581,8 +8602,12 @@
       refreshCurrentView();
     }
 
-    async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta) {
+    async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType) {
       if (!delta) return;
+      // 📊 รองรับทั้ง K และ C (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบการเรียกใช้แบบเก่า)
+      const sType = (scoreType === 'c') ? 'c' : 'k';
+      const fullScoreField = sType + '_full_scores';
+      const fullScoreSingular = sType + '_full_score';
       // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
       // แต่หน้า "ให้คะแนน" สร้าง key จากตาราง student_registration แทน! ถ้าข้อความ 2 ตารางนี้ไม่ตรงกันเป๊ะ (แม้เรื่องเดียวกัน) จะไม่มีทางจับคู่กันได้เลย
       // แก้โดยหา student_registration ที่ตรงกับชั้น/ห้อง/วิชานี้จริงๆ ก่อน แล้วใช้ค่า class_name/room_number/subject_name "ของ registration นั้นเป๊ะๆ"
@@ -8598,7 +8623,7 @@
       }
       const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const round = parseInt(kRound) || 1;
-      let fullArr = (scoresConfig?.k_full_scores || '').split(',').map(s => s.trim());
+      let fullArr = (scoresConfig?.[fullScoreField] || '').split(',').map(s => s.trim());
       while (fullArr.length < round) fullArr.push('');
       const existing = parseFloat(fullArr[round - 1]) || 0;
       // ⚠️ ป้องกันคะแนนเต็มติดลบเด็ดขาด: ถ้าคำนวณแล้วติดลบ (เช่น ข้อมูลเก่าที่ไม่เคยถูกบวกจริงมาก่อน แล้วมาลบออกทีหลัง)
@@ -8609,9 +8634,9 @@
       // ต้องคำนวณ k_full_score (เอกพจน์) ใหม่ให้เท่ากับ "ผลรวม" ของ k_full_scores (พหูพจน์) ทุกครั้งที่มีการเปลี่ยนแปลง เพื่อให้สูตรเกรดถูกต้องจริง
       const newSingularFullScore = fullArr.reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
       if (scoresConfig) {
-        await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(','), k_full_score: newSingularFullScore });
+        await window.dataSdk.update({ ...scoresConfig, [fullScoreField]: fullArr.join(','), [fullScoreSingular]: newSingularFullScore });
       } else {
-        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, class_name: className, room_number: roomNumber, subject_name: subjectName, k_full_scores: fullArr.join(','), k_full_score: newSingularFullScore });
+        await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId, class_name: className, room_number: roomNumber, subject_name: subjectName, [fullScoreField]: fullArr.join(','), [fullScoreSingular]: newSingularFullScore });
       }
     }
 
@@ -8661,6 +8686,7 @@
       const roomNumber = document.getElementById('ea-room')?.value;
       const subjectName = document.getElementById('ea-subject')?.value;
       const kRound = document.getElementById('ea-kround')?.value;
+      const scoreType = document.getElementById('ea-scoretype')?.value || 'k'; // 📊 ประเภทคะแนน: k หรือ c
       const startTime = document.getElementById('ea-start')?.value;
       const endTime = document.getElementById('ea-end')?.value;
       const shuffle = document.getElementById('ea-shuffle')?.checked;
@@ -8715,6 +8741,7 @@
         room_number: roomNumber,
         subject_name: subjectName,
         k_round: kRound,
+        score_type: scoreType, // 📊 บอกว่าคะแนนสอบชุดนี้จะไปเก็บที่ช่อง K หรือ C
         is_random_mode: pickerMode === 'random',
         random_count: randomCount,
         selected_chapters: selectedChapters ? selectedChapters.join(',') : '', // 🏷️ เก็บเรื่อง/บทที่กรองไว้ (ว่าง = ทุกเรื่อง) ให้ตอนสุ่มจริงใช้กรองพูลด้วย
@@ -8742,14 +8769,19 @@
       if (result.isOk) {
         // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที ในเบื้องหลังทันทีที่บันทึกสำเร็จ — ไม่ต้องกดปุ่มซ่อมเองอีกต่อไป ทำงานอัตโนมัติทุกครั้ง
         const delta = totalScore - oldTotalScore;
-        await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta);
+        await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType);
         // ⚠️ บั๊กสำคัญที่พบ: เดิม await การสร้างแจ้งเตือนของนักเรียนทุกคนให้เสร็จก่อน ถึงจะขึ้น "สำเร็จ" — ถ้ามีนักเรียนเยอะ (200 คน)
         // การสร้าง 200 รายการพร้อมกันใช้เวลานานมาก (Google Apps Script มีข้อจำกัดจำนวนคำขอพร้อมกัน) ทำให้แอดมินเห็นเหมือน "ค้าง"
         // ทั้งที่ตัวชุดสอบจริงบันทึกเสร็จไปนานแล้ว (นักเรียนถึงเห็นปุ่มสอบขึ้นได้ทันที) — แก้โดยไม่ต้องรอแจ้งเตือนเสร็จก่อนแสดงผลสำเร็จ ปล่อยให้ทำงานเบื้องหลังแทน
         if (!editId) {
           const savedSetId = result.data.__backendId;
-          const affectedRegs = allData.filter(d => d.type === 'student_registration' &&
+          // 👥 ใช้เฉพาะนักเรียนที่ติ๊กเลือกไว้ (ถ้าไม่ได้เลือกเลย = ทั้งห้อง เพื่อความเข้ากันได้กับการใช้งานแบบเดิม)
+          const selectedRegIds = _getEaSelectedRegIds();
+          const allRegsInRoom = allData.filter(d => d.type === 'student_registration' &&
             d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+          const affectedRegs = selectedRegIds.length > 0
+            ? allRegsInRoom.filter(r => selectedRegIds.includes(r.__backendId))
+            : allRegsInRoom;
           Promise.all(affectedRegs.map(reg => createStudentNotification({
             studentId: reg.student_id, message: `📝 มีการจัดสอบใหม่: ${subjectName} K ครั้งที่ ${kRound}`,
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
@@ -8856,6 +8888,66 @@
         mEl.value = rounded;
       }
       _syncTimeToHidden(prefix);
+    }
+    /** 👥 แสดงรายชื่อนักเรียนในชั้น/ห้อง/วิชาที่เลือก ให้ติ๊กเลือกได้ว่าใครจะสอบบ้าง */
+    function renderEaStudentPicker() {
+      const box = document.getElementById('ea-student-checkboxes');
+      const countEl = document.getElementById('ea-student-count');
+      if (!box) return;
+      const className = document.getElementById('ea-class')?.value;
+      const roomNumber = document.getElementById('ea-room')?.value;
+      const subjectName = document.getElementById('ea-subject')?.value;
+      if (!className || !roomNumber || !subjectName) {
+        box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+      const regs = allData.filter(d => d.type === 'student_registration' &&
+        d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+      if (regs.length === 0) {
+        box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้ในห้องนี้</p>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+      // เรียงตามเลขที่ ถ้าไม่มีเลขที่ให้เรียงตามรหัสนักเรียน
+      const rows = regs.map(reg => {
+        const stu = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        return {
+          reg, stu,
+          num: parseInt(stu?.student_number) || 9999,
+          name: stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}` : reg.student_id,
+        };
+      }).sort((a, b) => a.num - b.num || String(a.reg.student_id).localeCompare(String(b.reg.student_id)));
+
+      box.innerHTML = rows.map(r => `
+        <label class="flex items-center gap-2 text-xs hover:bg-emerald-50 rounded px-1 py-0.5 cursor-pointer">
+          <input type="checkbox" class="ea-student-cb" value="${r.reg.__backendId}" checked onchange="_eaUpdateStudentCount()">
+          <span class="text-gray-400 w-6 text-right">${r.num !== 9999 ? r.num : '-'}</span>
+          <span class="text-gray-700">${escHtml(r.name)}</span>
+        </label>`).join('');
+      _eaUpdateStudentCount();
+    }
+    /** ติ๊กเลือกทั้งหมด หรือล้างทั้งหมด */
+    function _eaToggleAllStudents(checked) {
+      document.querySelectorAll('.ea-student-cb').forEach(cb => { cb.checked = checked; });
+      _eaUpdateStudentCount();
+    }
+    /** อัปเดตตัวเลขจำนวนคนที่เลือกไว้ */
+    function _eaUpdateStudentCount() {
+      const all = document.querySelectorAll('.ea-student-cb');
+      const checked = document.querySelectorAll('.ea-student-cb:checked');
+      const countEl = document.getElementById('ea-student-count');
+      if (countEl) countEl.textContent = all.length > 0 ? `(เลือก ${checked.length} จาก ${all.length} คน)` : '';
+    }
+    /** ดึงรายการ registration_id ของนักเรียนที่ติ๊กเลือกไว้ */
+    function _getEaSelectedRegIds() {
+      return Array.from(document.querySelectorAll('.ea-student-cb:checked')).map(cb => cb.value);
+    }
+    /** 📊 เปลี่ยนป้ายกำกับตามประเภทคะแนนที่เลือก (K หรือ C) ให้เห็นชัดว่ากำลังตั้งค่าให้อะไร */
+    function _updateScoreTypeLabel() {
+      const t = document.getElementById('ea-scoretype')?.value || 'k';
+      const label = document.getElementById('ea-round-label');
+      if (label) label.textContent = t === 'c' ? '🔢 C ครั้งที่' : '🔢 K ครั้งที่';
     }
     function resetExamSetForm() {
       document.getElementById('ea-edit-id').value = '';
@@ -9013,7 +9105,7 @@
       const currentlyApplied = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
 
       // 1) คืนคะแนนเต็มที่เคยบวกไว้ก่อน (เท่าที่สมทบจริงเท่านั้น)
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyApplied);
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyApplied, s.score_type);
 
       // 2) ลบเฉพาะส่วนคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมา ออกจากยอดปัจจุบันของนักเรียนแต่ละคน (เหมือนตอนลบ)
       // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมทำแบบขนาน (Promise.all) เพื่อความเร็ว แต่ถ้านักเรียนคนเดียวมี submission มากกว่า 1 รายการ
@@ -9033,11 +9125,13 @@
             grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
           }
           if (grade) {
-            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
+            const delField = ((s.score_type === 'c') ? 'c' : 'k') + '_scores';
+            let scoresArr = (grade[delField] || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
             scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
-            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+            await window.dataSdk.update({ ...grade, [delField]: scoresArr.join(',') });
           } else {
             // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
             console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
@@ -9054,7 +9148,7 @@
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0);
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0, s.score_type);
       // อัปเดตค่าที่สมทบจริงให้ตรงกับปัจจุบัน (เท่ากับ total_score เต็มจำนวน เพราะเพิ่งป้อนกลับเข้าไปใหม่สดๆ)
       await window.dataSdk.update({ ...s, applied_full_score_delta: s.total_score || 0 });
 
@@ -9085,7 +9179,7 @@
       const currentlyAppliedForDelete = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
 
       // 1) คืนคะแนนเต็มที่เคยบวกเพิ่มไว้ตอนมอบหมาย/แก้ไขชุดสอบ (เท่าที่สมทบจริงเท่านั้น)
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyAppliedForDelete);
+      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, -currentlyAppliedForDelete, s.score_type);
 
       // 2) ถ้ามีนักเรียนสอบไปแล้ว (มีคะแนนเขียนลง K ไปแล้ว) ให้ลบเฉพาะ "ส่วนที่ข้อสอบนี้ทำให้ได้เพิ่มมา" ออกจากยอดปัจจุบัน
       //    เช่น เดิมมีคะแนนกรอกมือ 20 + สอบได้เพิ่ม 5 = 25 → ลบข้อสอบ → เหลือ 20 เท่าเดิม (ไม่ใช่เคลียร์เป็น 0)
@@ -9105,11 +9199,13 @@
             grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
           }
           if (grade) {
-            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
+            const delField = ((s.score_type === 'c') ? 'c' : 'k') + '_scores';
+            let scoresArr = (grade[delField] || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
             scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
-            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+            await window.dataSdk.update({ ...grade, [delField]: scoresArr.join(',') });
           } else {
             // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
             console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
@@ -9332,11 +9428,13 @@
           const round = parseInt(examSet.k_round) || 1;
           const grade = allData.find(d => d.type === 'grade' && d.registration_id === registrationId);
           if (grade) {
-            let scoresArr = (grade.k_scores || '').split(',').map(x => x.trim());
+            // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
+            const retryField = ((examSet.score_type === 'c') ? 'c' : 'k') + '_scores';
+            let scoresArr = (grade[retryField] || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
             scoresArr[round - 1] = (currentValue - prevScore) > 0 ? String(currentValue - prevScore) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
-            await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+            await window.dataSdk.update({ ...grade, [retryField]: scoresArr.join(',') });
           }
           // ทำเครื่องหมายว่าคะแนนของครั้งนี้ถูกลบออกจากยอดแล้ว กัน deleteExamSet/resetExamSet มาลบซ้ำอีกทีในอนาคต
           await window.dataSdk.update({ ...prevSubmission, score_reversed: true });
@@ -10573,7 +10671,12 @@
       const reg = allData.find(d => d.__backendId === submission.registration_id && d.type === 'student_registration');
       const grade = allData.find(d => d.type === 'grade' && d.registration_id === submission.registration_id);
       const round = parseInt(examSet.k_round) || 1;
-      let scoresArr = (grade?.k_scores || '').split(',').map(s => s.trim());
+      // 📊 รองรับทั้ง K และ C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
+      const sType = (examSet.score_type === 'c') ? 'c' : 'k';
+      const scoreField = sType + '_scores';           // k_scores หรือ c_scores
+      const fullScoreField = sType + '_full_scores';  // k_full_scores หรือ c_full_scores
+      const fullScoreSingular = sType + '_full_score';
+      let scoresArr = (grade?.[scoreField] || '').split(',').map(s => s.trim());
       while (scoresArr.length < round) scoresArr.push('');
       // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิม "บวกเพิ่ม" เข้าไปตรงๆ เสมอ ถ้าฟังก์ชันนี้ถูกเรียกซ้ำสำหรับ submission เดียวกัน
       // (เช่น ตรวจข้ออัตนัยใหม่, ตั้งคะแนนใหม่หลังยุติสอบ) คะแนนจะถูกบวกซ้ำเข้าไปทุกครั้งที่เรียก ทำให้คะแนนสูงเกินจริง
@@ -10587,10 +10690,10 @@
       // แก้โดยเปลี่ยนเป็น >= 0 แทน (ยังกันค่าติดลบซึ่งไม่ควรเกิดในกรณีบันทึกคะแนนใหม่อยู่ดี แต่ไม่เคลียร์ 0 ทิ้งอีกต่อไป)
       scoresArr[round - 1] = newTotal >= 0 ? String(newTotal) : '';
       if (grade) {
-        await window.dataSdk.update({ ...grade, k_scores: scoresArr.join(',') });
+        await window.dataSdk.update({ ...grade, [scoreField]: scoresArr.join(',') });
       } else {
         const studentForName = allData.find(s => s.type === 'student' && s.student_id === submission.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
-        await window.dataSdk.create({ type: 'grade', registration_id: submission.registration_id, student_id: submission.student_id, student_name: studentForName ? `${studentForName.prefix}${studentForName.first_name} ${studentForName.last_name}` : '', class_name: submission.class_name, room_number: submission.room_number, subject_name: submission.subject_name, k_scores: scoresArr.join(','), created_at: new Date().toISOString() });
+        await window.dataSdk.create({ type: 'grade', registration_id: submission.registration_id, student_id: submission.student_id, student_name: studentForName ? `${studentForName.prefix}${studentForName.first_name} ${studentForName.last_name}` : '', class_name: submission.class_name, room_number: submission.room_number, subject_name: submission.subject_name, [scoreField]: scoresArr.join(','), created_at: new Date().toISOString() });
       }
       // บันทึกไว้ว่า submission นี้เขียนคะแนนไปเท่าไหร่แล้ว ให้ครั้งถัดไป (ถ้ามีการเขียนซ้ำ) หักออกได้ถูกต้อง
       await window.dataSdk.update({ ...submission, k_score_contributed: score });
@@ -10598,13 +10701,13 @@
       if (reg?.class_subject_id) {
         const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
         if (scoresConfig) {
-          let fullArr = (scoresConfig.k_full_scores || '').split(',').map(s => s.trim());
+          let fullArr = (scoresConfig[fullScoreField] || '').split(',').map(s => s.trim());
           while (fullArr.length < round) fullArr.push('');
           if (!fullArr[round - 1]) {
             fullArr[round - 1] = String(examSet.total_score);
-            // ⚠️ ต้องอัปเดต k_full_score (เอกพจน์ ใช้ในสูตรคำนวณเกรดจริง) ให้เท่ากับผลรวมของ k_full_scores (พหูพจน์) เสมอ เหมือนที่แก้ใน _applyExamFullScoreDelta
+            // ⚠️ ต้องอัปเดตฟิลด์เอกพจน์ (ใช้ในสูตรคำนวณเกรดจริง) ให้เท่ากับผลรวมของฟิลด์พหูพจน์เสมอ
             const newSingular = fullArr.reduce((s, v) => s + (parseFloat(v) || 0), 0);
-            await window.dataSdk.update({ ...scoresConfig, k_full_scores: fullArr.join(','), k_full_score: newSingular });
+            await window.dataSdk.update({ ...scoresConfig, [fullScoreField]: fullArr.join(','), [fullScoreSingular]: newSingular });
           }
         }
       }
