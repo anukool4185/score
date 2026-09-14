@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.4';
+    const APP_VERSION = 'SUPABASE-2026.09.08.5';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6641,7 +6641,7 @@ const supabaseDataSdk = {
         const totalSum = grade ? (sumScoresStr(grade.k_scores) + sumScoresStr(grade.p_scores) + sumScoresStr(grade.a_scores) +
                           sumScoresStr(grade.c_scores) + sumScoresStr(grade.m_scores) + sumScoresStr(grade.f_scores)) : 0;
         const scoreText = grade ? `${totalSum.toFixed(1)} / ${totalFull || '-'}` : '<span class="text-gray-400">ยังไม่มีคะแนน</span>';
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const hoursData = _findHoursData(reg);
         let part1Html = '<span class="text-gray-400">-</span>';
         let part2Html = '<span class="text-gray-400">-</span>';
         if (hoursData) {
@@ -12048,7 +12048,7 @@ const supabaseDataSdk = {
         const gradeValue = scoreToGrade(totalAll);
 
         // เกรดพิเศษ(1): มส. จากขาดเรียนเกินกำหนด เวลาส่วนที่ 1
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const hoursData = _findHoursData(reg);
         const part1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
         let special1 = '-';
         if (hoursData && part1 && part1.attended_hours !== undefined) {
@@ -17149,6 +17149,21 @@ const supabaseDataSdk = {
       });
       renderTimekeepingDetail(regId);
     }
+    /** 🔧 หาข้อมูลชั่วโมงเรียนของรายวิชา — รองรับทั้งการหาด้วยรหัสอ้างอิง และด้วยชั้น/ห้อง/วิชา
+     *  จำเป็นหลังย้ายมา Supabase เพราะรหัสอ้างอิงอาจไม่ตรงกับของเดิม ทำให้หาข้อมูลไม่เจอ */
+    function _findHoursData(reg) {
+      if (!reg) return null;
+      let h = reg.class_subject_id
+        ? allData.find(x => x.type === 'class_subject_hours' && x.class_subject_id === reg.class_subject_id)
+        : null;
+      if (!h) {
+        h = allData.find(x => x.type === 'class_subject_hours'
+          && x.class_name === reg.class_name
+          && String(x.room_number) === String(reg.room_number)
+          && x.subject_name === reg.subject_name);
+      }
+      return h || null;
+    }
     function renderTimekeepingDetail(regId) {
       const detailEl = document.getElementById('timekeeping-student-detail');
       if (!detailEl) return;
@@ -17158,7 +17173,17 @@ const supabaseDataSdk = {
     }
     function buildTimekeepingCardHtml(reg) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        // 🔧 หาข้อมูลชั่วโมงเรียน — ถ้าหาด้วย class_subject_id ไม่เจอ ให้หาด้วยชั้น/ห้อง/วิชาแทน
+        // (จำเป็นหลังย้ายมา Supabase เพราะรหัสอ้างอิงอาจไม่ตรงกับของเดิม ทำให้ตารางลงเวลาไม่แสดง)
+        let hoursData = reg.class_subject_id
+          ? allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id)
+          : null;
+        if (!hoursData) {
+          hoursData = allData.find(h => h.type === 'class_subject_hours'
+            && h.class_name === reg.class_name
+            && String(h.room_number) === String(reg.room_number)
+            && h.subject_name === reg.subject_name);
+        }
         const attendancePart1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
         const attendancePart2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
         
@@ -17326,7 +17351,7 @@ const supabaseDataSdk = {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const attendanceRecord = allData.find(a => a.type === 'attendance' && a.registration_id === reg.__backendId);
         
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const hoursData = _findHoursData(reg);
         const totalHoursPlanned = hoursData?.total_hours || 0;
         const maxAbsentPercent = hoursData?.max_absent_percent_setting || 0;
         const hoursCanAbsent = hoursData?.hours_can_absent || 0;
@@ -17466,7 +17491,7 @@ const supabaseDataSdk = {
       if (!reg) return;
       const studentForName = allData.find(s => s.type === 'student' && s.student_id === reg.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
       // 📌 ขั้นที่ 2: ค้นหาข้อมูลเวลาตั้งต้นของวิชา (total_hours = 80 ชม.)
-      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const hoursData = _findHoursData(reg);
       const totalHours = hoursData?.total_hours || 0;  // เช่น 80 ชม.
       // 📌 ขั้นที่ 3: ตรวจสอบว่ากรอกค่าถูกต้องหรือไม่
       if (attendedHours < 0 || attendedHours > totalHours) {
@@ -17516,7 +17541,7 @@ const supabaseDataSdk = {
       if (!reg) return;
       const studentForName = allData.find(s => s.type === 'student' && s.student_id === reg.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
       // 📌 ขั้นที่ 2: ค้นหาข้อมูลเวลาเรียนจริง (actual_hours_taught = เวลาที่แอดมินตั้งไว้)
-      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const hoursData = _findHoursData(reg);
       const actualHoursTaught = hoursData?.actual_hours_taught || 0;  // เช่น 50 ชม. (ตั้งโดยแอดมิน)
       // 📌 ขั้นที่ 3: ตรวจสอบว่ากรอกค่าถูกต้องหรือไม่
       if (attendedHoursReal < 0 || attendedHoursReal > actualHoursTaught) {
@@ -18140,7 +18165,7 @@ const supabaseDataSdk = {
         return;
       }
       const cardsHtml = registrations.map(reg => {
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const hoursData = _findHoursData(reg);
         if (!hoursData) {
           return `
             <div class="bg-white rounded-lg border-2 border-gray-200 p-5 mb-4">
@@ -18465,7 +18490,7 @@ const supabaseDataSdk = {
 
         // คะแนนรวม
         // เวลาเรียน
-        const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+        const hoursData = _findHoursData(reg);
         let part1Html = '<span class="text-gray-400">-</span>';
         let part2Html = '<span class="text-gray-400">-</span>';
         if (hoursData) {
@@ -20377,7 +20402,7 @@ const supabaseDataSdk = {
     el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${regs.length} รายการ</p>` + regs.map(reg => {
       const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
       const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
-      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const hoursData = _findHoursData(reg);
       const p1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
       const p2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
       const attend1 = p1?.attended_hours !== undefined ? `${p1.attended_hours}/${hoursData?.total_hours||0}` : '-';
@@ -20643,7 +20668,7 @@ const supabaseDataSdk = {
     el.innerHTML = `<p style="font-size:11px;color:#94a3b8;margin:0 0 8px">ทั้งหมด ${regs.length} รายการ</p>` + regs.map(reg => {
       const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
       const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
-      const hoursData = allData.find(h => h.type === 'class_subject_hours' && h.class_subject_id === reg.class_subject_id);
+      const hoursData = _findHoursData(reg);
       const p1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
       let status = 'ยังไม่มีข้อมูล', color = '#94a3b8';
       if (hoursData && p1?.attended_hours !== undefined) {
