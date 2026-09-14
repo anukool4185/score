@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.34';
+    const APP_VERSION = '2026.09.08.35';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9101,10 +9101,70 @@
       renderExamSetList();
     }
 
-    async function resetExamSet(id) {
+    /** 🔄 จัดสอบอีกครั้ง — ให้เลือกก่อนว่าจะจัดใหม่ทั้งห้อง หรือเฉพาะคนที่ยังไม่ได้สอบ */
+    function resetExamSet(id) {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
-      if (!confirm(`ยืนยันจัดสอบ "${s.subject_name} K.${s.k_round}" อีกครั้ง?\n\nระบบจะ:\n- ล้างคะแนนที่นักเรียนทุกคนเคยได้จากการสอบครั้งนี้ (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)\n- ลบการทำข้อสอบเดิมทั้งหมด เพื่อให้ทุกคนเข้าสอบใหม่ได้\n- คะแนนเต็มจะถูกป้อนกลับเข้าไปใหม่เหมือนตอนมอบหมายครั้งแรก`)) return;
+      const subs = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      const doneCount = subs.filter(d => d.status === 'submitted' || d.status === 'terminated').length;
+      const notDoneCount = subs.filter(d => d.status === 'not_started' || d.status === 'in_progress').length;
+      const stLabel = s.score_type === 'c' ? 'C' : 'K';
+
+      document.getElementById('reset-exam-choice')?.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'reset-exam-choice';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(15,23,42,0.9);display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML = `
+        <div style="background:white;border-radius:16px;padding:24px;max-width:420px;width:100%">
+          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🔄 จัดสอบอีกครั้ง</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px">${escHtml(s.subject_name)} · ${stLabel} ครั้งที่ ${s.k_round} · ${escHtml(s.class_name)}/${escHtml(s.room_number)}</p>
+          <div style="background:#f1f5f9;border-radius:8px;padding:10px;margin-bottom:16px;font-size:12px;color:#475569;line-height:1.7">
+            📊 สอบเสร็จแล้ว: <b>${doneCount} คน</b><br>
+            ⏳ ยังไม่ได้สอบ/ทำค้าง: <b>${notDoneCount} คน</b>
+          </div>
+          <button onclick="_doResetExamSet('${id}','all')" style="width:100%;padding:13px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:left">
+            1️⃣ จัดใหม่ทั้งห้อง<br><span style="font-size:11px;font-weight:400;opacity:0.9">ล้างคะแนนทุกคน ให้ทุกคนสอบใหม่หมด (${subs.length} คน)</span>
+          </button>
+          <button onclick="_doResetExamSet('${id}','pending')" style="width:100%;padding:13px;background:#10b981;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:left">
+            2️⃣ เฉพาะคนที่ยังไม่ได้สอบ<br><span style="font-size:11px;font-weight:400;opacity:0.9">คนที่สอบเสร็จแล้วคะแนนไม่หาย (${notDoneCount} คน)</span>
+          </button>
+          <button onclick="document.getElementById('reset-exam-choice')?.remove()" style="width:100%;padding:11px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ยกเลิก</button>
+        </div>`;
+      document.body.appendChild(overlay);
+    }
+
+    /** ดำเนินการจัดสอบอีกครั้งจริง — mode: 'all' = ทั้งห้อง, 'pending' = เฉพาะคนที่ยังไม่ได้สอบ */
+    async function _doResetExamSet(id, mode) {
+      document.getElementById('reset-exam-choice')?.remove();
+      const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
+      if (!s) return;
+
+      // 🟢 โหมด "เฉพาะคนที่ยังไม่ได้สอบ" — ไม่แตะคะแนนเต็มและคะแนนคนที่สอบเสร็จแล้วเลย
+      if (mode === 'pending') {
+        const targets = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id
+          && (d.status === 'in_progress' || d.status === 'not_started'));
+        if (targets.length === 0) { showToast('ไม่มีนักเรียนที่ยังไม่ได้สอบ', 'info'); return; }
+        if (!confirm('ยืนยันเปิดให้สอบใหม่เฉพาะ ' + targets.length + ' คนที่ยังไม่ได้สอบ?\n\nคะแนนของคนที่สอบเสร็จแล้วจะไม่ถูกแตะต้องเลย')) return;
+        let count = 0;
+        for (const sub of targets) {
+          try {
+            await cleanupExamSubmissionRelatedRecords(sub.__backendId);
+            // รีเซ็ตกลับเป็นสถานะยังไม่เริ่มสอบ (คงแถวไว้ ไม่ลบทิ้ง เพื่อรักษาการจองแถว 1 คน 1 แถว)
+            await window.dataSdk.update({ ...sub, status: 'not_started', answers: '{}',
+              auto_score: '', manual_score: '', started_at: '', submitted_at: '',
+              question_order: '', question_snapshot_json: '', frozen: '', frozen_reason: '',
+              cheat_warning_count: '', terminated_reason: '', needs_manual_grading: '',
+              manual_grading_done: '', imported_to_grade: '', k_score_contributed: '' });
+            count++;
+          } catch (e) { console.error('[ResetPending] รีเซ็ตไม่สำเร็จ:', sub.student_id, e.message); }
+        }
+        showToast('🔄 เปิดให้สอบใหม่ ' + count + ' คนที่ยังไม่ได้สอบเรียบร้อย (คะแนนคนอื่นไม่กระทบ)');
+        renderExamSetList();
+        return;
+      }
+
+      // 🟡 โหมด "จัดใหม่ทั้งห้อง" — ทำงานแบบเดิมทุกประการ
+      if (!confirm('ยืนยันจัดสอบ "' + s.subject_name + ' ' + (s.score_type === 'c' ? 'C' : 'K') + '.' + s.k_round + '" ใหม่ทั้งห้อง?\n\nระบบจะ:\n- ล้างคะแนนที่นักเรียนทุกคนเคยได้จากการสอบครั้งนี้ (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)\n- ลบการทำข้อสอบเดิมทั้งหมด เพื่อให้ทุกคนเข้าสอบใหม่ได้\n- คะแนนเต็มจะถูกป้อนกลับเข้าไปใหม่เหมือนตอนมอบหมายครั้งแรก')) return;
       const round = parseInt(s.k_round) || 1;
       // ⚠️ ใช้ส่วนที่สมทบจริง (applied_full_score_delta) แทนการเดาว่า total_score ถูกใส่เข้าไปจริง
       // เผื่อชุดสอบเก่าที่ตอนสร้างครั้งแรกอาจล้มเหลวแบบเงียบๆ (หาข้อมูลวิชาไม่เจอ) จะได้ลบ/เติมถูกต้องแม่นยำ
