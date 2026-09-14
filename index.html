@@ -793,12 +793,12 @@
         <div class="flex sm:block gap-2 mb-3">
          <div class="flex-1 sm:mb-4">
           <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">👤 Username *</label>
-          <input type="text" id="login-username" placeholder="username" class="w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
+          <input type="text" id="login-username" placeholder="กรอกรหัสนักเรียน หรือ user" class="w-full px-2 sm:px-4 py-2 sm:py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
          </div>
          <div class="flex-1">
           <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">🔐 Password *</label>
           <div class="relative">
-           <input type="password" id="login-password" placeholder="password" class="w-full px-2 sm:px-4 py-2 sm:py-3 pr-10 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
+           <input type="password" id="login-password" placeholder="กรอกเบอร์โทร หรือ password" class="w-full px-2 sm:px-4 py-2 sm:py-3 pr-10 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none text-sm" required>
            <button type="button" onclick="togglePasswordVisibility('login-password', this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-lg opacity-60 hover:opacity-100 transition" title="กดเพื่อดู/ซ่อนรหัสผ่าน">👁️</button>
           </div>
          </div>
@@ -2403,7 +2403,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.30';
+    const APP_VERSION = '2026.09.08.32';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3060,13 +3060,17 @@
       if (!studentId || !phone) { showErr('⚠️ กรุณากรอกรหัสนักเรียนและเบอร์โทรให้ครบ'); return; }
       const student = allData.find(d => d.type === 'student' && String(d.student_id).trim() === studentId);
       if (!student) { showErr('❌ ไม่พบรหัสนักเรียนนี้ในระบบ'); return; }
-      if (!student.phone_number) {
-        // ยังไม่เคยผูกเบอร์โทรไว้ — ให้กรอกเบอร์เพื่อผูกเป็นครั้งแรก
-        renderForgotCredPhoneSetup(student, phone);
-        return;
-      }
       // 📱 รองรับกรณีเลข 0 นำหน้าเบอร์โทรหายไปจากชีท (เหมือนที่แก้ไว้ในระบบล็อกอิน)
       const _fixP = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+      if (!student.phone_number) {
+        // ⚡ ปรับตามที่ขอ: ยังไม่เคยผูกเบอร์โทร → ผูกเบอร์ที่กรอกมาให้เลย ไม่ต้องยืนยันชื่อ-นามสกุล
+        // (เดิมให้ยืนยันชื่อด้วย แต่พิมพ์ผิดง่ายมาก เช่น เว้นวรรคเกิน สระผิด ทำให้เข้าระบบไม่ได้)
+        if (!/^0\d{9}$/.test(phone)) { showErr('⚠️ เบอร์โทรต้องเป็น 10 หลัก ขึ้นต้นด้วย 0'); return; }
+        window.dataSdk.update({ ...student, phone_number: phone })
+          .catch(e => console.log('[ForgotCred] ผูกเบอร์โทรไม่สำเร็จ:', e.message));
+        renderCredentialsEditForm({ ...student, phone_number: phone }, phone);
+        return;
+      }
       if (_fixP(student.phone_number) !== _fixP(phone)) { showErr('❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง'); return; }
       renderCredentialsEditForm(student, phone);
     }
@@ -10614,8 +10618,16 @@
     function renderRetryRequestsList() {
       const listEl = document.getElementById('rr-list');
       if (!listEl) return;
-      const requests = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && allData.some(es => es.type === 'exam_set' && es.__backendId === d.exam_set_id))
-        .sort((a,b) => new Date(a.requested_at) - new Date(b.requested_at));
+      // 🔄 กรองไม่ให้แสดงซ้ำ: นักเรียน 1 คน ต่อชุดสอบ 1 ชุด เห็นได้แค่คำขอเดียวเท่านั้น
+      // (ถ้ากดขอหลายรอบในชุดสอบเดียวกัน จะเก็บรายการล่าสุดไว้ เพราะมีเหตุผลใหม่สุด)
+      const allPending = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && allData.some(es => es.type === 'exam_set' && es.__backendId === d.exam_set_id));
+      const uniqueMap = {};
+      allPending.forEach(function(r) {
+        const key = r.student_id + '|' + r.exam_set_id;
+        const existing = uniqueMap[key];
+        if (!existing || new Date(r.requested_at) > new Date(existing.requested_at)) uniqueMap[key] = r;
+      });
+      const requests = Object.values(uniqueMap).sort((a,b) => new Date(a.requested_at) - new Date(b.requested_at));
       if (requests.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ไม่มีคำขอสอบแก้ที่รอพิจารณา</p>'; return; }
       listEl.innerHTML = requests.map(req => {
         const student = allData.find(s => s.type === 'student' && s.student_id === req.student_id);
@@ -19238,12 +19250,12 @@
           <div style="display:flex;gap:8px;margin-bottom:10px">
             <div style="flex:1">
               <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">👤 Username</label>
-              <input type="text" id="m-login-username" placeholder="username" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+              <input type="text" id="m-login-username" placeholder="รหัสนักเรียน หรือ user" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
             </div>
             <div style="flex:1">
               <label style="font-size:10px;font-weight:600;color:#64748b;display:block;margin-bottom:3px">🔐 Password</label>
               <div style="position:relative">
-               <input type="password" id="m-login-password" placeholder="password" style="width:100%;padding:8px;padding-right:34px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
+               <input type="password" id="m-login-password" placeholder="เบอร์โทร หรือ password" style="width:100%;padding:8px;padding-right:34px;border:2px solid #e2e8f0;border-radius:10px;font-size:12px;box-sizing:border-box;outline:none" required>
                <button type="button" onclick="togglePasswordVisibility('m-login-password', this)" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;opacity:0.6;cursor:pointer;padding:0 4px" title="กดเพื่อดู/ซ่อนรหัสผ่าน">👁️</button>
               </div>
             </div>
