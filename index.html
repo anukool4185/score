@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.1';
+    const APP_VERSION = 'SUPABASE-2026.09.08.3';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2843,7 +2843,52 @@ const supabaseDataSdk = {
     Object.keys(record).forEach(k => {
       if (skipKeys.includes(k)) return;
       let v = record[k];
-      if (v === '' || v === undefined) return;
+      if (v === undefined) return;
+      // ⚠️ บั๊กสำคัญที่พบและแก้แล้ว: เดิมตัดค่าว่างทิ้งด้วย ทำให้ "การล้างข้อมูล" ไม่มีผล
+      // (เช่น ตอนรีเซ็ตให้สอบใหม่ ต้องล้างคำตอบและคะแนนเก่า แต่ค่าว่างถูกตัดทิ้ง ข้อมูลเดิมจึงค้างอยู่)
+      // แก้โดยแปลงค่าว่างเป็น null เพื่อให้ฐานข้อมูลล้างค่าจริงๆ
+      if (v === '') { out[k] = null; return; }
+      // 🔧 ฟิลด์ที่ฐานข้อมูลเก็บเป็น JSON — ระบบเดิมส่งมาเป็นข้อความ ต้องแปลงกลับก่อน ไม่งั้นบันทึกไม่ผ่าน
+      const JSON_FIELDS = ['answers', 'question_snapshot_json', 'activity_log', 'items_json', 'ratings_json'];
+      if (JSON_FIELDS.includes(k)) {
+        if (typeof v === 'string') {
+          try { out[k] = JSON.parse(v); } catch (e) { out[k] = null; }
+        } else { out[k] = v; }
+        return;
+      }
+      // 🔢 ฟิลด์ที่ฐานข้อมูลเก็บเป็นตัวเลข — แปลงจากข้อความให้เป็นตัวเลข ไม่งั้นบันทึกไม่ผ่าน
+      const NUM_FIELDS = ['auto_score', 'manual_score', 'total_score', 'k_score_contributed',
+        'cheat_warning_count', 'k_round', 'random_count', 'applied_full_score_delta',
+        'score_per_question', 'student_number', 'num_questions', 'credits', 'hours_per_week',
+        'weeks_taught', 'total_hours', 'attended_hours', 'attended_hours_real',
+        'k_percent', 'p_percent', 'a_percent', 'c_percent', 'mid_percent', 'final_percent',
+        'k_full_score', 'p_full_score', 'a_full_score', 'c_full_score', 'm_full_score', 'f_full_score',
+        'raw_score', 'new_full_score', 'score_round', 'percent_value', 'total_slots', 'choice_count'];
+      if (NUM_FIELDS.includes(k)) {
+        const n = parseFloat(v);
+        out[k] = isNaN(n) ? null : n;
+        return;
+      }
+      // ✅ ฟิลด์จริง/เท็จ — แปลงจากข้อความให้เป็นค่าจริง/เท็จ
+      const BOOL_FIELDS = ['is_random_mode', 'shuffle_enabled', 'needs_manual_grading',
+        'manual_grading_done', 'imported_to_grade', 'is_retry_attempt', 'score_reversed',
+        'score_overridden_by_admin', 'frozen', 'notification_acknowledged', 'is_hidden',
+        'perm_timekeeping', 'perm_grading', 'perm_students', 'is_read'];
+      if (BOOL_FIELDS.includes(k)) {
+        out[k] = (v === true || v === 'true' || v === 'TRUE' || v === 1 || v === '1');
+        return;
+      }
+      // 📅 ฟิลด์วันเวลา — แปลงให้เป็นรูปแบบมาตรฐาน
+      const TS_FIELDS = ['start_time', 'end_time', 'started_at', 'submitted_at',
+        'captured_at', 'handled_at', 'reviewed_at', 'approved_start_time', 'approved_end_time',
+        'requested_at', 'approved_date', 'expires_at'];
+      if (TS_FIELDS.includes(k)) {
+        try {
+          const d = new Date(v);
+          out[k] = isNaN(d.getTime()) ? null : d.toISOString();
+        } catch (e) { out[k] = null; }
+        return;
+      }
       // แปลงชื่อฟิลด์ที่ต่างกัน
       if (k === 'subjectType') { out.subject_type = v; return; }
       if (k === 'order') { out.sort_order = parseInt(v) || null; return; }
@@ -9465,10 +9510,22 @@ const supabaseDataSdk = {
 
       // 🟢 โหมด "เฉพาะคนที่ยังไม่ได้สอบ" — ไม่แตะคะแนนเต็มและคะแนนคนที่สอบเสร็จแล้วเลย
       if (mode === 'pending') {
-        const targets = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id
-          && (d.status === 'in_progress' || d.status === 'not_started'));
-        if (targets.length === 0) { showToast('ไม่มีนักเรียนที่ยังไม่ได้สอบ', 'info'); return; }
-        if (!confirm('ยืนยันเปิดให้สอบใหม่เฉพาะ ' + targets.length + ' คนที่ยังไม่ได้สอบ?\n\nคะแนนของคนที่สอบเสร็จแล้วจะไม่ถูกแตะต้องเลย')) return;
+        // 🛡️ กรองอย่างเข้มงวด 3 ชั้น เพื่อรับประกันว่าคะแนนของคนที่สอบแล้วจะไม่หายเด็ดขาด
+        const targets = allData.filter(d => {
+          if (d.type !== 'exam_submission' || d.exam_set_id !== id) return false;
+          // ชั้นที่ 1: ต้องเป็นสถานะยังไม่สอบเท่านั้น
+          if (d.status !== 'in_progress' && d.status !== 'not_started') return false;
+          // ชั้นที่ 2: ต้องไม่มีคะแนนใดๆ ติดอยู่เลย (กันพลาดกรณีสถานะผิดพลาด)
+          const hasScore = (d.auto_score !== undefined && d.auto_score !== null && d.auto_score !== '')
+                        || (d.manual_score !== undefined && d.manual_score !== null && d.manual_score !== '');
+          if (hasScore) { console.warn('[ResetPending] ข้ามนักเรียนที่มีคะแนนแล้ว:', d.student_id, 'คะแนน:', d.auto_score, d.manual_score); return false; }
+          // ชั้นที่ 3: ต้องยังไม่เคยนำคะแนนเข้าระบบหลัก
+          if (d.imported_to_grade === true || d.imported_to_grade === 'true') { console.warn('[ResetPending] ข้ามนักเรียนที่นำคะแนนเข้าระบบแล้ว:', d.student_id); return false; }
+          return true;
+        });
+        const protectedCount = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id).length - targets.length;
+        if (targets.length === 0) { showToast('ไม่มีนักเรียนที่ยังไม่ได้สอบ (ทุกคนมีคะแนนแล้ว จึงไม่แตะต้อง)', 'info'); return; }
+        if (!confirm('ยืนยันเปิดให้สอบใหม่เฉพาะ ' + targets.length + ' คนที่ยังไม่ได้สอบ?\n\n🛡️ ระบบจะปกป้องคะแนนของ ' + protectedCount + ' คนที่สอบไปแล้ว ไม่แตะต้องเด็ดขาด\n(ตรวจสอบ 3 ชั้น: สถานะ + คะแนนที่มีอยู่ + การนำเข้าระบบ)')) return;
         let count = 0;
         for (const sub of targets) {
           try {
@@ -9482,7 +9539,7 @@ const supabaseDataSdk = {
             count++;
           } catch (e) { console.error('[ResetPending] รีเซ็ตไม่สำเร็จ:', sub.student_id, e.message); }
         }
-        showToast('🔄 เปิดให้สอบใหม่ ' + count + ' คนที่ยังไม่ได้สอบเรียบร้อย (คะแนนคนอื่นไม่กระทบ)');
+        showToast('🔄 เปิดให้สอบใหม่ ' + count + ' คน | 🛡️ ปกป้องคะแนน ' + protectedCount + ' คนที่สอบแล้วครบถ้วน');
         renderExamSetList();
         return;
       }
