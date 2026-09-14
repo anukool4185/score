@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.5';
+    const APP_VERSION = 'SUPABASE-2026.09.08.6';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17166,10 +17166,21 @@ const supabaseDataSdk = {
     }
     function renderTimekeepingDetail(regId) {
       const detailEl = document.getElementById('timekeeping-student-detail');
-      if (!detailEl) return;
-      const reg = allData.find(d => d.type === 'student_registration' && d.__backendId === regId);
-      if (!reg) { detailEl.innerHTML = ''; return; }
-      detailEl.innerHTML = buildTimekeepingCardHtml(reg);
+      if (!detailEl) { console.error('[Timekeeping] ไม่พบพื้นที่แสดงผล timekeeping-student-detail'); return; }
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!reg) {
+        // 🔍 แสดงสาเหตุให้เห็นชัด แทนที่จะเงียบไปเฉยๆ (เดิมล้างหน้าจอทิ้งโดยไม่บอกอะไร)
+        console.error('[Timekeeping] หาการลงทะเบียนไม่เจอ regId:', regId);
+        detailEl.innerHTML = '<p class="text-amber-600 text-sm p-4">⚠️ ไม่พบข้อมูลการลงทะเบียนของนักเรียนคนนี้ (รหัส: ' + escHtml(String(regId)) + ')</p>';
+        return;
+      }
+      try {
+        detailEl.innerHTML = buildTimekeepingCardHtml(reg);
+      } catch (err) {
+        // 🔍 ถ้าสร้างตารางไม่สำเร็จ แสดงข้อความแทนหน้าจอว่าง จะได้รู้ว่าติดตรงไหน
+        console.error('[Timekeeping] สร้างตารางไม่สำเร็จ:', err, err.stack);
+        detailEl.innerHTML = '<p class="text-red-600 text-sm p-4">⚠️ เกิดข้อผิดพลาดตอนแสดงตาราง: ' + escHtml(err.message) + '</p>';
+      }
     }
     function buildTimekeepingCardHtml(reg) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
