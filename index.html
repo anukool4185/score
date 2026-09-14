@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.35';
+    const APP_VERSION = '2026.09.08.36';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9109,6 +9109,23 @@
       const doneCount = subs.filter(d => d.status === 'submitted' || d.status === 'terminated').length;
       const notDoneCount = subs.filter(d => d.status === 'not_started' || d.status === 'in_progress').length;
       const stLabel = s.score_type === 'c' ? 'C' : 'K';
+      // ⏰ ตรวจสอบว่าหมดเวลาสอบไปแล้วหรือยัง — ถ้าหมดแล้วต้องให้ตั้งเวลาใหม่ ไม่งั้นนักเรียนกดเข้าสอบไม่ได้
+      const isExpired = s.end_time && new Date() > new Date(s.end_time);
+      // ค่าเริ่มต้นของเวลาใหม่: เริ่มตอนนี้ ปิดอีก 24 ชั่วโมง
+      const _pad = n => String(n).padStart(2, '0');
+      const _toLocal = d => `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}T${_pad(d.getHours())}:${_pad(d.getMinutes())}`;
+      const nowStr = _toLocal(new Date());
+      const tomorrowStr = _toLocal(new Date(Date.now() + 24 * 60 * 60 * 1000));
+      const timeSection = isExpired ? `
+          <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-bottom:14px">
+            <p style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 8px">⏰ หมดเวลาสอบไปแล้ว — กรุณาตั้งเวลาใหม่</p>
+            <p style="font-size:11px;color:#78350f;margin:0 0 8px">ถ้าไม่ตั้งเวลาใหม่ นักเรียนจะกดเข้าสอบไม่ได้</p>
+            <label style="display:block;font-size:11px;color:#78350f;margin-bottom:3px">🟢 เปิดสอบใหม่</label>
+            <input type="datetime-local" id="reset-new-start" value="${nowStr}" style="width:100%;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;margin-bottom:8px;box-sizing:border-box">
+            <label style="display:block;font-size:11px;color:#78350f;margin-bottom:3px">🔴 ปิดสอบ</label>
+            <input type="datetime-local" id="reset-new-end" value="${tomorrowStr}" style="width:100%;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;box-sizing:border-box">
+          </div>` : `
+          <p style="font-size:11px;color:#059669;background:#d1fae5;padding:8px;border-radius:6px;margin:0 0 14px">✅ ยังอยู่ในช่วงเวลาสอบ (ปิดสอบ ${s.end_time ? new Date(s.end_time).toLocaleString('th-TH', {dateStyle:'short', timeStyle:'short', hour12:false}) : '-'}) ไม่ต้องตั้งเวลาใหม่</p>`;
 
       document.getElementById('reset-exam-choice')?.remove();
       const overlay = document.createElement('div');
@@ -9122,6 +9139,7 @@
             📊 สอบเสร็จแล้ว: <b>${doneCount} คน</b><br>
             ⏳ ยังไม่ได้สอบ/ทำค้าง: <b>${notDoneCount} คน</b>
           </div>
+          ${timeSection}
           <button onclick="_doResetExamSet('${id}','all')" style="width:100%;padding:13px;background:#f59e0b;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:left">
             1️⃣ จัดใหม่ทั้งห้อง<br><span style="font-size:11px;font-weight:400;opacity:0.9">ล้างคะแนนทุกคน ให้ทุกคนสอบใหม่หมด (${subs.length} คน)</span>
           </button>
@@ -9135,9 +9153,32 @@
 
     /** ดำเนินการจัดสอบอีกครั้งจริง — mode: 'all' = ทั้งห้อง, 'pending' = เฉพาะคนที่ยังไม่ได้สอบ */
     async function _doResetExamSet(id, mode) {
+      // ⏰ อ่านค่าเวลาใหม่ก่อนลบหน้าต่าง (ถ้ามีช่องให้กรอก แปลว่าหมดเวลาสอบไปแล้ว)
+      const newStartEl = document.getElementById('reset-new-start');
+      const newEndEl = document.getElementById('reset-new-end');
+      const newStart = newStartEl?.value || '';
+      const newEnd = newEndEl?.value || '';
+      const needNewTime = !!newStartEl; // มีช่องนี้ = หมดเวลาแล้ว ต้องตั้งใหม่
+      if (needNewTime) {
+        if (!newStart || !newEnd) { alert('⚠️ กรุณาตั้งเวลาเปิด-ปิดสอบใหม่ให้ครบ'); return; }
+        if (new Date(newEnd) <= new Date(newStart)) { alert('⚠️ เวลาปิดสอบต้องอยู่หลังเวลาเปิดสอบ'); return; }
+      }
       document.getElementById('reset-exam-choice')?.remove();
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
+
+      // 💾 บันทึกเวลาใหม่ลงชุดสอบก่อน ไม่งั้นนักเรียนจะกดเข้าสอบไม่ได้ (เพราะระบบเช็คจากเวลานี้)
+      if (needNewTime) {
+        try {
+          await window.dataSdk.update({ ...s, start_time: new Date(newStart).toISOString(), end_time: new Date(newEnd).toISOString() });
+          s.start_time = new Date(newStart).toISOString();
+          s.end_time = new Date(newEnd).toISOString();
+          console.log('[ResetExam] ตั้งเวลาสอบใหม่เรียบร้อย');
+        } catch (e) {
+          alert('⚠️ ตั้งเวลาใหม่ไม่สำเร็จ: ' + e.message);
+          return;
+        }
+      }
 
       // 🟢 โหมด "เฉพาะคนที่ยังไม่ได้สอบ" — ไม่แตะคะแนนเต็มและคะแนนคนที่สอบเสร็จแล้วเลย
       if (mode === 'pending') {
