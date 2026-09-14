@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.6';
+    const APP_VERSION = 'SUPABASE-2026.09.08.8';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2743,6 +2743,33 @@ SB_TYPE_TO_TABLE['exam_retry_permission'] = 'exam_retry_requests';
 SB_TYPE_TO_TABLE['exam_camera_consent'] = 'exam_camera_snapshots';
 SB_TYPE_TO_TABLE['task_message']        = 'notifications';
 
+// 🔢 รายชื่อฟิลด์ที่ต้องเก็บเป็น "ตัวเลข" เพราะระบบนำไปคำนวณโดยตรง
+// ⚠️ สำคัญมาก: ถ้าฟิลด์เหล่านี้เป็นข้อความ ระบบจะพังทันทีเมื่อเรียกคำนวณ
+// (เช่น hoursCanAbsent.toFixed() จะเกิด error ทำให้ทั้งหน้าไม่แสดง)
+//
+// 📝 ฟิลด์ที่ "ไม่อยู่ในรายการนี้" จะเป็นข้อความทั้งหมด ซึ่งถูกต้องแล้วสำหรับ
+//    รหัสนักเรียน ห้องเรียน เบอร์โทร ชื่อวิชา และคะแนนแบบคั่นจุลภาค ("5,8,10")
+const SB_NUMERIC_FIELDS = new Set([
+  // ── ชั่วโมงเรียนและหน่วยกิต (ใช้คำนวณการขาดเรียน) ──
+  'credits', 'hours_per_week', 'weeks_taught', 'total_hours',
+  'max_absent_percent_setting', 'hours_can_absent',
+  'actual_hours_taught', 'actual_hours_can_absent',
+  'attended_hours', 'attended_hours_real',
+  // ── สัดส่วนคะแนน KPAC (ใช้คำนวณเกรด) ──
+  'k_percent', 'p_percent', 'a_percent', 'c_percent',
+  'mid_percent', 'final_percent',
+  // ── คะแนนเต็มรวม (ตัวหารในสูตรคำนวณเกรด) ──
+  'k_full_score', 'p_full_score', 'a_full_score',
+  'c_full_score', 'm_full_score', 'f_full_score',
+  // ── คะแนนสอบ ──
+  'auto_score', 'manual_score', 'total_score', 'k_score_contributed',
+  'applied_full_score_delta', 'score_per_question', 'raw_score', 'new_full_score',
+  // ── ตัวเลขทั่วไปที่ใช้เปรียบเทียบมากน้อย ──
+  'k_round', 'score_round', 'random_count', 'cheat_warning_count',
+  'student_number', 'num_questions', 'percent_value',
+  'total_slots', 'choice_count', 'sort_order',
+]);
+
 const supabaseDataSdk = {
   _handler: null,
   _cache: [],
@@ -2824,20 +2851,25 @@ const supabaseDataSdk = {
         class_name: cs.class_name,
         room_number: cs.room_number,
         subject_name: cs.subject_name,
-        credits: cs.credits || '0',
-        hours_per_week: cs.hours_per_week || '0',
-        weeks_taught: cs.weeks_taught || '0',
-        total_hours: cs.total_hours || '0',
-        max_absent_percent_setting: cs.max_absent_percent_setting || '0',
-        hours_can_absent: cs.hours_can_absent || '0',
-        actual_hours_taught: cs.actual_hours_taught || '0',
-        actual_hours_can_absent: cs.actual_hours_can_absent || '0',
+        // ค่าเหล่านี้ถูกแปลงเป็นตัวเลขแล้วโดย _toLegacy (ดู SB_NUMERIC_FIELDS) จึงคัดลอกมาได้เลย
+        credits: cs.credits || 0,
+        hours_per_week: cs.hours_per_week || 0,
+        weeks_taught: cs.weeks_taught || 0,
+        total_hours: cs.total_hours || 0,
+        max_absent_percent_setting: cs.max_absent_percent_setting || 0,
+        hours_can_absent: cs.hours_can_absent || 0,
+        actual_hours_taught: cs.actual_hours_taught || 0,
+        actual_hours_can_absent: cs.actual_hours_can_absent || 0,
       });
     });
     // แยกการลงเวลาเป็น 2 ส่วนเหมือนระบบเดิม (ระบบเดิมเก็บแยก part1/part2)
     flat.filter(d => d.type === 'attendance').forEach(a => {
-      extra.push({ ...a, type: 'attendance_part1' });
-      extra.push({ ...a, type: 'attendance_part2' });
+      // ⚠️ ต้องเป็นตัวเลข เพราะระบบนำไปคำนวณโดยตรง (เหมือนกรณีชั่วโมงเรียน)
+      // ใช้ null ถ้ายังไม่เคยลงเวลา เพื่อให้ระบบแยกได้ว่า "ยังไม่ลง" กับ "ลงเป็น 0"
+      const ah = (a.attended_hours === '' || a.attended_hours == null) ? null : (parseFloat(a.attended_hours) || 0);
+      const ahr = (a.attended_hours_real === '' || a.attended_hours_real == null) ? null : (parseFloat(a.attended_hours_real) || 0);
+      extra.push({ ...a, type: 'attendance_part1', attended_hours: ah });
+      extra.push({ ...a, type: 'attendance_part2', attended_hours_real: ahr });
     });
     return flat.concat(extra);
   },
@@ -2849,11 +2881,21 @@ const supabaseDataSdk = {
       if (k === 'id') return;
       let v = row[k];
       if (v === null || v === undefined) return;
-      // แปลงกลับเป็นข้อความ เพราะระบบเดิมเทียบค่าแบบข้อความ
-      if (typeof v === 'object') v = JSON.stringify(v);
-      else if (typeof v === 'boolean') { /* คงค่าจริง/เท็จไว้ */ }
-      else v = String(v);
-      obj[k] = v;
+
+      // 🔢 ฟิลด์ที่ต้องเป็น "ตัวเลข" เพราะระบบนำไปคำนวณโดยตรง (บวก ลบ .toFixed())
+      // ถ้าเป็นข้อความจะเกิด error ทันที เช่น "hoursCanAbsent.toFixed is not a function"
+      if (SB_NUMERIC_FIELDS.has(k)) {
+        const n = parseFloat(v);
+        obj[k] = isNaN(n) ? 0 : n;
+        return;
+      }
+      // ✅ ฟิลด์จริง/เท็จ — คงชนิดเดิมไว้
+      if (typeof v === 'boolean') { obj[k] = v; return; }
+      // 📦 ข้อมูลซับซ้อน (JSON) — แปลงเป็นข้อความ เพราะระบบเดิมเก็บแบบนั้น
+      if (typeof v === 'object') { obj[k] = JSON.stringify(v); return; }
+      // 📝 ที่เหลือเป็นข้อความทั้งหมด (รหัสนักเรียน ห้อง เบอร์โทร ชื่อวิชา ฯลฯ)
+      //    สำคัญ: ต้องเป็นข้อความ ไม่งั้นเลข 0 นำหน้าจะหาย เช่น ห้อง "01" → 1
+      obj[k] = String(v);
     });
     // ชื่อฟิลด์ที่ต่างกันระหว่างระบบเก่า/ใหม่ — แปลงให้ตรงกัน
     if (type === 'class_subject' && row.subject_type) obj.subjectType = row.subject_type;
