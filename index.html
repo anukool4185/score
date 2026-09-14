@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = '2026.09.08.37';
+    const APP_VERSION = 'SUPABASE-2026.09.08.1';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2677,7 +2677,253 @@
       }
     };
 
-    window.dataSdk = sheetsDataSdk;
+// ═══════════════════════════════════════════════════════════════════════
+// 🔌 ตัวเชื่อมต่อ Supabase — ใช้แทน Google Sheets
+// ═══════════════════════════════════════════════════════════════════════
+//
+// 🎯 หลักการออกแบบ: ทำให้ "หน้าตาเหมือนเดิมทุกประการ"
+//    ระบบเดิมใช้ข้อมูลรูปแบบ { type: 'student', ... } ทั้งหมดรวมกันใน allData
+//    ตัวเชื่อมนี้จะดึงจากหลายตารางใน Supabase แล้วแปลงกลับเป็นรูปแบบเดิม
+//    ทำให้โค้ดส่วนอื่นทั้งหมด (หลายพันบรรทัด) ใช้งานต่อได้เลยโดยไม่ต้องแก้
+//
+// 📌 วิธีติดตั้ง: แทนที่ const sheetsDataSdk = {...} เดิมด้วยโค้ดนี้
+// ═══════════════════════════════════════════════════════════════════════
+
+const SUPABASE_URL = 'https://kpgxprciwtlfqtwuyqhp.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_bYfQMR-PzpwsOYqvTLW2jQ_q2Ny2zLo';
+
+// แผนผังแปลงข้อมูล: ตาราง Supabase → type เดิมของระบบ
+const SB_TABLE_MAP = [
+  { table: 'students',              type: 'student' },
+  { table: 'class_subjects',        type: 'class_subject' },
+  { table: 'registrations',         type: 'student_registration' },
+  { table: 'grades',                type: 'grade' },
+  { table: 'subject_full_scores',   type: 'class_subject_scores' },
+  { table: 'exam_questions',        type: 'exam_question' },
+  { table: 'exam_sets',             type: 'exam_set' },
+  { table: 'exam_submissions',      type: 'exam_submission' },
+  { table: 'homework',              type: 'homework' },
+  { table: 'attendance',            type: 'attendance' },
+  { table: 'admins',                type: 'admin' },
+  { table: 'notifications',         type: 'student_notification' },
+  { table: 'exam_alerts',           type: 'exam_alert' },
+  { table: 'exam_retry_requests',   type: 'exam_retry_request' },
+  { table: 'exam_camera_snapshots', type: 'exam_camera_snapshot' },
+  { table: 'pending_scores',        type: 'pending_score' },
+  { table: 'settings',              type: 'settings' },
+  { table: 'evaluations',           type: 'evaluation' },
+  { table: 'registration_requests', type: 'registration_request' },
+  { table: 'auto_login_tokens',     type: 'auto_login_token' },
+];
+
+// แปลงกลับ: type เดิม → ตาราง Supabase
+const SB_TYPE_TO_TABLE = {};
+SB_TABLE_MAP.forEach(m => { SB_TYPE_TO_TABLE[m.type] = m.table; });
+// type ที่เคยรวมอยู่ในตารางเดียวกัน ต้องแปลงเพิ่ม
+SB_TYPE_TO_TABLE['class_subject_hours'] = 'class_subjects';
+SB_TYPE_TO_TABLE['system_credentials']  = 'admins';
+SB_TYPE_TO_TABLE['subadmin']            = 'admins';
+SB_TYPE_TO_TABLE['attendance_part1']    = 'attendance';
+SB_TYPE_TO_TABLE['attendance_part2']    = 'attendance';
+SB_TYPE_TO_TABLE['kpac_request']        = 'registration_requests';
+SB_TYPE_TO_TABLE['evaluation_topic']    = 'evaluations';
+SB_TYPE_TO_TABLE['evaluation_level']    = 'evaluations';
+SB_TYPE_TO_TABLE['evaluator_option']    = 'evaluations';
+SB_TYPE_TO_TABLE['evaluation_submission'] = 'evaluations';
+SB_TYPE_TO_TABLE['menu_config']         = 'settings';
+SB_TYPE_TO_TABLE['mobile_menu_config']  = 'settings';
+SB_TYPE_TO_TABLE['tray_menu_config']    = 'settings';
+SB_TYPE_TO_TABLE['announcement']        = 'settings';
+SB_TYPE_TO_TABLE['answer_sheet_config'] = 'settings';
+SB_TYPE_TO_TABLE['class']               = 'settings';
+SB_TYPE_TO_TABLE['room']                = 'settings';
+SB_TYPE_TO_TABLE['subject']             = 'settings';
+SB_TYPE_TO_TABLE['registration_schedule'] = 'settings';
+SB_TYPE_TO_TABLE['exam_retry_permission'] = 'exam_retry_requests';
+SB_TYPE_TO_TABLE['exam_camera_consent'] = 'exam_camera_snapshots';
+SB_TYPE_TO_TABLE['task_message']        = 'notifications';
+
+const supabaseDataSdk = {
+  _handler: null,
+  _cache: [],
+  _pollTimer: null,
+
+  /** เรียก Supabase API */
+  async _api(method, path, body) {
+    const opts = {
+      method,
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(`Supabase ${res.status}: ${txt.substring(0, 200)}`);
+    }
+    const txt = await res.text();
+    return txt ? JSON.parse(txt) : [];
+  },
+
+  async init(handler) {
+    this._handler = handler;
+    try {
+      const data = await this._fetchAll();
+      this._cache = data;
+      handler.onDataChanged(this._cache);
+      this._startPolling();
+      return { isOk: true };
+    } catch (err) {
+      console.error('❌ supabaseDataSdk.init error:', err);
+      return { isOk: false, error: { message: err.message } };
+    }
+  },
+
+  _startPolling() {
+    if (this._pollTimer) clearTimeout(this._pollTimer);
+    const scheduleNext = () => {
+      const isExamActive = typeof _examAntiCheatActive !== 'undefined' && _examAntiCheatActive;
+      const intervalToUse = isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_MS;
+      this._pollTimer = setTimeout(async () => {
+        try {
+          const data = await this._fetchAll();
+          this._cache = data;
+          this._handler.onDataChanged(this._cache);
+        } catch (e) {
+          console.log('[SDK] poll ล้มเหลว (ไม่ร้ายแรง):', e.message);
+        }
+        scheduleNext();
+      }, intervalToUse);
+    };
+    scheduleNext();
+  },
+
+  /** ดึงข้อมูลทุกตาราง แล้วแปลงเป็นรูปแบบเดิมที่ระบบเข้าใจ */
+  async _fetchAll() {
+    const results = await Promise.all(
+      SB_TABLE_MAP.map(m =>
+        this._api('GET', `${m.table}?select=*&limit=50000`)
+          .then(rows => rows.map(r => this._toLegacy(r, m.type)))
+          .catch(e => { console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message); return []; })
+      )
+    );
+    return results.flat();
+  },
+
+  /** แปลงข้อมูลจาก Supabase → รูปแบบเดิมที่ระบบใช้ */
+  _toLegacy(row, type) {
+    const obj = { __backendId: String(row.id), type };
+    Object.keys(row).forEach(k => {
+      if (k === 'id') return;
+      let v = row[k];
+      if (v === null || v === undefined) return;
+      // แปลงกลับเป็นข้อความ เพราะระบบเดิมเทียบค่าแบบข้อความ
+      if (typeof v === 'object') v = JSON.stringify(v);
+      else if (typeof v === 'boolean') { /* คงค่าจริง/เท็จไว้ */ }
+      else v = String(v);
+      obj[k] = v;
+    });
+    // ชื่อฟิลด์ที่ต่างกันระหว่างระบบเก่า/ใหม่ — แปลงให้ตรงกัน
+    if (type === 'class_subject' && row.subject_type) obj.subjectType = row.subject_type;
+    if (type === 'evaluation' && row.record_type) obj.type = 'evaluation_' + row.record_type;
+    if (type === 'settings' && row.setting_type) obj.type = row.setting_type;
+    if (type === 'registration_request' && row.request_type) obj.type = row.request_type;
+    if (row.sort_order !== undefined && row.sort_order !== null) obj.order = String(row.sort_order);
+    return obj;
+  },
+
+  /** แปลงข้อมูลจากระบบเดิม → รูปแบบที่ Supabase รับได้ */
+  _toSupabase(record) {
+    const out = {};
+    const skipKeys = ['__backendId', 'type', 'created_at', 'updated_at'];
+    Object.keys(record).forEach(k => {
+      if (skipKeys.includes(k)) return;
+      let v = record[k];
+      if (v === '' || v === undefined) return;
+      // แปลงชื่อฟิลด์ที่ต่างกัน
+      if (k === 'subjectType') { out.subject_type = v; return; }
+      if (k === 'order') { out.sort_order = parseInt(v) || null; return; }
+      out[k] = v;
+    });
+    // ใส่ค่าประเภทย่อยสำหรับตารางที่รวมหลาย type
+    const t = record.type;
+    if (SB_TYPE_TO_TABLE[t] === 'settings') out.setting_type = t;
+    if (SB_TYPE_TO_TABLE[t] === 'evaluations') out.record_type = String(t).replace('evaluation_', '').replace('evaluator_', '');
+    if (SB_TYPE_TO_TABLE[t] === 'registration_requests') out.request_type = t;
+    return out;
+  },
+
+  async create(record) {
+    beginRequest('💾 กำลังบันทึก กรุณารอสักครู่...');
+    try {
+      const table = SB_TYPE_TO_TABLE[record.type];
+      if (!table) return { isOk: false, error: { message: 'ไม่รู้จักประเภทข้อมูล: ' + record.type } };
+      const rows = await this._api('POST', table, [this._toSupabase(record)]);
+      const created = rows[0] ? this._toLegacy(rows[0], record.type) : null;
+      // ⚡ อัปเดตในเครื่องทันที ไม่ต้องรอดึงข้อมูลใหม่ทั้งหมด
+      if (created) {
+        this._cache = [...this._cache, created];
+        this._handler.onDataChanged(this._cache);
+      }
+      this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
+      return { isOk: true, data: created };
+    } catch (err) {
+      console.error('❌ create error:', err);
+      return { isOk: false, error: { message: err.message } };
+    } finally {
+      endRequest();
+    }
+  },
+
+  async update(record) {
+    beginRequest('💾 กำลังบันทึก กรุณารอสักครู่...');
+    try {
+      const table = SB_TYPE_TO_TABLE[record.type];
+      if (!table || !record.__backendId) {
+        return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการแก้ไข' } };
+      }
+      await this._api('PATCH', `${table}?id=eq.${record.__backendId}`, this._toSupabase(record));
+      // ⚡ อัปเดตในเครื่องทันที
+      this._cache = this._cache.map(d => d.__backendId === record.__backendId ? { ...d, ...record } : d);
+      this._handler.onDataChanged(this._cache);
+      this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
+      return { isOk: true, data: { ...record } };
+    } catch (err) {
+      console.error('❌ update error:', err);
+      return { isOk: false, error: { message: err.message } };
+    } finally {
+      endRequest();
+    }
+  },
+
+  async delete(record) {
+    beginRequest('💾 กำลังบันทึก กรุณารอสักครู่...');
+    try {
+      const table = SB_TYPE_TO_TABLE[record.type];
+      if (!table || !record.__backendId) {
+        return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการลบ' } };
+      }
+      await this._api('DELETE', `${table}?id=eq.${record.__backendId}`);
+      this._cache = this._cache.filter(d => d.__backendId !== record.__backendId);
+      this._handler.onDataChanged(this._cache);
+      this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
+      return { isOk: true };
+    } catch (err) {
+      console.error('❌ delete error:', err);
+      return { isOk: false, error: { message: err.message } };
+    } finally {
+      endRequest();
+    }
+  },
+};
+
+
+    // 🔌 ใช้ Supabase แทน Google Sheets
+    window.dataSdk = supabaseDataSdk;
     // ============================================================
     // 🔌 จบส่วน custom dataSdk
     // ============================================================
