@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.3';
+    const APP_VERSION = 'SUPABASE-2026.09.08.4';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2811,7 +2811,35 @@ const supabaseDataSdk = {
           .catch(e => { console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message); return []; })
       )
     );
-    return results.flat();
+    let flat = results.flat();
+
+    // 🔧 สร้างข้อมูลที่ระบบเดิมแยกเป็นคนละ type แต่ Supabase รวมไว้ตารางเดียว
+    // ไม่งั้นหน้า "จัดการหน่วยกิตและเวลา" จะไม่แสดงข้อมูล เพราะหา type นี้ไม่เจอ
+    const extra = [];
+    flat.filter(d => d.type === 'class_subject').forEach(cs => {
+      extra.push({
+        __backendId: cs.__backendId,
+        type: 'class_subject_hours',
+        class_subject_id: cs.class_subject_id,
+        class_name: cs.class_name,
+        room_number: cs.room_number,
+        subject_name: cs.subject_name,
+        credits: cs.credits || '0',
+        hours_per_week: cs.hours_per_week || '0',
+        weeks_taught: cs.weeks_taught || '0',
+        total_hours: cs.total_hours || '0',
+        max_absent_percent_setting: cs.max_absent_percent_setting || '0',
+        hours_can_absent: cs.hours_can_absent || '0',
+        actual_hours_taught: cs.actual_hours_taught || '0',
+        actual_hours_can_absent: cs.actual_hours_can_absent || '0',
+      });
+    });
+    // แยกการลงเวลาเป็น 2 ส่วนเหมือนระบบเดิม (ระบบเดิมเก็บแยก part1/part2)
+    flat.filter(d => d.type === 'attendance').forEach(a => {
+      extra.push({ ...a, type: 'attendance_part1' });
+      extra.push({ ...a, type: 'attendance_part2' });
+    });
+    return flat.concat(extra);
   },
 
   /** แปลงข้อมูลจาก Supabase → รูปแบบเดิมที่ระบบใช้ */
