@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.35';
+    const APP_VERSION = 'SUPABASE-2026.09.08.36';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11130,6 +11130,49 @@ const supabaseDataSdk = {
           window.dataSdk.update({ ...submission }).catch(e => console.log('[Exam] บันทึกไม่สำเร็จ:', e.message));
         } else {
           showToast('⚠️ ไม่พบข้อสอบในกระดาษคำตอบ กรุณาแจ้งครูผู้สอน', 'error');
+          return;
+        }
+      }
+
+      // ⚠️ บั๊กที่พบและแก้แล้ว: กู้คืน "รายการข้อ" ได้ แต่ไม่ได้กู้ "ตัวข้อสอบ" (สำเนา)
+      // ทำให้กระดาษมีเลขข้อแต่ไม่มีโจทย์และตัวเลือกให้กด — ต้องกู้สำเนาข้อสอบด้วยเสมอ
+      if (!submission.question_snapshot_json) {
+        const qids = (submission.question_order || '').split(',').filter(Boolean);
+        let rebuilt = null;
+
+        // ลองใช้สำเนาของชุดสอบก่อน (คัดเฉพาะข้อที่นักเรียนคนนี้ได้)
+        const setSrc = examSet.question_snapshot_json;
+        if (setSrc) {
+          try {
+            const setSnap = typeof setSrc === 'string' ? JSON.parse(setSrc) : setSrc;
+            if (Array.isArray(setSnap) && setSnap.length > 0) {
+              const map = new Map(setSnap.map(q => [String(q.__backendId), q]));
+              const picked = qids.map(id => map.get(String(id))).filter(Boolean);
+              if (picked.length > 0) rebuilt = picked;
+            }
+          } catch (e) { /* ใช้วิธีสำรองด้านล่าง */ }
+        }
+
+        // ถ้ายังไม่ได้ สร้างจากคลังข้อสอบโดยตรง
+        if (!rebuilt) {
+          const fromBank = qids
+            .map(id => allData.find(d => String(d.__backendId) === String(id) && d.type === 'exam_question'))
+            .filter(Boolean)
+            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+              question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+              choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+              choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+              choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+          if (fromBank.length > 0) rebuilt = fromBank;
+        }
+
+        if (rebuilt && rebuilt.length > 0) {
+          submission.question_snapshot_json = JSON.stringify(rebuilt);
+          console.log('[Exam] กู้คืนตัวข้อสอบสำเร็จ:', rebuilt.length, 'ข้อ');
+          window.dataSdk.update({ ...submission }).catch(e => console.log('[Exam] บันทึกสำเนาไม่สำเร็จ:', e.message));
+        } else {
+          console.error('[Exam] กู้คืนตัวข้อสอบไม่สำเร็จ — รายการข้อ:', qids.length, '| คลังข้อสอบ:', allData.filter(d => d.type === 'exam_question').length);
+          showToast('⚠️ ไม่พบเนื้อหาข้อสอบ กรุณาแจ้งครูผู้สอน (อาจมีการลบข้อสอบออกจากคลัง)', 'error');
           return;
         }
       }
