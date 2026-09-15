@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.34';
+    const APP_VERSION = 'SUPABASE-2026.09.08.35';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2954,8 +2954,9 @@ const supabaseDataSdk = {
   _pollTimer: null,
 
   /** เรียก Supabase API */
-  async _api(method, path, body) {
+  async _api(method, path, body, _isRetry) {
     const opts = {
+      _retried: _isRetry,
       method,
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -2968,6 +2969,17 @@ const supabaseDataSdk = {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, opts);
     if (!res.ok) {
       const txt = await res.text();
+      // 🔧 ระบบแก้ไขอัตโนมัติ: ถ้าฐานข้อมูลบอกว่าไม่มีคอลัมน์นี้ ให้ตัดฟิลด์นั้นออกแล้วลองใหม่
+      // แก้ปัญหา "Could not find the 'xxx' column" ที่ทำให้บันทึกไม่ผ่านและระบบหยุดทำงาน
+      // (เกิดเมื่อระบบเดิมส่งฟิลด์ที่ Supabase ยังไม่มีคอลัมน์รองรับ)
+      const colMatch = txt.match(/Could not find the '([^']+)' column/);
+      if (colMatch && body && !opts._retried) {
+        const badCol = colMatch[1];
+        console.warn(`[SDK] ฐานข้อมูลไม่มีคอลัมน์ "${badCol}" — ตัดออกแล้วลองใหม่อัตโนมัติ`);
+        const clean = (obj) => { const o = { ...obj }; delete o[badCol]; return o; };
+        const newBody = Array.isArray(body) ? body.map(clean) : clean(body);
+        return this._api(method, path, newBody, true); // ลองใหม่ (ครั้งเดียว กันวนซ้ำไม่จบ)
+      }
       throw new Error(`Supabase ${res.status}: ${txt.substring(0, 200)}`);
     }
     const txt = await res.text();
