@@ -2770,6 +2770,20 @@ const SB_NUMERIC_FIELDS = new Set([
   'total_slots', 'choice_count', 'sort_order',
 ]);
 
+// ⚡ ตารางที่มีข้อมูลหนัก — ดึงเฉพาะฟิลด์ที่จำเป็นตอนโหลดหน้าแรก
+// (ฟิลด์หนักๆ เช่น รูปภาพ หรือสำเนาข้อสอบทั้งชุด จะดึงเฉพาะตอนใช้งานจริง)
+// แก้ปัญหาโหลดช้ามากเมื่อข้อมูลเยอะ
+const SB_LIGHT_SELECT = {
+  // ภาพจากกล้องตรวจทุจริต — ไฟล์ภาพขนาดใหญ่มาก ไม่ต้องโหลดมาแสดงทุกครั้ง
+  'exam_camera_snapshots': 'exam_camera_snapshots?select=id,submission_id,reason,captured_at&limit=2000',
+  // คลังข้อสอบ — ตัดรูปภาพประกอบออก (โหลดเฉพาะตอนเปิดดูข้อสอบจริง)
+  'exam_questions': 'exam_questions?select=id,subject_name,chapter,question_type,question_text,score_per_question,correct_answer,choice_a,choice_b,choice_c,choice_d,choice_e&limit=50000',
+  // กระดาษคำตอบ — ตัดสำเนาข้อสอบทั้งชุดออก (ใหญ่มาก โหลดเฉพาะตอนเข้าสอบ/ตรวจข้อสอบ)
+  'exam_submissions': 'exam_submissions?select=id,exam_set_id,registration_id,student_id,student_name,class_name,room_number,subject_name,k_round,status,answers,auto_score,manual_score,k_score_contributed,needs_manual_grading,manual_grading_done,imported_to_grade,is_retry_attempt,score_reversed,frozen,frozen_reason,cheat_warning_count,terminated_reason,started_at,submitted_at&limit=50000',
+  // ชุดสอบ — ตัดสำเนาข้อสอบออกเช่นกัน
+  'exam_sets': 'exam_sets?select=id,class_name,room_number,subject_name,k_round,score_type,is_random_mode,random_count,selected_chapters,question_ids,total_score,applied_full_score_delta,start_time,end_time,shuffle_enabled&limit=50000',
+};
+
 const supabaseDataSdk = {
   _handler: null,
   _cache: [],
@@ -2835,9 +2849,7 @@ const supabaseDataSdk = {
       SB_TABLE_MAP.map(m =>
         // ⚡ ไม่ดึงภาพจากกล้อง (image_data) มาด้วย เพราะเป็นไฟล์ภาพขนาดใหญ่มาก ทำให้โหลดช้าทุกครั้ง
         // ระบบจะดึงเฉพาะตอนแอดมินกดดูภาพจริงๆ เท่านั้น
-        this._api('GET', m.table === 'exam_camera_snapshots'
-          ? `${m.table}?select=id,submission_id,reason,captured_at&limit=5000`
-          : `${m.table}?select=*&limit=50000`)
+        this._api('GET', SB_LIGHT_SELECT[m.table] || `${m.table}?select=*&limit=50000`)
           .then(rows => rows.map(r => this._toLegacy(r, m.type)))
           .catch(e => { console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message); return []; })
       )
@@ -2876,6 +2888,18 @@ const supabaseDataSdk = {
       extra.push({ ...a, type: 'attendance_part2', attended_hours_real: ahr });
     });
     return flat.concat(extra);
+  },
+
+  /** ⚡ ดึงข้อมูลเต็มของรายการเดียว (ใช้ตอนต้องการฟิลด์หนักที่ไม่ได้โหลดมาตอนแรก)
+   *  เช่น สำเนาข้อสอบทั้งชุด หรือรูปภาพประกอบ ที่ดึงเฉพาะตอนใช้งานจริง */
+  async _fetchFullRecord(table, id) {
+    try {
+      const rows = await this._api('GET', `${table}?id=eq.${id}&select=*`);
+      return rows && rows[0] ? rows[0] : null;
+    } catch (e) {
+      console.log(`[SDK] ดึงข้อมูลเต็มจาก ${table} ไม่สำเร็จ:`, e.message);
+      return null;
+    }
   },
 
   /** แปลงข้อมูลจาก Supabase → รูปแบบเดิมที่ระบบใช้ */
@@ -10084,6 +10108,14 @@ const supabaseDataSdk = {
       console.log('[Exam Popup Debug] examSet found:', !!examSet, '| reg found:', !!reg);
       if (!examSet || !reg) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
       if (!isExamSetOpen(examSet)) { console.log('[Exam Popup Debug] exam NOT open, start:', examSet.start_time, 'end:', examSet.end_time, 'now:', new Date().toISOString()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+
+      // ⚡ ดึงข้อมูลชุดข้อสอบเต็มเฉพาะตอนจะเข้าสอบจริง (ตอนโหลดหน้าแรกไม่ได้ดึงมา เพื่อความเร็ว)
+      if (!examSet.question_snapshot_json && window.dataSdk._fetchFullRecord) {
+        try {
+          const full = await window.dataSdk._fetchFullRecord('exam_sets', examSetId);
+          if (full && full.question_snapshot_json) examSet.question_snapshot_json = full.question_snapshot_json;
+        } catch (e) { console.log('[Exam] ดึงชุดข้อสอบเต็มไม่สำเร็จ:', e.message); }
+      }
 
       const seed = _seedFromString(currentUser.student_id + examSet.__backendId);
       let orderedIds, submissionSnapshot = null;
