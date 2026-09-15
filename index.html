@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.10';
+    const APP_VERSION = 'SUPABASE-2026.09.08.11';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2833,7 +2833,11 @@ const supabaseDataSdk = {
   async _fetchAll() {
     const results = await Promise.all(
       SB_TABLE_MAP.map(m =>
-        this._api('GET', `${m.table}?select=*&limit=50000`)
+        // ⚡ ไม่ดึงภาพจากกล้อง (image_data) มาด้วย เพราะเป็นไฟล์ภาพขนาดใหญ่มาก ทำให้โหลดช้าทุกครั้ง
+        // ระบบจะดึงเฉพาะตอนแอดมินกดดูภาพจริงๆ เท่านั้น
+        this._api('GET', m.table === 'exam_camera_snapshots'
+          ? `${m.table}?select=id,submission_id,reason,captured_at&limit=5000`
+          : `${m.table}?select=*&limit=50000`)
           .then(rows => rows.map(r => this._toLegacy(r, m.type)))
           .catch(e => { console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message); return []; })
       )
@@ -8217,6 +8221,18 @@ const supabaseDataSdk = {
     // 🗂️ คลังข้อสอบ (Exam Question Bank)
     // ============================================================
     function loadExamQuestionsTab() {
+      // ⏳ ถ้าข้อมูลยังโหลดไม่เสร็จ ให้รอแล้วลองใหม่อัตโนมัติ (กันหน้าว่างเปล่าเพราะเปิดเร็วเกินไป)
+      if (!window.__dataReady || allData.filter(d => d.type === 'class_subject').length === 0) {
+        const subjSelWait = document.getElementById('eq-subject');
+        if (subjSelWait) subjSelWait.innerHTML = '<option value="">⏳ กำลังโหลดรายวิชา...</option>';
+        if (!window._eqRetryCount) window._eqRetryCount = 0;
+        if (window._eqRetryCount < 10) {
+          window._eqRetryCount++;
+          setTimeout(loadExamQuestionsTab, 600);
+          return;
+        }
+      }
+      window._eqRetryCount = 0;
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
       const subjSel = document.getElementById('eq-subject');
       const filterSubjSel = document.getElementById('eq-filter-subject');
