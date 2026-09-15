@@ -2133,8 +2133,15 @@
       <!-- 🗂️ คลังข้อสอบ (Exam Question Bank) -->
       <div id="admin-tab-examquestions" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-2">🗂️ คลังข้อสอบ</h3>
-        <p class="text-gray-500 text-sm mb-4">ค้นหา/กรองข้อสอบที่มีอยู่แล้วในคลัง แก้ไข/ลบได้จากรายการด้านล่าง — จะสร้างข้อสอบใหม่ ไปที่เมนู "➕ สร้างข้อสอบ" แทน</p>
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+         <div>
+          <h3 class="text-xl font-bold text-gray-800 mb-1">🗂️ คลังข้อสอบ</h3>
+          <p class="text-gray-500 text-sm">ค้นหา แก้ไข หรือลบข้อสอบที่มีอยู่ — กดปุ่มด้านขวาเพื่อสร้างข้อสอบใหม่</p>
+         </div>
+         <button onclick="openCreateExamQuestionPopup()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
+          ➕ สร้างข้อสอบใหม่
+         </button>
+        </div>
 
         <div id="eq-form-container" class="hidden bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6">
          <p class="font-semibold text-gray-700 mb-3" id="eq-form-title">➕ เพิ่มข้อสอบใหม่</p>
@@ -2427,7 +2434,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.11';
+    const APP_VERSION = 'SUPABASE-2026.09.08.14';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8398,6 +8405,17 @@ const supabaseDataSdk = {
         listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีข้อสอบในคลัง</p>';
         return;
       }
+      // ⚡ แสดงทีละ 50 ข้อ (เดิมแสดงทั้งหมดพร้อมกัน ถ้ามีหลายร้อยข้อจะช้ามาก)
+      // ถ้ามีการกรองวิชา/บทแล้ว จะแสดงมากขึ้นเพราะเหลือไม่เยอะ
+      const PAGE_SIZE = 50;
+      if (!window._eqShowCount || _eqLastFilter !== (filterSubj + '|' + filterChapter)) {
+        window._eqShowCount = PAGE_SIZE;
+        window._eqLastFilter = filterSubj + '|' + filterChapter;
+      }
+      const totalQuestions = questions.length;
+      const shownQuestions = questions.slice(0, window._eqShowCount);
+      const hasMore = totalQuestions > window._eqShowCount;
+      questions = shownQuestions;
       listEl.innerHTML = questions.map((q, idx) => {
         const typeLabel = q.question_type === 'choice' ? '🔤 ปรนัย' : '✍️ อัตนัย';
         const choicesHtml = q.question_type === 'choice' ? `
@@ -8421,7 +8439,31 @@ const supabaseDataSdk = {
             </div>
           </div>`;
       }).join('');
+      // ⚡ ปุ่มโหลดเพิ่ม (แสดงเมื่อยังมีข้อสอบเหลืออยู่)
+      if (hasMore) {
+        const remaining = totalQuestions - window._eqShowCount;
+        listEl.innerHTML += `
+          <div class="text-center py-4">
+            <p class="text-xs text-gray-500 mb-2">แสดง ${window._eqShowCount} จาก ${totalQuestions} ข้อ (เหลืออีก ${remaining} ข้อ)</p>
+            <button onclick="_eqLoadMore()" class="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold">
+              ⬇️ โหลดเพิ่ม ${Math.min(50, remaining)} ข้อ
+            </button>
+            ${remaining > 50 ? `<button onclick="_eqLoadAll(${totalQuestions})" class="ml-2 px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm">แสดงทั้งหมด</button>` : ''}
+          </div>`;
+      }
       renderMathIn('#eq-list'); // 🧮 แสดงสมการคณิตศาสตร์ในรายการคลังข้อสอบ (ถ้ามี)
+    }
+
+    /** ⬇️ โหลดข้อสอบเพิ่มอีก 50 ข้อ */
+    function _eqLoadMore() {
+      window._eqShowCount = (window._eqShowCount || 50) + 50;
+      renderExamQuestionList();
+    }
+    /** ⬇️ แสดงข้อสอบทั้งหมด (อาจช้าถ้ามีเยอะมาก) */
+    function _eqLoadAll(total) {
+      if (total > 300 && !confirm(`มีข้อสอบ ${total} ข้อ การแสดงทั้งหมดอาจใช้เวลาสักครู่\n\nยืนยันแสดงทั้งหมด?`)) return;
+      window._eqShowCount = total;
+      renderExamQuestionList();
     }
 
     function editExamQuestion(id) {
@@ -8476,6 +8518,20 @@ const supabaseDataSdk = {
     // ปิด popup กลับเป็นฟอร์มปกติในหน้า (ใช้ตอนกดปิด หรือหลังบันทึก/ยกเลิกสำเร็จ)
     // ➕ เปิดฟอร์มสร้างข้อสอบใหม่แบบ popup จากเมนู "สร้างข้อสอบ" — เรียกได้จากทุกหน้า ไม่ต้องอยู่แท็บ "คลังข้อสอบ" ก่อน
     function openCreateExamQuestionPopup() {
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมต้องกดเข้าเมนู "คลังข้อสอบ" ก่อน ปุ่มสร้างข้อสอบถึงจะใช้ได้
+      // เพราะรายการวิชาในช่องเลือกถูกเติมโดย loadExamQuestionsTab() ซึ่งทำงานเฉพาะตอนเปิดแท็บนั้น
+      // แก้โดยเติมรายการวิชาให้เองทุกครั้งที่เปิดหน้าต่าง ไม่ต้องพึ่งการกดเมนูก่อนอีกต่อไป
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      const subjSel = document.getElementById('eq-subject');
+      if (subjSel) {
+        subjSel.innerHTML = subjects.length > 0
+          ? '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('')
+          : '<option value="">⚠️ ยังไม่มีรายวิชาในระบบ</option>';
+      }
+      if (subjects.length === 0) {
+        showToast('⚠️ ยังไม่มีรายวิชาในระบบ กรุณาเพิ่มรายวิชาก่อนสร้างข้อสอบ', 'error');
+        return;
+      }
       resetExamQuestionForm(); // การันตีเริ่มจากฟอร์มว่างเปล่า (โหมดสร้างใหม่ ไม่ใช่ค้างจากการแก้ไขข้ออื่น)
       const tabEl = document.getElementById('admin-tab-examquestions');
       // จำไว้ว่าตอนนี้แท็บ "คลังข้อสอบ" ซ่อนอยู่หรือไม่ (เผื่อต้องซ่อนกลับให้ถูกต้องตอนปิด popup)
