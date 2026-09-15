@@ -2503,7 +2503,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.22';
+    const APP_VERSION = 'SUPABASE-2026.09.08.23';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10481,7 +10481,7 @@ const supabaseDataSdk = {
         const finalRow = { ...retryPayload, __backendId: newId };
         const idx = allData.findIndex(d => d.__backendId === newId);
         if (idx >= 0) allData[idx] = { ...allData[idx], ...finalRow }; else allData.push(finalRow);
-        renderExamModal(newId);
+        await renderExamModal(newId);
       } else {
         console.error('[RetryExam] เริ่มสอบแก้ไม่สำเร็จ:', result);
         showToast('ไม่สามารถเริ่มสอบแก้ได้: ' + (result.error?.message || 'ไม่ทราบสาเหตุ'), 'error');
@@ -10588,7 +10588,7 @@ const supabaseDataSdk = {
         && d.status === 'in_progress');
       if (alreadyInProgress) {
         console.log('[Exam Popup Debug] พบกระดาษคำตอบที่กำลังทำอยู่แล้ว เปิดอันเดิมต่อแทนการสร้างใหม่:', alreadyInProgress.__backendId);
-        renderExamModal(alreadyInProgress.__backendId);
+        await renderExamModal(alreadyInProgress.__backendId);
         return;
       }
 
@@ -10645,7 +10645,7 @@ const supabaseDataSdk = {
           allData.push(finalData); // ครบ 3 รอบแล้วยังไม่มา เพิ่มเองเลย
         }
         try {
-          renderExamModal(submissionId);
+          await renderExamModal(submissionId);
         } catch (err) {
           console.error('[Exam Popup Debug] renderExamModal THREW AN ERROR:', err);
           showToast('เกิดข้อผิดพลาดตอนเปิดหน้าสอบ: ' + err.message, 'error');
@@ -10658,13 +10658,14 @@ const supabaseDataSdk = {
       }
     }
 
-    function resumeExamAttempt(submissionId) {
+    async function resumeExamAttempt(submissionId) {
       if (_examModalOpening) { console.log('[Exam Popup Debug] resumeExamAttempt: กำลังเปิดอยู่แล้ว ไม่ให้เปิดซ้อน'); return; }
       _examModalOpening = true;
       try {
-        renderExamModal(submissionId);
+        // ⚠️ ต้องรอให้เสร็จก่อน เพราะตอนนี้มีการดึงสำเนาข้อสอบจากฐานข้อมูลด้วย (ใช้เวลาสักครู่)
+        await renderExamModal(submissionId);
       } finally {
-        _examModalOpening = false; // renderExamModal ทำงานแบบ sync ทั้งหมด ปลดล็อกได้ทันที ไม่ต้องรอ
+        _examModalOpening = false;
       }
     }
 
@@ -10743,11 +10744,34 @@ const supabaseDataSdk = {
       }
     }
 
-    function renderExamModal(submissionId) {
+    async function renderExamModal(submissionId) {
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (!submission) { console.error('[Exam Popup Debug] renderExamModal: submission NOT FOUND in allData for id', submissionId); showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
       const examSet = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
       if (!examSet) { showToast('ไม่พบชุดสอบ', 'error'); return; }
+
+      // ⚠️ บั๊กที่พบและแก้แล้ว: ระบบดึงข้อมูลแบบเบา (ตัดสำเนาข้อสอบออกเพื่อความเร็ว)
+      // ทำให้กระดาษคำตอบไม่มีข้อสอบติดมาด้วย เปิดมาแล้วว่างเปล่า ไม่มีข้อให้ทำ
+      // แก้โดยดึงสำเนาข้อสอบเต็มมาก่อนแสดงผล (ดึงเฉพาะตอนจะใช้จริง ไม่กระทบความเร็วตอนโหลดหน้าแรก)
+      if (!submission.question_snapshot_json && window.dataSdk._fetchFullRecord) {
+        try {
+          const full = await window.dataSdk._fetchFullRecord('exam_submissions', submissionId);
+          if (full && full.question_snapshot_json) {
+            submission.question_snapshot_json = typeof full.question_snapshot_json === 'string'
+              ? full.question_snapshot_json : JSON.stringify(full.question_snapshot_json);
+          }
+        } catch (e) { console.log('[Exam] ดึงสำเนาข้อสอบไม่สำเร็จ:', e.message); }
+      }
+      // ถ้ากระดาษยังไม่มีสำเนา ให้ใช้ของชุดสอบแทน (ดึงเต็มมาก่อนเช่นกัน)
+      if (!submission.question_snapshot_json && !examSet.question_snapshot_json && window.dataSdk._fetchFullRecord) {
+        try {
+          const fullSet = await window.dataSdk._fetchFullRecord('exam_sets', examSet.__backendId);
+          if (fullSet && fullSet.question_snapshot_json) {
+            examSet.question_snapshot_json = typeof fullSet.question_snapshot_json === 'string'
+              ? fullSet.question_snapshot_json : JSON.stringify(fullSet.question_snapshot_json);
+          }
+        } catch (e) { console.log('[Exam] ดึงสำเนาชุดสอบไม่สำเร็จ:', e.message); }
+      }
 
       // เช็คสถานะ frozen/terminated/submitted ก่อนเปิดหน้าสอบ — ส่งคำตอบไปแล้วถือว่าจบเด็ดขาด กลับเข้ามาแก้ไขไม่ได้อีก
       if (submission.status === 'terminated') { showToast('การสอบนี้ถูกยุติแล้ว', 'error'); return; }
