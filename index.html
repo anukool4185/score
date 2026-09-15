@@ -2503,7 +2503,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.19';
+    const APP_VERSION = 'SUPABASE-2026.09.08.20';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4860,6 +4860,7 @@ const supabaseDataSdk = {
         {id:'essayquestions',icon:'✍️', label:'คลังข้อสอบอัตนัย', section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
+        {id:'retryrequest',  icon:'📨', label:'คำขอสอบแก้ตัว',  section:'ข้อสอบ'},
         {id:'examcheat',     icon:'🚨', label:'ตรวจสอบทุจริต',  section:'ข้อสอบ'},
         {id:'admins',     icon:'👤', label:'ผู้ช่วยแอดมิน',        section:'บุคคล'},
         {id:'students',   icon:'🎓', label:'นักเรียน',             section:'บุคคล'},
@@ -4897,7 +4898,7 @@ const supabaseDataSdk = {
         import:"goToAdminTabDirect('import')", settings:"goToAdminTabDirect('settings')", hours:"goToAdminTabDirect('hours')", schedule:"goToAdminTabDirect('schedule')",
         scores:"goToAdminTabDirect('scores')", grading:"goToAdminTabDirect('grading')", uploadscore:"goToAdminTabDirect('uploadscore')",
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", studentdata:"goToAdminTabDirect('studentdata')",
-        examquestions:"goToAdminTabDirect('examquestions')", essayquestions:"goToAdminTabDirect('essayquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", examcheat:"goToAdminTabDirect('examcheat')",
+        examquestions:"goToAdminTabDirect('examquestions')", essayquestions:"goToAdminTabDirect('essayquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", retryrequest:"goToAdminTabDirect('retryrequest')", examcheat:"goToAdminTabDirect('examcheat')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
         timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", marqueesettings:"goToAdminTabDirect('marqueesettings')", menumanager:"goToAdminTabDirect('menumanager')",
       },
@@ -21255,8 +21256,10 @@ const supabaseDataSdk = {
     'mn-exam': [
       {id:'examcreate',icon:'➕',label:'สร้างข้อสอบ',fn:"openCreateExamQuestionPopup()"},
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
+      {id:'essayquestions',icon:'✍️',label:'คลังข้อสอบอัตนัย',fn:"mShowDesktopAdminTab('essayquestions','✍️ คลังข้อสอบอัตนัย')"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
       {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
+      {id:'retryrequest',icon:'📨',label:'คำขอสอบแก้ตัว',fn:"mShowDesktopAdminTab('retryrequest','📨 คำขอสอบแก้ตัว')"},
       {id:'examcheat',icon:'🚨',label:'ตรวจสอบทุจริต',fn:"mShowDesktopAdminTab('examcheat','🚨 ตรวจสอบทุจริต')"},
     ],
     'mn-hw': [
