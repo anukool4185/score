@@ -2434,7 +2434,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.14';
+    const APP_VERSION = 'SUPABASE-2026.09.08.16';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4778,7 +4778,8 @@ const supabaseDataSdk = {
         {id:'gradereport', icon:'📑', label:'สัดส่วนเกรด',      section:'คะแนน'},
         {id:'gradedist',   icon:'🥧', label:'สรุปเกรด',         section:'คะแนน'},
         {id:'studentdata', icon:'📈', label:'ผลการเรียน/เวลาเรียน', section:'คะแนน'},
-        {id:'examcreate',    icon:'➕', label:'สร้างข้อสอบ',   section:'ข้อสอบ'},
+        // 🗑️ เอาเมนู "สร้างข้อสอบ" ออกจากฝั่งคอมแล้ว — ย้ายไปเป็นปุ่มในหน้าคลังข้อสอบแทน
+        // (ฝั่งมือถือยังคงไว้ที่เดิม เพราะหน้าจอแคบ กดเมนูสะดวกกว่าหาปุ่มในหน้า)
         {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
@@ -8501,7 +8502,14 @@ const supabaseDataSdk = {
       backdrop.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.5)';
       backdrop.onclick = () => { if (event.target === backdrop) _closeEqFormPopup(); };
       document.body.appendChild(backdrop);
-      form.dataset.originalParent = ''; // เผื่อใช้ตรวจสอบภายหลัง
+      // ⚠️ บั๊กสำคัญที่พบและแก้แล้ว: ฟอร์มนี้อยู่ข้างในแท็บ "คลังข้อสอบ" ซึ่งถูกซ่อนอยู่
+      // ถ้าไม่ได้เปิดแท็บนั้นก่อน กล่องแม่จะยังซ่อนอยู่ ทำให้หน้าต่างไม่แสดงเลย
+      // แก้โดยย้ายฟอร์มออกมาไว้ที่ body โดยตรง จะได้แสดงได้ทุกกรณี ไม่ว่าอยู่หน้าไหน
+      if (!form.dataset.originalParentId) {
+        form.dataset.originalParentId = form.parentElement ? (form.parentElement.id || 'eq-parent-unknown') : '';
+        if (form.parentElement && !form.parentElement.id) form.parentElement.id = 'eq-parent-unknown';
+      }
+      document.body.appendChild(form); // ย้ายออกมานอกแท็บที่ซ่อนอยู่
       form.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:99998;max-width:640px;width:calc(100% - 32px);max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)';
       form.classList.add('bg-gray-50', 'border-2', 'border-gray-200', 'rounded-xl', 'p-5');
       // ปุ่มปิด popup มุมขวาบน
@@ -8545,6 +8553,12 @@ const supabaseDataSdk = {
       if (form) {
         form.removeAttribute('style');
         form.className = 'hidden bg-gray-50 border-2 border-gray-200 rounded-xl p-5 mb-6'; // กลับไปซ่อนเป็นค่าเริ่มต้นในหน้าคลังข้อสอบ
+        // 🔙 ย้ายฟอร์มกลับที่เดิม (ตอนเปิดย้ายออกมาไว้ที่ body เพื่อให้แสดงได้ทุกหน้า)
+        const parentId = form.dataset.originalParentId;
+        if (parentId) {
+          const parent = document.getElementById(parentId);
+          if (parent) parent.appendChild(form);
+        }
       }
       document.getElementById('eq-form-popup-backdrop')?.remove();
       document.getElementById('eq-form-popup-close')?.remove();
