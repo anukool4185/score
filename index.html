@@ -1795,6 +1795,7 @@
            <p class="text-xs text-gray-500 mt-0.5">ข้อมูลนี้ดึงจากระบบโดยตรง — ล็อกอินใหม่ยังคงอยู่</p>
           </div>
           <div class="flex gap-2 flex-wrap">
+           <button onclick="openBulkSetupNewStudents()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm font-semibold btn-3d">⚡ สร้างระบบให้นักเรียนใหม่</button>
            <button onclick="exportNoEnrollPdf()" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">📄 PDF</button>
            <button onclick="exportNoEnrollExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
           </div>
@@ -2503,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.28';
+    const APP_VERSION = 'SUPABASE-2026.09.08.31';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4338,11 +4339,16 @@ const supabaseDataSdk = {
               <p>${existingStudent.prefix} ${existingStudent.first_name} ${existingStudent.last_name}</p>
               <p>ชั้น ${existingStudent.class_name}/${existingStudent.room_number} เลขที่ ${existingStudent.student_number || '-'}</p>
             </div>
-            <p class="text-gray-600 mb-5 text-sm">ต้องการเปลี่ยนข้อมูลเป็นข้อมูลใหม่ที่กรอกนี้ ทับข้อมูลเดิมหรือไม่?</p>
-            <div class="flex gap-3">
-              <button onclick="cancelRegisterOverwrite()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ไม่ใช่ ยกเลิก</button>
-              <button onclick="confirmRegisterOverwrite()" class="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">✅ ใช่ เปลี่ยนข้อมูล</button>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p class="text-amber-800 text-sm font-semibold mb-1">⚠️ ไม่สามารถสมัครซ้ำได้</p>
+              <p class="text-amber-700 text-xs leading-relaxed">รหัสนักเรียนนี้มีข้อมูลในระบบแล้ว การสมัครซ้ำจะทำให้คะแนนและประวัติการเรียนเดิมเสียหาย</p>
             </div>
+            <p class="text-gray-600 mb-4 text-sm">ถ้าเป็นบัญชีของท่านเอง กรุณาใช้ปุ่มด้านล่างเพื่อดู User และ Password ของท่าน</p>
+            <div class="flex flex-col gap-2">
+              <button onclick="cancelRegisterOverwrite();openForgotCredentialsModal()" class="w-full px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm btn-3d">🔑 ค้นหาข้อมูลบัญชีของฉัน</button>
+              <button onclick="cancelRegisterOverwrite()" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ปิดหน้าต่างนี้</button>
+            </div>
+            <p class="text-xs text-gray-400 mt-3 text-center">หากข้อมูลเดิมไม่ใช่ของท่าน กรุณาติดต่อครูผู้สอน</p>
           </div>
         `;
         document.body.appendChild(confirmDiv);
@@ -8763,6 +8769,169 @@ const supabaseDataSdk = {
     }
 
     /** เปิดหน้าต่างสร้างข้อสอบอัตนัย */
+    // ════════════════════════════════════════════════════════════
+    // ⚡ ระบบสร้างข้อมูลให้นักเรียนใหม่ (ลงทะเบียน + กระดาษคำตอบ)
+    // ════════════════════════════════════════════════════════════
+
+    /** เปิดหน้าต่างสร้างระบบให้นักเรียนใหม่ พร้อมให้กำหนดสัดส่วน KPAC */
+    function openBulkSetupNewStudents() {
+      // หานักเรียนที่ยังไม่ได้ลงทะเบียนวิชาใดเลย
+      const registered = new Set(allData.filter(d => d.type === 'student_registration').map(d => d.student_id));
+      const newStudents = allData.filter(d => d.type === 'student' && !registered.has(d.student_id));
+
+      if (newStudents.length === 0) {
+        showToast('✅ นักเรียนทุกคนลงทะเบียนเรียบร้อยแล้ว ไม่มีใครตกหล่น', 'info');
+        return;
+      }
+
+      // จัดกลุ่มตามชั้น/ห้อง เพื่อให้เห็นภาพชัด
+      const byRoom = {};
+      newStudents.forEach(s => {
+        const key = `${s.class_name || '-'}/${s.room_number || '-'}`;
+        if (!byRoom[key]) byRoom[key] = [];
+        byRoom[key].push(s);
+      });
+
+      document.getElementById('bulk-setup-panel')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'bulk-setup-panel';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999996;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      wrap.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;padding:22px">
+          <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">⚡ สร้างระบบให้นักเรียนใหม่</h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 14px">พบนักเรียน <b style="color:#7c3aed">${newStudents.length} คน</b> ที่ยังไม่ได้ลงทะเบียนวิชาใดเลย</p>
+
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:14px;max-height:140px;overflow-y:auto">
+            ${Object.keys(byRoom).sort().map(room => `
+              <p style="font-size:12px;color:#475569;margin:0 0 4px">🏫 <b>${escHtml(room)}</b> — ${byRoom[room].length} คน
+                <span style="color:#94a3b8;font-size:11px">(${byRoom[room].slice(0,3).map(s => escHtml(s.first_name||s.student_id)).join(', ')}${byRoom[room].length > 3 ? ' ...' : ''})</span>
+              </p>`).join('')}
+          </div>
+
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:14px">
+            <p style="font-size:12px;font-weight:700;color:#1e40af;margin:0 0 8px">📊 กำหนดสัดส่วนคะแนน KPAC</p>
+            <p style="font-size:11px;color:#3b82f6;margin:0 0 8px">กรอกตามที่ต้องการ (แก้ไขรายคนภายหลังได้)</p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">K (ความรู้)</label>
+                <input type="number" id="bulk-k" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
+              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">P (ทักษะ)</label>
+                <input type="number" id="bulk-p" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
+              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">A (เจตคติ)</label>
+                <input type="number" id="bulk-a" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
+              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">C (คุณลักษณะ)</label>
+                <input type="number" id="bulk-c" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
+            </div>
+            <p id="bulk-sum-label" style="font-size:11px;color:#64748b;margin:8px 0 0">รวม: 0</p>
+          </div>
+
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#475569;margin-bottom:14px;cursor:pointer;background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:10px">
+            <input type="checkbox" id="bulk-create-exams" checked style="margin-top:2px">
+            <span><b>สร้างกระดาษคำตอบให้ชุดสอบที่ยังเปิดอยู่ด้วย</b><br>
+            <span style="font-size:11px;color:#a16207">ถ้าห้องนั้นมีการสอบไปแล้ว นักเรียนใหม่จะเข้าสอบได้ทันที</span></span>
+          </label>
+
+          <div style="display:flex;gap:8px">
+            <button onclick="runBulkSetupNewStudents()" id="bulk-setup-run-btn" style="flex:1;background:#7c3aed;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer" class="btn-3d">⚡ เริ่มสร้างข้อมูล</button>
+            <button onclick="document.getElementById('bulk-setup-panel')?.remove()" style="background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:12px 16px;font-size:13px;cursor:pointer">ยกเลิก</button>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+
+      // อัปเดตผลรวมเปอร์เซ็นต์ให้เห็นทันทีที่แก้ไข
+      ['bulk-k','bulk-p','bulk-a','bulk-c'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', () => {
+          const sum = ['bulk-k','bulk-p','bulk-a','bulk-c']
+            .reduce((t,i) => t + (parseFloat(document.getElementById(i)?.value) || 0), 0);
+          const lbl = document.getElementById('bulk-sum-label');
+          if (lbl) {
+            // 📊 ไม่บังคับว่าต้องรวมเป็น 100 — แอดมินกำหนดเองตามระบบของแต่ละโรงเรียน
+            lbl.textContent = `รวม: ${sum}`;
+            lbl.style.color = '#64748b';
+          }
+        });
+      });
+    }
+
+    /** ดำเนินการสร้างข้อมูลให้นักเรียนใหม่ทั้งหมด */
+    async function runBulkSetupNewStudents() {
+      const k = parseFloat(document.getElementById('bulk-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('bulk-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('bulk-a')?.value) || 0;
+      const cc = parseFloat(document.getElementById('bulk-c')?.value) || 0;
+      const createExams = document.getElementById('bulk-create-exams')?.checked;
+
+      // 📊 ไม่บังคับว่าต้องรวมเป็น 100 — แอดมินกำหนดเองตามระบบของแต่ละโรงเรียน
+      if (k + p + a + cc === 0) {
+        if (!confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0)\n\nยืนยันดำเนินการต่อหรือไม่? (แก้ไขภายหลังได้)')) return;
+      }
+
+      const registered = new Set(allData.filter(d => d.type === 'student_registration').map(d => d.student_id));
+      const newStudents = allData.filter(d => d.type === 'student' && !registered.has(d.student_id));
+      if (newStudents.length === 0) { showToast('ไม่มีนักเรียนที่ต้องสร้างข้อมูล', 'info'); return; }
+
+      const btn = document.getElementById('bulk-setup-run-btn');
+      await withButtonLock(btn, '⏳ กำลังสร้างข้อมูล...', async () => {
+        let regCreated = 0, examCreated = 0, failed = 0;
+
+        for (const stu of newStudents) {
+          // หาวิชาที่เปิดสอนในชั้น/ห้องของนักเรียนคนนี้
+          const subjects = allData.filter(d => d.type === 'class_subject'
+            && d.class_name === stu.class_name && String(d.room_number) === String(stu.room_number));
+
+          for (const cs of subjects) {
+            try {
+              const regResult = await window.dataSdk.create({
+                type: 'student_registration',
+                student_id: stu.student_id,
+                student_name: `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`,
+                class_subject_id: cs.class_subject_id,
+                class_name: stu.class_name,
+                room_number: stu.room_number,
+                subject_name: cs.subject_name,
+                k_percent: k, p_percent: p, a_percent: a, c_percent: cc,
+              });
+              if (!regResult.isOk) { failed++; continue; }
+              regCreated++;
+
+              // 📝 สร้างกระดาษคำตอบให้ชุดสอบที่ยังเปิดอยู่ (ถ้าเลือกไว้)
+              if (createExams) {
+                const openSets = allData.filter(d => d.type === 'exam_set'
+                  && d.class_name === stu.class_name
+                  && String(d.room_number) === String(stu.room_number)
+                  && d.subject_name === cs.subject_name
+                  && d.end_time && new Date(d.end_time) > new Date());  // เฉพาะที่ยังไม่หมดเวลา
+                for (const es of openSets) {
+                  try {
+                    await window.dataSdk.create({
+                      type: 'exam_submission',
+                      exam_set_id: es.__backendId,
+                      registration_id: regResult.data?.__backendId,
+                      student_id: stu.student_id,
+                      student_name: `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`,
+                      class_name: stu.class_name,
+                      room_number: stu.room_number,
+                      subject_name: cs.subject_name,
+                      k_round: es.k_round,
+                      status: 'not_started',
+                      answers: '{}',
+                    });
+                    examCreated++;
+                  } catch (e) { /* ข้ามไป ไม่ให้กระทบรายการอื่น */ }
+                }
+              }
+            } catch (err) {
+              console.error('[BulkSetup] สร้างไม่สำเร็จ:', stu.student_id, cs.subject_name, err.message);
+              failed++;
+            }
+          }
+        }
+
+        document.getElementById('bulk-setup-panel')?.remove();
+        showToast(`✅ สร้างข้อมูลสำเร็จ — ลงทะเบียน ${regCreated} รายการ${createExams ? ` | กระดาษคำตอบ ${examCreated} ใบ` : ''}${failed > 0 ? ` (ไม่สำเร็จ ${failed})` : ''}`);
+        if (typeof renderNoEnrollList === 'function') renderNoEnrollList();
+      });
+    }
+
     function openCreateEssayQuestionPopup() {
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
       if (subjects.length === 0) { showToast('⚠️ ยังไม่มีรายวิชาในระบบ กรุณาเพิ่มรายวิชาก่อน', 'error'); return; }
@@ -16430,10 +16599,27 @@ const supabaseDataSdk = {
       }
     }
     function loadMFFilters() {
-      // ดึงข้อมูลจากแท็บนำเข้า
-      const classRecords = allData.filter(d => d.type === 'class');
-      const roomRecords = allData.filter(d => d.type === 'room');
-      const subjectRecords = allData.filter(d => d.type === 'subject');
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมดึงจากข้อมูลประเภท class/room/subject ที่เก็บแยกต่างหาก
+      // แต่หลังย้ายมา Supabase ข้อมูลเหล่านี้อาจไม่มี ทำให้หน้าตั้งค่า M/F ว่างเปล่า บันทึกไม่ได้
+      // แก้โดยดึงจาก "รายวิชาที่เปิดสอนจริง" เป็นหลัก ซึ่งมีข้อมูลครบเสมอ
+      let classRecords = allData.filter(d => d.type === 'class');
+      let roomRecords = allData.filter(d => d.type === 'room');
+      let subjectRecords = allData.filter(d => d.type === 'subject');
+
+      const csList = allData.filter(d => d.type === 'class_subject');
+      if (classRecords.length === 0) {
+        classRecords = [...new Set(csList.map(d => d.class_name).filter(Boolean))].sort()
+          .map(v => ({ class_name: v }));
+      }
+      if (roomRecords.length === 0) {
+        roomRecords = [...new Set(csList.map(d => String(d.room_number)).filter(Boolean))]
+          .sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0))
+          .map(v => ({ room_number: v }));
+      }
+      if (subjectRecords.length === 0) {
+        subjectRecords = [...new Set(csList.map(d => d.subject_name).filter(Boolean))].sort()
+          .map(v => ({ subject_name: v }));
+      }
       const classCheckboxes = document.getElementById('mf-class-checkboxes');
       const roomCheckboxes = document.getElementById('mf-room-checkboxes');
       const subjectCheckboxes = document.getElementById('mf-subject-checkboxes');
@@ -16689,9 +16875,14 @@ const supabaseDataSdk = {
     }
     // ======= HOURS MANAGEMENT FUNCTIONS =======
     function loadHoursFilters() {
-      const classRecords = allData.filter(d => d.type === 'class');
-      const roomRecords = allData.filter(d => d.type === 'room');
-      const subjectRecords = allData.filter(d => d.type === 'subject');
+      // ⚠️ ใช้วิธีเดียวกับหน้าตั้งค่า M/F: ถ้าไม่มีข้อมูลแยก ให้ดึงจากรายวิชาที่เปิดสอนจริง
+      let classRecords = allData.filter(d => d.type === 'class');
+      let roomRecords = allData.filter(d => d.type === 'room');
+      let subjectRecords = allData.filter(d => d.type === 'subject');
+      const _csAll = allData.filter(d => d.type === 'class_subject');
+      if (classRecords.length === 0) classRecords = [...new Set(_csAll.map(d => d.class_name).filter(Boolean))].sort().map(v => ({ class_name: v }));
+      if (roomRecords.length === 0) roomRecords = [...new Set(_csAll.map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0)).map(v => ({ room_number: v }));
+      if (subjectRecords.length === 0) subjectRecords = [...new Set(_csAll.map(d => d.subject_name).filter(Boolean))].sort().map(v => ({ subject_name: v }));
       const classCheckboxes = document.getElementById('hours-class-checkboxes');
       const roomCheckboxes = document.getElementById('hours-room-checkboxes');
       const subjectCheckboxes = document.getElementById('hours-subject-checkboxes');
@@ -17049,9 +17240,14 @@ const supabaseDataSdk = {
       return arr.reduce((sum, v) => sum + (v === '' || v === undefined ? 0 : (parseFloat(v) || 0)), 0);
     }
     function loadScoresFilters() {
-      const classRecords = allData.filter(d => d.type === 'class');
-      const roomRecords = allData.filter(d => d.type === 'room');
-      const subjectRecords = allData.filter(d => d.type === 'subject');
+      // ⚠️ ใช้วิธีเดียวกับหน้าตั้งค่า M/F: ถ้าไม่มีข้อมูลแยก ให้ดึงจากรายวิชาที่เปิดสอนจริง
+      let classRecords = allData.filter(d => d.type === 'class');
+      let roomRecords = allData.filter(d => d.type === 'room');
+      let subjectRecords = allData.filter(d => d.type === 'subject');
+      const _csAll = allData.filter(d => d.type === 'class_subject');
+      if (classRecords.length === 0) classRecords = [...new Set(_csAll.map(d => d.class_name).filter(Boolean))].sort().map(v => ({ class_name: v }));
+      if (roomRecords.length === 0) roomRecords = [...new Set(_csAll.map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0)).map(v => ({ room_number: v }));
+      if (subjectRecords.length === 0) subjectRecords = [...new Set(_csAll.map(d => d.subject_name).filter(Boolean))].sort().map(v => ({ subject_name: v }));
       const classSelect = document.getElementById('filter-class-scores');
       const roomSelect = document.getElementById('filter-room-scores');
       const subjectSelect = document.getElementById('filter-subject-scores');
