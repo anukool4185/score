@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.39';
+    const APP_VERSION = 'SUPABASE-2026.09.08.40';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10039,7 +10039,12 @@ const supabaseDataSdk = {
         const isOpen = now >= start && now <= end;
         const statusBadge = isOpen ? '<span class="text-green-600 font-semibold">🟢 กำลังเปิดสอบ</span>'
           : (now < start ? '<span class="text-amber-600">⏳ ยังไม่ถึงเวลา</span>' : '<span class="text-gray-400">⚫ ปิดแล้ว</span>');
-        const questionCount = (s.question_ids || '').split(',').filter(Boolean).length;
+        // ⚠️ บั๊กที่พบและแก้แล้ว: โหมดสุ่มไม่มีรายการข้อสอบ (question_ids) จึงแสดงเป็น 0 ข้อเสมอ
+        // แก้โดยใช้จำนวนข้อที่ตั้งไว้ (random_count) แทนสำหรับโหมดสุ่ม
+        const _isRandomSet = s.is_random_mode === true || s.is_random_mode === 'true';
+        const questionCount = _isRandomSet
+          ? (parseInt(s.random_count) || 0)
+          : (s.question_ids || '').split(',').filter(Boolean).length;
         // 🟢/🟡 สถานะปุ่มรีเซ็ท: เขียว = ยังไม่มีใครสอบเลย (พร้อมสอบ) / เหลือง = มีคนสอบไปแล้วอย่างน้อย 1 คน (กดรีเซ็ทได้มีความหมาย)
         const hasAnySubmission = allData.some(d => d.type === 'exam_submission' && d.exam_set_id === s.__backendId && d.status !== 'not_started'); // ไม่นับแถวที่จองไว้ล่วงหน้า (ยังไม่ได้สอบจริง)
         const resetBtnClass = hasAnySubmission ? 'bg-amber-500 hover:bg-amber-600' : 'bg-green-500 hover:bg-green-600';
@@ -10049,7 +10054,7 @@ const supabaseDataSdk = {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <p class="font-semibold text-gray-800">🏫 ${s.class_name}/${s.room_number} · 📚 ${s.subject_name} · ${(s.score_type==='c'?'C':'K')} ครั้งที่ ${s.k_round}</p>
-                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'}</p>
+                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${_isRandomSet ? '🎲 สุ่มข้อสอบ' : '📋 เลือกข้อเอง'} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'}</p>
                 <p class="text-xs text-gray-500 mt-1">🟢 เปิด: ${start.toLocaleString('th-TH', { hour12: false })} → 🔴 ปิด: ${end.toLocaleString('th-TH', { hour12: false })}</p>
                 <p class="text-xs mt-1">${statusBadge}</p>
               </div>
@@ -10068,7 +10073,23 @@ const supabaseDataSdk = {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
       document.getElementById('ea-edit-id').value = id;
-      document.getElementById('ea-form-title').textContent = '✏️ แก้ไขชุดสอบ';
+      // 📋 แสดงข้อมูลเดิมให้เห็นชัดเจน จะได้รู้ว่ากำลังแก้ชุดไหน และของเดิมตั้งค่าไว้อย่างไร
+      const _fmtDT = (iso) => {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())} น.`;
+      };
+      const _oldMode = (s.is_random_mode === true || s.is_random_mode === 'true') ? '🎲 สุ่มอัตโนมัติ' : '📋 เลือกข้อสอบเอง';
+      const _oldCount = (s.is_random_mode === true || s.is_random_mode === 'true')
+        ? (s.random_count || 0)
+        : (s.question_ids || '').split(',').filter(Boolean).length;
+      document.getElementById('ea-form-title').innerHTML =
+        `✏️ แก้ไขชุดสอบ` +
+        `<span style="display:block;font-size:11px;font-weight:400;color:#64748b;margin-top:4px;line-height:1.7">` +
+        `ของเดิม: ${_oldMode} · ${_oldCount} ข้อ · ${s.total_score || 0} คะแนน<br>` +
+        `🔴 เดิมปิดสอบ: ${_fmtDT(s.end_time)}` +
+        `</span>`;
       document.getElementById('ea-save-btn').textContent = '💾 บันทึกการแก้ไข';
       document.getElementById('ea-class').value = s.class_name || '';
       updateEaRoomOptions();
@@ -10085,8 +10106,31 @@ const supabaseDataSdk = {
       document.getElementById('ea-end').value = s.end_time ? toLocalInput(s.end_time) : '';
       // 🕐 ใส่ค่าลงช่องเลือกเวลาแบบ 24 ชั่วโมงด้วย
       _initTimeSelectors();
-      if (s.start_time) _fillTimeFromValue('ea-start', toLocalInput(s.start_time));
+      // 🕐 เวลาเปิดสอบ: ใช้เวลาปัจจุบัน (ตามที่ผู้ใช้ต้องการ) เพราะแก้ไขแล้วมักอยากเปิดใหม่เลย
+      // ส่วนเวลาปิดสอบ: คงของเดิมไว้ และแสดงให้เห็นชัดที่หัวข้อด้านบน
+      const _nowLocal = toLocalInput(new Date().toISOString());
+      _fillTimeFromValue('ea-start', _nowLocal);
+      document.getElementById('ea-start').value = _nowLocal;
       if (s.end_time) _fillTimeFromValue('ea-end', toLocalInput(s.end_time));
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมไม่ได้โหลด "โหมดสุ่ม/เลือกเอง" และ "จำนวนข้อที่สุ่ม" กลับมา
+      // ทำให้แก้ไขชุดสอบแบบสุ่มแล้วกลายเป็นแบบเลือกเอง และจำนวนข้อหายไป
+      const isRandom = s.is_random_mode === true || s.is_random_mode === 'true';
+      if (typeof switchEaPickerMode === 'function') switchEaPickerMode(isRandom ? 'random' : 'manual');
+      if (isRandom) {
+        const rcEl = document.getElementById('ea-random-count');
+        if (rcEl) rcEl.value = s.random_count || 5;   // 🔢 จำนวนข้อเดิมที่เคยตั้งไว้
+      }
+
+      // 🏷️ ติ๊กเรื่อง/บทที่เคยกรองไว้กลับมาด้วย
+      if (typeof renderEaChapterFilter === 'function') renderEaChapterFilter();
+      const savedChapters = (s.selected_chapters || '').split(',').filter(Boolean);
+      if (savedChapters.length > 0) {
+        savedChapters.forEach(ch => {
+          const cb = document.querySelector(`.ea-chapter-check[value="${CSS.escape(ch)}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+
       renderEaQuestionPicker();
       const selectedIds = (s.question_ids || '').split(',').filter(Boolean);
       selectedIds.forEach(qid => {
@@ -10094,6 +10138,7 @@ const supabaseDataSdk = {
         if (cb) cb.checked = true;
       });
       updateEaTotalScore();
+      if (typeof updateEaRandomInfo === 'function') updateEaRandomInfo(); // อัปเดตข้อมูลโหมดสุ่มให้ตรงกับค่าที่โหลดมา
       document.getElementById('ea-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
