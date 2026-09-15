@@ -2388,7 +2388,7 @@
          </div>
 
          <div id="ea-random-picker-section" class="hidden">
-          <label class="block text-xs text-gray-600 mb-1">🎲 จำนวนข้อที่ต้องการสุ่ม (1 ข้อ = 1 คะแนน)</label>
+          <label class="block text-xs text-gray-600 mb-1">🎲 จำนวนข้อที่ต้องการสุ่ม <span class="text-gray-400">(คะแนนเต็มคิดจากผลรวมคะแนนรายข้อที่สุ่มได้)</span></label>
           <input type="number" id="ea-random-count" min="1" value="5" oninput="updateEaRandomInfo()" class="w-32 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
           <p class="text-xs text-purple-600 font-semibold mt-2" id="ea-random-info-label">มีข้อสอบในคลังที่ตรงกัน: 0 ข้อ</p>
           <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
@@ -2434,7 +2434,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.16';
+    const APP_VERSION = 'SUPABASE-2026.09.08.18';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2707,6 +2707,10 @@ const SB_TABLE_MAP = [
   { table: 'grades',                type: 'grade' },
   { table: 'subject_full_scores',   type: 'class_subject_scores' },
   { table: 'exam_questions',        type: 'exam_question' },
+  // 📝 ข้อสอบอัตนัย — แยกตารางจากปรนัยแล้ว (สอบพร้อมกันไม่ได้ จึงต้องแยกให้ชัด)
+  { table: 'essay_questions',       type: 'essay_question' },
+  { table: 'essay_exam_sets',       type: 'essay_exam_set' },
+  { table: 'essay_submissions',     type: 'essay_submission' },
   { table: 'exam_sets',             type: 'exam_set' },
   { table: 'exam_submissions',      type: 'exam_submission' },
   { table: 'homework',              type: 'homework' },
@@ -2789,6 +2793,9 @@ const SB_LIGHT_SELECT = {
   'exam_submissions': 'exam_submissions?select=id,exam_set_id,registration_id,student_id,student_name,class_name,room_number,subject_name,k_round,status,answers,auto_score,manual_score,k_score_contributed,needs_manual_grading,manual_grading_done,imported_to_grade,is_retry_attempt,score_reversed,frozen,frozen_reason,cheat_warning_count,terminated_reason,started_at,submitted_at&limit=50000',
   // ชุดสอบ — ตัดสำเนาข้อสอบออกเช่นกัน
   'exam_sets': 'exam_sets?select=id,class_name,room_number,subject_name,k_round,score_type,is_random_mode,random_count,selected_chapters,question_ids,total_score,applied_full_score_delta,start_time,end_time,shuffle_enabled&limit=50000',
+  // 📝 ตารางอัตนัย — ใช้หลักการเดียวกัน ตัดข้อมูลหนักออกตอนโหลดหน้าแรก
+  'essay_exam_sets': 'essay_exam_sets?select=id,class_name,room_number,subject_name,k_round,score_type,selected_chapters,question_ids,total_score,applied_full_score_delta,start_time,end_time&limit=50000',
+  'essay_submissions': 'essay_submissions?select=id,essay_exam_set_id,registration_id,student_id,student_name,class_name,room_number,subject_name,k_round,status,manual_score,k_score_contributed,grading_done,imported_to_grade,is_retry_attempt,score_reversed,frozen,frozen_reason,cheat_warning_count,terminated_reason,started_at,submitted_at&limit=50000',
 };
 
 const supabaseDataSdk = {
@@ -8768,7 +8775,14 @@ const supabaseDataSdk = {
       const count = parseInt(document.getElementById('ea-random-count')?.value) || 0;
       const label = document.getElementById('ea-random-info-label');
       if (label) {
-        label.textContent = `มีข้อสอบในคลังที่ตรงกัน: ${questions.length} ข้อ` + (questions.length < count ? ` ⚠️ น้อยกว่าที่ต้องการสุ่ม (${count} ข้อ) — บางข้อจะถูกสุ่มซ้ำกันในนักเรียนบางคน` : '');
+        // 📊 แสดงคะแนนรวมที่คาดว่าจะได้ด้วย (คิดจากคะแนนรายข้อจริง ไม่ใช่สมมติว่า 1 ข้อ = 1 คะแนน)
+        let scoreInfo = '';
+        if (count > 0 && questions.length > 0) {
+          const expected = _computeRandomExamExpectedScore(questions, Math.min(count, questions.length));
+          scoreInfo = ` → สุ่ม ${count} ข้อ = ${expected} คะแนน`;
+        }
+        label.textContent = `มีข้อสอบในคลังที่ตรงกัน: ${questions.length} ข้อ${scoreInfo}`
+          + (questions.length < count ? ` ⚠️ น้อยกว่าที่ต้องการสุ่ม (${count} ข้อ) — บางข้อจะถูกสุ่มซ้ำกันในนักเรียนบางคน` : '');
         label.className = questions.length < count ? 'text-xs text-amber-600 font-semibold mt-2' : 'text-xs text-purple-600 font-semibold mt-2';
       }
     }
@@ -8799,7 +8813,8 @@ const supabaseDataSdk = {
       let total = 0;
       checked.forEach(c => { total += parseFloat(c.dataset.score) || 0; });
       const label = document.getElementById('ea-total-score-label');
-      if (label) label.textContent = `คะแนนเต็ม: ${total} (${checked.length} ข้อ)`;
+      // 📊 แสดงให้ชัดว่าคะแนนคิดจากผลรวมรายข้อ ไม่ใช่ 1 ข้อ = 1 คะแนน
+      if (label) label.textContent = `เลือก ${checked.length} ข้อ = ${total} คะแนน`;
     }
 
     // ตั้ง/ปรับคะแนนเต็ม K ของทั้งห้องทันที ตอนมอบหมาย/แก้ไขชุดสอบ — ปรับตามส่วนต่าง (delta) ไม่ทับค่าที่มีอยู่เดิม
