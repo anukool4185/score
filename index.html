@@ -2503,7 +2503,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.21';
+    const APP_VERSION = 'SUPABASE-2026.09.08.22';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10433,6 +10433,17 @@ const supabaseDataSdk = {
       } else {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+        // ⚠️ บั๊กที่พบและแก้แล้ว: โหมดเลือกข้อสอบเอง เดิมเก็บแค่รหัสข้อสอบ ไม่ได้เก็บตัวข้อสอบมาด้วย
+        // พอระบบดึงข้อมูลแบบเบา (ตัดสำเนาข้อสอบออกเพื่อความเร็ว) กระดาษคำตอบจึงหาข้อสอบไม่เจอ = หน้าว่างเปล่า
+        // แก้โดยสร้างสำเนาข้อสอบติดไปกับกระดาษคำตอบเสมอ เหมือนโหมดสุ่ม
+        submissionSnapshot = orderedIds
+          .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
+          .filter(Boolean)
+          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
       }
       // ⚠️ บั๊กที่พบและแก้แล้ว: ฐานข้อมูลมีกฎห้ามนักเรียน 1 คนมีกระดาษซ้ำในชุดสอบเดียวกัน
       // เดิมสอบแก้ตัวสร้างแถวใหม่ จึงถูกปฏิเสธ ทำให้ขึ้นว่า "ไม่สามารถเริ่มสอบแก้ได้"
@@ -10556,6 +10567,17 @@ const supabaseDataSdk = {
       } else {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
+        // ⚠️ บั๊กที่พบและแก้แล้ว: โหมดเลือกข้อสอบเอง เดิมเก็บแค่รหัสข้อสอบ ไม่ได้เก็บตัวข้อสอบมาด้วย
+        // พอระบบดึงข้อมูลแบบเบา (ตัดสำเนาข้อสอบออกเพื่อความเร็ว) กระดาษคำตอบจึงหาข้อสอบไม่เจอ = หน้าว่างเปล่า
+        // แก้โดยสร้างสำเนาข้อสอบติดไปกับกระดาษคำตอบเสมอ เหมือนโหมดสุ่ม
+        submissionSnapshot = orderedIds
+          .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
+          .filter(Boolean)
+          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
       }
 
       // 🛡️ ป้องกันแถวซ้ำชั้นที่ 2: ถ้ามีแถวที่กำลังสอบอยู่แล้ว (in_progress) ให้เปิดแถวเดิมต่อ ไม่สร้างใหม่
