@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.33';
+    const APP_VERSION = 'SUPABASE-2026.09.08.34';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11363,10 +11363,14 @@ const supabaseDataSdk = {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
         stream.getTracks().forEach(t => t.stop()); // ปิดชั่วคราวก่อน เดี๋ยว _startExamCameraMonitor จะเปิดใหม่ตอนเข้าสอบจริง
         // 📝 บันทึกไว้เป็นหลักฐานว่านักเรียนคนนี้ได้รับอนุญาตให้เปิดกล้องแล้วจริง (ป้องกันสิทธิ์ทั้งสองฝ่ายภายหลัง)
-        await window.dataSdk.create({
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมรอผลการบันทึก ถ้าบันทึกล้มเหลว (เช่น ฐานข้อมูลไม่มีคอลัมน์รองรับ)
+        // จะหยุดทั้งกระบวนการ ทำให้นักเรียนเข้าสอบไม่ได้เลย ทั้งที่กล้องทำงานปกติ
+        // แก้โดยบันทึกแบบไม่รอผล — เข้าสอบได้ทันที ส่วนหลักฐานบันทึกเบื้องหลัง ล้มเหลวก็ไม่กระทบการสอบ
+        window.dataSdk.create({
           type: 'exam_camera_consent', student_id: currentUser?.student_id, submission_id: submissionId,
           granted_at: new Date().toISOString(), status: 'granted',
-        });
+        }).catch(e => console.log('[Exam] บันทึกหลักฐานยินยอมกล้องไม่สำเร็จ (ไม่กระทบการสอบ):', e.message));
+
         document.getElementById('exam-monitoring-gate')?.remove();
         _renderExamModalActual(submissionId, window._examGateExamSet);
       } catch (err) {
