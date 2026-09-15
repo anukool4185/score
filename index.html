@@ -2503,7 +2503,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.20';
+    const APP_VERSION = 'SUPABASE-2026.09.08.21';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10434,28 +10434,46 @@ const supabaseDataSdk = {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
       }
-      const result = await window.dataSdk.create({
+      // ⚠️ บั๊กที่พบและแก้แล้ว: ฐานข้อมูลมีกฎห้ามนักเรียน 1 คนมีกระดาษซ้ำในชุดสอบเดียวกัน
+      // เดิมสอบแก้ตัวสร้างแถวใหม่ จึงถูกปฏิเสธ ทำให้ขึ้นว่า "ไม่สามารถเริ่มสอบแก้ได้"
+      // แก้โดยเขียนทับแถวเดิมของนักเรียนคนนี้แทน (คะแนนเก่าถูกหักออกไปแล้วในขั้นตอนก่อนหน้า)
+      const existingRow = allData.find(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId && d.student_id === currentUser.student_id);
+      const retryPayload = {
         type: 'exam_submission',
         exam_set_id: examSetId,
         registration_id: registrationId,
         student_id: currentUser.student_id,
-        student_name: `${currentUser.prefix||''}${currentUser.first_name||''} ${currentUser.last_name||''}`, // 📇 เก็บชื่อไว้ตรงๆ ให้อ่านง่ายขึ้นในชีท
+        student_name: `${currentUser.prefix||''}${currentUser.first_name||''} ${currentUser.last_name||''}`,
         subject_name: examSet.subject_name,
         class_name: examSet.class_name,
         room_number: examSet.room_number,
-        k_round: examSet.k_round, // 📂 เก็บไว้ตรงๆ ที่ตัว submission เอง (ไม่ต้องย้อนไปหา exam_set อีกที) ใช้ตอนแยกชีทเก็บข้อมูลตามชั้น/ห้อง/ครั้งที่
-        exam_id: examSetId,
+        k_round: examSet.k_round,
         question_order: orderedIds.join(','),
         question_snapshot_json: submissionSnapshot ? JSON.stringify(submissionSnapshot) : '',
         answers: '{}',
         status: 'in_progress',
         is_retry_attempt: true,
         started_at: new Date().toISOString(),
-      });
+        // ล้างข้อมูลของการสอบครั้งก่อนให้หมด เพื่อเริ่มใหม่อย่างสะอาด
+        submitted_at: '', auto_score: '', manual_score: '', k_score_contributed: '',
+        needs_manual_grading: '', manual_grading_done: '', imported_to_grade: '',
+        frozen: '', frozen_reason: '', cheat_warning_count: '', terminated_reason: '', score_reversed: '',
+      };
+      const result = existingRow
+        ? await window.dataSdk.update({ ...existingRow, ...retryPayload })
+        : await window.dataSdk.create(retryPayload);
       if (result.isOk) {
-        renderExamModal(result.data.__backendId);
+        const newId = (result.data && result.data.__backendId) || (existingRow && existingRow.__backendId);
+        if (!newId) { showToast('ไม่พบรหัสกระดาษคำตอบ กรุณาลองใหม่', 'error'); return; }
+        // อัปเดตข้อมูลในเครื่องทันที กัน renderExamModal หาไม่เจอ
+        const finalRow = { ...retryPayload, __backendId: newId };
+        const idx = allData.findIndex(d => d.__backendId === newId);
+        if (idx >= 0) allData[idx] = { ...allData[idx], ...finalRow }; else allData.push(finalRow);
+        renderExamModal(newId);
       } else {
-        showToast('ไม่สามารถเริ่มสอบแก้ได้', 'error');
+        console.error('[RetryExam] เริ่มสอบแก้ไม่สำเร็จ:', result);
+        showToast('ไม่สามารถเริ่มสอบแก้ได้: ' + (result.error?.message || 'ไม่ทราบสาเหตุ'), 'error');
       }
     }
 
