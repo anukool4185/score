@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.32';
+    const APP_VERSION = 'SUPABASE-2026.09.08.33';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11547,11 +11547,20 @@ const supabaseDataSdk = {
       const snapshotSource = submission.question_snapshot_json || examSet.question_snapshot_json;
       if (snapshotSource) {
         try {
-          const snap = JSON.parse(snapshotSource);
-          _snapshotMap = new Map(snap.map(q => [q.__backendId, q]));
-        } catch (e) { _snapshotMap = null; }
+          // ⚠️ บั๊กที่พบและแก้แล้ว: ข้อมูลจาก Supabase อาจเป็นข้อมูลพร้อมใช้อยู่แล้ว (ไม่ใช่ข้อความ)
+          // เดิมพยายามแกะซ้ำเสมอ ทำให้ล้มเหลว แล้วกระดาษคำตอบไม่มีข้อสอบแสดงเลย
+          const snap = typeof snapshotSource === 'string' ? JSON.parse(snapshotSource) : snapshotSource;
+          if (Array.isArray(snap) && snap.length > 0) {
+            _snapshotMap = new Map(snap.map(q => [String(q.__backendId), q]));
+          }
+        } catch (e) {
+          console.error('[Exam] แกะสำเนาข้อสอบไม่สำเร็จ:', e.message);
+          _snapshotMap = null;
+        }
       }
-      const getQuestionFast = qid => (_snapshotMap && _snapshotMap.get(qid)) || allData.find(d => d.__backendId === qid && d.type === 'exam_question');
+      // 🔍 หาข้อสอบจากสำเนาก่อน ถ้าไม่เจอค่อยหาจากคลัง (เทียบแบบข้อความเสมอ กันชนิดข้อมูลไม่ตรงกัน)
+      const getQuestionFast = qid => (_snapshotMap && _snapshotMap.get(String(qid)))
+        || allData.find(d => String(d.__backendId) === String(qid) && d.type === 'exam_question');
 
       // 📋 จัดเป็นบล็อกแนวตั้ง บล็อกละ 10 ข้อ วางเรียงข้างกัน เหมือนกระดาษคำตอบจริง (1-10, 11-20, 21-30 ...)
       const allItems = orderedIds.map((qid, idx) => ({ num: idx+1, qid, hasQuestion: true }))
@@ -11867,22 +11876,26 @@ const supabaseDataSdk = {
     // 📸 ดึงข้อมูลข้อสอบจาก snapshot ของชุดสอบเอง (ไม่พึ่งพาคลังข้อสอบต้นฉบับ) — ใช้กับชุดสอบเก่าที่ยังไม่มี snapshot เป็น fallback เท่านั้น
     function getExamQuestionFromSet(examSet, qid, submission) {
       // 🎲 โหมดสุ่ม: แต่ละคนมีชุดข้อสอบของตัวเองเก็บไว้ที่ submission ไม่ใช่ที่ exam_set — เช็คจุดนี้ก่อนเป็นอันดับแรก
-      if (submission?.question_snapshot_json) {
+      // ⚠️ ข้อมูลจาก Supabase อาจเป็นข้อมูลพร้อมใช้อยู่แล้ว ไม่ใช่ข้อความ — ต้องเช็คก่อนแกะ
+      const _parseSnap = (src) => {
+        if (!src) return null;
         try {
-          const subSnap = JSON.parse(submission.question_snapshot_json);
-          const foundInSub = subSnap.find(q => q.__backendId === qid);
-          if (foundInSub) return foundInSub;
-        } catch (e) { /* ตกไป fallback ด้านล่าง */ }
+          const s = typeof src === 'string' ? JSON.parse(src) : src;
+          return Array.isArray(s) ? s : null;
+        } catch (e) { return null; }
+      };
+      const subSnap = _parseSnap(submission?.question_snapshot_json);
+      if (subSnap) {
+        const foundInSub = subSnap.find(q => String(q.__backendId) === String(qid));
+        if (foundInSub) return foundInSub;
       }
-      if (examSet?.question_snapshot_json) {
-        try {
-          const snapshot = JSON.parse(examSet.question_snapshot_json);
-          const found = snapshot.find(q => q.__backendId === qid);
-          if (found) return found;
-        } catch (e) { /* ตกไปใช้ fallback ด้านล่าง */ }
+      const setSnap = _parseSnap(examSet?.question_snapshot_json);
+      if (setSnap) {
+        const found = setSnap.find(q => String(q.__backendId) === String(qid));
+        if (found) return found;
       }
       // fallback: ชุดสอบเก่าที่สร้างก่อนมีระบบ snapshot ยังต้องพึ่งคลังข้อสอบอยู่
-      return allData.find(d => d.__backendId === qid && d.type === 'exam_question');
+      return allData.find(d => String(d.__backendId) === String(qid) && d.type === 'exam_question');
     }
 
     function examSetIsShuffleEnabled(submission) {
