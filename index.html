@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.36';
+    const APP_VERSION = 'SUPABASE-2026.09.08.37';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2938,9 +2938,14 @@ const SB_LIGHT_SELECT = {
   // ภาพจากกล้องตรวจทุจริต — ไฟล์ภาพขนาดใหญ่มาก ไม่ต้องโหลดมาแสดงทุกครั้ง
   'exam_camera_snapshots': 'exam_camera_snapshots?select=id,submission_id,reason,captured_at&limit=2000',
   // คลังข้อสอบ — ตัดรูปภาพประกอบออก (โหลดเฉพาะตอนเปิดดูข้อสอบจริง)
-  'exam_questions': 'exam_questions?select=id,subject_name,chapter,question_type,question_text,score_per_question,correct_answer,choice_a,choice_b,choice_c,choice_d,choice_e&limit=50000',
+  // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมตัดคอลัมน์รูปภาพออกเพื่อความเร็ว แต่ลืมว่าข้อสอบบางข้อมีรูปประกอบ
+  // ทำให้ข้อสอบแสดงไม่ครบ/ไม่ขึ้นเลย — คลังข้อสอบต้องดึงครบทุกคอลัมน์เสมอ เพราะเป็นข้อมูลหลักที่ระบบต้องใช้
+  'exam_questions': 'exam_questions?select=*&limit=50000',
   // กระดาษคำตอบ — ตัดสำเนาข้อสอบทั้งชุดออก (ใหญ่มาก โหลดเฉพาะตอนเข้าสอบ/ตรวจข้อสอบ)
-  'exam_submissions': 'exam_submissions?select=id,exam_set_id,registration_id,student_id,student_name,class_name,room_number,subject_name,k_round,status,answers,auto_score,manual_score,k_score_contributed,needs_manual_grading,manual_grading_done,imported_to_grade,is_retry_attempt,score_reversed,frozen,frozen_reason,cheat_warning_count,terminated_reason,started_at,submitted_at&limit=50000',
+  // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมลืมดึง question_order (รายการข้อสอบของแต่ละคน)
+  // ทำให้ระบบขึ้นว่า "ไม่พบรายการข้อสอบ" ทุกครั้ง แล้วต้องกู้คืนใหม่ตลอด — นี่คือต้นเหตุที่กระดาษว่างเปล่า
+  // เพิ่ม question_order และ retry_count กลับเข้าไป (ตัดเฉพาะ question_snapshot_json ที่หนักจริงๆ)
+  'exam_submissions': 'exam_submissions?select=id,exam_set_id,registration_id,student_id,student_name,class_name,room_number,subject_name,k_round,status,answers,question_order,retry_count,auto_score,manual_score,k_score_contributed,needs_manual_grading,manual_grading_done,imported_to_grade,is_retry_attempt,score_reversed,frozen,frozen_reason,cheat_warning_count,terminated_reason,started_at,submitted_at&limit=50000',
   // ชุดสอบ — ตัดสำเนาข้อสอบออกเช่นกัน
   'exam_sets': 'exam_sets?select=id,class_name,room_number,subject_name,k_round,score_type,is_random_mode,random_count,selected_chapters,question_ids,total_score,applied_full_score_delta,start_time,end_time,shuffle_enabled&limit=50000',
   // 📝 ตารางอัตนัย — ใช้หลักการเดียวกัน ตัดข้อมูลหนักออกตอนโหลดหน้าแรก
