@@ -2427,7 +2427,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.9';
+    const APP_VERSION = 'SUPABASE-2026.09.08.10';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2909,7 +2909,14 @@ const supabaseDataSdk = {
   /** แปลงข้อมูลจากระบบเดิม → รูปแบบที่ Supabase รับได้ */
   _toSupabase(record) {
     const out = {};
-    const skipKeys = ['__backendId', 'type', 'created_at', 'updated_at'];
+    // ⚠️ ฟิลด์ที่ระบบเดิมใช้ แต่ฐานข้อมูล Supabase ไม่มีคอลัมน์รองรับ — ต้องตัดออกก่อนส่ง
+    // ไม่งั้นฐานข้อมูลจะปฏิเสธทั้งรายการ ทำให้บันทึกไม่ผ่าน (เช่น เริ่มสอบไม่ได้)
+    const skipKeys = ['__backendId', 'type', 'created_at', 'updated_at',
+      'exam_id',                    // ซ้ำกับ exam_set_id อยู่แล้ว
+      'auto_closed_by_system',      // ใช้เฉพาะระบบเดิม
+      'question_ids',               // เก็บใน question_snapshot_json แทน
+      'student_backend_id',         // ของระบบล็อกอินอัตโนมัติแบบเก่า
+    ];
     Object.keys(record).forEach(k => {
       if (skipKeys.includes(k)) return;
       let v = record[k];
@@ -10180,8 +10187,10 @@ const supabaseDataSdk = {
           showToast('เกิดข้อผิดพลาดตอนเปิดหน้าสอบ: ' + err.message, 'error');
         }
       } else {
-        console.log('[Exam Popup Debug] บันทึกกระดาษคำตอบไม่สำเร็จ:', result);
-        showToast('ไม่สามารถเริ่มสอบได้', 'error');
+        // 🔍 แสดงสาเหตุจริงแทนข้อความกว้างๆ จะได้รู้ว่าติดตรงไหน
+        console.error('[Exam Popup Debug] บันทึกกระดาษคำตอบไม่สำเร็จ:', result);
+        const reason = (result && result.error && result.error.message) ? result.error.message : 'ไม่ทราบสาเหตุ';
+        showToast('ไม่สามารถเริ่มสอบได้: ' + reason, 'error');
       }
     }
 
