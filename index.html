@@ -2504,7 +2504,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.38';
+    const APP_VERSION = 'SUPABASE-2026.09.08.39';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10142,17 +10142,8 @@ const supabaseDataSdk = {
         }
       }
 
-      // 🗑️ ถ้านำเข้าครบทุกคนแล้ว (ไม่เหลือใครค้าง) ให้ลบชีทชั่วคราวทิ้ง เพื่อไม่ให้มีชีทว่างสะสมมากเกินไป
-      const stillPendingAfter = _countPendingImportForExamSet(examSetId) + stillGrading;
-      if (stillPendingAfter === 0) {
-        try {
-          const sheetName = `tscore_${examSet.subject_name}_${examSet.class_name}_${examSet.room_number}_ครั้งที่${examSet.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
-          await fetch(SHEETS_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'deleteWaitTestSheet', sheetName: sheetName, key: API_KEY })
-          });
-        } catch (e) { console.log('[ImportScores Debug] ลบชีทชั่วคราวไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
-      }
+      // ℹ️ เวอร์ชัน Supabase ไม่ต้องลบชีทชั่วคราว เพราะข้อมูลอยู่ในตารางเดียวกันอยู่แล้ว
+      // (โค้ดเดิมเรียกไป Google Sheets ซึ่งไม่มีแล้ว ทำให้เกิดข้อผิดพลาดกลางคัน)
 
       showToast(`✅ นำเข้าคะแนนสำเร็จ ${success} คน${failed > 0 ? ` (ไม่สำเร็จ ${failed} คน)` : ''}`);
       renderExamSetList();
@@ -10436,15 +10427,11 @@ const supabaseDataSdk = {
 
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
-        // 🗑️ ลบชีทเก็บคะแนนสอบของชุดนี้ทิ้งด้วย ไม่ให้เหลือชีทว่างค้างอยู่ (ตามที่ผู้ใช้ต้องการ)
-        try {
-          const sheetName = `tscore_${s.subject_name}_${s.class_name}_${s.room_number}_ครั้งที่${s.k_round}`.replace(/[\/\\\?\*\[\]]/g, '_');
-          await fetch(SHEETS_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'deleteWaitTestSheet', sheetName: sheetName, key: API_KEY })
-          });
-          console.log('[DeleteExamSet] ลบชีทเก็บคะแนนสอบแล้ว:', sheetName);
-        } catch (e) { console.log('[DeleteExamSet] ลบชีทไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมเรียกไปลบ "ชีท" ที่ Google Sheets ซึ่งไม่มีแล้วในเวอร์ชัน Supabase
+        // ทำให้เกิดข้อผิดพลาดกลางคัน หน้าจอไม่อัปเดต รายการที่ลบแล้วจึงยังค้างอยู่
+        // Supabase ไม่ต้องลบตารางแยก เพราะข้อมูลถูกลบไปพร้อมชุดสอบแล้ว (ระบบเชื่อมโยงอัตโนมัติ)
+        // 🔄 เอาข้อมูลที่ลบแล้วออกจากหน้าจอทันที ไม่ต้องรอโหลดใหม่
+        allData = allData.filter(d => d.__backendId !== id);
         showToast('🗑️ ลบชุดสอบสำเร็จ (ปรับคะแนนเต็มและคะแนนที่ได้ของนักเรียนที่สอบไปแล้วให้ถูกต้องแล้ว)');
         renderExamSetList();
       } else {
