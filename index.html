@@ -2503,7 +2503,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.27';
+    const APP_VERSION = 'SUPABASE-2026.09.08.28';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10373,6 +10373,14 @@ const supabaseDataSdk = {
       const btnBase = 'padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;border:none;cursor:pointer';
       const spanBase = 'padding:3px 8px;border-radius:6px;font-size:10px;white-space:nowrap;display:inline-block';
       const now = new Date();
+      // 🔢 ตรวจสอบสิทธิ์สอบแก้ตัว: สอบปกติ 1 ครั้ง + แก้ตัวได้อีก 2 ครั้ง = รวมสูงสุด 3 ครั้ง
+      // ใช้สิทธิ์ครบแล้ว ปุ่มขอสอบแก้ตัวหายไปเอง (ตามที่ตกลงกันไว้)
+      const _usedRetries = parseInt(submission.retry_count) || 0;
+      const _retriesLeft = 2 - _usedRetries;
+      if (_retriesLeft <= 0) {
+        return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">✅ ใช้สิทธิ์สอบแก้ตัวครบแล้ว ${kLabel}</span>`;
+      }
+
       // เช็คสิทธิ์จาก popup แจ้งเตือนก่อน (exam_retry_permission) — อนุญาตแบบทั่วไป ไม่จำกัดเวลาเฉพาะ
       const perm = allData.filter(d => d.type === 'exam_retry_permission' && d.student_id === currentUser.student_id && d.exam_id === examSet.__backendId)
         .sort((a,b) => new Date(b.granted_at) - new Date(a.granted_at))[0];
@@ -10395,8 +10403,8 @@ const supabaseDataSdk = {
           return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาแก้ไขคำตอบ ${kLabel}</span>`;
         }
       }
-      // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต
-      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white">🙋 ขอแก้ไขคำตอบ ${kLabel}</button>`;
+      // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต (บอกจำนวนครั้งที่เหลือให้ชัดเจน)
+      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ขอสอบแก้ตัว ${kLabel} <span style="font-size:10px;opacity:0.85">(เหลือ ${_retriesLeft} ครั้ง)</span></button>`;
     }
 
     function openRetryRequestForm(examSetId, submissionId) {
@@ -10446,6 +10454,22 @@ const supabaseDataSdk = {
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       if (!examSet) return;
 
+      // 🔢 ตรวจสอบสิทธิ์สอบแก้ตัว: สอบปกติ 1 ครั้ง + แก้ตัวได้อีก 2 ครั้ง = รวมสูงสุด 3 ครั้ง
+      const curSub = allData.find(d => d.type === 'exam_submission'
+        && d.exam_set_id === examSetId && d.registration_id === registrationId);
+      const usedRetries = parseInt(curSub?.retry_count) || 0;
+      if (usedRetries >= 2) {
+        showToast('⚠️ ใช้สิทธิ์สอบแก้ตัวครบ 2 ครั้งแล้ว ไม่สามารถสอบแก้ได้อีก', 'error');
+        return;
+      }
+
+      // 📋 ดูว่าแอดมินอนุมัติให้ใช้ข้อสอบชุดเดิม หรือสุ่มชุดใหม่
+      const approvedReq = allData.filter(d => d.type === 'exam_retry_request'
+        && d.exam_set_id === examSetId && d.student_id === currentUser.student_id && d.status === 'approved')
+        .sort((a,b) => new Date(b.reviewed_at||0) - new Date(a.reviewed_at||0))[0];
+      const useSameQuestions = !approvedReq || approvedReq.question_mode !== 'new'; // ค่าเริ่มต้นคือใช้ข้อสอบเดิม
+      console.log('[RetryExam] ครั้งที่', usedRetries + 1, '| ข้อสอบ:', useSameQuestions ? 'ชุดเดิม' : 'สุ่มใหม่');
+
       // ⚠️ บั๊กสำคัญที่พบ: ถ้าครั้งก่อนมีคะแนนติดไปแล้ว (เช่น ครูกำหนดคะแนนเอง หรือตรวจอัตโนมัติ/อัตนัยไปแล้ว)
       // แล้วให้สอบแก้โดยไม่ลบคะแนนเก่าออกก่อน พอสอบแก้เสร็จคะแนนใหม่จะถูก "บวกเพิ่ม" ทับคะแนนเก่า กลายเป็นคะแนนซ้อนสองเท่า
       // ต้องลบคะแนนที่ครั้งก่อนทำให้ได้ออกจากยอดปัจจุบันก่อน เหมือนหลักการเดียวกับตอนลบ/รีเซ็ทชุดสอบ
@@ -10477,7 +10501,36 @@ const supabaseDataSdk = {
       const seed = _seedFromString(currentUser.student_id + examSetId + '_retry_' + Date.now());
       let orderedIds = [];
       let submissionSnapshot = null;
-      if (examSet.is_random_mode) {
+
+      // 📋 ถ้าแอดมินเลือก "ใช้ข้อสอบชุดเดิม" ให้ใช้ชุดเดิมของนักเรียนคนนี้เลย ไม่ต้องสุ่มใหม่
+      if (useSameQuestions && prevSubmission && prevSubmission.question_order) {
+        orderedIds = prevSubmission.question_order.split(',').filter(Boolean);
+        // ดึงสำเนาข้อสอบเดิมมาใช้ (ถ้ามี) ไม่งั้นสร้างใหม่จากคลัง
+        let prevSnap = prevSubmission.question_snapshot_json;
+        if (!prevSnap && window.dataSdk._fetchFullRecord) {
+          try {
+            const full = await window.dataSdk._fetchFullRecord('exam_submissions', prevSubmission.__backendId);
+            if (full?.question_snapshot_json) prevSnap = typeof full.question_snapshot_json === 'string'
+              ? full.question_snapshot_json : JSON.stringify(full.question_snapshot_json);
+          } catch (e) { /* ใช้วิธีสำรองด้านล่าง */ }
+        }
+        if (prevSnap) {
+          try { submissionSnapshot = typeof prevSnap === 'string' ? JSON.parse(prevSnap) : prevSnap; }
+          catch (e) { submissionSnapshot = null; }
+        }
+        if (!submissionSnapshot) {
+          // สร้างสำเนาใหม่จากคลังข้อสอบ ตามรายการข้อเดิม
+          submissionSnapshot = orderedIds
+            .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
+            .filter(Boolean)
+            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+              question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
+              choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+              choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
+              choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+        }
+        console.log('[RetryExam] ใช้ข้อสอบชุดเดิม', orderedIds.length, 'ข้อ');
+      } else if (examSet.is_random_mode) {
         let pool = allData.filter(d => d.type === 'exam_question' && d.subject_name === examSet.subject_name);
         // 🏷️ กรองเฉพาะเรื่อง/บทที่แอดมินเลือกไว้ตอนจัดสอบ (ถ้ามี) ให้สุ่มจริงตรงกับที่ตั้งใจไว้เป๊ะ
         if (examSet.selected_chapters) {
@@ -10545,6 +10598,7 @@ const supabaseDataSdk = {
         answers: '{}',
         status: 'in_progress',
         is_retry_attempt: true,
+        retry_count: usedRetries + 1, // 🔢 นับจำนวนครั้งที่สอบแก้ตัว (สูงสุด 2 ครั้ง)
         started_at: new Date().toISOString(),
         // ล้างข้อมูลของการสอบครั้งก่อนให้หมด เพื่อเริ่มใหม่อย่างสะอาด
         submitted_at: '', auto_score: '', manual_score: '', k_score_contributed: '',
