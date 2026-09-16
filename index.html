@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.43';
+    const APP_VERSION = 'SUPABASE-2026.09.08.47';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3202,7 +3202,9 @@ const supabaseDataSdk = {
     if (type === 'evaluation' && row.record_type) obj.type = 'evaluation_' + row.record_type;
     if (type === 'settings' && row.setting_type) obj.type = row.setting_type;
     if (type === 'registration_request' && row.request_type) obj.type = row.request_type;
-    if (row.sort_order !== undefined && row.sort_order !== null) obj.order = String(row.sort_order);
+    // ⚠️ ต้องเป็นตัวเลข ไม่ใช่ข้อความ เพราะระบบนำไปลบกันเพื่อเรียงลำดับ (a.order - b.order)
+    // ถ้าเป็นข้อความจะเรียงผิด เช่น "10" มาก่อน "2"
+    if (row.sort_order !== undefined && row.sort_order !== null) obj.order = parseInt(row.sort_order) || 0;
     return obj;
   },
 
@@ -5732,7 +5734,7 @@ const supabaseDataSdk = {
                 const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
                 const pendingReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && d.status === 'pending');
                 const approvedReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && isRequestApprovedToday(d));
-                const kpacReq = allData.find(d => d.type === 'kpac_request' && d.student_id === s.student_id && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
+                const kpacReq = allData.find(d => d.type === 'kpac_request' && String(d.student_id) === String(s.student_id) && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
 
                 // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KPAC
                 const kpacCell = kpacReq
@@ -7002,7 +7004,7 @@ const supabaseDataSdk = {
         const studentName = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
         const studentNumber = student?.student_number || '-';
         const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
-        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        const grade = _findGradeRow(reg);
         const totalFull = (scoresConfig?.k_full_score || 0) + (scoresConfig?.p_full_score || 0) + (scoresConfig?.a_full_score || 0) +
                            (scoresConfig?.c_full_score || 0) + (scoresConfig?.m_full_score || 0) + (scoresConfig?.f_full_score || 0);
         const totalSum = grade ? (sumScoresStr(grade.k_scores) + sumScoresStr(grade.p_scores) + sumScoresStr(grade.a_scores) +
@@ -9835,7 +9837,7 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กที่พบ: เดิมใช้ currentUser?.student_id ตรงๆ ซึ่งจะว่างเปล่าถ้าเป็นผู้ช่วยแอดมิน (subadmin) ที่เชื่อมโยงกับนักเรียน แต่ยังไม่ได้สวมตัวตนเป็นนักเรียน (เข้าถึงผ่าน mShowDesktopStudentTab ตรงๆ ไม่ผ่าน FromSubAdmin)
       // แก้ให้ใช้ตัวช่วยเดียวกับกระดิ่งแจ้งเตือน ที่รู้จักหา student_id ให้ถูกต้องไม่ว่าจะเข้าทางไหน
       const effectiveStudentId = _getEffectiveStudentIdForNotifications();
-      const myNotifs = allData.filter(d => d.type === 'student_notification' && d.student_id === effectiveStudentId)
+      const myNotifs = allData.filter(d => d.type === 'student_notification' && String(d.student_id) === String(effectiveStudentId))
         .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6">
@@ -9868,7 +9870,7 @@ const supabaseDataSdk = {
     function getMyNotificationCount() {
       const sid = _getEffectiveStudentIdForNotifications();
       if (!sid) return 0;
-      return allData.filter(d => d.type === 'student_notification' && d.student_id === sid).length;
+      return allData.filter(d => d.type === 'student_notification' && String(d.student_id) === String(sid)).length;
     }
     // 🔔 อัปเดตตัวเลขที่กระดิ่งแจ้งเตือน — เรียกทุกครั้งที่ข้อมูลเปลี่ยน (onDataChanged) ให้ตัวเลขสดใหม่เสมอ
     function updateStudentNotificationBadge() {
@@ -10047,7 +10049,7 @@ const supabaseDataSdk = {
     // ลบแจ้งเตือนอัตโนมัติเมื่อเหตุการณ์ต้นตอถูกจัดการแล้ว (เช่น สอบเสร็จแล้ว ลบแจ้งเตือน "มีสอบใหม่" ของข้อสอบชุดนั้นทิ้ง)
     async function autoRemoveNotificationsByRelatedId(relatedId) {
       if (!relatedId) return;
-      const related = allData.filter(d => d.type === 'student_notification' && d.related_id === relatedId);
+      const related = allData.filter(d => d.type === 'student_notification' && String(d.related_id) === String(relatedId));
       await Promise.all(related.map(n => window.dataSdk.delete(n)));
     }
     // แอดมินลบแจ้งเตือน (ทีละคน/หลายคน/ทั้งหมด) — ลบจริงจากฐานข้อมูล ฝั่งนักเรียนก็หายไปด้วยเพราะข้อมูลชุดเดียวกัน
@@ -10800,7 +10802,7 @@ const supabaseDataSdk = {
         await window.dataSdk.delete(sub);
       }
       // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนานได้ปลอดภัย เพราะแต่ละรายการเป็นคนละ record ไม่ชนกัน
-      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && String(d.exam_set_id) === String(id));
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
@@ -10815,10 +10817,10 @@ const supabaseDataSdk = {
 
     // 🧹 ลบการแจ้งเตือนทุจริต + คำขอสอบแก้ ที่ผูกกับกระดาษคำตอบนี้ทั้งหมด กันแจ้งเตือนค้างหลังลบ/รีเซ็ทชุดสอบ
     async function cleanupExamSubmissionRelatedRecords(submissionId) {
-      const relatedAlerts = allData.filter(d => d.type === 'exam_alert' && d.submission_id === submissionId);
+      const relatedAlerts = allData.filter(d => d.type === 'exam_alert' && String(d.submission_id) === String(submissionId));
       // ⚠️ ลบตัวข้อมูลอย่างเดียวไม่พอ ถ้า banner แจ้งเตือนกำลังลอยอยู่บนจอแอดมินอยู่แล้ว ต้องลบตัว element ออกจากหน้าจอด้วย (ลบ DOM ทันทีแบบ sync ก่อน แล้วค่อยลบข้อมูลแบบขนาน)
       relatedAlerts.forEach(a => document.getElementById('exam-alert-banner-' + a.__backendId)?.remove());
-      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.submission_id === submissionId);
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && String(d.submission_id) === String(submissionId));
       await Promise.all([...relatedAlerts.map(a => window.dataSdk.delete(a)), ...relatedRetryRequests.map(rr => window.dataSdk.delete(rr))]);
     }
 
@@ -10874,7 +10876,7 @@ const supabaseDataSdk = {
         await window.dataSdk.delete(sub);
       }
       // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนาน
-      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && d.exam_set_id === id);
+      const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && String(d.exam_set_id) === String(id));
       const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
@@ -11012,7 +11014,7 @@ const supabaseDataSdk = {
         return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 แก้ไขคำตอบ (ได้รับอนุญาต) ${kLabel}</button>`;
       }
       // เช็คคำขอที่นักเรียนส่งเอง (exam_retry_request)
-      const request = allData.filter(d => d.type === 'exam_retry_request' && d.student_id === currentUser.student_id && d.exam_set_id === examSet.__backendId)
+      const request = allData.filter(d => d.type === 'exam_retry_request' && String(d.student_id) === String(currentUser.student_id) && String(d.exam_set_id) === String(examSet.__backendId))
         .sort((a,b) => new Date(b.requested_at) - new Date(a.requested_at))[0];
       if (request) {
         if (request.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ รออนุมัติแก้ไขคำตอบ ${kLabel}</span>`;
@@ -11104,7 +11106,15 @@ const supabaseDataSdk = {
           : (prevSubmission.auto_score !== undefined && prevSubmission.auto_score !== null ? prevSubmission.auto_score : null);
         if (prevScore !== null && !prevSubmission.score_reversed) {
           const round = parseInt(examSet.k_round) || 1;
-          const grade = allData.find(d => d.type === 'grade' && d.registration_id === registrationId);
+          // 🔍 หาแถวคะแนนแบบมีทางสำรอง (ถ้าหาไม่เจอ คะแนนเก่าจะค้างอยู่ถาวร แล้วบวกซ้อนกับคะแนนใหม่)
+          let grade = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(registrationId));
+          if (!grade) {
+            grade = allData.find(d => d.type === 'grade'
+              && String(d.student_id) === String(prevSubmission.student_id)
+              && d.class_name === examSet.class_name
+              && String(d.room_number) === String(examSet.room_number)
+              && d.subject_name === examSet.subject_name);
+          }
           if (grade) {
             // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
             const retryField = ((examSet.score_type === 'c') ? 'c' : 'k') + '_scores';
@@ -12989,7 +12999,7 @@ const supabaseDataSdk = {
       const currentScore = submission?.manual_score !== undefined && submission?.manual_score !== null ? submission.manual_score : '';
       const activityLogHtml = renderExamActivityLogHtml(submission);
       // 📸 หาภาพที่ถ่ายไว้ใกล้เวลาที่แจ้งเตือนนี้มากที่สุด (ถ่ายไว้ทันทีตอนตรวจพบความผิดปกติ)
-      const relatedSnapshots = allData.filter(d => d.type === 'exam_camera_snapshot' && d.submission_id === alert.submission_id)
+      const relatedSnapshots = allData.filter(d => d.type === 'exam_camera_snapshot' && String(d.submission_id) === String(alert.submission_id))
         .sort((a,b) => Math.abs(new Date(a.captured_at) - new Date(alert.created_at)) - Math.abs(new Date(b.captured_at) - new Date(alert.created_at)));
       const snapshotHtml = relatedSnapshots.length > 0
         ? `<div style="margin-bottom:14px"><p style="font-size:11px;color:#64748b;margin:0 0 6px">📸 ภาพจากกล้องขณะตรวจพบ (${relatedSnapshots[0].reason === alert.violation_type ? 'ถ่ายทันทีตอนตรวจพบ' : 'ภาพใกล้เคียงเวลา'})</p><img src="${relatedSnapshots[0].image_data}" style="width:100%;border-radius:8px;border:1px solid #e2e8f0"></div>`
@@ -13162,7 +13172,7 @@ const supabaseDataSdk = {
         // ตอนนี้เปลี่ยนเป็น "อัปเดตภาพเดิม" แทน (1 ครั้งต่อรอบ) ลดจำนวนการเขียนข้อมูลลงครึ่งหนึ่ง
         // ผลลัพธ์เหมือนเดิมทุกประการ: ยังเก็บแค่ภาพล่าสุดของแต่ละคน ไม่มีภาพเก่าสะสมค้างอยู่ แค่ทำได้เร็วขึ้นมาก
         if (reason === 'periodic') {
-          const existingPeriodicShot = allData.find(d => d.type === 'exam_camera_snapshot' && d.submission_id === submissionId && d.reason === 'periodic');
+          const existingPeriodicShot = allData.find(d => d.type === 'exam_camera_snapshot' && String(d.submission_id) === String(submissionId) && d.reason === 'periodic');
           if (existingPeriodicShot) {
             await window.dataSdk.update({ ...existingPeriodicShot, image_data: imageData, captured_at: new Date().toISOString() });
           } else {
@@ -13572,6 +13582,22 @@ const supabaseDataSdk = {
       subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
     }
     // คำนวณรายงานเกรดของนักเรียนทุกคนตามชั้น/ห้อง/วิชาที่เลือก เรียงตามเลขที่
+    /** 🔍 หาแถวคะแนนของนักเรียน — หาด้วยรหัสอ้างอิงก่อน ถ้าไม่เจอหาด้วยชั้น/ห้อง/วิชา
+     *  จำเป็นมาก เพราะถ้าหาไม่เจอ ระบบจะคิดเกรดเป็น 0 ทั้งที่นักเรียนมีคะแนนจริง
+     *  (เกิดได้เมื่อรหัสอ้างอิงไม่ตรงกัน เช่น หลังย้ายข้อมูลจากระบบเดิม) */
+    function _findGradeRow(reg) {
+      if (!reg) return null;
+      let g = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(reg.__backendId));
+      if (!g) {
+        g = allData.find(d => d.type === 'grade'
+          && String(d.student_id) === String(reg.student_id)
+          && d.class_name === reg.class_name
+          && String(d.room_number) === String(reg.room_number)
+          && d.subject_name === reg.subject_name);
+      }
+      return g || null;
+    }
+
     function computeGradeReportRows(className, roomNumber, subjectName) {
       if (!className || !roomNumber || !subjectName) return [];
       const registrations = allData.filter(d =>
@@ -13588,7 +13614,7 @@ const supabaseDataSdk = {
       const rows = registrations.map(reg => {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
-        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        const grade = _findGradeRow(reg);
         // น้ำหนัก% ของ K/P/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
         const kWeight = reg.k_percent || 0;
         const pWeight = reg.p_percent || 0;
@@ -15230,7 +15256,7 @@ const supabaseDataSdk = {
     // ลบข้อมูลที่ผูกกับการลงทะเบียน 1 รายการ (คะแนน + เวลาเรียน) แต่ไม่ลบตัว registration เอง
     // (เดิมโค้ดมองหา type 'attendance' ซึ่งไม่มีจริง ที่ถูกต้องคือ attendance_part1/attendance_part2 — แก้ไขให้ถูกต้องแล้ว)
     async function cascadeDeleteRegistrationData(reg) {
-      const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+      const grade = _findGradeRow(reg);
       if (grade) await window.dataSdk.delete(grade);
       const part1 = allData.find(d => d.type === 'attendance_part1' && d.registration_id === reg.__backendId);
       if (part1) await window.dataSdk.delete(part1);
@@ -19480,7 +19506,7 @@ const supabaseDataSdk = {
       `;
       const cardsHtml = registrations.map(reg => {
         const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
-        const grade = allData.find(d => d.type === 'grade' && d.registration_id === reg.__backendId);
+        const grade = _findGradeRow(reg);
         const kFull = scoresConfig?.k_full_score || 0;
         const pFull = scoresConfig?.p_full_score || 0;
         const aFull = scoresConfig?.a_full_score || 0;
@@ -21050,7 +21076,7 @@ const supabaseDataSdk = {
       const container = document.getElementById('student-registrations');
       if (!container) return;
       const regOpen = isRegistrationOpen();
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === currentUser.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(currentUser.student_id));
       if (registrations.length === 0) {
         container.innerHTML = '';
         return;
