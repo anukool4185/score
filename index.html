@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.65';
+    const APP_VERSION = 'SUPABASE-2026.09.08.66';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6549,7 +6549,7 @@ const supabaseDataSdk = {
         }
         if (student && missingSubjects.length > 0) {
           // 📢 ใช้ข้อความที่แอดมินตั้งไว้ (ถ้าไม่เคยตั้ง ใช้ข้อความเริ่มต้น) และเคารพการซ่อน
-          const warnRec = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+          const warnRec = allData.find(d => d.type === 'kpac_warning' || (d.type === 'settings' && d.setting_type === 'kpac_warning'));
           const isHidden = warnRec?.is_hidden === true || warnRec?.is_hidden === 'true';
           const warnText = warnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
           if (!isHidden) {
@@ -6656,7 +6656,7 @@ const supabaseDataSdk = {
       // 🔀 ย้ายการตั้งค่าแถบเลื่อนไปไว้ที่แท็บ "การกำหนด Marquee" แล้ว (รวมทุกแถบเลื่อนไว้ที่เดียวตามที่ขอ)
       const marqueeControlsHtml = '';
       // 🔔 บล็อกตั้งค่าข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC (แสดงเฉพาะแท็บหน้าหลักนักเรียน)
-      const kpacWarnRec = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+      const kpacWarnRec = allData.find(d => d.type === 'kpac_warning' || (d.type === 'settings' && d.setting_type === 'kpac_warning'));
       const kpacWarnText = kpacWarnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
       const kpacWarnHidden = kpacWarnRec?.is_hidden === true || kpacWarnRec?.is_hidden === 'true';
       const kpacWarningBlock = target !== 'student' ? '' : `
@@ -6731,7 +6731,7 @@ const supabaseDataSdk = {
       const hidden = document.getElementById('kpac-warn-hidden')?.checked || false;
       if (!text && !hidden) { showToast('กรุณากรอกข้อความ หรือติ๊กซ่อนไม่ให้แสดง', 'error'); return; }
 
-      const existing = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+      const existing = allData.find(d => d.type === 'kpac_warning' || (d.type === 'settings' && d.setting_type === 'kpac_warning'));
       const payload = { type: 'kpac_warning', text: text || '', is_hidden: hidden };
       const result = existing
         ? await window.dataSdk.update({ ...existing, ...payload })
