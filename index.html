@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.53';
+    const APP_VERSION = 'SUPABASE-2026.09.08.54';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4589,7 +4589,14 @@ const supabaseDataSdk = {
     // ============================================================
     function computeNewApplicants() {
       const students = allData.filter(d => d.type === 'student');
-      const newOnes = students.filter(s => !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมกรองจาก "ยังไม่ได้ลงทะเบียน" อย่างเดียว
+      // ทำให้กดรับทราบแล้วชื่อไม่หาย (เพราะยังไม่ลงทะเบียนอยู่ดี) ต้องรอจนกว่าจะลงทะเบียนเสร็จ
+      // แก้โดยเพิ่มเงื่อนไข "ยังไม่ได้กดรับทราบ" ด้วย — หลุดออกได้ 2 ทาง คือกดรับทราบ หรือลงทะเบียนแล้ว
+      const newOnes = students.filter(s => {
+        const acked = s.notification_acknowledged === true || s.notification_acknowledged === 'true';
+        if (acked) return false; // แอดมินกดรับทราบแล้ว ไม่ต้องแสดงอีก
+        return !allData.some(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id));
+      });
       // เรียงตามชั้น -> ห้อง -> เลขที่
       return newOnes.sort((a, b) => {
         const classCompare = (a.class_name || '').localeCompare(b.class_name || '', 'th');
@@ -4618,13 +4625,6 @@ const supabaseDataSdk = {
         const acked = d.notification_acknowledged === true || d.notification_acknowledged === 'true';
         return !acked && !hasAnyScoreEntered(d.__backendId);
       });
-      if (window._debugAckOnce !== true && allRegs.length > 0) {
-        window._debugAckOnce = true;
-        const sample = allRegs[0];
-        console.log('🔍 [Acknowledge] ตัวอย่างข้อมูล — notification_acknowledged:',
-          JSON.stringify(sample.notification_acknowledged), '| ชนิด:', typeof sample.notification_acknowledged);
-        console.log('🔍 [Acknowledge] ลงทะเบียนทั้งหมด:', allRegs.length, '| แสดงในกระดิ่ง:', result.length);
-      }
       return result;
     }
     function computeRegistrationRequests() {
@@ -4980,16 +4980,13 @@ const supabaseDataSdk = {
       return req.status === 'approved' && req.approved_date === getTodayDateStr();
     }
     async function acknowledgeRegistration(regId) {
-      console.log('🔔 [Acknowledge] เริ่มทำงาน — รหัส:', regId);
       const reg = allData.find(d => String(d.__backendId) === String(regId));
       if (!reg) {
         console.error('🔔 [Acknowledge] ไม่พบข้อมูลรหัสนี้ใน allData:', regId);
         showToast('ไม่พบข้อมูลรายการนี้ กรุณาโหลดหน้าใหม่', 'error');
         return;
       }
-      console.log('🔔 [Acknowledge] พบข้อมูล — ประเภท:', reg.type, '| ค่าปัจจุบัน:', JSON.stringify(reg.notification_acknowledged));
       const result = await window.dataSdk.update({ ...reg, notification_acknowledged: true });
-      console.log('🔔 [Acknowledge] ผลการบันทึก:', result.isOk ? 'สำเร็จ' : 'ล้มเหลว', result.error?.message || '');
       if (result.isOk) {
         // 🔄 อัปเดตในเครื่องทันที ไม่ต้องรอโหลดใหม่ (กันชื่อวนกลับมาระหว่างรอ)
         const idx = allData.findIndex(d => String(d.__backendId) === String(regId));
