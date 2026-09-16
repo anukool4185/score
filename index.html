@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.59';
+    const APP_VERSION = 'SUPABASE-2026.09.08.60';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4951,7 +4951,7 @@ const supabaseDataSdk = {
                       <p class="font-medium text-gray-800">${name}</p>
                       <p class="text-xs text-gray-500">${reg.class_name}/${reg.room_number} | ${reg.subject_name}</p>
                     </div>
-                    ${isAdminLoggedIn ? `<button onclick="acknowledgeRegistration('${reg.__backendId}')" class="flex-shrink-0 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">✓ รับทราบ</button>` : ''}
+                    ${isAdminLoggedIn ? `<button onclick="acknowledgeRegistration('${reg.__backendId}')" class="flex-shrink-0 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap btn-3d">✓ รับทราบ</button>` : ''}
                   </div>
                 `;
               }).join('');
@@ -4959,8 +4959,9 @@ const supabaseDataSdk = {
       });
     }
     async function dismissRegistrationRequest(reqId) {
-      const req = allData.find(d => d.__backendId === reqId);
-      if (!req) return;
+      // ⚠️ ต้องระบุประเภทด้วย เพราะรหัสอ้างอิงอาจซ้ำกันระหว่างตาราง ทำให้เจอผิดตัวแล้วบันทึกผิดที่
+      const req = allData.find(d => String(d.__backendId) === String(reqId) && (d.type === 'registration_request' || d.type === 'kpac_request'));
+      if (!req) { showToast('ไม่พบคำขอนี้ กรุณาโหลดหน้าใหม่', 'error'); return; }
       const result = await window.dataSdk.update({ ...req, status: 'dismissed' });
       if (result.isOk) {
         renderBellDropdownContent('requests');
@@ -4969,8 +4970,9 @@ const supabaseDataSdk = {
       }
     }
     async function approveRegistrationRequest(reqId) {
-      const req = allData.find(d => d.__backendId === reqId);
-      if (!req) return;
+      // ⚠️ ต้องระบุประเภทด้วย เพราะรหัสอ้างอิงอาจซ้ำกันระหว่างตาราง ทำให้เจอผิดตัวแล้วบันทึกผิดที่
+      const req = allData.find(d => String(d.__backendId) === String(reqId) && (d.type === 'registration_request' || d.type === 'kpac_request'));
+      if (!req) { showToast('ไม่พบคำขอนี้ กรุณาโหลดหน้าใหม่', 'error'); return; }
       const result = await window.dataSdk.update({ ...req, status: 'approved', approved_date: getTodayDateStr() });
       if (result.isOk) {
         renderBellDropdownContent('requests');
@@ -5001,15 +5003,16 @@ const supabaseDataSdk = {
     }
 
     async function acknowledgeRegistration(regId) {
-      const reg = allData.find(d => String(d.__backendId) === String(regId));
+      // ⚠️ บั๊กที่พบและแก้แล้ว: รหัสอ้างอิงอาจซ้ำกันระหว่างตาราง (เช่น นักเรียนรหัส 52 กับ ลงทะเบียนรหัส 52)
+      // เดิมหาโดยไม่ระบุประเภท จึงเจอข้อมูลนักเรียนแทน แล้วบันทึกผิดตาราง ชื่อเลยไม่หาย
+      // แก้โดยระบุประเภทให้ชัดเจนว่าต้องเป็น student_registration เท่านั้น
+      const reg = allData.find(d => String(d.__backendId) === String(regId) && d.type === 'student_registration');
       if (!reg) {
         console.error('🔔 [Acknowledge] ไม่พบข้อมูลรหัสนี้ใน allData:', regId);
         showToast('ไม่พบข้อมูลรายการนี้ กรุณาโหลดหน้าใหม่', 'error');
         return;
       }
-      console.log('🔔 [AckReg] กด — ประเภท:', reg.type, '| ตาราง:', SB_TYPE_TO_TABLE[reg.type], '| ค่าเดิม:', JSON.stringify(reg.notification_acknowledged));
       const result = await window.dataSdk.update({ ...reg, notification_acknowledged: true });
-      console.log('🔔 [AckReg] ผล:', result.isOk ? 'สำเร็จ' : ('ล้มเหลว: ' + (result.error?.message||'')));
       if (result.isOk) {
         // 🔄 อัปเดตในเครื่องทันที ไม่ต้องรอโหลดใหม่ (กันชื่อวนกลับมาระหว่างรอ)
         const idx = allData.findIndex(d => String(d.__backendId) === String(regId));
