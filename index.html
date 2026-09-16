@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.50';
+    const APP_VERSION = 'SUPABASE-2026.09.08.52';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11013,7 +11013,13 @@ const supabaseDataSdk = {
           }
         } else if (submission.status === 'submitted') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>`;
+          // 📸 ปุ่มบันทึกผลสอบเป็นภาพ — นักเรียนเก็บไว้เป็นหลักฐานในโทรศัพท์ได้
+          // แสดงเฉพาะเมื่อตรวจเสร็จแล้ว (มีคะแนนจริง) ไม่งั้นบันทึกไปก็ไม่มีประโยชน์
+          const hasScore = scoreText !== '-' && scoreText !== null && scoreText !== undefined;
+          const saveBtn = hasScore
+            ? ` <button onclick="saveExamResultAsImage('${submission.__backendId}')" style="${btnBase};background:#0ea5e9;color:white" class="btn-3d">📸 บันทึกผลสอบ</button>`
+            : '';
+          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>${saveBtn}`;
           // 🔄 ปรับตามที่ขอ: ถ้ายังอยู่ในเวลาสอบ ให้ขอแก้ไขคำตอบได้จนหมดเวลา (เดิมชื่อ "ขอสอบแก้ตัว") — พอหมดเวลาสอบ ปุ่มนี้หายไปเลย ไม่มีทางขอแก้ไขได้อีก
           btnHtml = isOpen ? `${scoreLabel} ` + renderRetryRequestButton(examSet, submission, kLabel) : scoreLabel;
         } else if (submission.status === 'terminated') {
@@ -11025,6 +11031,135 @@ const supabaseDataSdk = {
     }
 
     // ปุ่มขออนุญาต/สถานะคำขอสอบแก้ — ครอบคลุมทั้ง exam_retry_request (นักเรียนขอเอง) และ exam_retry_permission (แอดมินอนุมัติจาก popup แจ้งเตือน)
+    /** 📸 สร้างภาพผลการสอบให้นักเรียนบันทึกเก็บไว้ในโทรศัพท์
+     *  วาดด้วย canvas เอง ไม่ต้องพึ่งไลบรารีภายนอก จึงเร็วและใช้ได้ทุกเครื่อง */
+    function saveExamResultAsImage(submissionId) {
+      const sub = allData.find(d => String(d.__backendId) === String(submissionId) && d.type === 'exam_submission');
+      if (!sub) { showToast('ไม่พบข้อมูลผลสอบ', 'error'); return; }
+      const examSet = allData.find(d => String(d.__backendId) === String(sub.exam_set_id) && d.type === 'exam_set');
+      if (!examSet) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
+
+      const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '')
+        ? sub.manual_score : (sub.auto_score ?? 0);
+      const full = examSet.total_score || 0;
+      const percent = full > 0 ? Math.round((parseFloat(score) / parseFloat(full)) * 100) : 0;
+      const scoreType = (examSet.score_type === 'c' ? 'C' : 'K');
+      const stuName = sub.student_name || `${currentUser?.prefix||''}${currentUser?.first_name||''} ${currentUser?.last_name||''}`;
+
+      // ขนาดภาพแนวตั้ง เหมาะกับหน้าจอโทรศัพท์
+      const W = 720, H = 960;
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+
+      // พื้นหลังไล่สี
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#1e3a8a');
+      grad.addColorStop(1, '#3b82f6');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      // กล่องขาวตรงกลาง
+      const bx = 50, by = 90, bw = W - 100, bh = H - 180;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 28); else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+
+      ctx.textAlign = 'center';
+
+      // หัวเรื่อง
+      ctx.fillStyle = '#1e3a8a';
+      ctx.font = 'bold 34px "Sarabun", sans-serif';
+      ctx.fillText('ผลการสอบ', W/2, by + 70);
+
+      // เส้นคั่น
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(bx + 50, by + 100); ctx.lineTo(bx + bw - 50, by + 100); ctx.stroke();
+
+      // ชื่อนักเรียน
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 30px "Sarabun", sans-serif';
+      ctx.fillText(stuName.trim(), W/2, by + 155);
+
+      ctx.fillStyle = '#64748b';
+      ctx.font = '20px "Sarabun", sans-serif';
+      ctx.fillText(`รหัส ${sub.student_id}  ·  ${sub.class_name}/${sub.room_number}`, W/2, by + 190);
+
+      // วิชา
+      ctx.fillStyle = '#334155';
+      ctx.font = 'bold 26px "Sarabun", sans-serif';
+      const subjName = sub.subject_name || '-';
+      ctx.fillText(subjName.length > 28 ? subjName.slice(0, 28) + '…' : subjName, W/2, by + 250);
+
+      // ป้ายครั้งที่สอบ
+      ctx.fillStyle = '#dbeafe';
+      const tagW = 260, tagX = (W - tagW) / 2, tagY = by + 275;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(tagX, tagY, tagW, 46, 23); else ctx.rect(tagX, tagY, tagW, 46);
+      ctx.fill();
+      ctx.fillStyle = '#1d4ed8';
+      ctx.font = 'bold 22px "Sarabun", sans-serif';
+      ctx.fillText(`${scoreType} ครั้งที่ ${examSet.k_round}`, W/2, tagY + 31);
+
+      // วงกลมคะแนน
+      const cx = W/2, cy = by + 450, r = 110;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = percent >= 80 ? '#dcfce7' : (percent >= 50 ? '#fef3c7' : '#fee2e2');
+      ctx.fill();
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = percent >= 80 ? '#16a34a' : (percent >= 50 ? '#f59e0b' : '#dc2626');
+      ctx.stroke();
+
+      ctx.fillStyle = percent >= 80 ? '#15803d' : (percent >= 50 ? '#b45309' : '#b91c1c');
+      ctx.font = 'bold 56px "Sarabun", sans-serif';
+      ctx.fillText(String(score), cx, cy + 5);
+      ctx.font = '24px "Sarabun", sans-serif';
+      ctx.fillText(`เต็ม ${full}`, cx, cy + 45);
+
+      // เปอร์เซ็นต์
+      ctx.fillStyle = '#475569';
+      ctx.font = 'bold 30px "Sarabun", sans-serif';
+      ctx.fillText(`${percent}%`, W/2, by + 610);
+
+      // เวลาที่ส่ง
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '19px "Sarabun", sans-serif';
+      const subAt = sub.submitted_at ? new Date(sub.submitted_at) : new Date();
+      const pad = n => String(n).padStart(2, '0');
+      ctx.fillText(`ส่งเมื่อ ${pad(subAt.getDate())}/${pad(subAt.getMonth()+1)}/${subAt.getFullYear()} ${pad(subAt.getHours())}:${pad(subAt.getMinutes())} น.`, W/2, by + 660);
+
+      // ท้ายภาพ
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '18px "Sarabun", sans-serif';
+      ctx.fillText('ระบบบันทึก KPAC', W/2, H - 45);
+
+      // บันทึกเป็นไฟล์ภาพ
+      cv.toBlob(blob => {
+        if (!blob) { showToast('สร้างภาพไม่สำเร็จ', 'error'); return; }
+        const fileName = `ผลสอบ_${subjName}_${scoreType}${examSet.k_round}_${sub.student_id}.png`.replace(/[\/\\:*?"<>|]/g, '_');
+        // มือถือรุ่นใหม่: ใช้ระบบแชร์ของเครื่อง (บันทึกลงคลังภาพได้เลย)
+        const file = new File([blob], fileName, { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: 'ผลการสอบ' })
+            .catch(() => _downloadBlob(blob, fileName));
+        } else {
+          _downloadBlob(blob, fileName);
+        }
+      }, 'image/png');
+    }
+
+    /** ดาวน์โหลดไฟล์ (ใช้เมื่อเครื่องไม่รองรับระบบแชร์) */
+    function _downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+      showToast('📸 บันทึกผลสอบเรียบร้อย ดูได้ในโฟลเดอร์ดาวน์โหลด');
+    }
+
     function renderRetryRequestButton(examSet, submission, kLabel) {
       kLabel = kLabel || `${(examSet.score_type === 'c' ? 'C' : 'K')}.${examSet.k_round}`;
       const btnBase = 'padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;border:none;cursor:pointer';
@@ -22721,7 +22856,26 @@ const supabaseDataSdk = {
     var scopeNote = (type==='subadmin' && scope && scope.className)
       ? '<p style="font-size:11px;color:#64748b;margin:0 0 10px">📌 ขอบเขต: '+scope.className+'/'+scope.roomNumber+' | '+scope.subjectName+'</p>'
       : (type==='subadmin' ? '<p style="font-size:11px;color:#dc2626;margin:0 0 10px">⚠️ ยังไม่ได้ระบุขอบเขต กรุณาติดต่อแอดมิน</p>' : '');
-    c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 4px">📊 ภาพรวม</h2>' + scopeNote +
+    // 🔔 กระดิ่งแจ้งเตือนฝั่งมือถือ (เดิมมีเฉพาะฝั่งคอม ทำให้แอดมินบนมือถือไม่เห็นรายการที่ต้องจัดการ)
+    var bellHtml = '';
+    if (type === 'admin' || type === 'subadmin') {
+      var nApplicants = (typeof computeNewApplicants === 'function') ? computeNewApplicants().length : 0;
+      var nRegs = (typeof computeNewRegistrations === 'function') ? computeNewRegistrations().length : 0;
+      var nReqs = (allData||[]).filter(function(d){ return d.type === 'registration_request' && d.status === 'pending'; }).length;
+      var total = nApplicants + nRegs + nReqs;
+      bellHtml = '<div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap">' +
+        '<button onclick="mShowBellPanel(\'applicants\')" style="flex:1;min-width:100px;background:' + (nApplicants>0?'#fef3c7':'#f1f5f9') + ';border:2px solid ' + (nApplicants>0?'#fbbf24':'#e2e8f0') + ';border-radius:12px;padding:10px;cursor:pointer;text-align:center">' +
+          '<div style="font-size:18px">🆕</div><div style="font-size:16px;font-weight:700;color:' + (nApplicants>0?'#b45309':'#94a3b8') + '">' + nApplicants + '</div>' +
+          '<div style="font-size:10px;color:#64748b">ผู้สมัครใหม่</div></button>' +
+        '<button onclick="mShowBellPanel(\'registrations\')" style="flex:1;min-width:100px;background:' + (nRegs>0?'#dbeafe':'#f1f5f9') + ';border:2px solid ' + (nRegs>0?'#60a5fa':'#e2e8f0') + ';border-radius:12px;padding:10px;cursor:pointer;text-align:center">' +
+          '<div style="font-size:18px">📚</div><div style="font-size:16px;font-weight:700;color:' + (nRegs>0?'#1d4ed8':'#94a3b8') + '">' + nRegs + '</div>' +
+          '<div style="font-size:10px;color:#64748b">ลงทะเบียนใหม่</div></button>' +
+        '<button onclick="mShowBellPanel(\'requests\')" style="flex:1;min-width:100px;background:' + (nReqs>0?'#fee2e2':'#f1f5f9') + ';border:2px solid ' + (nReqs>0?'#f87171':'#e2e8f0') + ';border-radius:12px;padding:10px;cursor:pointer;text-align:center">' +
+          '<div style="font-size:18px">⏳</div><div style="font-size:16px;font-weight:700;color:' + (nReqs>0?'#b91c1c':'#94a3b8') + '">' + nReqs + '</div>' +
+          '<div style="font-size:10px;color:#64748b">รออนุมัติ</div></button>' +
+        '</div>';
+    }
+    c.innerHTML = '<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 4px">📊 ภาพรวม</h2>' + scopeNote + bellHtml +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
       cards.map(function(card){
         return '<button onclick="'+card.fn+'" style="background:'+card.color+';border:none;border-radius:14px;padding:14px;text-align:left;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.15);box-sizing:border-box;aspect-ratio:1/1;width:100%;display:flex;flex-direction:column;justify-content:center">' +
@@ -22729,6 +22883,40 @@ const supabaseDataSdk = {
           '<div style="font-size:22px;font-weight:700;color:white;line-height:1">'+card.value+'</div>' +
           '<div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:4px">'+card.label+'</div></button>';
       }).join('') + '</div>';
+  }
+
+  /** 🔔 แสดงรายละเอียดกระดิ่งแจ้งเตือนฝั่งมือถือ (ใช้ระบบเดียวกับฝั่งคอม) */
+  function mShowBellPanel(type) {
+    document.getElementById('m-bell-panel')?.remove();
+    var titles = { applicants: '🆕 ผู้สมัครใหม่', registrations: '📚 ลงทะเบียนใหม่', requests: '⏳ คำขอรออนุมัติ' };
+    var wrap = document.createElement('div');
+    wrap.id = 'm-bell-panel';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:999995;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center';
+    wrap.onclick = function(e) { if (e.target === wrap) wrap.remove(); };
+    wrap.innerHTML =
+      '<div style="background:white;border-radius:18px 18px 0 0;width:100%;max-height:82vh;overflow-y:auto;padding:18px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
+          '<h3 style="font-size:15px;font-weight:700;color:#1e293b;margin:0">' + titles[type] + '</h3>' +
+          '<button onclick="document.getElementById(\'m-bell-panel\')?.remove()" style="background:#e2e8f0;border:none;border-radius:50%;width:28px;height:28px;font-size:14px;cursor:pointer;color:#475569">✕</button>' +
+        '</div>' +
+        '<div id="m-bell-panel-content"></div>' +
+      '</div>';
+    document.body.appendChild(wrap);
+    // ใช้ฟังก์ชันเดียวกับฝั่งคอม แล้วย้ายเนื้อหามาแสดง (ไม่ต้องเขียนโค้ดซ้ำ)
+    try {
+      if (typeof renderBellDropdownContent === 'function') {
+        renderBellDropdownContent(type);
+        // ดึงเนื้อหาจากฝั่งคอมมาแสดง (ลองทั้ง 2 แบบ เพราะมีทั้งของหน้าล็อกอินและหน้าแอดมิน)
+        var src = document.getElementById('bell-list-' + type + '-admin')
+               || document.getElementById('bell-list-' + type);
+        var dest = document.getElementById('m-bell-panel-content');
+        if (src && dest) dest.innerHTML = src.innerHTML;
+        else if (dest) dest.innerHTML = '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px">ไม่มีรายการ</p>';
+      }
+    } catch (e) {
+      document.getElementById('m-bell-panel-content').innerHTML =
+        '<p style="color:#dc2626;font-size:13px">เกิดข้อผิดพลาด: ' + e.message + '</p>';
+    }
   }
 
   function mRenderStudents() {
