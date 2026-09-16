@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.63';
+    const APP_VERSION = 'SUPABASE-2026.09.08.65';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2997,6 +2997,7 @@ SB_TYPE_TO_TABLE['menu_config']         = 'settings';
 SB_TYPE_TO_TABLE['mobile_menu_config']  = 'settings';
 SB_TYPE_TO_TABLE['tray_menu_config']    = 'settings';
 SB_TYPE_TO_TABLE['announcement']        = 'settings';
+SB_TYPE_TO_TABLE['kpac_warning']        = 'settings';  // 🔔 ข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC
 SB_TYPE_TO_TABLE['answer_sheet_config'] = 'settings';
 SB_TYPE_TO_TABLE['class']               = 'settings';
 SB_TYPE_TO_TABLE['room']                = 'settings';
@@ -6531,15 +6532,40 @@ const supabaseDataSdk = {
       // เตือนเฉพาะตัวสำหรับนักเรียนที่ยังไม่ลงทะเบียนวิชาเลย (ตำแหน่งบนสุด ก่อนประกาศปกติ)
       let warningHtml = '';
       if (target === 'student' && currentUser) {
-        const student = allData.find(s => s.type === 'student' && s.__backendId === currentUser.__backendId);
-        const hasRegistration = student && allData.some(r => r.type === 'student_registration' && r.student_id === student.student_id);
-        if (student && !hasRegistration) {
-          warningHtml = `
-            <div class="bg-white rounded-2xl card-shadow p-6 fade-in mb-6 text-center">
-              <span class="text-4xl animate-bell-shake">🔔</span>
-              <p class="text-red-600 font-bold mt-2">กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)</p>
-            </div>
-          `;
+        const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(currentUser.__backendId));
+        // 📚 ตรวจสอบ "รายวิชา" ไม่ใช่แค่ว่าเคยลงทะเบียนหรือยัง
+        // เดิมเช็คแค่ลงทะเบียนวิชาใดวิชาหนึ่ง พอลงวิชาเดียวข้อความก็หาย ทั้งที่ยังเหลืออีกหลายวิชา
+        let missingSubjects = [];
+        if (student) {
+          // วิชาทั้งหมดที่เปิดสอนในชั้น/ห้องของนักเรียนคนนี้
+          const allSubjects = allData.filter(cs => cs.type === 'class_subject'
+            && cs.class_name === student.class_name
+            && String(cs.room_number) === String(student.room_number));
+          // วิชาที่ลงทะเบียนไปแล้ว
+          const registered = new Set(allData
+            .filter(r => r.type === 'student_registration' && String(r.student_id) === String(student.student_id))
+            .map(r => r.subject_name));
+          missingSubjects = allSubjects.map(cs => cs.subject_name).filter(s => s && !registered.has(s));
+        }
+        if (student && missingSubjects.length > 0) {
+          // 📢 ใช้ข้อความที่แอดมินตั้งไว้ (ถ้าไม่เคยตั้ง ใช้ข้อความเริ่มต้น) และเคารพการซ่อน
+          const warnRec = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+          const isHidden = warnRec?.is_hidden === true || warnRec?.is_hidden === 'true';
+          const warnText = warnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
+          if (!isHidden) {
+            // 📚 แสดงรายชื่อวิชาที่ยังไม่ได้ลงทะเบียน ให้นักเรียนรู้ชัดว่าเหลือวิชาไหนบ้าง
+            const subjectListHtml = missingSubjects.map(s =>
+              `<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:4px 10px;border-radius:999px;font-size:12px;margin:3px">${escHtml(s)}</span>`
+            ).join('');
+            warningHtml = `
+              <div class="bg-white rounded-2xl card-shadow p-6 fade-in mb-6 text-center">
+                <span class="text-4xl animate-bell-shake">🔔</span>
+                <p class="text-red-600 font-bold mt-2 whitespace-pre-wrap">${escHtml(warnText)}</p>
+                <p class="text-xs text-gray-500 mt-3 mb-1">ยังไม่ได้ลงทะเบียน ${missingSubjects.length} วิชา</p>
+                <div>${subjectListHtml}</div>
+              </div>
+            `;
+          }
         }
       }
       const isJsCode = s => /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||'');
@@ -6629,8 +6655,28 @@ const supabaseDataSdk = {
       if (!container) return;
       // 🔀 ย้ายการตั้งค่าแถบเลื่อนไปไว้ที่แท็บ "การกำหนด Marquee" แล้ว (รวมทุกแถบเลื่อนไว้ที่เดียวตามที่ขอ)
       const marqueeControlsHtml = '';
+      // 🔔 บล็อกตั้งค่าข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC (แสดงเฉพาะแท็บหน้าหลักนักเรียน)
+      const kpacWarnRec = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+      const kpacWarnText = kpacWarnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
+      const kpacWarnHidden = kpacWarnRec?.is_hidden === true || kpacWarnRec?.is_hidden === 'true';
+      const kpacWarningBlock = target !== 'student' ? '' : `
+        <div class="bg-amber-50 rounded-lg p-4 mb-4 border-2 border-amber-200">
+          <div class="flex items-start justify-between gap-2 mb-2 flex-wrap">
+            <div>
+              <p class="text-sm font-semibold text-amber-800">🔔 ประกาศเมื่อไม่ได้ลงทะเบียน KPAC</p>
+              <p class="text-xs text-amber-600">แสดงเหนือบล็อกประชาสัมพันธ์ เฉพาะนักเรียนที่ยังไม่ลงทะเบียนวิชาใดเลย</p>
+            </div>
+            <label class="flex items-center gap-1 text-xs text-amber-700 cursor-pointer whitespace-nowrap">
+              <input type="checkbox" id="kpac-warn-hidden" ${kpacWarnHidden ? 'checked' : ''}> ซ่อนไม่ให้แสดง
+            </label>
+          </div>
+          <textarea id="kpac-warn-text" rows="2" placeholder="พิมพ์ข้อความเตือน..." class="w-full px-4 py-2 border-2 border-amber-200 rounded-lg focus:border-amber-500 focus:outline-none mb-2 text-sm">${escHtml(kpacWarnText)}</textarea>
+          <button onclick="saveKpacWarning()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium btn-3d">💾 บันทึกข้อความเตือน</button>
+        </div>`;
+
       container.innerHTML = `
         ${marqueeControlsHtml}
+        ${kpacWarningBlock}
         <div class="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-200">
           <p class="text-sm font-semibold text-gray-700 mb-2">➕ เพิ่มประกาศใหม่</p>
           <textarea id="new-announcement-text" placeholder="พิมพ์ข้อความประกาศ..." rows="3" class="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-2"></textarea>
@@ -6679,6 +6725,25 @@ const supabaseDataSdk = {
       if (typeof renderNotificationMarquee === 'function') renderNotificationMarquee();
       if (typeof renderLandingAnnouncements === 'function') renderLandingAnnouncements();
     }
+    /** 💾 บันทึกข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC */
+    async function saveKpacWarning() {
+      const text = document.getElementById('kpac-warn-text')?.value.trim();
+      const hidden = document.getElementById('kpac-warn-hidden')?.checked || false;
+      if (!text && !hidden) { showToast('กรุณากรอกข้อความ หรือติ๊กซ่อนไม่ให้แสดง', 'error'); return; }
+
+      const existing = allData.find(d => d.type === 'settings' && d.setting_type === 'kpac_warning');
+      const payload = { type: 'kpac_warning', text: text || '', is_hidden: hidden };
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, ...payload })
+        : await window.dataSdk.create(payload);
+
+      if (result.isOk) {
+        showToast(hidden ? '✅ บันทึกแล้ว (ซ่อนไม่ให้แสดง)' : '✅ บันทึกข้อความเตือนสำเร็จ');
+      } else {
+        showToast('บันทึกไม่สำเร็จ: ' + (result.error?.message || ''), 'error');
+      }
+    }
+
     async function addAnnouncement(target) {
       const textInput = document.getElementById('new-announcement-text');
       const imageInput = document.getElementById('new-announcement-image');
