@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.48';
+    const APP_VERSION = 'SUPABASE-2026.09.08.49';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4973,17 +4973,20 @@ const supabaseDataSdk = {
         // 🔄 อัปเดตในเครื่องทันที ไม่ต้องรอโหลดใหม่ (กันชื่อวนกลับมาระหว่างรอ)
         const idx = allData.findIndex(d => String(d.__backendId) === String(regId));
         if (idx >= 0) allData[idx] = { ...allData[idx], notification_acknowledged: true };
-        // ⚠️ ตรวจสอบว่าบันทึกสำเร็จจริง — ถ้าฐานข้อมูลไม่มีคอลัมน์รองรับ ระบบจะตัดฟิลด์ทิ้งเงียบๆ
-        // ทำให้ดูเหมือนสำเร็จ แต่พอโหลดใหม่ชื่อจะวนกลับมา จึงต้องเช็คและแจ้งให้ทราบ
+        // ⚠️ ตรวจสอบว่าบันทึกสำเร็จจริง — ต้องดูจากตารางที่ตรงกับประเภทข้อมูลจริง
+        // (เดิมเช็คตาราง registrations ตายตัว ซึ่งอาจไม่ตรงกับข้อมูลที่กด จึงแจ้งเตือนผิดพลาด)
         setTimeout(async () => {
           try {
-            const fresh = await window.dataSdk._fetchFullRecord('registrations', regId);
-            if (fresh && fresh.notification_acknowledged !== true) {
-              console.error('[Acknowledge] บันทึกไม่สำเร็จ — ฐานข้อมูลอาจไม่มีคอลัมน์ notification_acknowledged');
-              showToast('⚠️ กดรับทราบไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ (ฐานข้อมูลขาดคอลัมน์)', 'error');
+            const table = SB_TYPE_TO_TABLE[reg.type];
+            if (!table) return; // ไม่รู้จักประเภท ข้ามการตรวจสอบ
+            const fresh = await window.dataSdk._fetchFullRecord(table, regId);
+            // เช็คเฉพาะเมื่อดึงข้อมูลได้จริง และคอลัมน์มีอยู่ (ถ้าไม่มีคอลัมน์จะได้ undefined)
+            if (fresh && 'notification_acknowledged' in fresh && fresh.notification_acknowledged !== true) {
+              console.error('[Acknowledge] บันทึกไม่สำเร็จ ตาราง:', table, 'รหัส:', regId);
+              showToast('⚠️ กดรับทราบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'error');
             }
-          } catch (e) { /* ข้ามไป ไม่ร้ายแรง */ }
-        }, 1200);
+          } catch (e) { console.log('[Acknowledge] ตรวจสอบไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
+        }, 1500);
         renderBellDropdownContent('registrations');
       } else {
         showToast('ไม่สามารถอัปเดตได้: ' + (result.error?.message || ''), 'error');
