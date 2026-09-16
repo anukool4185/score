@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.52';
+    const APP_VERSION = 'SUPABASE-2026.09.08.53';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4980,9 +4980,16 @@ const supabaseDataSdk = {
       return req.status === 'approved' && req.approved_date === getTodayDateStr();
     }
     async function acknowledgeRegistration(regId) {
+      console.log('🔔 [Acknowledge] เริ่มทำงาน — รหัส:', regId);
       const reg = allData.find(d => String(d.__backendId) === String(regId));
-      if (!reg) return;
+      if (!reg) {
+        console.error('🔔 [Acknowledge] ไม่พบข้อมูลรหัสนี้ใน allData:', regId);
+        showToast('ไม่พบข้อมูลรายการนี้ กรุณาโหลดหน้าใหม่', 'error');
+        return;
+      }
+      console.log('🔔 [Acknowledge] พบข้อมูล — ประเภท:', reg.type, '| ค่าปัจจุบัน:', JSON.stringify(reg.notification_acknowledged));
       const result = await window.dataSdk.update({ ...reg, notification_acknowledged: true });
+      console.log('🔔 [Acknowledge] ผลการบันทึก:', result.isOk ? 'สำเร็จ' : 'ล้มเหลว', result.error?.message || '');
       if (result.isOk) {
         // 🔄 อัปเดตในเครื่องทันที ไม่ต้องรอโหลดใหม่ (กันชื่อวนกลับมาระหว่างรอ)
         const idx = allData.findIndex(d => String(d.__backendId) === String(regId));
