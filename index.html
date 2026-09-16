@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.49';
+    const APP_VERSION = 'SUPABASE-2026.09.08.50';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4611,7 +4611,21 @@ const supabaseDataSdk = {
     }
     function computeNewRegistrations() {
       // หลุดออกจากแจ้งเตือนได้ 2 ทาง: (1) แอดมินกดรับทราบ หรือ (2) มีการกรอกคะแนนแล้วอย่างน้อย 1 ครั้ง
-      return allData.filter(d => d.type === 'student_registration' && !d.notification_acknowledged && !hasAnyScoreEntered(d.__backendId));
+      // 🔍 วินิจฉัย: บันทึกไว้ว่าแต่ละรายการถูกกรองออกเพราะอะไร (ช่วยหาสาเหตุกรณีชื่อวนกลับมา)
+      const allRegs = allData.filter(d => d.type === 'student_registration');
+      const result = allRegs.filter(d => {
+        // ⚠️ ค่าจากฐานข้อมูลอาจมาเป็นข้อความ "true" ไม่ใช่ค่าจริง ต้องเช็คทั้ง 2 แบบ
+        const acked = d.notification_acknowledged === true || d.notification_acknowledged === 'true';
+        return !acked && !hasAnyScoreEntered(d.__backendId);
+      });
+      if (window._debugAckOnce !== true && allRegs.length > 0) {
+        window._debugAckOnce = true;
+        const sample = allRegs[0];
+        console.log('🔍 [Acknowledge] ตัวอย่างข้อมูล — notification_acknowledged:',
+          JSON.stringify(sample.notification_acknowledged), '| ชนิด:', typeof sample.notification_acknowledged);
+        console.log('🔍 [Acknowledge] ลงทะเบียนทั้งหมด:', allRegs.length, '| แสดงในกระดิ่ง:', result.length);
+      }
+      return result;
     }
     function computeRegistrationRequests() {
       return allData.filter(d => d.type === 'registration_request' && d.status === 'pending');
