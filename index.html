@@ -2320,6 +2320,108 @@
        </div>
       </div>
 
+      <!-- ✍️ จัดสอบอัตนัย (แยกจากปรนัย เพราะสอบพร้อมกันไม่ได้) -->
+      <div id="admin-tab-essayassign" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-1">✍️ จัดสอบอัตนัย</h3>
+        <p class="text-gray-500 text-sm mb-4">มอบหมายข้อสอบเขียนตอบให้นักเรียน — ครูตรวจให้คะแนนเอง</p>
+
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-5 mb-5">
+         <p class="font-semibold text-amber-800 mb-3" id="esa-form-title">➕ มอบหมายข้อสอบอัตนัยใหม่</p>
+         <input type="hidden" id="esa-edit-id" value="">
+
+         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🏫 ชั้น</label>
+           <select id="esa-class" onchange="updateEsaRoomOptions();renderEsaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🚪 ห้อง</label>
+           <select id="esa-room" onchange="updateEsaSubjectOptions();renderEsaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
+           <select id="esa-subject" onchange="renderEsaQuestionPicker();renderEsaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
+           <select id="esa-scoretype" onchange="_updateEsaScoreTypeLabel()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
+            <option value="k">K (ความรู้)</option>
+            <option value="p">P (ทักษะ)</option>
+            <option value="c">C (คุณลักษณะ)</option>
+           </select>
+          </div>
+         </div>
+
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1"><span id="esa-round-label">🔢 K ครั้งที่</span></label>
+           <select id="esa-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
+            ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
+           </select>
+          </div>
+          <div class="flex items-end">
+           <p class="text-sm text-amber-700 font-semibold" id="esa-total-label">เลือก 0 ข้อ = 0 คะแนน</p>
+          </div>
+         </div>
+
+         <!-- เลือกเวลาสอบแบบ 24 ชั่วโมง -->
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🟢 เปิดสอบ</label>
+           <div class="flex gap-1">
+            <input type="date" id="esa-start-date" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+            <select id="esa-start-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+            <span class="flex items-center font-bold text-gray-500">:</span>
+            <select id="esa-start-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+            <span class="flex items-center text-xs text-gray-500">น.</span>
+           </div>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🔴 ปิดสอบ</label>
+           <div class="flex gap-1">
+            <input type="date" id="esa-end-date" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+            <select id="esa-end-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+            <span class="flex items-center font-bold text-gray-500">:</span>
+            <select id="esa-end-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+            <span class="flex items-center text-xs text-gray-500">น.</span>
+           </div>
+          </div>
+         </div>
+
+         <!-- เลือกนักเรียน -->
+         <div class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+           <p class="text-xs font-semibold text-emerald-800">👥 เลือกนักเรียนที่จะให้สอบ <span id="esa-student-count" class="text-emerald-600"></span></p>
+           <div class="flex gap-1">
+            <button type="button" onclick="_esaToggleAllStudents(true)" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs">✅ ทั้งห้อง</button>
+            <button type="button" onclick="_esaToggleAllStudents(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✖️ ล้าง</button>
+           </div>
+          </div>
+          <div id="esa-student-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-40 overflow-y-auto bg-white rounded p-2 border border-emerald-100">
+           <p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>
+          </div>
+         </div>
+
+         <!-- เลือกข้อสอบ -->
+         <div class="mb-3">
+          <p class="text-xs font-semibold text-gray-700 mb-2">✍️ เลือกข้อสอบอัตนัยจากคลัง</p>
+          <div id="esa-question-picker" class="bg-white border-2 border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
+           <p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>
+          </div>
+         </div>
+
+         <div class="flex gap-2">
+          <button onclick="saveEssayExamSet()" id="esa-save-btn" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold btn-3d">💾 มอบหมายข้อสอบ</button>
+          <button onclick="resetEssayExamSetForm()" class="px-5 py-2.5 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm">↺ ล้างฟอร์ม</button>
+         </div>
+        </div>
+
+        <h4 class="font-bold text-gray-700 mb-3">📋 รายการชุดสอบอัตนัยที่มอบหมายแล้ว</h4>
+        <div id="esa-list" class="space-y-3"></div>
+       </div>
+      </div>
+
       <!-- 📝 จัดสอบ (Exam Assignment) -->
       <div id="admin-tab-examassign" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -2504,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.40';
+    const APP_VERSION = 'SUPABASE-2026.09.08.43';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4951,6 +5053,7 @@ const supabaseDataSdk = {
         {id:'examquestions', icon:'🗂️', label:'คลังข้อสอบ',   section:'ข้อสอบ'},
         {id:'essayquestions',icon:'✍️', label:'คลังข้อสอบอัตนัย', section:'ข้อสอบ'},
         {id:'examassign',    icon:'📝', label:'จัดสอบ',        section:'ข้อสอบ'},
+        {id:'essayassign',   icon:'✍️', label:'จัดสอบอัตนัย',   section:'ข้อสอบ'},
         {id:'examgrading',   icon:'✍️', label:'ตรวจข้ออัตนัย', section:'ข้อสอบ'},
         {id:'retryrequest',  icon:'📨', label:'คำขอสอบแก้ตัว',  section:'ข้อสอบ'},
         {id:'examcheat',     icon:'🚨', label:'ตรวจสอบทุจริต',  section:'ข้อสอบ'},
@@ -4990,7 +5093,7 @@ const supabaseDataSdk = {
         import:"goToAdminTabDirect('import')", settings:"goToAdminTabDirect('settings')", hours:"goToAdminTabDirect('hours')", schedule:"goToAdminTabDirect('schedule')",
         scores:"goToAdminTabDirect('scores')", grading:"goToAdminTabDirect('grading')", uploadscore:"goToAdminTabDirect('uploadscore')",
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", studentdata:"goToAdminTabDirect('studentdata')",
-        examquestions:"goToAdminTabDirect('examquestions')", essayquestions:"goToAdminTabDirect('essayquestions')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", retryrequest:"goToAdminTabDirect('retryrequest')", examcheat:"goToAdminTabDirect('examcheat')",
+        examquestions:"goToAdminTabDirect('examquestions')", essayquestions:"goToAdminTabDirect('essayquestions')", essayassign:"goToAdminTabDirect('essayassign')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", retryrequest:"goToAdminTabDirect('retryrequest')", examcheat:"goToAdminTabDirect('examcheat')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
         timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", marqueesettings:"goToAdminTabDirect('marqueesettings')", menumanager:"goToAdminTabDirect('menumanager')",
       },
@@ -6809,7 +6912,7 @@ const supabaseDataSdk = {
       });
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'essayquestions', 'examassign', 'examgrading', 'retryrequest', 'examcheat', 'gradedist', 'menumanager', 'stunotif', 'marqueesettings'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'examquestions', 'essayquestions', 'examassign', 'essayassign', 'examgrading', 'retryrequest', 'examcheat', 'gradedist', 'menumanager', 'stunotif', 'marqueesettings'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -8699,6 +8802,311 @@ const supabaseDataSdk = {
     // ✍️ คลังข้อสอบอัตนัย (แยกจากปรนัย — สอบพร้อมกันไม่ได้)
     // ════════════════════════════════════════════════════════════
 
+    // ════════════════════════════════════════════════════════════
+    // ✍️ จัดสอบอัตนัย (แยกจากปรนัย)
+    // ════════════════════════════════════════════════════════════
+
+    /** โหลดหน้าจัดสอบอัตนัย */
+    function loadEssayAssignTab() {
+      const csList = allData.filter(d => d.type === 'class_subject');
+      const classes = [...new Set(csList.map(d => d.class_name).filter(Boolean))].sort();
+      const sel = document.getElementById('esa-class');
+      if (sel) sel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+      // เติมตัวเลือกเวลาแบบ 24 ชั่วโมง
+      _initEsaTimeSelectors();
+      updateEsaRoomOptions();
+      renderEssayExamSetList();
+    }
+
+    /** เติมตัวเลือกชั่วโมง/นาที แบบ 24 ชั่วโมง */
+    function _initEsaTimeSelectors() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      [['esa-start-hour', pad(now.getHours())], ['esa-end-hour', pad((now.getHours() + 2) % 24)]].forEach(([id, def]) => {
+        const el = document.getElementById(id);
+        if (el && !el.dataset.filled) { el.dataset.filled = '1'; el.innerHTML = _hourOpts(def); }
+      });
+      ['esa-start-min', 'esa-end-min'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.dataset.filled) { el.dataset.filled = '1'; el.innerHTML = _minOpts('00'); }
+      });
+      // ตั้งวันที่เริ่มต้นเป็นวันนี้
+      const today = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+      ['esa-start-date', 'esa-end-date'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el.value) el.value = today;
+      });
+    }
+
+    function updateEsaRoomOptions() {
+      const cls = document.getElementById('esa-class')?.value;
+      const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === cls)
+        .map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0));
+      const sel = document.getElementById('esa-room');
+      if (sel) sel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+      updateEsaSubjectOptions();
+    }
+
+    function updateEsaSubjectOptions() {
+      const cls = document.getElementById('esa-class')?.value;
+      const room = document.getElementById('esa-room')?.value;
+      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject'
+        && d.class_name === cls && String(d.room_number) === String(room))
+        .map(d => d.subject_name).filter(Boolean))].sort();
+      const sel = document.getElementById('esa-subject');
+      if (sel) sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+      renderEsaQuestionPicker();
+    }
+
+    /** เปลี่ยนป้ายกำกับตามประเภทคะแนน */
+    function _updateEsaScoreTypeLabel() {
+      const t = document.getElementById('esa-scoretype')?.value || 'k';
+      const label = document.getElementById('esa-round-label');
+      if (label) label.textContent = `🔢 ${t.toUpperCase()} ครั้งที่`;
+    }
+
+    /** แสดงรายการข้อสอบอัตนัยให้เลือก */
+    function renderEsaQuestionPicker() {
+      const box = document.getElementById('esa-question-picker');
+      if (!box) return;
+      const subj = document.getElementById('esa-subject')?.value;
+      if (!subj) { box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
+
+      const questions = allData.filter(d => d.type === 'essay_question' && d.subject_name === subj)
+        .sort((a,b) => (a.chapter||'').localeCompare(b.chapter||''));
+      if (questions.length === 0) {
+        box.innerHTML = `<p class="text-amber-600 text-xs">⚠️ ยังไม่มีข้อสอบอัตนัยของวิชานี้ในคลัง — ไปเพิ่มที่เมนู "คลังข้อสอบอัตนัย" ก่อน</p>`;
+        return;
+      }
+      box.innerHTML = questions.map((q, i) => `
+        <label class="flex items-start gap-2 p-2 hover:bg-amber-50 rounded cursor-pointer border border-gray-100">
+          <input type="checkbox" class="esa-q-check mt-1" value="${q.__backendId}" data-score="${q.score_per_question || 0}" onchange="updateEsaTotalScore()">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs text-gray-500">${escHtml(q.chapter || 'ไม่ระบุบท')} · ${q.score_per_question || 0} คะแนน${parseInt(q.min_words) > 0 ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''}</p>
+            <p class="text-sm text-gray-800">${i+1}. ${escHtml(q.question_text || '')}</p>
+          </div>
+        </label>`).join('');
+      updateEsaTotalScore();
+    }
+
+    /** คำนวณคะแนนรวมจากข้อที่เลือก */
+    function updateEsaTotalScore() {
+      const checked = document.querySelectorAll('.esa-q-check:checked');
+      let total = 0;
+      checked.forEach(cb => { total += parseFloat(cb.dataset.score) || 0; });
+      const label = document.getElementById('esa-total-label');
+      if (label) label.textContent = `เลือก ${checked.length} ข้อ = ${total} คะแนน`;
+    }
+
+    /** แสดงรายชื่อนักเรียนให้เลือก */
+    function renderEsaStudentPicker() {
+      const box = document.getElementById('esa-student-checkboxes');
+      const countEl = document.getElementById('esa-student-count');
+      if (!box) return;
+      const cls = document.getElementById('esa-class')?.value;
+      const room = document.getElementById('esa-room')?.value;
+      const subj = document.getElementById('esa-subject')?.value;
+      if (!cls || !room || !subj) {
+        box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+      const regs = allData.filter(d => d.type === 'student_registration'
+        && d.class_name === cls && String(d.room_number) === String(room) && d.subject_name === subj);
+      if (regs.length === 0) {
+        box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้</p>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+      const rows = regs.map(reg => {
+        const stu = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+        return { reg, num: parseInt(stu?.student_number) || 9999,
+          name: stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}` : reg.student_id };
+      }).sort((a,b) => a.num - b.num);
+
+      box.innerHTML = rows.map(r => `
+        <label class="flex items-center gap-2 text-xs hover:bg-emerald-50 rounded px-1 py-0.5 cursor-pointer">
+          <input type="checkbox" class="esa-student-cb" value="${r.reg.__backendId}" checked onchange="_esaUpdateStudentCount()">
+          <span class="text-gray-400 w-6 text-right">${r.num !== 9999 ? r.num : '-'}</span>
+          <span class="text-gray-700">${escHtml(r.name)}</span>
+        </label>`).join('');
+      _esaUpdateStudentCount();
+    }
+
+    function _esaToggleAllStudents(checked) {
+      document.querySelectorAll('.esa-student-cb').forEach(cb => { cb.checked = checked; });
+      _esaUpdateStudentCount();
+    }
+    function _esaUpdateStudentCount() {
+      const all = document.querySelectorAll('.esa-student-cb');
+      const checked = document.querySelectorAll('.esa-student-cb:checked');
+      const el = document.getElementById('esa-student-count');
+      if (el) el.textContent = all.length > 0 ? `(เลือก ${checked.length} จาก ${all.length} คน)` : '';
+    }
+
+    /** บันทึกชุดสอบอัตนัย */
+    async function saveEssayExamSet() {
+      const editId = document.getElementById('esa-edit-id')?.value;
+      const cls = document.getElementById('esa-class')?.value;
+      const room = document.getElementById('esa-room')?.value;
+      const subj = document.getElementById('esa-subject')?.value;
+      const scoreType = document.getElementById('esa-scoretype')?.value || 'k';
+      const kRound = document.getElementById('esa-kround')?.value || '1';
+
+      if (!cls || !room || !subj) { showToast('กรุณาเลือกชั้น ห้อง และวิชาให้ครบ', 'error'); return; }
+
+      const checkedQs = Array.from(document.querySelectorAll('.esa-q-check:checked'));
+      if (checkedQs.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
+
+      // รวมเวลาจากช่องแยก
+      const _join = (p) => {
+        const d = document.getElementById(p + '-date')?.value || '';
+        const h = document.getElementById(p + '-hour')?.value || '00';
+        const m = document.getElementById(p + '-min')?.value || '00';
+        return d ? `${d}T${h}:${m}` : '';
+      };
+      const startStr = _join('esa-start');
+      const endStr = _join('esa-end');
+      if (!startStr || !endStr) { showToast('กรุณากำหนดเวลาเปิด-ปิดสอบให้ครบ', 'error'); return; }
+      if (new Date(endStr) <= new Date(startStr)) { showToast('เวลาปิดสอบต้องอยู่หลังเวลาเปิดสอบ', 'error'); return; }
+
+      const qIds = checkedQs.map(cb => cb.value);
+      const totalScore = checkedQs.reduce((t, cb) => t + (parseFloat(cb.dataset.score) || 0), 0);
+      // สร้างสำเนาข้อสอบติดไปด้วย (กันกระดาษว่างเปล่าเหมือนที่เคยเจอกับปรนัย)
+      const snapshot = qIds.map(id => allData.find(d => d.__backendId === id && d.type === 'essay_question'))
+        .filter(Boolean)
+        .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words }));
+
+      const btn = document.getElementById('esa-save-btn');
+      await withButtonLock(btn, '⏳ กำลังบันทึก...', async () => {
+        const payload = {
+          type: 'essay_exam_set',
+          class_name: cls, room_number: room, subject_name: subj,
+          k_round: parseInt(kRound), score_type: scoreType,
+          question_ids: qIds.join(','),
+          question_snapshot_json: JSON.stringify(snapshot),
+          total_score: totalScore,
+          applied_full_score_delta: totalScore,
+          start_time: new Date(startStr).toISOString(),
+          end_time: new Date(endStr).toISOString(),
+        };
+        const result = editId
+          ? await window.dataSdk.update({ ...allData.find(d => d.__backendId === editId && d.type === 'essay_exam_set'), ...payload })
+          : await window.dataSdk.create(payload);
+        if (!result.isOk) { showToast('บันทึกไม่สำเร็จ: ' + (result.error?.message || ''), 'error'); return; }
+
+        // 📊 เพิ่มคะแนนเต็มเข้าระบบ (ใช้ระบบเดียวกับปรนัย)
+        if (!editId) {
+          await _applyExamFullScoreDelta(cls, room, subj, parseInt(kRound), totalScore, scoreType);
+        }
+
+        // 👥 จองแถวให้นักเรียนที่เลือก
+        if (!editId) {
+          const selectedRegIds = Array.from(document.querySelectorAll('.esa-student-cb:checked')).map(cb => cb.value);
+          const allRegs = allData.filter(d => d.type === 'student_registration'
+            && d.class_name === cls && String(d.room_number) === String(room) && d.subject_name === subj);
+          const targets = selectedRegIds.length > 0 ? allRegs.filter(r => selectedRegIds.includes(r.__backendId)) : allRegs;
+          const setId = result.data?.__backendId;
+          let created = 0;
+          for (const reg of targets) {
+            try {
+              const stu = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
+              await window.dataSdk.create({
+                type: 'essay_submission',
+                essay_exam_set_id: setId,
+                registration_id: reg.__backendId,
+                student_id: reg.student_id,
+                student_name: stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}` : reg.student_id,
+                class_name: cls, room_number: room, subject_name: subj,
+                k_round: parseInt(kRound),
+                status: 'not_started', answers: '{}',
+                question_order: qIds.join(','),
+                question_snapshot_json: JSON.stringify(snapshot),
+              });
+              created++;
+            } catch (e) { console.error('[EssayAssign] จองแถวไม่สำเร็จ:', reg.student_id, e.message); }
+          }
+          showToast(`✅ มอบหมายข้อสอบอัตนัยสำเร็จ ${created} คน (${qIds.length} ข้อ = ${totalScore} คะแนน)`);
+        } else {
+          showToast('✅ แก้ไขชุดสอบอัตนัยสำเร็จ');
+        }
+        resetEssayExamSetForm();
+        renderEssayExamSetList();
+      });
+    }
+
+    function resetEssayExamSetForm() {
+      document.getElementById('esa-edit-id').value = '';
+      document.getElementById('esa-form-title').textContent = '➕ มอบหมายข้อสอบอัตนัยใหม่';
+      document.getElementById('esa-save-btn').textContent = '💾 มอบหมายข้อสอบ';
+      document.querySelectorAll('.esa-q-check').forEach(cb => { cb.checked = false; });
+      updateEsaTotalScore();
+    }
+
+    /** แสดงรายการชุดสอบอัตนัย */
+    function renderEssayExamSetList() {
+      const listEl = document.getElementById('esa-list');
+      if (!listEl) return;
+      const sets = allData.filter(d => d.type === 'essay_exam_set')
+        .sort((a,b) => new Date(b.start_time||0) - new Date(a.start_time||0));
+      if (sets.length === 0) {
+        listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ยังไม่มีการมอบหมายข้อสอบอัตนัย</p>';
+        return;
+      }
+      const now = new Date();
+      listEl.innerHTML = sets.map(s => {
+        const qCount = (s.question_ids || '').split(',').filter(Boolean).length;
+        const start = new Date(s.start_time), end = new Date(s.end_time);
+        const isOpen = now >= start && now <= end;
+        const badge = isOpen ? '<span class="text-green-600 font-semibold">🟢 กำลังเปิดสอบ</span>'
+          : (now < start ? '<span class="text-blue-600">⏳ ยังไม่ถึงเวลา</span>' : '<span class="text-gray-500">🔴 ปิดแล้ว</span>');
+        const subs = allData.filter(d => d.type === 'essay_submission' && d.essay_exam_set_id === s.__backendId);
+        const submitted = subs.filter(d => d.status === 'submitted').length;
+        const graded = subs.filter(d => d.grading_done === true || d.grading_done === 'true').length;
+        return `
+          <div class="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+            <div class="flex items-start justify-between gap-2 flex-wrap">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800">✍️ ${escHtml(s.class_name)}/${escHtml(s.room_number)} · ${escHtml(s.subject_name)} · ${(s.score_type||'k').toUpperCase()} ครั้งที่ ${s.k_round}</p>
+                <p class="text-xs text-gray-600 mt-1">📝 ${qCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · 👥 ${subs.length} คน</p>
+                <p class="text-xs text-gray-600 mt-1">📤 ส่งแล้ว ${submitted}/${subs.length} คน · ✍️ ตรวจแล้ว ${graded} คน</p>
+                <p class="text-xs text-gray-500 mt-1">🟢 ${start.toLocaleString('th-TH',{hour12:false})} → 🔴 ${end.toLocaleString('th-TH',{hour12:false})}</p>
+                <p class="text-xs mt-1">${badge}</p>
+              </div>
+              <div class="flex gap-1 flex-shrink-0">
+                <button onclick="deleteEssayExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs btn-3d">🗑️ ลบ</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    /** ลบชุดสอบอัตนัย */
+    async function deleteEssayExamSet(id) {
+      const s = allData.find(d => d.__backendId === id && d.type === 'essay_exam_set');
+      if (!s) return;
+      const subs = allData.filter(d => d.type === 'essay_submission' && d.essay_exam_set_id === id);
+      const withScore = subs.filter(d => d.manual_score !== undefined && d.manual_score !== null && d.manual_score !== '').length;
+      let msg = `ยืนยันลบชุดสอบอัตนัย "${s.subject_name} ${(s.score_type||'k').toUpperCase()}.${s.k_round}"?`;
+      if (withScore > 0) msg += `\n\n⚠️ มีนักเรียน ${withScore} คนที่ได้คะแนนแล้ว คะแนนจะถูกลบออกด้วย`;
+      if (!confirm(msg)) return;
+
+      // คืนคะแนนเต็มที่เคยเพิ่มไว้
+      const delta = parseFloat(s.applied_full_score_delta) || parseFloat(s.total_score) || 0;
+      if (delta > 0) {
+        await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, parseInt(s.k_round) || 1, -delta, s.score_type);
+      }
+      const result = await window.dataSdk.delete(s);
+      if (result.isOk) {
+        allData = allData.filter(d => d.__backendId !== id);
+        showToast('🗑️ ลบชุดสอบอัตนัยสำเร็จ');
+        renderEssayExamSetList();
+      } else {
+        showToast('ลบไม่สำเร็จ', 'error');
+      }
+    }
+
     /** โหลดหน้าคลังข้อสอบอัตนัย */
     function loadEssayQuestionsTab() {
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
@@ -10059,7 +10467,7 @@ const supabaseDataSdk = {
                 <p class="text-xs mt-1">${statusBadge}</p>
               </div>
               <div class="flex gap-1 flex-shrink-0">
-                ${_countPendingImportForExamSet(s.__backendId) > 0 ? `<button onclick="importExamScoresToGrade('${s.__backendId}')" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-semibold" title="นำคะแนนสอบเข้าสู่ระบบคะแนนหลัก แล้วลบชีทชั่วคราวทิ้ง">📥 นำเข้าคะแนน (${_countPendingImportForExamSet(s.__backendId)})</button>` : ''}
+                ${_countPendingImportForExamSet(s.__backendId) > 0 ? `<button onclick="importExamScoresToGrade('${s.__backendId}')" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-semibold btn-3d" title="ปกติระบบโอนคะแนนให้อัตโนมัติตอนนักเรียนส่งคำตอบแล้ว ปุ่มนี้ใช้กรณีมีบางคนตกหล่น (เช่น เน็ตหลุดตอนส่ง)">📥 โอนคะแนนที่ตกหล่น (${_countPendingImportForExamSet(s.__backendId)})</button>` : ''}
                 <button onclick="editExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
                 <button onclick="resetExamSet('${s.__backendId}')" class="px-2 py-1 ${resetBtnClass} text-white rounded text-xs" title="${hasAnySubmission ? 'รีเซ็ทให้สอบใหม่ทั้งห้อง (มีคนสอบไปแล้ว)' : 'ยังไม่มีใครสอบ พร้อมให้สอบได้เลย'}">${resetBtnLabel}</button>
                 <button onclick="deleteExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>
@@ -12163,10 +12571,20 @@ const supabaseDataSdk = {
       // 🔔 ลบแจ้งเตือน "มีการจัดสอบใหม่" ของข้อสอบชุดนี้ทิ้ง เพราะสอบเสร็จแล้ว (จัดการเรียบร้อยแล้ว ไม่ต้องเตือนอีก)
       await autoRemoveNotificationsByRelatedId(submission.exam_set_id);
 
-      // 🗂️ ปรับตามที่ขอ: ไม่บันทึกคะแนนเข้าช่อง K ทันทีอีกต่อไป
-      // คะแนนจะถูกเก็บไว้ในชีท tscore_ ก่อน แล้วรอให้แอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบ
-      // เหตุผล: ป้องกันไม่ให้การเขียนข้อมูลระหว่างสอบ (ซึ่งเกิดถี่มาก) ไปกระทบชีทคะแนนหลัก
-      // (คะแนนที่คำนวณได้ถูกเก็บไว้ในฟิลด์ auto_score ของ submission เรียบร้อยแล้วตั้งแต่บรรทัดด้านบน)
+      // ⚡ ปรับตามที่ขอ: โอนคะแนนเข้าระบบคะแนนหลักทันทีที่ส่งคำตอบ (ไม่ต้องรอแอดมินกดปุ่มแล้ว)
+      // ทำได้เพราะระบบ Supabase เร็วพอ ไม่กระทบประสิทธิภาพเหมือนตอนใช้ Google Sheets
+      // ⚠️ ยกเว้นข้อสอบที่มีข้ออัตนัย ต้องรอครูตรวจให้คะแนนก่อน จึงจะโอนได้
+      if (!hasWritten) {
+        try {
+          const freshSub = { ...submission, status: 'submitted', auto_score: autoScore, needs_manual_grading: false };
+          await _writeExamScoreToKField(freshSub, examSet, autoScore);
+          await window.dataSdk.update({ ...freshSub, imported_to_grade: true, k_score_contributed: autoScore });
+          console.log('[Exam] โอนคะแนนเข้าระบบหลักอัตโนมัติแล้ว:', autoScore, 'คะแนน');
+        } catch (err) {
+          // ถ้าโอนไม่สำเร็จ ไม่เป็นไร คะแนนยังอยู่ที่ auto_score แอดมินโอนให้ทีหลังได้
+          console.error('[Exam] โอนคะแนนอัตโนมัติไม่สำเร็จ (คะแนนยังปลอดภัย):', err.message);
+        }
+      }
 
       // ⚠️ บังคับดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์ซ้ำอีกครั้ง ก่อนที่นักเรียนจะกลับไปหน้าคะแนน
       // กันปัญหากรณี allData ยังไม่ทันอัปเดตครบ (เช่น การเขียนคะแนนสำเร็จที่ฝั่งเซิร์ฟเวอร์ แต่ฝั่งเบราว์เซอร์ยังไม่รีเฟรชทัน)
@@ -12216,8 +12634,19 @@ const supabaseDataSdk = {
         showToast('⚠️ ชุดข้อสอบนี้ถูกยกเลิกไปแล้ว คะแนนของคุณจะไม่ถูกบันทึกในรอบนี้ กรุณาติดต่อครูผู้สอน', 'error');
         return;
       }
-      const reg = allData.find(d => d.__backendId === submission.registration_id && d.type === 'student_registration');
-      const grade = allData.find(d => d.type === 'grade' && d.registration_id === submission.registration_id);
+      const reg = allData.find(d => String(d.__backendId) === String(submission.registration_id) && d.type === 'student_registration');
+      // ⚠️ จุดเสี่ยงที่แก้แล้ว: เดิมหาแถวคะแนนด้วยรหัสอ้างอิงอย่างเดียว
+      // ถ้ารหัสไม่ตรงกัน (เช่น หลังย้ายข้อมูล) จะสร้างแถวใหม่ซ้ำ ทำให้คะแนนแยกคนละแถว ไม่ถูกนำไปคิดเกรด
+      // แก้โดยหาสำรองด้วย รหัสนักเรียน + ชั้น + ห้อง + วิชา ซึ่งระบุตัวได้แน่นอนเสมอ
+      let grade = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(submission.registration_id));
+      if (!grade) {
+        grade = allData.find(d => d.type === 'grade'
+          && String(d.student_id) === String(submission.student_id)
+          && d.class_name === submission.class_name
+          && String(d.room_number) === String(submission.room_number)
+          && d.subject_name === submission.subject_name);
+        if (grade) console.log('[Score] หาแถวคะแนนด้วยรหัสอ้างอิงไม่เจอ แต่หาด้วยชื่อวิชาเจอ — ใช้แถวเดิม ไม่สร้างซ้ำ');
+      }
       const round = parseInt(examSet.k_round) || 1;
       // 📊 รองรับทั้ง K และ C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
       const sType = (examSet.score_type === 'c') ? 'c' : 'k';
@@ -12463,6 +12892,15 @@ const supabaseDataSdk = {
       // เก็บไว้ในฟิลด์ manual_score ก่อน แล้วรอแอดมินกดปุ่ม "นำเข้าคะแนน" ที่หน้าจัดสอบพร้อมกันทีเดียว
       // needs_manual_grading: false เพื่อให้ระบบรู้ว่าตรวจเสร็จแล้ว พร้อมนำเข้าได้
       await window.dataSdk.update({ ...submission, manual_score: finalScore, manual_grading_done: true, needs_manual_grading: false });
+      // ⚡ โอนคะแนนเข้าระบบหลักทันทีที่ตรวจเสร็จ (ไม่ต้องรอแอดมินกดปุ่มนำเข้าแล้ว)
+      try {
+        await _writeExamScoreToKField({ ...submission, manual_score: finalScore, needs_manual_grading: false }, examSet, finalScore);
+        await window.dataSdk.update({ ...submission, manual_score: finalScore, manual_grading_done: true,
+          needs_manual_grading: false, imported_to_grade: true, k_score_contributed: finalScore });
+        console.log('[Exam] โอนคะแนนอัตนัยเข้าระบบหลักแล้ว:', finalScore, 'คะแนน');
+      } catch (err) {
+        console.error('[Exam] โอนคะแนนไม่สำเร็จ (คะแนนยังปลอดภัย):', err.message);
+      }
 
       showToast(`✅ บันทึกคะแนนรวม ${finalScore}/${examSet.total_score} สำเร็จ — กดปุ่ม "📥 นำเข้าคะแนน" ที่หน้าจัดสอบเพื่อนำเข้าระบบคะแนนหลัก`);
       document.getElementById('eg-grading-panel')?.remove();
@@ -12631,6 +13069,16 @@ const supabaseDataSdk = {
         // 🗂️ ปรับตามระบบใหม่: ไม่เขียนคะแนนเข้าช่อง K ทันที เก็บไว้ใน manual_score รอแอดมินกดปุ่ม "นำเข้าคะแนน" พร้อมกันทีเดียว
         // needs_manual_grading: false เพื่อให้ระบบรู้ว่าคะแนนพร้อมนำเข้าได้แล้ว
         await window.dataSdk.update({ ...submission, manual_score: score, score_overridden_by_admin: true, status: 'terminated', frozen: true, terminated_reason: 'score_overridden', needs_manual_grading: false });
+        // ⚡ โอนคะแนนเข้าระบบหลักทันที
+        try {
+          const es = allData.find(d => d.__backendId === submission.exam_set_id && d.type === 'exam_set');
+          if (es) {
+            await _writeExamScoreToKField({ ...submission, manual_score: score }, es, score);
+            await window.dataSdk.update({ ...submission, manual_score: score, score_overridden_by_admin: true,
+              status: 'terminated', frozen: true, terminated_reason: 'score_overridden',
+              needs_manual_grading: false, imported_to_grade: true, k_score_contributed: score });
+          }
+        } catch (err) { console.error('[Exam] โอนคะแนนไม่สำเร็จ:', err.message); }
       }
       await markExamAlertHandled(alertId, 'score_set');
       showToast(`✏️ กำหนดคะแนนเป็น ${score} แล้ว — กดปุ่ม "📥 นำเข้าคะแนน" ที่หน้าจัดสอบเพื่อนำเข้าระบบคะแนนหลัก`);
@@ -13738,6 +14186,8 @@ const supabaseDataSdk = {
         loadExamQuestionsTab();
       } else if (tabName === 'essayquestions') {
         loadEssayQuestionsTab(); // ✍️ คลังข้อสอบอัตนัย
+      } else if (tabName === 'essayassign') {
+        loadEssayAssignTab(); // ✍️ จัดสอบอัตนัย
       } else if (tabName === 'examassign') {
         loadExamAssignTab();
         if (typeof _initTimeSelectors === 'function') _initTimeSelectors(); // 🕐 เตรียมช่องเลือกเวลาแบบ 24 ชั่วโมง
@@ -21914,6 +22364,7 @@ const supabaseDataSdk = {
       {id:'examcreate',icon:'➕',label:'สร้างข้อสอบ',fn:"openCreateExamQuestionPopup()"},
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'essayquestions',icon:'✍️',label:'คลังข้อสอบอัตนัย',fn:"mShowDesktopAdminTab('essayquestions','✍️ คลังข้อสอบอัตนัย')"},
+      {id:'essayassign',icon:'✍️',label:'จัดสอบอัตนัย',fn:"mShowDesktopAdminTab('essayassign','✍️ จัดสอบอัตนัย')"},
       {id:'examassign',icon:'📝',label:'จัดสอบ',fn:"mShowDesktopAdminTab('examassign','📝 จัดสอบ')"},
       {id:'examgrading',icon:'✍️',label:'ตรวจข้ออัตนัย',fn:"mShowDesktopAdminTab('examgrading','✍️ ตรวจข้ออัตนัย')"},
       {id:'retryrequest',icon:'📨',label:'คำขอสอบแก้ตัว',fn:"mShowDesktopAdminTab('retryrequest','📨 คำขอสอบแก้ตัว')"},
