@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.54';
+    const APP_VERSION = 'SUPABASE-2026.09.08.55';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4589,11 +4589,11 @@ const supabaseDataSdk = {
     // ============================================================
     function computeNewApplicants() {
       const students = allData.filter(d => d.type === 'student');
-      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมกรองจาก "ยังไม่ได้ลงทะเบียน" อย่างเดียว
-      // ทำให้กดรับทราบแล้วชื่อไม่หาย (เพราะยังไม่ลงทะเบียนอยู่ดี) ต้องรอจนกว่าจะลงทะเบียนเสร็จ
-      // แก้โดยเพิ่มเงื่อนไข "ยังไม่ได้กดรับทราบ" ด้วย — หลุดออกได้ 2 ทาง คือกดรับทราบ หรือลงทะเบียนแล้ว
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมใช้ฟิลด์ notification_acknowledged ร่วมกับกระดิ่ง "ลงทะเบียนใหม่"
+      // ทำให้กดรับทราบฝั่งหนึ่ง ตัวเลขอีกฝั่งขยับตามไปด้วย (เพราะเป็นค่าเดียวกันในนักเรียนคนเดียวกัน)
+      // แก้โดยใช้ฟิลด์แยกของตัวเอง (applicant_acknowledged) ไม่ปนกันอีกต่อไป
       const newOnes = students.filter(s => {
-        const acked = s.notification_acknowledged === true || s.notification_acknowledged === 'true';
+        const acked = s.applicant_acknowledged === true || s.applicant_acknowledged === 'true';
         if (acked) return false; // แอดมินกดรับทราบแล้ว ไม่ต้องแสดงอีก
         return !allData.some(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id));
       });
@@ -4912,8 +4912,13 @@ const supabaseDataSdk = {
             ? '<p class="text-gray-400 text-sm text-center py-3">ไม่มีผู้สมัครใหม่</p>'
             : applicants.map(s => `
                 <div class="px-3 py-2 border-b border-gray-100 text-sm">
-                  <p class="font-medium text-gray-800">${s.prefix}${s.first_name} ${s.last_name}</p>
-                  <p class="text-xs text-gray-500">${s.class_name}/${s.room_number}</p>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex-1 min-w-0">
+                      <p class="font-medium text-gray-800">${s.prefix}${s.first_name} ${s.last_name}</p>
+                      <p class="text-xs text-gray-500">${s.class_name}/${s.room_number}</p>
+                    </div>
+                    ${isAdminLoggedIn ? `<button onclick="acknowledgeApplicant('${s.__backendId}')" class="flex-shrink-0 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">✓ รับทราบ</button>` : ''}
+                  </div>
                 </div>
               `).join('');
         } else if (type === 'requests') {
@@ -4979,6 +4984,22 @@ const supabaseDataSdk = {
     function isRequestApprovedToday(req) {
       return req.status === 'approved' && req.approved_date === getTodayDateStr();
     }
+    /** ✓ รับทราบผู้สมัครใหม่ — ใช้ฟิลด์แยกจากกระดิ่งลงทะเบียน จะได้ไม่กระทบกัน */
+    async function acknowledgeApplicant(studentId) {
+      const stu = allData.find(d => String(d.__backendId) === String(studentId) && d.type === 'student');
+      if (!stu) { showToast('ไม่พบข้อมูลนักเรียน กรุณาโหลดหน้าใหม่', 'error'); return; }
+      const result = await window.dataSdk.update({ ...stu, applicant_acknowledged: true });
+      if (result.isOk) {
+        // อัปเดตในเครื่องทันที กันชื่อวนกลับมาระหว่างรอโหลดใหม่
+        const idx = allData.findIndex(d => String(d.__backendId) === String(studentId));
+        if (idx >= 0) allData[idx] = { ...allData[idx], applicant_acknowledged: true };
+        renderBellDropdownContent('applicants');
+        refreshCurrentView(); // อัปเดตตัวเลขบนกระดิ่งให้ตรงกับข้อมูลล่าสุด
+      } else {
+        showToast('ไม่สามารถอัปเดตได้: ' + (result.error?.message || ''), 'error');
+      }
+    }
+
     async function acknowledgeRegistration(regId) {
       const reg = allData.find(d => String(d.__backendId) === String(regId));
       if (!reg) {
