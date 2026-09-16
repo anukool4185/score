@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.62';
+    const APP_VERSION = 'SUPABASE-2026.09.08.63';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3312,7 +3312,12 @@ const supabaseDataSdk = {
       }
       await this._api('PATCH', `${table}?id=eq.${record.__backendId}`, this._toSupabase(record));
       // ⚡ อัปเดตในเครื่องทันที
-      this._cache = this._cache.map(d => d.__backendId === record.__backendId ? { ...d, ...record } : d);
+      // ⚠️ บั๊กสำคัญที่พบและแก้แล้ว: เดิมเทียบแค่รหัส ไม่ได้เช็คประเภทข้อมูล
+      // เนื่องจากแต่ละตารางมีรหัสของตัวเอง จึงมีรหัสซ้ำกันได้ (เช่น นักเรียนรหัส 52 และลงทะเบียนรหัส 52)
+      // ทำให้อัปเดตผิดตัว หน้าจอจึงไม่เปลี่ยนตามที่กด
+      this._cache = this._cache.map(d =>
+        (String(d.__backendId) === String(record.__backendId) && d.type === record.type)
+          ? { ...d, ...record } : d);
       this._handler.onDataChanged(this._cache);
       this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
       return { isOk: true, data: { ...record } };
@@ -3332,7 +3337,9 @@ const supabaseDataSdk = {
         return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการลบ' } };
       }
       await this._api('DELETE', `${table}?id=eq.${record.__backendId}`);
-      this._cache = this._cache.filter(d => d.__backendId !== record.__backendId);
+      // ⚠️ ต้องเช็คประเภทด้วย ไม่งั้นอาจลบข้อมูลผิดตัวออกจากหน้าจอ (รหัสซ้ำกันได้ระหว่างตาราง)
+      this._cache = this._cache.filter(d =>
+        !(String(d.__backendId) === String(record.__backendId) && d.type === record.type));
       this._handler.onDataChanged(this._cache);
       this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
       return { isOk: true };
