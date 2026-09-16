@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.55';
+    const APP_VERSION = 'SUPABASE-2026.09.08.58';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4592,11 +4592,11 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมใช้ฟิลด์ notification_acknowledged ร่วมกับกระดิ่ง "ลงทะเบียนใหม่"
       // ทำให้กดรับทราบฝั่งหนึ่ง ตัวเลขอีกฝั่งขยับตามไปด้วย (เพราะเป็นค่าเดียวกันในนักเรียนคนเดียวกัน)
       // แก้โดยใช้ฟิลด์แยกของตัวเอง (applicant_acknowledged) ไม่ปนกันอีกต่อไป
-      const newOnes = students.filter(s => {
-        const acked = s.applicant_acknowledged === true || s.applicant_acknowledged === 'true';
-        if (acked) return false; // แอดมินกดรับทราบแล้ว ไม่ต้องแสดงอีก
-        return !allData.some(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id));
-      });
+      // 📌 ปรับตามที่ผู้ใช้ต้องการ: ไม่มีปุ่มรับทราบแล้ว
+      // ชื่อจะหายไปเองเมื่อนักเรียนลงทะเบียนเรียนจริงเท่านั้น (ตรงกับข้อความเลื่อนหน้าแรก)
+      const newOnes = students.filter(s =>
+        !allData.some(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id))
+      );
       // เรียงตามชั้น -> ห้อง -> เลขที่
       return newOnes.sort((a, b) => {
         const classCompare = (a.class_name || '').localeCompare(b.class_name || '', 'th');
@@ -4917,7 +4917,7 @@ const supabaseDataSdk = {
                       <p class="font-medium text-gray-800">${s.prefix}${s.first_name} ${s.last_name}</p>
                       <p class="text-xs text-gray-500">${s.class_name}/${s.room_number}</p>
                     </div>
-                    ${isAdminLoggedIn ? `<button onclick="acknowledgeApplicant('${s.__backendId}')" class="flex-shrink-0 px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs whitespace-nowrap">✓ รับทราบ</button>` : ''}
+                    <span class="flex-shrink-0 px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs whitespace-nowrap">⏳ รอลงทะเบียน</span>
                   </div>
                 </div>
               `).join('');
@@ -5027,6 +5027,7 @@ const supabaseDataSdk = {
           } catch (e) { console.log('[Acknowledge] ตรวจสอบไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
         }, 1500);
         renderBellDropdownContent('registrations');
+        refreshCurrentView(); // 🔄 อัปเดตตัวเลขบนกระดิ่งด้วย (เดิมอัปเดตแค่รายการในกล่อง ตัวเลขจึงไม่ลด)
       } else {
         showToast('ไม่สามารถอัปเดตได้: ' + (result.error?.message || ''), 'error');
       }
@@ -6132,11 +6133,19 @@ const supabaseDataSdk = {
       `;
       return totalSec;
     }
+    /** 📢 รายชื่อสำหรับข้อความเลื่อนหน้าแรก
+     *  ใช้เงื่อนไขเดียวกับกระดิ่งผู้สมัครใหม่ (ไม่มีปุ่มรับทราบแล้ว)
+     *  ชื่อหายเมื่อนักเรียนลงทะเบียนเรียนจริงเท่านั้น */
+    function computeUnregisteredForMarquee() {
+      return computeNewApplicants();
+    }
+
     function updateMarqueeApplicantsList() {
       const viewport = document.getElementById('marquee-viewport');
       const trackContainer = document.getElementById('marquee-track-container');
       if (!viewport || !trackContainer) return;
-      const applicants = computeNewApplicants();
+      // 📢 ใช้ฟังก์ชันของตัวเอง ไม่สนว่าแอดมินกดรับทราบหรือยัง (ดูคำอธิบายที่ computeUnregisteredForMarquee)
+      const applicants = computeUnregisteredForMarquee();
       const signature = applicants.map(s => s.__backendId).join(',');
       viewport.style.height = `${marqueeRows * 32}px`;
       positionMarqueeBand();
@@ -23063,7 +23072,10 @@ const supabaseDataSdk = {
     var container = document.getElementById(containerId);
     if (!container) return;
     var isJsCode = function(s){ return /var\s+\w+\s*=|function\s*\(|addEventListener|dataSdk|IS_MOBILE/.test(s||''); };
-    var applicants = typeof computeNewApplicants === 'function' ? computeNewApplicants().filter(function(s){ return !isJsCode(s.first_name); }) : [];
+    // 📢 ใช้ฟังก์ชันของข้อความเลื่อน (ไม่สนการกดรับทราบ) ให้ตรงกับฝั่งคอม
+    var applicants = typeof computeUnregisteredForMarquee === 'function'
+      ? computeUnregisteredForMarquee().filter(function(s){ return !isJsCode(s.first_name); })
+      : (typeof computeNewApplicants === 'function' ? computeNewApplicants().filter(function(s){ return !isJsCode(s.first_name); }) : []);
 
     if (!applicants.length) {
       container.innerHTML = '<div style="padding:8px 12px;font-size:10px;color:#94a3b8;text-align:center">ไม่มีผู้สมัครใหม่ที่ยังไม่ลงทะเบียน</div>';
