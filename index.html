@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.75';
+    const APP_VERSION = 'SUPABASE-2026.09.08.76';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3811,9 +3811,9 @@ const supabaseDataSdk = {
           hint.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px">
             <p style="font-size:11px;color:#15803d;margin:0;line-height:1.5">✅ <b>เบอร์นี้ตรงกับข้อมูลของท่าน</b> — กดปุ่มยืนยันเพื่อดู User/Password ได้เลย</p></div>`;
         } else {
-          const names = owners.slice(0, 2).map(o => escHtml((o.prefix||'') + (o.first_name||''))).join(', ');
+          // 🔒 ไม่แสดงชื่อเจ้าของเบอร์ — เป็นข้อมูลส่วนบุคคลของคนอื่น เปิดเผยไม่ได้
           hint.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px">
-            <p style="font-size:11px;color:#b91c1c;margin:0;line-height:1.5">⚠️ <b>มีผู้ใช้เบอร์นี้แล้ว</b> (${names}${owners.length > 2 ? ' และอื่นๆ' : ''})<br>อาจเป็นของท่านหรือคนอื่นก็ได้ กรุณากดยืนยันเพื่อตรวจสอบ</p></div>`;
+            <p style="font-size:11px;color:#b91c1c;margin:0;line-height:1.5">⚠️ <b>มีผู้ใช้เบอร์นี้แล้วในระบบ</b><br>อาจเป็นของท่านหรือคนอื่นก็ได้ กรุณากดยืนยันเพื่อตรวจสอบ</p></div>`;
         }
       }, 1000);
     }
