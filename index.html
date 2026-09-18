@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.82';
+    const APP_VERSION = 'SUPABASE-2026.09.08.83';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -15160,7 +15160,12 @@ const supabaseDataSdk = {
       )).slice(0, 10);
       if (students.length === 0) { container.innerHTML = '<p class="text-gray-400 text-xs">ไม่พบนักเรียน</p>'; return; }
       container.innerHTML = students.map(s => {
-        const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === s.__backendId);
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เทียบรหัสแบบเข้มงวด ซึ่งล้มเหลวถ้าชนิดข้อมูลไม่ตรงกัน
+        // (Supabase ส่งรหัสมาเป็นตัวเลข แต่ระบบเก็บเป็นข้อความ) ทำให้หาผู้ช่วยแอดมินไม่เจอ
+        // เพิ่มการหาด้วยรหัสนักเรียนเป็นทางสำรองด้วย
+        const existingAdmin = allData.find(a => a.type === 'admin'
+          && (String(a.linked_student_id) === String(s.__backendId)
+              || (a.linked_student_id && String(a.linked_student_id) === String(s.student_id))));
         const badge = existingAdmin ? '<span class="text-xs text-purple-600 ml-2">✅ แต่งตั้งแล้ว</span>' : '';
         return `
           <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200 hover:border-purple-300">
@@ -15180,7 +15185,9 @@ const supabaseDataSdk = {
     function appointSubAdminPopup(studentBackendId) {
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
-      const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === studentBackendId);
+      // ⚠️ เทียบแบบข้อความเสมอ กันชนิดข้อมูลไม่ตรงกันจนหาไม่เจอ
+      const existingAdmin = allData.find(a => a.type === 'admin'
+        && String(a.linked_student_id) === String(studentBackendId));
 
       // Cascade dropdowns: ชั้น → ห้อง → วิชา จาก class_subject
       const classSubjects = allData.filter(d => d.type === 'class_subject');
@@ -15830,7 +15837,12 @@ const supabaseDataSdk = {
       container.innerHTML = students.map(s => {
         const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
         const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
-        const existingAdmin = allData.find(a => a.type === 'admin' && a.linked_student_id === s.__backendId);
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เทียบรหัสแบบเข้มงวด ซึ่งล้มเหลวถ้าชนิดข้อมูลไม่ตรงกัน
+        // (Supabase ส่งรหัสมาเป็นตัวเลข แต่ระบบเก็บเป็นข้อความ) ทำให้หาผู้ช่วยแอดมินไม่เจอ
+        // เพิ่มการหาด้วยรหัสนักเรียนเป็นทางสำรองด้วย
+        const existingAdmin = allData.find(a => a.type === 'admin'
+          && (String(a.linked_student_id) === String(s.__backendId)
+              || (a.linked_student_id && String(a.linked_student_id) === String(s.student_id))));
         const adminBadge = existingAdmin
           ? `<button onclick="revokeSubAdmin('${existingAdmin.__backendId}', '${s.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-red-500 text-white rounded text-xs whitespace-nowrap" title="กดซ้ำเพื่อยกเลิกสถานะผู้ช่วยแอดมิน">✅ ผู้ช่วยแอดมิน</button>`
           : `<button onclick="appointSubAdminPopup('${s.__backendId}')" class="px-2 py-1 bg-purple-500 hover:bg-purple-600 text-white rounded text-xs whitespace-nowrap">👤 แต่งตั้ง</button>`;
