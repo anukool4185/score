@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.73';
+    const APP_VERSION = 'SUPABASE-2026.09.08.75';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2997,7 +2997,8 @@ SB_TYPE_TO_TABLE['menu_config']         = 'settings';
 SB_TYPE_TO_TABLE['mobile_menu_config']  = 'settings';
 SB_TYPE_TO_TABLE['tray_menu_config']    = 'settings';
 SB_TYPE_TO_TABLE['announcement']        = 'settings';
-SB_TYPE_TO_TABLE['kpac_warning']        = 'settings';  // 🔔 ข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC
+SB_TYPE_TO_TABLE['kpac_warning']        = 'settings';
+SB_TYPE_TO_TABLE['admin_contact']       = 'settings';  // 📞 ข้อมูลติดต่อแอดมิน  // 🔔 ข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC
 SB_TYPE_TO_TABLE['answer_sheet_config'] = 'settings';
 SB_TYPE_TO_TABLE['class']               = 'settings';
 SB_TYPE_TO_TABLE['room']                = 'settings';
@@ -3730,6 +3731,142 @@ const supabaseDataSdk = {
       for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
       return out;
     }
+    // ════════════════════════════════════════════════════════════
+    // 🔍 ระบบช่วยเหลือในหน้า "ลืม User/Password"
+    // ════════════════════════════════════════════════════════════
+    let _forgotSearchTimer = null;
+    let _forgotPhoneTimer = null;
+
+    /** ค้นหานักเรียนอัตโนมัติเมื่อหยุดพิมพ์ 1 วินาที แล้วแสดงรายชื่อให้กดเลือก */
+    function _forgotSearchStudent(inputEl) {
+      clearTimeout(_forgotSearchTimer);
+      const box = document.getElementById('forgot-cred-suggest');
+      const phoneHint = document.getElementById('forgot-cred-phone-hint');
+      if (phoneHint) phoneHint.innerHTML = '';   // ล้างผลเบอร์โทรเดิม
+      if (!box) return;
+      const q = String(inputEl?.value || '').trim();
+      if (q.length < 2) { box.innerHTML = ''; return; }
+
+      _forgotSearchTimer = setTimeout(() => {
+        if (!window.__dataReady) { box.innerHTML = '<p style="font-size:11px;color:#94a3b8">⏳ กำลังโหลดข้อมูล...</p>'; return; }
+        const found = allData.filter(d => d.type === 'student' && String(d.student_id || '').includes(q)).slice(0, 5);
+
+        if (found.length === 0) {
+          // 🔒 ไม่พบ = ยังไม่สมัคร → แนะนำไปสมัคร ไม่ให้ข้อมูลติดต่อแอดมิน
+          box.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px">' +
+            '<p style="font-size:11px;color:#b91c1c;margin:0 0 6px;line-height:1.5">❌ <b>ไม่พบรหัสนักเรียนนี้ในระบบ</b><br>ท่านยังไม่ได้สมัครใช้ระบบ</p>' +
+            '<button onclick="document.getElementById(\'forgot-cred-modal\')?.remove(); showRegisterPage();" style="width:100%;padding:7px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">📋 ไปสมัครใช้ระบบ</button></div>';
+          return;
+        }
+        // เจอพอดี 1 คน และรหัสตรงเป๊ะ = ไม่ต้องให้กดเลือก แจ้งให้ใส่เบอร์เลย
+        const exact = found.find(s => String(s.student_id) === q);
+        if (exact && found.length === 1) {
+          box.innerHTML = `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
+            <p style="font-size:12px;font-weight:700;color:#1d4ed8;margin:0">✅ ${escHtml((exact.prefix||'') + (exact.first_name||'') + ' ' + (exact.last_name||''))}</p>
+            <p style="font-size:10px;color:#3b82f6;margin:2px 0 0">${escHtml(exact.class_name||'')}/${escHtml(String(exact.room_number||''))} — กรุณากรอกเบอร์โทรด้านล่าง</p></div>`;
+          return;
+        }
+        // เจอหลายคน = แสดงรายชื่อให้กดเลือก
+        box.innerHTML = '<p style="font-size:10px;color:#64748b;margin:0 0 4px">กดที่ชื่อเพื่อเติมรหัสให้อัตโนมัติ</p>' +
+          found.map(s => `<div onclick="_forgotPickStudent('${escHtml(String(s.student_id))}')" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:7px;margin-bottom:4px;cursor:pointer">
+            <p style="font-size:12px;font-weight:600;color:#1e293b;margin:0">${escHtml((s.prefix||'') + (s.first_name||'') + ' ' + (s.last_name||''))}</p>
+            <p style="font-size:10px;color:#64748b;margin:2px 0 0">${escHtml(String(s.student_id))} · ${escHtml(s.class_name||'')}/${escHtml(String(s.room_number||''))}</p>
+          </div>`).join('');
+      }, 1000);
+    }
+
+    /** กดเลือกชื่อ → เติมรหัสให้ครบอัตโนมัติ */
+    function _forgotPickStudent(studentId) {
+      const input = document.getElementById('forgot-cred-studentid');
+      if (input) input.value = studentId;
+      const stu = allData.find(d => d.type === 'student' && String(d.student_id) === String(studentId));
+      const box = document.getElementById('forgot-cred-suggest');
+      if (box && stu) {
+        box.innerHTML = `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px">
+          <p style="font-size:12px;font-weight:700;color:#1d4ed8;margin:0">✅ ${escHtml((stu.prefix||'') + (stu.first_name||'') + ' ' + (stu.last_name||''))}</p>
+          <p style="font-size:10px;color:#3b82f6;margin:2px 0 0">${escHtml(stu.class_name||'')}/${escHtml(String(stu.room_number||''))} — กรุณากรอกเบอร์โทรด้านล่าง</p></div>`;
+      }
+      document.getElementById('forgot-cred-phone')?.focus();
+    }
+
+    /** ตรวจสอบเบอร์โทรอัตโนมัติเมื่อครบ 10 หลักและหยุดพิมพ์ 1 วินาที */
+    function _forgotCheckPhone(inputEl) {
+      clearTimeout(_forgotPhoneTimer);
+      const hint = document.getElementById('forgot-cred-phone-hint');
+      if (!hint) return;
+      const phone = String(inputEl?.value || '').trim();
+      if (phone.length < 10) { hint.innerHTML = ''; return; }
+
+      _forgotPhoneTimer = setTimeout(() => {
+        const studentId = String(document.getElementById('forgot-cred-studentid')?.value || '').trim();
+        const fixP = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
+        // หาว่ามีใครใช้เบอร์นี้บ้าง
+        const owners = allData.filter(d => d.type === 'student' && fixP(d.phone_number) === fixP(phone));
+        const isMine = owners.some(o => String(o.student_id) === studentId);
+
+        if (owners.length === 0) {
+          hint.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px">
+            <p style="font-size:11px;color:#92400e;margin:0;line-height:1.5">⚠️ <b>ไม่พบเบอร์นี้ในระบบ</b><br>หากท่านยืนยันว่าถูกต้อง กดปุ่มยืนยันด้านล่างได้เลย ระบบจะผูกเบอร์นี้ให้</p></div>`;
+        } else if (isMine) {
+          hint.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px">
+            <p style="font-size:11px;color:#15803d;margin:0;line-height:1.5">✅ <b>เบอร์นี้ตรงกับข้อมูลของท่าน</b> — กดปุ่มยืนยันเพื่อดู User/Password ได้เลย</p></div>`;
+        } else {
+          const names = owners.slice(0, 2).map(o => escHtml((o.prefix||'') + (o.first_name||''))).join(', ');
+          hint.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px">
+            <p style="font-size:11px;color:#b91c1c;margin:0;line-height:1.5">⚠️ <b>มีผู้ใช้เบอร์นี้แล้ว</b> (${names}${owners.length > 2 ? ' และอื่นๆ' : ''})<br>อาจเป็นของท่านหรือคนอื่นก็ได้ กรุณากดยืนยันเพื่อตรวจสอบ</p></div>`;
+        }
+      }, 1000);
+    }
+
+    /** 📞 แสดงช่องทางติดต่อแอดมิน (ใช้เมื่อยืนยันตัวตนไม่ผ่าน) */
+    function showAdminContactPopup() {
+      // 🔒 ป้องกันชั้นสุดท้าย: ต้องมีรหัสนักเรียนที่มีอยู่จริงในระบบเท่านั้น
+      // กันคนที่ยังไม่สมัครเรียกหน้าต่างนี้โดยตรงเพื่อเอาข้อมูลติดต่อไป
+      const sid = String(document.getElementById('forgot-cred-studentid')?.value || '').trim();
+      const exists = sid && allData.some(d => d.type === 'student' && String(d.student_id) === sid);
+      if (!exists) {
+        showToast('⚠️ ไม่พบรหัสนักเรียนนี้ในระบบ กรุณาสมัครใช้ระบบก่อน', 'error');
+        return;
+      }
+      // หาข้อมูลติดต่อ — เอาจากแอดมินที่เปิดให้ติดต่อ หรือจากการตั้งค่าส่วนกลาง
+      const contactAdmin = allData.find(d => (d.type === 'admin' || d.type === 'subadmin')
+        && (d.is_contact === true || d.is_contact === 'true') && (d.line_id || d.phone_number));
+      const contactSetting = allData.find(d => d.type === 'admin_contact');
+      const lineId = contactAdmin?.line_id || contactSetting?.line_id || '';
+      const phone = contactAdmin?.phone_number || contactSetting?.phone_number || '';
+      const name = contactAdmin?.display_name || contactSetting?.display_name || 'ผู้ดูแลระบบ';
+
+      document.getElementById('admin-contact-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'admin-contact-popup';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+
+      const hasContact = lineId || phone;
+      wrap.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:360px;width:100%;padding:22px;text-align:center">
+          <p style="font-size:38px;margin:0 0 8px">📞</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">ติดต่อผู้ดูแลระบบ</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px;line-height:1.6">ข้อมูลที่กรอกไม่ตรงกับในระบบ<br>กรุณาติดต่อ${escHtml(name)}เพื่อขอความช่วยเหลือ</p>
+          ${hasContact ? `
+            ${lineId ? `<div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:8px">
+              <p style="font-size:11px;color:#15803d;margin:0 0 4px">LINE ID</p>
+              <p style="font-size:16px;font-weight:700;color:#15803d;margin:0">${escHtml(lineId)}</p>
+              <button onclick="navigator.clipboard?.writeText('${escHtml(lineId)}');showToast('📋 คัดลอก LINE ID แล้ว')" style="margin-top:6px;padding:5px 12px;background:#16a34a;color:white;border:none;border-radius:6px;font-size:11px;cursor:pointer">📋 คัดลอก</button>
+            </div>` : ''}
+            ${phone ? `<div style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:8px">
+              <p style="font-size:11px;color:#1d4ed8;margin:0 0 4px">เบอร์โทรศัพท์</p>
+              <p style="font-size:16px;font-weight:700;color:#1d4ed8;margin:0">${escHtml(phone)}</p>
+              <a href="tel:${escHtml(phone)}" style="display:inline-block;margin-top:6px;padding:5px 12px;background:#2563eb;color:white;border-radius:6px;font-size:11px;text-decoration:none">📞 โทรเลย</a>
+            </div>` : ''}
+          ` : `<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:12px;margin-bottom:8px">
+              <p style="font-size:12px;color:#b91c1c;margin:0;line-height:1.6">⚠️ ยังไม่ได้ตั้งค่าช่องทางติดต่อ<br>กรุณาติดต่อครูผู้สอนโดยตรง</p>
+            </div>`}
+          <button onclick="document.getElementById('admin-contact-popup')?.remove()" style="width:100%;margin-top:8px;padding:11px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
     function openForgotCredentialsModal() {
       document.getElementById('forgot-cred-modal')?.remove();
       const overlay = document.createElement('div');
@@ -3741,9 +3878,11 @@ const supabaseDataSdk = {
           <p style="font-size:12px;color:#64748b;margin:0 0 16px">กรอกรหัสนักเรียนและเบอร์โทรที่ลงทะเบียนไว้ เพื่อยืนยันตัวตน</p>
           <div id="forgot-cred-body">
             <label style="font-size:12px;color:#475569;font-weight:600">รหัสนักเรียน</label>
-            <input id="forgot-cred-studentid" type="text" placeholder="กรอกรหัสนักเรียน" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+            <input id="forgot-cred-studentid" type="text" oninput="_forgotSearchStudent(this)" placeholder="กรอกรหัสนักเรียน" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 4px;box-sizing:border-box">
+            <div id="forgot-cred-suggest" style="margin:0 0 12px"></div>
             <label style="font-size:12px;color:#475569;font-weight:600">เบอร์โทร</label>
-            <input id="forgot-cred-phone" type="text" placeholder="กรอกเบอร์โทร 10 หลัก" maxlength="10" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 12px;box-sizing:border-box">
+            <input id="forgot-cred-phone" type="text" oninput="_forgotCheckPhone(this)" placeholder="กรอกเบอร์โทร 10 หลัก" maxlength="10" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;margin:4px 0 4px;box-sizing:border-box">
+            <div id="forgot-cred-phone-hint" style="margin:0 0 12px"></div>
             <p id="forgot-cred-error" style="color:#dc2626;font-size:12px;margin:0 0 8px;display:none"></p>
             <div style="display:flex;gap:8px">
               <button onclick="document.getElementById('forgot-cred-modal').remove()" style="flex:1;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:13px;cursor:pointer">ยกเลิก</button>
@@ -3761,7 +3900,18 @@ const supabaseDataSdk = {
       const showErr = msg => { if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; } };
       if (!studentId || !phone) { showErr('⚠️ กรุณากรอกรหัสนักเรียนและเบอร์โทรให้ครบ'); return; }
       const student = allData.find(d => d.type === 'student' && String(d.student_id).trim() === studentId);
-      if (!student) { showErr('❌ ไม่พบรหัสนักเรียนนี้ในระบบ'); return; }
+      if (!student) {
+        // 🔒 ป้องกัน: ไม่พบรหัสนักเรียน = ยังไม่ได้สมัคร จึงไม่ให้ข้อมูลติดต่อแอดมิน
+        // (กันคนนอกใช้ช่องทางนี้ขอข้อมูลติดต่อไป) ให้ไปสมัครก่อนเท่านั้น
+        const errEl = document.getElementById('forgot-cred-error');
+        if (errEl) {
+          errEl.innerHTML = '❌ <b>ไม่พบรหัสนักเรียนนี้ในระบบ</b>' +
+            '<br><span style="font-weight:400">ท่านยังไม่ได้สมัครใช้ระบบ กรุณาสมัครก่อนจึงจะใช้งานได้</span>' +
+            '<br><button onclick="document.getElementById(\'forgot-cred-modal\')?.remove(); showRegisterPage();" style="margin-top:8px;padding:8px 14px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📋 ไปสมัครใช้ระบบ</button>';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
       // 📱 รองรับกรณีเลข 0 นำหน้าเบอร์โทรหายไปจากชีท (เหมือนที่แก้ไว้ในระบบล็อกอิน)
       const _fixP = v => { const s = String(v == null ? '' : v).trim(); return /^\d{9}$/.test(s) ? '0' + s : s; };
       if (!student.phone_number) {
@@ -3773,7 +3923,16 @@ const supabaseDataSdk = {
         renderCredentialsEditForm({ ...student, phone_number: phone }, phone);
         return;
       }
-      if (_fixP(student.phone_number) !== _fixP(phone)) { showErr('❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง'); return; }
+      if (_fixP(student.phone_number) !== _fixP(phone)) {
+        // ❌ ข้อมูลไม่ตรง → แจ้งพร้อมปุ่มติดต่อแอดมิน (ตามที่ผู้ใช้ต้องการ)
+        const errEl = document.getElementById('forgot-cred-error');
+        if (errEl) {
+          errEl.innerHTML = '❌ ข้อมูลไม่ตรงกัน กรุณาตรวจสอบรหัสนักเรียน/เบอร์โทรอีกครั้ง' +
+            '<br><button onclick="showAdminContactPopup()" style="margin-top:8px;padding:8px 14px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📞 ยืนยันว่าข้อมูลถูกต้อง — ติดต่อผู้ดูแลระบบ</button>';
+          errEl.style.display = 'block';
+        }
+        return;
+      }
       renderCredentialsEditForm(student, phone);
     }
     function renderForgotCredPhoneSetup(student, enteredPhone) {
