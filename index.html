@@ -1086,6 +1086,33 @@
        </div>
       </div><!-- ⚙️ ตั้งค่า M/F -->
       <div id="admin-tab-settings" class="hidden">
+       <!-- 📞 ข้อมูลติดต่อผู้ดูแลระบบ (แสดงให้นักเรียนเมื่อยืนยันตัวตนไม่ผ่าน) -->
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📞 ข้อมูลติดต่อผู้ดูแลระบบ</h3>
+        <p class="text-gray-500 text-sm mb-4">แสดงให้นักเรียนเห็นเมื่อลืมรหัสผ่านแล้วยืนยันตัวตนไม่ผ่าน</p>
+        <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">👤 ชื่อที่แสดง</label>
+           <input type="text" id="contact-display-name" placeholder="เช่น ครูสมชาย" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">💬 LINE ID</label>
+           <input type="text" id="contact-line-id" placeholder="เช่น teacher_somchai" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📱 เบอร์โทรศัพท์</label>
+           <input type="text" id="contact-phone" maxlength="10" placeholder="0812345678" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+         </div>
+         <div class="flex gap-2 flex-wrap items-center">
+          <button onclick="saveAdminContact()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold btn-3d">💾 บันทึกข้อมูลติดต่อ</button>
+          <button onclick="showAdminContactPreview()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">👁️ ดูตัวอย่าง</button>
+          <p class="text-xs text-gray-500 ml-auto">กรอกอย่างน้อย 1 ช่องทาง (LINE หรือเบอร์โทร)</p>
+         </div>
+        </div>
+       </div>
+
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)</h3>
         <div class="grid md:grid-cols-2 gap-6 mb-6">
@@ -2606,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.76';
+    const APP_VERSION = 'SUPABASE-2026.09.08.77';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3819,6 +3846,60 @@ const supabaseDataSdk = {
     }
 
     /** 📞 แสดงช่องทางติดต่อแอดมิน (ใช้เมื่อยืนยันตัวตนไม่ผ่าน) */
+    /** 📞 โหลดข้อมูลติดต่อเดิมมาแสดงในช่องกรอก */
+    function loadAdminContactForm() {
+      const rec = allData.find(d => d.type === 'admin_contact');
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      set('contact-display-name', rec?.display_name);
+      set('contact-line-id', rec?.line_id);
+      set('contact-phone', rec?.phone_number);
+    }
+
+    /** 💾 บันทึกข้อมูลติดต่อผู้ดูแลระบบ */
+    async function saveAdminContact() {
+      const name = document.getElementById('contact-display-name')?.value.trim();
+      const lineId = document.getElementById('contact-line-id')?.value.trim();
+      const phone = document.getElementById('contact-phone')?.value.trim();
+
+      if (!lineId && !phone) {
+        showToast('กรุณากรอกอย่างน้อย 1 ช่องทาง (LINE ID หรือเบอร์โทร)', 'error');
+        return;
+      }
+      if (phone && !/^0\d{9}$/.test(phone)) {
+        showToast('เบอร์โทรต้องเป็น 10 หลัก ขึ้นต้นด้วย 0', 'error');
+        return;
+      }
+
+      const btn = event?.target?.closest('button');
+      await withButtonLock(btn, '⏳ กำลังบันทึก...', async () => {
+        const existing = allData.find(d => d.type === 'admin_contact');
+        const payload = {
+          type: 'admin_contact',
+          display_name: name || 'ผู้ดูแลระบบ',
+          line_id: lineId || '',
+          phone_number: phone || '',
+        };
+        const result = existing
+          ? await window.dataSdk.update({ ...existing, ...payload })
+          : await window.dataSdk.create(payload);
+
+        if (result.isOk) {
+          showToast('✅ บันทึกข้อมูลติดต่อสำเร็จ');
+        } else {
+          showToast('บันทึกไม่สำเร็จ: ' + (result.error?.message || ''), 'error');
+        }
+      });
+    }
+
+    /** 👁️ ดูตัวอย่างหน้าต่างที่นักเรียนจะเห็น */
+    function showAdminContactPreview() {
+      const name = document.getElementById('contact-display-name')?.value.trim() || 'ผู้ดูแลระบบ';
+      const lineId = document.getElementById('contact-line-id')?.value.trim() || '';
+      const phone = document.getElementById('contact-phone')?.value.trim() || '';
+      if (!lineId && !phone) { showToast('กรุณากรอกข้อมูลก่อนดูตัวอย่าง', 'error'); return; }
+      _renderContactPopup(name, lineId, phone, true);
+    }
+
     function showAdminContactPopup() {
       // 🔒 ป้องกันชั้นสุดท้าย: ต้องมีรหัสนักเรียนที่มีอยู่จริงในระบบเท่านั้น
       // กันคนที่ยังไม่สมัครเรียกหน้าต่างนี้โดยตรงเพื่อเอาข้อมูลติดต่อไป
@@ -3835,7 +3916,11 @@ const supabaseDataSdk = {
       const lineId = contactAdmin?.line_id || contactSetting?.line_id || '';
       const phone = contactAdmin?.phone_number || contactSetting?.phone_number || '';
       const name = contactAdmin?.display_name || contactSetting?.display_name || 'ผู้ดูแลระบบ';
+      _renderContactPopup(name, lineId, phone, false);
+    }
 
+    /** แสดงหน้าต่างข้อมูลติดต่อ (ใช้ร่วมกันทั้งของจริงและตัวอย่าง) */
+    function _renderContactPopup(name, lineId, phone, isPreview) {
       document.getElementById('admin-contact-popup')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'admin-contact-popup';
@@ -3846,8 +3931,8 @@ const supabaseDataSdk = {
       wrap.innerHTML = `
         <div style="background:white;border-radius:16px;max-width:360px;width:100%;padding:22px;text-align:center">
           <p style="font-size:38px;margin:0 0 8px">📞</p>
-          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">ติดต่อผู้ดูแลระบบ</p>
-          <p style="font-size:12px;color:#64748b;margin:0 0 16px;line-height:1.6">ข้อมูลที่กรอกไม่ตรงกับในระบบ<br>กรุณาติดต่อ${escHtml(name)}เพื่อขอความช่วยเหลือ</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 6px">${isPreview ? '👁️ ตัวอย่างที่นักเรียนจะเห็น' : 'ติดต่อผู้ดูแลระบบ'}</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 16px;line-height:1.6">ข้อมูลที่กรอกไม่ตรงกับในระบบ<br>กรุณาติดต่อ ${escHtml(name)} เพื่อขอความช่วยเหลือ</p>
           ${hasContact ? `
             ${lineId ? `<div style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:8px">
               <p style="font-size:11px;color:#15803d;margin:0 0 4px">LINE ID</p>
@@ -14716,6 +14801,7 @@ const supabaseDataSdk = {
       } else if (tabName === 'settings') {
         loadMFFilters();
         updateMFDisplayList();
+        if (typeof loadAdminContactForm === 'function') loadAdminContactForm(); // 📞 โหลดข้อมูลติดต่อเดิม
       } else if (tabName === 'hours') {
         loadHoursFilters();
         updateHoursDisplayList();
