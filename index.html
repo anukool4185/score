@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.81';
+    const APP_VERSION = 'SUPABASE-2026.09.08.82';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6206,8 +6206,16 @@ const supabaseDataSdk = {
             <tbody>
               ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 7 : 6}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
                 const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
-                const pendingReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && d.status === 'pending');
-                const approvedReq = allData.find(d => d.type === 'registration_request' && d.student_backend_id === s.__backendId && d.subject_name === scope.subjectName && isRequestApprovedToday(d));
+                // ⚠️ บั๊กที่พบและแก้แล้ว: เมื่อมีคำขอซ้ำหลายรายการ ระบบเจอรายการที่ยังไม่อนุมัติก่อน
+                // จึงแสดงว่ายังรออนุมัติ ทั้งที่มีอีกรายการที่อนุมัติแล้ว
+                // แก้โดยหารายการที่อนุมัติแล้วก่อนเสมอ และหาได้ทั้งจากรหัสอ้างอิงและรหัสนักเรียน
+                const _matchReq = (d) => d.type === 'registration_request'
+                  && d.subject_name === scope.subjectName
+                  && (String(d.student_backend_id) === String(s.__backendId)
+                      || String(d.student_id) === String(s.student_id));
+                const approvedReq = allData.find(d => _matchReq(d) && isRequestApprovedToday(d));
+                // ถ้าอนุมัติแล้ว ไม่ต้องสนใจรายการที่ยังรออนุมัติ (กันแสดงสถานะซ้อนกัน)
+                const pendingReq = approvedReq ? null : allData.find(d => _matchReq(d) && d.status === 'pending');
                 const kpacReq = allData.find(d => d.type === 'kpac_request' && String(d.student_id) === String(s.student_id) && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
 
                 // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KPAC
