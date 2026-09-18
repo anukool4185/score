@@ -2606,7 +2606,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.66';
+    const APP_VERSION = 'SUPABASE-2026.09.08.67';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -7128,13 +7128,7 @@ const supabaseDataSdk = {
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
       if (roomFilter) registrations = registrations.filter(r => r.room_number === roomFilter);
       // เรียงรายชื่อจากเลขที่น้อยไปมาก
-      registrations = registrations.slice().sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseFloat(studentA?.student_number) || 0;
-        const numB = parseFloat(studentB?.student_number) || 0;
-        return numA - numB;
-      });
+      registrations = _sortRegistrations(registrations, _sortPrefs.grading); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (countLabel) countLabel.textContent = `แสดง ${registrations.length} จาก ${totalCount} รายการ`;
       if (registrations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center text-gray-400 py-8">ไม่พบข้อมูลตามที่กรอง</td></tr>`;
@@ -18414,6 +18408,57 @@ const supabaseDataSdk = {
       updateGradingStudents();
     }
     let selectedGradingRegId = null;
+    // ════════════════════════════════════════════════════════════
+    // 🔢 ระบบเรียงลำดับรายชื่อนักเรียน (ใช้ร่วมกันทั้งหน้าคะแนนและลงเวลา)
+    // ════════════════════════════════════════════════════════════
+    // เก็บค่าที่เลือกไว้แยกกันแต่ละหน้า จะได้ไม่รบกวนกัน
+    const _sortPrefs = { grading: 'number-asc', timekeeping: 'number-asc' };
+
+    /** เรียงรายชื่อตามที่เลือก — รองรับเลขที่และรหัสนักเรียน ทั้งน้อยไปมากและมากไปน้อย */
+    function _sortRegistrations(registrations, sortKey) {
+      const [field, dir] = (sortKey || 'number-asc').split('-');
+      const mul = dir === 'desc' ? -1 : 1;
+      return registrations.slice().sort((a, b) => {
+        const stuA = allData.find(s => s.type === 'student' && String(s.student_id) === String(a.student_id));
+        const stuB = allData.find(s => s.type === 'student' && String(s.student_id) === String(b.student_id));
+        if (field === 'id') {
+          // รหัสนักเรียน: เทียบแบบตัวเลขถ้าเป็นตัวเลขล้วน ไม่งั้นเทียบแบบข้อความ
+          const idA = String(a.student_id || ''), idB = String(b.student_id || '');
+          const numA = parseFloat(idA), numB = parseFloat(idB);
+          if (!isNaN(numA) && !isNaN(numB)) return (numA - numB) * mul;
+          return idA.localeCompare(idB, 'th') * mul;
+        }
+        // เลขที่ (ค่าเริ่มต้น) — คนที่ไม่มีเลขที่ให้อยู่ท้ายสุดเสมอ
+        const numA = parseFloat(stuA?.student_number);
+        const numB = parseFloat(stuB?.student_number);
+        if (isNaN(numA) && isNaN(numB)) return 0;
+        if (isNaN(numA)) return 1;
+        if (isNaN(numB)) return -1;
+        return (numA - numB) * mul;
+      });
+    }
+
+    /** สร้างปุ่มเลือกวิธีเรียงลำดับ */
+    function _buildSortSelector(page) {
+      const cur = _sortPrefs[page] || 'number-asc';
+      const opts = [
+        { v: 'number-asc',  t: '🔢 เลขที่ (น้อย→มาก)' },
+        { v: 'number-desc', t: '🔢 เลขที่ (มาก→น้อย)' },
+        { v: 'id-asc',      t: '🆔 รหัส นร. (น้อย→มาก)' },
+        { v: 'id-desc',     t: '🆔 รหัส นร. (มาก→น้อย)' },
+      ];
+      return `<select onchange="_changeSortOrder('${page}', this.value)" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg text-xs focus:border-blue-500 focus:outline-none mb-2">
+        ${opts.map(o => `<option value="${o.v}"${o.v === cur ? ' selected' : ''}>${o.t}</option>`).join('')}
+      </select>`;
+    }
+
+    /** เปลี่ยนวิธีเรียงแล้วแสดงผลใหม่ทันที */
+    function _changeSortOrder(page, value) {
+      _sortPrefs[page] = value;
+      if (page === 'grading' && typeof refreshGradingNameListOnly === 'function') refreshGradingNameListOnly();
+      if (page === 'timekeeping' && typeof updateTimekeepingStudents === 'function') updateTimekeepingStudents();
+    }
+
     function refreshGradingNameListOnly() {
       const className = document.getElementById('filter-grading-class')?.value;
       const roomNumber = document.getElementById('filter-grading-room')?.value;
@@ -18427,13 +18472,7 @@ const supabaseDataSdk = {
         d.room_number === roomNumber &&
         d.subject_name === subjectName
       );
-      registrations = registrations.slice().sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseFloat(studentA?.student_number) || 0;
-        const numB = parseFloat(studentB?.student_number) || 0;
-        return numA - numB;
-      });
+      registrations = _sortRegistrations(registrations, _sortPrefs.grading); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
         container.classList.add('hidden');
         if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
@@ -18446,7 +18485,8 @@ const supabaseDataSdk = {
       }
       const namelistEl = document.getElementById('grading-student-namelist');
       if (namelistEl) {
-        namelistEl.innerHTML = registrations.map(reg => {
+        // 🔢 ปุ่มเลือกวิธีเรียงลำดับ วางไว้เหนือรายชื่อ
+        namelistEl.innerHTML = _buildSortSelector('grading') + registrations.map(reg => {
           const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
           const isActive = reg.__backendId === selectedGradingRegId;
           const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
@@ -18981,16 +19021,11 @@ const supabaseDataSdk = {
       const container = document.getElementById('timekeeping-students-container');
       const emptyMsg = document.getElementById('timekeeping-empty-message');
       if (!container || !className || !roomNumber || !subjectName) return null;
-      const registrations = allData.filter(d => {
+      let registrations = allData.filter(d => {
         if (d.type !== 'student_registration') return false;
         return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
-      }).sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseInt(studentA?.student_number) || 0;
-        const numB = parseInt(studentB?.student_number) || 0;
-        return numA - numB;
       });
+      registrations = _sortRegistrations(registrations, _sortPrefs.timekeeping); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
         container.classList.add('hidden');
         if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
@@ -19003,7 +19038,8 @@ const supabaseDataSdk = {
       }
       const namelistEl = document.getElementById('timekeeping-student-namelist');
       if (namelistEl) {
-        namelistEl.innerHTML = registrations.map(reg => {
+        // 🔢 ปุ่มเลือกวิธีเรียงลำดับ วางไว้เหนือรายชื่อ
+        namelistEl.innerHTML = _buildSortSelector('timekeeping') + registrations.map(reg => {
           const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
           const isActive = reg.__backendId === selectedTimekeepingRegId;
           const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
@@ -19244,16 +19280,11 @@ const supabaseDataSdk = {
         return;
       }
       // ค้นหานักเรียนที่ลงทะเบียนวิชานี้
-      const registrations = allData.filter(d => {
+      let registrations = allData.filter(d => {
         if (d.type !== 'student_registration') return false;
         return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
-      }).sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseInt(studentA?.student_number) || 0;
-        const numB = parseInt(studentB?.student_number) || 0;
-        return numA - numB;
       });
+      registrations = _sortRegistrations(registrations, _sortPrefs.timekeeping); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
         container.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่มีนักเรียนลงทะเบียนวิชานี้</p>';
         return;
@@ -20377,13 +20408,7 @@ const supabaseDataSdk = {
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
       if (roomFilter) registrations = registrations.filter(r => r.room_number === roomFilter);
       // เรียงรายชื่อจากเลขที่น้อยไปมาก
-      registrations = registrations.slice().sort((a, b) => {
-        const studentA = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const studentB = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
-        const numA = parseFloat(studentA?.student_number) || 0;
-        const numB = parseFloat(studentB?.student_number) || 0;
-        return numA - numB;
-      });
+      registrations = _sortRegistrations(registrations, _sortPrefs.grading); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (countLabel) countLabel.textContent = `แสดง ${registrations.length} จาก ${totalCount} รายการ`;
       if (registrations.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-400 py-8">ไม่พบข้อมูลตามที่กรอง</td></tr>`;
