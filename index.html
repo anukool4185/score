@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.83';
+    const APP_VERSION = 'SUPABASE-2026.09.08.84';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11691,7 +11691,7 @@ const supabaseDataSdk = {
       }
 
       // เช็คสิทธิ์จาก popup แจ้งเตือนก่อน (exam_retry_permission) — อนุญาตแบบทั่วไป ไม่จำกัดเวลาเฉพาะ
-      const perm = allData.filter(d => d.type === 'exam_retry_permission' && d.student_id === currentUser.student_id && d.exam_id === examSet.__backendId)
+      const perm = allData.filter(d => d.type === 'exam_retry_permission' && String(d.student_id) === String(currentUser.student_id) && d.exam_id === examSet.__backendId)
         .sort((a,b) => new Date(b.granted_at) - new Date(a.granted_at))[0];
       if (perm?.allowed) {
         return `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id}')" style="${btnBase};background:#6366f1;color:white">🔁 แก้ไขคำตอบ (ได้รับอนุญาต) ${kLabel}</button>`;
@@ -11774,7 +11774,7 @@ const supabaseDataSdk = {
 
       // 📋 ดูว่าแอดมินอนุมัติให้ใช้ข้อสอบชุดเดิม หรือสุ่มชุดใหม่
       const approvedReq = allData.filter(d => d.type === 'exam_retry_request'
-        && d.exam_set_id === examSetId && d.student_id === currentUser.student_id && d.status === 'approved')
+        && d.exam_set_id === examSetId && String(d.student_id) === String(currentUser.student_id) && d.status === 'approved')
         .sort((a,b) => new Date(b.reviewed_at||0) - new Date(a.reviewed_at||0))[0];
       const useSameQuestions = !approvedReq || approvedReq.question_mode !== 'new'; // ค่าเริ่มต้นคือใช้ข้อสอบเดิม
       console.log('[RetryExam] ครั้งที่', usedRetries + 1, '| ข้อสอบ:', useSameQuestions ? 'ชุดเดิม' : 'สุ่มใหม่');
@@ -15941,7 +15941,7 @@ const supabaseDataSdk = {
     // ลบนักเรียน 1 คน พร้อมข้อมูลที่เกี่ยวข้องทั้งหมด (การลงทะเบียนเรียน + การลงเวลาเรียน)
     async function deleteStudentWithRelatedData(student) {
       const registrations = allData.filter(d =>
-        d.type === 'student_registration' && d.student_id === student.student_id
+        d.type === 'student_registration' && String(d.student_id) === String(student.student_id)
       );
       for (const reg of registrations) {
         await cascadeDeleteRegistrationData(reg);
@@ -17369,7 +17369,7 @@ const supabaseDataSdk = {
         d.type === 'class_subject' && d.class_name === student.class_name &&
         d.room_number === student.room_number && d.subject_name === subj.subject_name
       ));
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
       const registeredSubjectNames = new Set(registrations.map(r => r.subject_name));
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
@@ -17406,7 +17406,7 @@ const supabaseDataSdk = {
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
       // ถ้านักเรียนกำหนด KPAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
-      const existingReg = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const existingReg = allData.find(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id) && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
       const kVal = existingReg?.k_percent ?? '';
       const pVal = existingReg?.p_percent ?? '';
       const aVal = existingReg?.a_percent ?? '';
@@ -17454,7 +17454,7 @@ const supabaseDataSdk = {
         return;
       }
       errorEl.classList.add('hidden');
-      const existingReg = allData.find(d => d.type === 'student_registration' && d.student_id === student.student_id && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const existingReg = allData.find(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id) && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
       // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KPAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
       // ถ้ามีการลงทะเบียนวิชานี้อยู่แล้ว ให้แก้ไขค่าเดิม (อัปเดต) แทนการสร้างใหม่ซ้ำ
       const result = existingReg
@@ -20217,7 +20217,7 @@ const supabaseDataSdk = {
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
       if (registrations.length === 0) {
         content.innerHTML = `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -20393,7 +20393,7 @@ const supabaseDataSdk = {
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
       const registeredSubjects = [...new Set(registrations.map(r => r.subject_name))].sort();
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -20439,7 +20439,7 @@ const supabaseDataSdk = {
     function updateStudentHomeworkTable() {
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
       if (!student) return;
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
       const myCombos = registrations.map(r => `${r.class_name}|${r.room_number}|${r.subject_name}`);
       const subjectFilter = document.getElementById('student-hw-filter-subject')?.value || '';
       const dateFilter = document.getElementById('student-hw-filter-date')?.value || '';
@@ -20517,7 +20517,7 @@ const supabaseDataSdk = {
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
-      const registrations = allData.filter(d => d.type === 'student_registration' && d.student_id === student.student_id);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
       if (registrations.length === 0) {
         content.innerHTML = `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -21526,7 +21526,7 @@ const supabaseDataSdk = {
       // แสดงวิชาทั้งหมด (ทั้งลงทะเบียนแล้วและยังไม่ลงทะเบียน)
       const registrations = allData.filter(d => 
         d.type === 'student_registration' && 
-        d.student_id === student.student_id
+        String(d.student_id) === String(student.student_id)
       );
       const registeredSubjectNames = new Set(registrations.map(reg => reg.subject_name));
       content.innerHTML = `
@@ -21715,7 +21715,7 @@ const supabaseDataSdk = {
       // ตรวจสอบว่าลงทะเบียนวิชานี้แล้วหรือยัง (วิชาเดียวกัน ห้องเดียวกัน)
       const alreadyRegistered = allData.find(d => 
         d.type === 'student_registration' && 
-        d.student_id === currentUser.student_id &&
+        String(d.student_id) === String(currentUser.student_id) &&
         d.class_name === studentClassName &&
         d.room_number === studentRoomNumber &&
         d.subject_name === subjectName
@@ -23528,7 +23528,7 @@ const supabaseDataSdk = {
       <h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📚 ลงทะเบียนแล้ว (${regs.length})</h2>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${regs.slice(0,60).map(r=>{
-          var s = (allData||[]).find(d=>d.type==='student'&&d.student_id===r.student_id);
+          var s = (allData||[]).find(d=>d.type==='student'&&String(d.student_id)===String(r.student_id));
           return `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <div>
@@ -23571,7 +23571,7 @@ const supabaseDataSdk = {
   function mRenderMyRegister() {
     var c = document.getElementById('m-content');
     var _sid1 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
-    var myRegs = (allData||[]).filter(d=>d.type==='student_registration'&&d.student_id===_sid1);
+    var myRegs = (allData||[]).filter(d=>d.type==='student_registration'&&String(d.student_id)===String(_sid1));
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📚 วิชาที่ลงทะเบียน</h2>
       ${myRegs.length ? myRegs.map(r=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${r.subject_name||'วิชา'}</p>
@@ -23581,7 +23581,7 @@ const supabaseDataSdk = {
   function mRenderMyGrades() {
     var c = document.getElementById('m-content');
     var _sid2 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
-    var grades = (allData||[]).filter(d=>d.type==='grade'&&d.student_id===_sid2);
+    var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2));
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
       ${grades.length ? grades.map(g=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
