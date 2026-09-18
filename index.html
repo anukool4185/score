@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.79';
+    const APP_VERSION = 'SUPABASE-2026.09.08.80';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5375,7 +5375,21 @@ const supabaseDataSdk = {
     }
     // เช็คว่าคำขอนี้ "อนุมัติแล้ว" และยังอยู่ในวันเดียวกับที่อนุมัติหรือไม่ (อนุญาตวันต่อวันเท่านั้น)
     function isRequestApprovedToday(req) {
-      return req.status === 'approved' && req.approved_date === getTodayDateStr();
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมเทียบวันที่แบบตรงตัว
+      // แต่ Supabase เก็บเป็นวันเวลาเต็ม (เช่น 2026-09-15T08:30:00+07:00)
+      // ส่วนระบบบันทึกเป็นข้อความสั้น (2026-09-15) จึงไม่มีทางตรงกัน
+      // ทำให้ผู้ช่วยแอดมินไม่เห็นว่าได้รับอนุมัติแล้ว
+      // แก้โดยตัดเอาเฉพาะส่วนวันที่มาเทียบกัน
+      if (req.status !== 'approved' || !req.approved_date) return false;
+      const toDateOnly = (v) => {
+        const s = String(v);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;       // เป็นวันที่สั้นอยู่แล้ว
+        const d = new Date(s);
+        if (isNaN(d.getTime())) return s;
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      };
+      return toDateOnly(req.approved_date) === getTodayDateStr();
     }
     /** ✓ รับทราบผู้สมัครใหม่ — ใช้ฟิลด์แยกจากกระดิ่งลงทะเบียน จะได้ไม่กระทบกัน */
     async function acknowledgeApplicant(studentId) {
