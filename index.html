@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.84';
+    const APP_VERSION = 'SUPABASE-2026.09.08.86';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6279,23 +6279,46 @@ const supabaseDataSdk = {
       document.body.appendChild(editDiv);
     }
     async function confirmSubAdminRequestRegistration(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
-      if (!student) return;
+      const student = allData.find(s => String(s.__backendId) === String(studentBackendId) && s.type === 'student');
+      if (!student) { showToast('ไม่พบข้อมูลนักเรียน กรุณาโหลดหน้าใหม่', 'error'); return; }
       const scope = getSubAdminScope();
-      const result = await window.dataSdk.create({
+
+      // 🛡️ กันส่งคำขอซ้ำ — ถ้ามีคำขอที่ยังรออนุมัติอยู่แล้ว ไม่ต้องส่งใหม่
+      const existingReq = allData.find(d => d.type === 'registration_request'
+        && d.subject_name === scope.subjectName
+        && d.status === 'pending'
+        && (String(d.student_backend_id) === String(studentBackendId)
+            || String(d.student_id) === String(student.student_id)));
+      if (existingReq) {
+        document.querySelectorAll('.fixed').forEach(el => el.remove());
+        showToast('⏳ มีคำขอของนักเรียนคนนี้รออนุมัติอยู่แล้ว');
+        refreshCurrentView();
+        return;
+      }
+
+      const payload = {
         type: 'registration_request',
-        student_backend_id: studentBackendId,
-        student_name: `${student.prefix}${student.first_name} ${student.last_name}`,
+        student_backend_id: String(studentBackendId),
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมไม่ส่ง student_id ไปด้วย
+        // แต่ระบบตรวจสอบสถานะใช้รหัสนักเรียนในการหา จึงหาไม่เจอ ปุ่มเลยไม่เปลี่ยนสถานะ
+        student_id: student.student_id,
+        student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
         class_name: scope.className, room_number: scope.roomNumber, subject_name: scope.subjectName,
         requested_by_subadmin: currentUser.username,
-        status: 'pending', created_at: new Date().toISOString()
-      });
+        status: 'pending',
+      };
+      const result = await window.dataSdk.create(payload);
       if (result.isOk) {
+        // 🔄 เพิ่มเข้าข้อมูลในเครื่องทันที ปุ่มจะเปลี่ยนสถานะเลยโดยไม่ต้องรอโหลดใหม่
+        const newId = result.data?.__backendId;
+        if (newId && !allData.some(d => String(d.__backendId) === String(newId) && d.type === 'registration_request')) {
+          allData.push({ ...payload, __backendId: String(newId) });
+        }
         document.querySelectorAll('.fixed').forEach(el => el.remove());
         showToast('📨 ส่งคำขอลงทะเบียนไปแอดมินแล้ว');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถส่งคำขอได้', 'error');
+        showToast('ไม่สามารถส่งคำขอได้: ' + (result.error?.message || ''), 'error');
       }
     }
     // ----- ผู้ช่วยแอดมินลงทะเบียนเองหลังได้รับอนุมัติจากแอดมินแล้ว -----
@@ -16978,8 +17001,9 @@ const supabaseDataSdk = {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteRegistrationRow(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
-      if (!reg) return;
+      // ⚠️ ต้องระบุประเภทด้วย เพราะรหัสอ้างอิงอาจซ้ำกันระหว่างตาราง ทำให้ลบผิดตัว
+      const reg = allData.find(d => String(d.__backendId) === String(regId) && d.type === 'student_registration');
+      if (!reg) { showToast('ไม่พบข้อมูลการลงทะเบียน กรุณาโหลดหน้าใหม่', 'error'); return; }
       await cascadeDeleteRegistrationData(reg);
       const result = await window.dataSdk.delete(reg);
       document.querySelectorAll('.fixed').forEach(el => el.remove());
@@ -21509,13 +21533,22 @@ const supabaseDataSdk = {
       // หมายเหตุ: ใช้ subject_name จากตาราง class_subject เป็นค่าจริงเสมอ (ไม่ใช่จากตาราง subject)
       // เพราะอัพโหลดคะแนน/แอดมินลงทะเบียนใช้ class_subject เป็นแหล่งอ้างอิงหลัก ถ้าใช้คนละตารางกัน
       // ชื่อวิชาอาจไม่ตรงกันแม้เป็นวิชาเดียวกัน ทำให้คะแนนสำรองดึงเข้าไม่ได้
-      const allSubjects = allData.filter(d => d.type === 'subject');
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมดึงจากข้อมูลประเภท 'subject' ที่เก็บแยกต่างหาก
+      // แต่หลังย้ายมา Supabase ข้อมูลชุดนี้อาจไม่มี ทำให้ไม่มีวิชาให้แก้ไข/ลบเลย
+      // แก้โดยใช้รายวิชาที่เปิดสอนจริงในห้องนั้นเป็นหลัก ซึ่งมีข้อมูลครบเสมอ
+      let allSubjects = allData.filter(d => d.type === 'subject');
+      if (allSubjects.length === 0) {
+        allSubjects = allData.filter(d => d.type === 'class_subject'
+          && d.class_name === student.class_name
+          && String(d.room_number) === String(student.room_number))
+          .map(cs => ({ subject_name: cs.subject_name }));
+      }
       const availableSubjects = allSubjects
         .map(subj => {
           const matchedClassSubject = allData.find(d =>
             d.type === 'class_subject' &&
             d.class_name === student.class_name &&
-            d.room_number === student.room_number &&
+            String(d.room_number) === String(student.room_number) &&
             d.subject_name === subj.subject_name
           );
           return matchedClassSubject ? { ...subj, subject_name: matchedClassSubject.subject_name } : null;
@@ -22076,8 +22109,9 @@ const supabaseDataSdk = {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteRegistration(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
-      if (!reg) return;
+      // ⚠️ ต้องระบุประเภทด้วย กันลบผิดตัว
+      const reg = allData.find(d => String(d.__backendId) === String(regId) && d.type === 'student_registration');
+      if (!reg) { showToast('ไม่พบข้อมูลการลงทะเบียน กรุณาโหลดหน้าใหม่', 'error'); return; }
       const result = await window.dataSdk.delete(reg);
       if (result.isOk) {
         document.querySelectorAll('.fixed').forEach(el => el.remove());
