@@ -2633,7 +2633,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.78';
+    const APP_VERSION = 'SUPABASE-2026.09.08.79';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5296,8 +5296,15 @@ const supabaseDataSdk = {
                 const isKpac = req.type === 'kpac_request';
                 // คำขอ KPAC ไม่มีชื่อนักเรียนเก็บไว้ ต้องไปหาจากรหัสนักเรียน
                 let name = req.student_name;
-                if (!name && req.student_id) {
-                  const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(req.student_id));
+                // 🔍 หาชื่อจากหลายทาง เผื่อข้อมูลบางส่วนขาดหาย
+                if (!name) {
+                  let stu = null;
+                  if (req.student_id) {
+                    stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(req.student_id));
+                  }
+                  if (!stu && req.student_backend_id) {
+                    stu = allData.find(s => s.type === 'student' && String(s.__backendId) === String(req.student_backend_id));
+                  }
                   if (stu) name = `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`;
                 }
                 const byWho = isKpac ? 'นักเรียนขอเอง' : (req.requested_by_subadmin || 'ไม่ระบุ');
