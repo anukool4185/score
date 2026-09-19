@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.91';
+    const APP_VERSION = 'SUPABASE-2026.09.08.92';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14658,12 +14658,19 @@ const supabaseDataSdk = {
         return;
       }
       const existingLevels = allData.filter(d => d.type === 'evaluation_level');
+      // 🛡️ กันสร้างระดับซ้ำ — เช็คทั้งชื่อและค่าคะแนน
+      const dup = existingLevels.find(l =>
+        String(l.level_label).trim() === levelLabel
+        || parseFloat(l.percent_value) === percentValue);
+      if (dup) {
+        showToast(`⚠️ มีระดับนี้อยู่แล้ว: "${dup.level_label}" (${dup.percent_value})`, 'error');
+        return;
+      }
       const result = await window.dataSdk.create({
         type: 'evaluation_level',
         level_label: levelLabel,
         percent_value: percentValue,
         order: existingLevels.length,
-        created_at: new Date().toISOString()
       });
       if (result.isOk) {
         labelInput.value = '';
@@ -14675,8 +14682,9 @@ const supabaseDataSdk = {
       }
     }
     async function deleteEvalLevel(levelId) {
-      const level = allData.find(d => d.__backendId === levelId);
-      if (!level) return;
+      // ⚠️ ต้องระบุประเภท กันลบผิดตัว (รหัสซ้ำกันได้ระหว่างตาราง)
+      const level = allData.find(d => String(d.__backendId) === String(levelId) && d.type === 'evaluation_level');
+      if (!level) { showToast('ไม่พบระดับนี้ กรุณาโหลดหน้าใหม่', 'error'); return; }
       const result = await window.dataSdk.delete(level);
       if (result.isOk) {
         showToast('🗑️ ลบระดับสำเร็จ');
@@ -14832,19 +14840,22 @@ const supabaseDataSdk = {
       const topics = allData.filter(d => d.type === 'evaluation_topic').sort((a, b) => (a.order || 0) - (b.order || 0));
       const levels = allData.filter(d => d.type === 'evaluation_level');
       const submissions = allData.filter(d => d.type === 'evaluation_submission');
+      // ⚠️ บั๊กที่พบและแก้แล้ว: รหัสที่เก็บในคะแนนประเมินอาจเป็นคนละชนิดกับรหัสระดับ
+      // (ตัวเลข vs ข้อความ) ทำให้จับคู่ไม่ได้ คะแนนจึงไม่แสดงและไม่คำนวณ
+      // แก้โดยใช้รหัสแบบข้อความเป็นกุญแจเสมอ
       const levelValueMap = {};
-      levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
+      levels.forEach(l => { levelValueMap[String(l.__backendId)] = parseFloat(l.percent_value) || 0; });
       // ระดับการประเมินเป็นตัวเลขธรรมดาที่แอดมินกำหนด (ไม่ใช่ร้อยละ)
       // แปลงเป็นร้อยละสำหรับแสดงผล โดยเทียบกับค่าระดับสูงสุดที่มีอยู่ (normalize)
-      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => l.percent_value || 0)) : 0;
+      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => parseFloat(l.percent_value) || 0)) : 0;
       const topicResults = topics.map(topic => {
         const rawValuesForTopic = [];
         submissions.forEach(sub => {
           try {
             const ratings = _parseRatings(sub.ratings_json);
-            const r = ratings.find(x => x.topic_id === topic.__backendId);
-            if (r && levelValueMap[r.level_id] !== undefined) {
-              rawValuesForTopic.push(levelValueMap[r.level_id]);
+            const r = ratings.find(x => String(x.topic_id) === String(topic.__backendId));
+            if (r && levelValueMap[String(r.level_id)] !== undefined) {
+              rawValuesForTopic.push(levelValueMap[String(r.level_id)]);
             }
           } catch (e) { /* ข้อมูลเสีย ข้ามไป */ }
         });
@@ -20808,9 +20819,12 @@ const supabaseDataSdk = {
     }
     function buildEvaluatorsListHtml(isAdmin) {
       const levels = allData.filter(d => d.type === 'evaluation_level');
+      // ⚠️ บั๊กที่พบและแก้แล้ว: รหัสที่เก็บในคะแนนประเมินอาจเป็นคนละชนิดกับรหัสระดับ
+      // (ตัวเลข vs ข้อความ) ทำให้จับคู่ไม่ได้ คะแนนจึงไม่แสดงและไม่คำนวณ
+      // แก้โดยใช้รหัสแบบข้อความเป็นกุญแจเสมอ
       const levelValueMap = {};
-      levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
-      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => l.percent_value || 0)) : 0;
+      levels.forEach(l => { levelValueMap[String(l.__backendId)] = parseFloat(l.percent_value) || 0; });
+      const maxLevelValue = levels.length > 0 ? Math.max(...levels.map(l => parseFloat(l.percent_value) || 0)) : 0;
       const submissions = allData.filter(d => d.type === 'evaluation_submission')
         .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
       const typeBadge = (evaluatorType) => {
@@ -20824,7 +20838,7 @@ const supabaseDataSdk = {
       ` : submissions.map((sub, idx) => {
         let ratings = [];
         ratings = _parseRatings(sub.ratings_json);
-        const rawValues = ratings.map(r => levelValueMap[r.level_id]).filter(v => v !== undefined);
+        const rawValues = ratings.map(r => levelValueMap[String(r.level_id)]).filter(v => v !== undefined);
         const rawAvg = rawValues.length > 0 ? rawValues.reduce((a, b) => a + b, 0) / rawValues.length : null;
         const avgPercent = (rawAvg !== null && maxLevelValue > 0) ? (rawAvg / maxLevelValue) * 100 : null;
         const dateStr = sub.updated_at || sub.created_at;
@@ -21037,7 +21051,7 @@ const supabaseDataSdk = {
         existingRatings = _parseRatings(existingSubmission.ratings_json);
       }
       const getExistingLevel = (topicId) => {
-        const r = existingRatings.find(x => x.topic_id === topicId);
+        const r = existingRatings.find(x => String(x.topic_id) === String(topicId));
         return r ? r.level_id : null;
       };
       return topics.map((topic, idx) => `
@@ -24051,8 +24065,8 @@ const supabaseDataSdk = {
 
     var levels = (allData||[]).filter(d=>d.type==='evaluation_level');
     var levelValueMap = {};
-    levels.forEach(l => { levelValueMap[l.__backendId] = l.percent_value; });
-    var maxLevel = levels.length > 0 ? Math.max(...levels.map(l=>l.percent_value||0)) : 0;
+    levels.forEach(l => { levelValueMap[String(l.__backendId)] = parseFloat(l.percent_value) || 0; });
+    var maxLevel = levels.length > 0 ? Math.max(...levels.map(l=>parseFloat(l.percent_value)||0)) : 0;
 
     var submissions = (allData||[]).filter(d=>d.type==='evaluation_submission')
       .sort((a,b) => new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at));
@@ -24068,7 +24082,7 @@ const supabaseDataSdk = {
       : submissions.map((sub,i) => {
           var ratings = [];
           try { ratings = JSON.parse(sub.ratings_json||'[]'); } catch(e) {}
-          var rawVals = ratings.map(r=>levelValueMap[r.level_id]).filter(v=>v!==undefined);
+          var rawVals = ratings.map(r=>levelValueMap[String(r.level_id)]).filter(v=>v!==undefined);
           var avg = rawVals.length > 0 ? rawVals.reduce((a,b)=>a+b,0)/rawVals.length : null;
           var pct = (avg!==null && maxLevel>0) ? ((avg/maxLevel)*100).toFixed(1)+'%' : '-';
           var dateStr = sub.updated_at||sub.created_at;
