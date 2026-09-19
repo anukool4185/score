@@ -956,7 +956,7 @@
     </div>
    </div>
    <div id="app-main" class="h-full overflow-auto flex flex-col hidden">
-    <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50">
+    <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50 sticky top-0 shadow-lg" style="flex-shrink:0">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-col">
        <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.93';
+    const APP_VERSION = 'SUPABASE-2026.09.08.95';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3463,6 +3463,26 @@ const supabaseDataSdk = {
         } catch (e) { console.log('[PhoneFix] ซ่อมเบอร์โทรไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
         allData = data;
         window.__dataReady = true;
+
+        // ⚠️ บั๊กที่พบและแก้แล้ว: เมนูผู้ช่วยแอดมินต้องรีเฟรชถึงจะขึ้น
+        // เพราะตอนล็อกอินข้อมูลอาจยังโหลดไม่เสร็จ ระบบจึงหาสถานะผู้ช่วยแอดมินไม่เจอ
+        // แก้โดยตรวจสอบใหม่ทุกครั้งที่ข้อมูลพร้อม แล้วสร้างเมนูใหม่ถ้าสถานะเปลี่ยน
+        try {
+          if (currentUser && currentUser.user_type === 'student' && !currentUser._subadminMode) {
+            const linked = allData.find(a => a.type === 'admin' && a.linked_student_id
+              && (String(a.linked_student_id) === String(currentUser.__backendId)
+                  || String(a.linked_student_id) === String(currentUser.student_id)));
+            // ⚠️ สำคัญ: เพิ่มสถานะได้อย่างเดียว ห้ามลบทิ้งเด็ดขาด
+            // เพราะถ้าข้อมูลโหลดมาไม่ครบชั่วคราว จะไปลบสถานะทิ้ง ทำให้เมนูหายไปเฉยๆ
+            // ปล่อยให้การยกเลิกสถานะเกิดจากการที่แอดมินกดยกเลิกจริงเท่านั้น (ต้องล็อกอินใหม่)
+            if (linked && !currentUser.linked_admin_id) {
+              currentUser.linked_admin_id = String(linked.__backendId);
+              localStorage.setItem('currentUser', JSON.stringify(currentUser));
+              console.log('[Menu] พบสถานะผู้ช่วยแอดมิน — เพิ่มเมนูให้');
+              if (typeof buildDesktopSidebar === 'function') buildDesktopSidebar();
+            }
+          }
+        } catch (e) { console.log('[Menu] ตรวจสถานะผู้ช่วยแอดมินไม่สำเร็จ:', e.message); }
         // 🔑 ตรวจสอบ "โทเค็นล็อกอินอัตโนมัติ" ก่อนเสมอ (ถ้ามีติดมากับลิงก์ ?alt=...) — ทำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก
         // ใช้เวลาที่นักเรียนกดปุ่ม "เข้าสอบ K" ผ่านแอปในตัว (เช่น LINE) แล้วระบบเปิดเบราว์เซอร์จริงให้อัตโนมัติ
         // จะได้ล็อกอินให้ทันที ไม่ต้องพิมพ์ username/password ซ้ำในเบราว์เซอร์ใหม่ (ปลอดภัย เพราะไม่เคยส่งรหัสผ่านจริงไปกับลิงก์เลย)
