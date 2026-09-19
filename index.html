@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.90';
+    const APP_VERSION = 'SUPABASE-2026.09.08.91';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14841,7 +14841,7 @@ const supabaseDataSdk = {
         const rawValuesForTopic = [];
         submissions.forEach(sub => {
           try {
-            const ratings = JSON.parse(sub.ratings_json || '[]');
+            const ratings = _parseRatings(sub.ratings_json);
             const r = ratings.find(x => x.topic_id === topic.__backendId);
             if (r && levelValueMap[r.level_id] !== undefined) {
               rawValuesForTopic.push(levelValueMap[r.level_id]);
@@ -20823,7 +20823,7 @@ const supabaseDataSdk = {
         <tr><td colspan="${colSpan}" class="text-center text-gray-400 py-8">ยังไม่มีผู้ประเมินการสอน</td></tr>
       ` : submissions.map((sub, idx) => {
         let ratings = [];
-        try { ratings = JSON.parse(sub.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
+        ratings = _parseRatings(sub.ratings_json);
         const rawValues = ratings.map(r => levelValueMap[r.level_id]).filter(v => v !== undefined);
         const rawAvg = rawValues.length > 0 ? rawValues.reduce((a, b) => a + b, 0) / rawValues.length : null;
         const avgPercent = (rawAvg !== null && maxLevelValue > 0) ? (rawAvg / maxLevelValue) * 100 : null;
@@ -21034,7 +21034,7 @@ const supabaseDataSdk = {
       }
       let existingRatings = [];
       if (existingSubmission) {
-        try { existingRatings = JSON.parse(existingSubmission.ratings_json || '[]'); } catch (e) { /* ข้อมูลเสีย */ }
+        existingRatings = _parseRatings(existingSubmission.ratings_json);
       }
       const getExistingLevel = (topicId) => {
         const r = existingRatings.find(x => x.topic_id === topicId);
@@ -21054,6 +21054,21 @@ const supabaseDataSdk = {
         </div>
       `).join('');
     }
+    /** 📊 อ่านข้อมูลคะแนนประเมิน — รองรับทั้งข้อความและข้อมูลพร้อมใช้
+     *  ⚠️ จำเป็นหลังย้ายมา Supabase เพราะฐานข้อมูลส่งกลับมาเป็นข้อมูลพร้อมใช้ (ไม่ใช่ข้อความ)
+     *  เดิมแกะซ้ำเสมอจึงล้มเหลว ทำให้วิเคราะห์ผลประเมินไม่ได้ */
+    function _parseRatings(src) {
+      if (!src) return [];
+      if (Array.isArray(src)) return src;
+      try {
+        const parsed = typeof src === 'string' ? JSON.parse(src) : src;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.log('[Evaluation] อ่านคะแนนประเมินไม่สำเร็จ');
+        return [];
+      }
+    }
+
     async function submitEvaluationForm(evaluatorType, evaluatorKey, evaluatorName, afterSuccessFn) {
       const topics = allData.filter(d => d.type === 'evaluation_topic');
       if (topics.length === 0) {
@@ -21069,7 +21084,7 @@ const supabaseDataSdk = {
         }
         ratings.push({ topic_id: topic.__backendId, level_id: selected.value });
       }
-      const existing = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === evaluatorType && d.evaluator_key === evaluatorKey);
+      const existing = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === evaluatorType && String(d.evaluator_key) === String(evaluatorKey));
       const record = existing ? {
         ...existing,
         ratings_json: JSON.stringify(ratings),
@@ -21538,7 +21553,7 @@ const supabaseDataSdk = {
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
-      const existingSubmission = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === 'student' && d.evaluator_key === student.student_id);
+      const existingSubmission = allData.find(d => d.type === 'evaluation_submission' && d.evaluator_type === 'student' && String(d.evaluator_key) === String(student.student_id));
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📝 ประเมินการสอน</h2>
