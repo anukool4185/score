@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.92';
+    const APP_VERSION = 'SUPABASE-2026.09.08.93';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14584,7 +14584,7 @@ const supabaseDataSdk = {
       }
     }
     async function deleteEvalTopic(topicId) {
-      const topic = allData.find(d => d.__backendId === topicId);
+      const topic = allData.find(d => String(d.__backendId) === String(topicId) && d.type === 'evaluation_topic');
       if (!topic) return;
       const result = await window.dataSdk.delete(topic);
       if (result.isOk) {
@@ -14596,7 +14596,7 @@ const supabaseDataSdk = {
       }
     }
     function editEvalTopicPopup(topicId) {
-      const topic = allData.find(d => d.__backendId === topicId);
+      const topic = allData.find(d => String(d.__backendId) === String(topicId) && d.type === 'evaluation_topic');
       if (!topic) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -14613,7 +14613,7 @@ const supabaseDataSdk = {
       document.body.appendChild(editDiv);
     }
     async function confirmEditEvalTopic(topicId) {
-      const topic = allData.find(d => d.__backendId === topicId);
+      const topic = allData.find(d => String(d.__backendId) === String(topicId) && d.type === 'evaluation_topic');
       if (!topic) return;
       const newText = document.getElementById('edit-eval-topic-text').value.trim();
       if (!newText) {
@@ -14695,7 +14695,7 @@ const supabaseDataSdk = {
       }
     }
     function editEvalLevelPopup(levelId) {
-      const level = allData.find(d => d.__backendId === levelId);
+      const level = allData.find(d => String(d.__backendId) === String(levelId) && d.type === 'evaluation_level');
       if (!level) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -14715,7 +14715,7 @@ const supabaseDataSdk = {
       document.body.appendChild(editDiv);
     }
     async function confirmEditEvalLevel(levelId) {
-      const level = allData.find(d => d.__backendId === levelId);
+      const level = allData.find(d => String(d.__backendId) === String(levelId) && d.type === 'evaluation_level');
       if (!level) return;
       const newLabel = document.getElementById('edit-eval-level-label').value.trim();
       const newPercent = parseFloat(document.getElementById('edit-eval-level-percent').value);
@@ -14774,10 +14774,14 @@ const supabaseDataSdk = {
       }
     }
     async function deleteEvaluatorOption(optionId) {
-      const option = allData.find(d => d.__backendId === optionId);
-      if (!option) return;
+      // ⚠️ บั๊กที่พบและแก้แล้ว: ไม่ระบุประเภท ทำให้เจอข้อมูลผิดตัวแล้วลบผิดตาราง
+      // (Supabase ให้แต่ละตารางมีรหัสของตัวเอง จึงมีรหัสซ้ำกันได้)
+      const option = allData.find(d => String(d.__backendId) === String(optionId) && d.type === 'evaluator_option');
+      if (!option) { showToast('ไม่พบรายชื่อนี้ กรุณาโหลดหน้าใหม่', 'error'); return; }
       const result = await window.dataSdk.delete(option);
       if (result.isOk) {
+        // 🔄 เอาออกจากหน้าจอทันที ไม่ต้องรอโหลดใหม่
+        allData = allData.filter(d => !(String(d.__backendId) === String(optionId) && d.type === 'evaluator_option'));
         showToast('🗑️ ลบชื่อผู้ประเมินสำเร็จ');
         updateEvaluatorOptionsList();
       } else {
@@ -14785,8 +14789,8 @@ const supabaseDataSdk = {
       }
     }
     function editEvaluatorOptionPopup(optionId) {
-      const option = allData.find(d => d.__backendId === optionId);
-      if (!option) return;
+      const option = allData.find(d => String(d.__backendId) === String(optionId) && d.type === 'evaluator_option');
+      if (!option) { showToast('ไม่พบรายชื่อนี้ กรุณาโหลดหน้าใหม่', 'error'); return; }
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       editDiv.innerHTML = `
@@ -14802,7 +14806,7 @@ const supabaseDataSdk = {
       document.body.appendChild(editDiv);
     }
     async function confirmEditEvaluatorOption(optionId) {
-      const option = allData.find(d => d.__backendId === optionId);
+      const option = allData.find(d => String(d.__backendId) === String(optionId) && d.type === 'evaluator_option');
       if (!option) return;
       const newName = document.getElementById('edit-evaluator-option-name').value.trim();
       if (!newName) {
