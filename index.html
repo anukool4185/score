@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.89';
+    const APP_VERSION = 'SUPABASE-2026.09.08.90';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11860,8 +11860,27 @@ const supabaseDataSdk = {
 
       // 📋 ดูว่าแอดมินอนุมัติให้ใช้ข้อสอบชุดเดิม หรือสุ่มชุดใหม่
       const approvedReq = allData.filter(d => d.type === 'exam_retry_request'
-        && d.exam_set_id === examSetId && String(d.student_id) === String(currentUser.student_id) && d.status === 'approved')
+        && String(d.exam_set_id) === String(examSetId)
+        && String(d.student_id) === String(currentUser.student_id)
+        && d.status === 'approved')
         .sort((a,b) => new Date(b.reviewed_at||0) - new Date(a.reviewed_at||0))[0];
+
+      // ⏰ ตรวจสอบช่วงเวลาที่แอดมินอนุมัติให้เฉพาะคนนี้ (แยกจากเวลาสอบของชุดหลัก)
+      // สำคัญ: นักเรียนสอบแก้ตัวได้แม้ชุดสอบหลักปิดไปแล้ว ถ้าแอดมินกำหนดเวลาเฉพาะให้
+      if (approvedReq && approvedReq.approved_start_time && approvedReq.approved_end_time) {
+        const nowT = new Date();
+        const startT = new Date(approvedReq.approved_start_time);
+        const endT = new Date(approvedReq.approved_end_time);
+        const fmt = (d) => d.toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short', hour12: false });
+        if (nowT < startT) {
+          showToast(`⏳ ยังไม่ถึงเวลาสอบแก้ตัว จะเริ่มได้ ${fmt(startT)}`, 'error');
+          return;
+        }
+        if (nowT > endT) {
+          showToast(`⏰ หมดเวลาสอบแก้ตัวแล้ว (สิ้นสุด ${fmt(endT)}) กรุณาขออนุญาตใหม่`, 'error');
+          return;
+        }
+      }
       const useSameQuestions = !approvedReq || approvedReq.question_mode !== 'new'; // ค่าเริ่มต้นคือใช้ข้อสอบเดิม
       console.log('[RetryExam] ครั้งที่', usedRetries + 1, '| ข้อสอบ:', useSameQuestions ? 'ชุดเดิม' : 'สุ่มใหม่');
 
