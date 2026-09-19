@@ -2647,7 +2647,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.88';
+    const APP_VERSION = 'SUPABASE-2026.09.08.89';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3055,6 +3055,15 @@ SB_TYPE_TO_TABLE['task_message']        = 'notifications';
 //
 // 📝 ฟิลด์ที่ "ไม่อยู่ในรายการนี้" จะเป็นข้อความทั้งหมด ซึ่งถูกต้องแล้วสำหรับ
 //    รหัสนักเรียน ห้องเรียน เบอร์โทร ชื่อวิชา และคะแนนแบบคั่นจุลภาค ("5,8,10")
+// 🔗 รหัสที่ใช้เชื่อมโยงข้อมูลระหว่างตาราง — ต้องเป็นข้อความเสมอ
+// เพราะระบบทั้งหมด (กว่า 400 จุด) เทียบค่าแบบข้อความ ถ้าเป็นตัวเลขจะเชื่อมโยงไม่ติด
+const SB_ID_FIELDS = new Set([
+  'registration_id', 'exam_set_id', 'essay_exam_set_id', 'submission_id',
+  'class_subject_id', 'linked_student_id', 'student_backend_id',
+  'granted_by_alert_id', 'related_id', 'exam_id', 'to_subadmin_id',
+  'student_id', 'room_number',   // 2 ตัวนี้สำคัญมาก ห้ามเป็นตัวเลข ไม่งั้นเลข 0 นำหน้าหาย
+]);
+
 const SB_NUMERIC_FIELDS = new Set([
   // ── ชั่วโมงเรียนและหน่วยกิต (ใช้คำนวณการขาดเรียน) ──
   'credits', 'hours_per_week', 'weeks_taught', 'total_hours',
@@ -3225,6 +3234,14 @@ const supabaseDataSdk = {
       let v = row[k];
       if (v === null || v === undefined) return;
 
+      // 🔗 ฟิลด์รหัสเชื่อมโยงระหว่างตาราง — ต้องเป็น "ข้อความ" เสมอ
+      // ⚠️ สำคัญมาก: Supabase ส่งรหัสมาเป็นตัวเลข แต่ระบบทั้งหมดเทียบแบบข้อความ
+      // ถ้าไม่แปลง การเชื่อมโยงข้อมูลระหว่างตารางจะล้มเหลวทั้งระบบ
+      // (เวลาเรียน การบ้าน ผลการเรียน จะหาข้อมูลรายบุคคลไม่เจอ)
+      if (SB_ID_FIELDS.has(k)) {
+        obj[k] = String(v);
+        return;
+      }
       // 🔢 ฟิลด์ที่ต้องเป็น "ตัวเลข" เพราะระบบนำไปคำนวณโดยตรง (บวก ลบ .toFixed())
       // ถ้าเป็นข้อความจะเกิด error ทันที เช่น "hoursCanAbsent.toFixed is not a function"
       if (SB_NUMERIC_FIELDS.has(k)) {
@@ -3279,6 +3296,14 @@ const supabaseDataSdk = {
         return;
       }
       // 🔢 ฟิลด์ที่ฐานข้อมูลเก็บเป็นตัวเลข — แปลงจากข้อความให้เป็นตัวเลข ไม่งั้นบันทึกไม่ผ่าน
+      // 🔗 รหัสที่ฐานข้อมูลเก็บเป็นตัวเลข — ต้องแปลงกลับก่อนส่ง (ระบบใช้เป็นข้อความ)
+      const ID_NUM_FIELDS = ['registration_id', 'exam_set_id', 'essay_exam_set_id',
+        'submission_id', 'granted_by_alert_id', 'exam_id'];
+      if (ID_NUM_FIELDS.includes(k)) {
+        const n = parseInt(v);
+        out[k] = isNaN(n) ? null : n;
+        return;
+      }
       const NUM_FIELDS = ['auto_score', 'manual_score', 'total_score', 'k_score_contributed',
         'cheat_warning_count', 'k_round', 'random_count', 'applied_full_score_delta',
         'score_per_question', 'student_number', 'num_questions', 'credits', 'hours_per_week',
