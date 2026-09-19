@@ -955,8 +955,10 @@
      </div>
     </div>
    </div>
-   <div id="app-main" class="h-full overflow-auto flex flex-col hidden">
-    <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50 sticky top-0 shadow-lg" style="flex-shrink:0">
+   <!-- 📌 โครงสร้าง: แถบบนอยู่กับที่ (flex-shrink:0) ส่วนเนื้อหาด้านล่างเลื่อนได้เอง (overflow-y:auto)
+        วิธีนี้ดีกว่า sticky เพราะเนื้อหาไม่มีทางถูกแถบทับ และแถบไม่ขยับตามการเลื่อนแน่นอน -->
+   <div id="app-main" class="h-full flex flex-col hidden" style="overflow:hidden">
+    <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50 shadow-lg" style="flex-shrink:0">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-col">
        <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
@@ -2647,7 +2649,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.95';
+    const APP_VERSION = 'SUPABASE-2026.09.08.96';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
