@@ -2649,7 +2649,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.96';
+    const APP_VERSION = 'SUPABASE-2026.09.08.101';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3466,25 +3466,6 @@ const supabaseDataSdk = {
         allData = data;
         window.__dataReady = true;
 
-        // ⚠️ บั๊กที่พบและแก้แล้ว: เมนูผู้ช่วยแอดมินต้องรีเฟรชถึงจะขึ้น
-        // เพราะตอนล็อกอินข้อมูลอาจยังโหลดไม่เสร็จ ระบบจึงหาสถานะผู้ช่วยแอดมินไม่เจอ
-        // แก้โดยตรวจสอบใหม่ทุกครั้งที่ข้อมูลพร้อม แล้วสร้างเมนูใหม่ถ้าสถานะเปลี่ยน
-        try {
-          if (currentUser && currentUser.user_type === 'student' && !currentUser._subadminMode) {
-            const linked = allData.find(a => a.type === 'admin' && a.linked_student_id
-              && (String(a.linked_student_id) === String(currentUser.__backendId)
-                  || String(a.linked_student_id) === String(currentUser.student_id)));
-            // ⚠️ สำคัญ: เพิ่มสถานะได้อย่างเดียว ห้ามลบทิ้งเด็ดขาด
-            // เพราะถ้าข้อมูลโหลดมาไม่ครบชั่วคราว จะไปลบสถานะทิ้ง ทำให้เมนูหายไปเฉยๆ
-            // ปล่อยให้การยกเลิกสถานะเกิดจากการที่แอดมินกดยกเลิกจริงเท่านั้น (ต้องล็อกอินใหม่)
-            if (linked && !currentUser.linked_admin_id) {
-              currentUser.linked_admin_id = String(linked.__backendId);
-              localStorage.setItem('currentUser', JSON.stringify(currentUser));
-              console.log('[Menu] พบสถานะผู้ช่วยแอดมิน — เพิ่มเมนูให้');
-              if (typeof buildDesktopSidebar === 'function') buildDesktopSidebar();
-            }
-          }
-        } catch (e) { console.log('[Menu] ตรวจสถานะผู้ช่วยแอดมินไม่สำเร็จ:', e.message); }
         // 🔑 ตรวจสอบ "โทเค็นล็อกอินอัตโนมัติ" ก่อนเสมอ (ถ้ามีติดมากับลิงก์ ?alt=...) — ทำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก
         // ใช้เวลาที่นักเรียนกดปุ่ม "เข้าสอบ K" ผ่านแอปในตัว (เช่น LINE) แล้วระบบเปิดเบราว์เซอร์จริงให้อัตโนมัติ
         // จะได้ล็อกอินให้ทันที ไม่ต้องพิมพ์ username/password ซ้ำในเบราว์เซอร์ใหม่ (ปลอดภัย เพราะไม่เคยส่งรหัสผ่านจริงไปกับลิงก์เลย)
@@ -5644,9 +5625,13 @@ const supabaseDataSdk = {
       const configRecord = allData.find(d => d.type === 'menu_config' && d.role === role);
       if (!configRecord || !configRecord.items_json) return defaults;
       try {
-        const overrides = JSON.parse(configRecord.items_json); // [{id, icon, order}]
+        // ⚠️ บั๊กที่พบและแก้แล้ว: Supabase ส่ง items_json กลับมาเป็นข้อมูลพร้อมใช้ (ไม่ใช่ข้อความ)
+        // เดิมแกะซ้ำเสมอ ถ้าแกะไม่ได้หรือได้ผลผิดรูปแบบ เมนูจะหายไปเฉยๆ ระหว่างใช้งาน
+        const raw = configRecord.items_json;
+        const overrides = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(overrides) || overrides.length === 0) return defaults; // ข้อมูลผิดรูป ใช้ค่าเริ่มต้น
         const overrideMap = {};
-        overrides.forEach(o => { overrideMap[o.id] = o; });
+        overrides.forEach(o => { if (o && o.id) overrideMap[o.id] = o; });
         // ⚠️ บั๊กที่พบ: ไอเทมใหม่ที่เพิ่งเพิ่มเข้าโค้ด (ยังไม่เคยมีอยู่ตอนแอดมินบันทึกลำดับเมนูครั้งก่อน) จะไม่มี order ที่บันทึกไว้
         // เดิมให้ order = 999 ตายตัว ทำให้กระเด็นไปอยู่ท้ายสุด แยกออกจากกลุ่มเดิมของมันจนดูเหมือนมี 2 กลุ่มซ้อนกัน
         // แก้ให้ไอเทมใหม่ "แทรกต่อจากไอเทมก่อนหน้าที่มี order บันทึกไว้แล้ว" แทน จะได้อยู่ติดกลุ่มเดิมตามตำแหน่งที่ตั้งใจไว้ในโค้ด
@@ -5739,7 +5724,10 @@ const supabaseDataSdk = {
       const configRecord = allData.find(d => d.type === 'mobile_menu_config' && d.role === configRole);
       if (!configRecord || !configRecord.items_json) return defaults;
       try {
-        const overrides = JSON.parse(configRecord.items_json);
+        // ⚠️ รองรับทั้งข้อความและข้อมูลพร้อมใช้ (Supabase ส่งมาเป็นข้อมูลพร้อมใช้)
+        const _raw = configRecord.items_json;
+        const overrides = typeof _raw === 'string' ? JSON.parse(_raw) : _raw;
+        if (!Array.isArray(overrides) || overrides.length === 0) return defaults;
         const overrideMap = {};
         overrides.forEach(o => { overrideMap[o.id] = o; });
         // ⚠️ ใช้แก้แบบเดียวกับฝั่งเดสก์ท็อป: ไอเทมใหม่ที่ยังไม่มี order บันทึกไว้ ให้แทรกต่อจากไอเทมก่อนหน้าแทนกระเด็นไปท้ายสุด
@@ -8817,7 +8805,7 @@ const supabaseDataSdk = {
       let saved = 0;
       for (const item of selected) {
         if (!item.studentId || !item.score) continue;
-        const ex = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round));
+        const ex = allData.find(d => d.type === 'pending_score' && String(d.student_id) === String(item.studentId) && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round));
         if (!ex) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, source: 'manual', created_at: new Date().toISOString() });
         saved++;
       }
@@ -8868,19 +8856,31 @@ const supabaseDataSdk = {
         if (!student) {
           // ไม่พบในระบบ → pending (source: not_found)
           notFound.push({ studentId: item.studentId, score: item.score });
-          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_found');
+          const exists = allData.find(d => d.type === 'pending_score' && String(d.student_id) === String(item.studentId) && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_found');
           if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, score_mode: scoreMode, full_mode: fullMode, new_full_score: newFullScore, source: 'not_found', created_at: new Date().toISOString() });
         }
-        const reg = allData.find(r => r.type === 'student_registration' && r.student_id === item.studentId && r.subject_name === subjectName);
+        // ⚠️ เทียบแบบข้อความเสมอ กันชนิดข้อมูลไม่ตรงกันจนหาไม่เจอ (หลังย้ายมา Supabase)
+        const reg = allData.find(r => r.type === 'student_registration'
+          && String(r.student_id) === String(item.studentId)
+          && r.subject_name === subjectName);
         if (!reg) {
           // พบในระบบ แต่ไม่ลงทะเบียน → pending (source: not_registered)
           notReg.push({ studentId: item.studentId, studentName: `${student.prefix}${student.first_name} ${student.last_name}`, className: student.class_name, roomNumber: student.room_number, score: item.score });
-          const exists = allData.find(d => d.type === 'pending_score' && d.student_id === item.studentId && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_registered');
+          const exists = allData.find(d => d.type === 'pending_score' && String(d.student_id) === String(item.studentId) && d.subject_name === subjectName && d.exam_type === examType && String(d.score_round) === String(round) && d.source === 'not_registered');
           if (!exists) await window.dataSdk.create({ type: 'pending_score', student_id: item.studentId, subject_name: subjectName, exam_type: examType, score_round: round, raw_score: item.score, score_mode: scoreMode, full_mode: fullMode, new_full_score: newFullScore, source: 'not_registered', class_name: student.class_name, room_number: student.room_number, created_at: new Date().toISOString() });
           continue;
         }
         // พบและลงทะเบียนแล้ว → เขียนคะแนนด้วย merge mode
-        const grade = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
+        // 🔍 หาแถวคะแนนแบบมีทางสำรอง — ถ้าหาด้วยรหัสอ้างอิงไม่เจอ ให้หาด้วยรหัสนักเรียน+วิชา
+        // สำคัญมาก: ถ้าหาไม่เจอจะสร้างแถวใหม่ซ้ำ ทำให้คะแนนแยกคนละแถว ระบบคิดเกรดอ่านไม่ครบ
+        let grade = allData.find(g => g.type === 'grade' && String(g.registration_id) === String(reg.__backendId));
+        if (!grade) {
+          grade = allData.find(g => g.type === 'grade'
+            && String(g.student_id) === String(item.studentId)
+            && g.class_name === reg.class_name
+            && String(g.room_number) === String(reg.room_number)
+            && g.subject_name === subjectName);
+        }
         const oldScores = (grade?.[scoreField] || '').split(',');
         const oldScore = (oldScores[round - 1] || '').trim();
         let scoresArr = (grade?.[scoreField] || '').split(',').map(s => s.trim());
@@ -8987,7 +8987,7 @@ const supabaseDataSdk = {
         const pendings = allData.filter(d => d.type === 'pending_score');
         let fixed = 0;
         for (const p of pendings) {
-          const reg = allData.find(r => r.type === 'student_registration' && r.student_id === p.student_id && r.subject_name === p.subject_name);
+          const reg = allData.find(r => r.type === 'student_registration' && String(r.student_id) === String(p.student_id) && r.subject_name === p.subject_name);
           if (reg) {
             const ok = await applyPendingScore(p);
             if (ok) fixed++;
@@ -9000,7 +9000,7 @@ const supabaseDataSdk = {
         // เช็คเงียบๆ ว่ามีคะแนนสำรองที่ "ดูเหมือน" ควรจะเข้าได้แล้วแต่ชื่อวิชาไม่ตรงเป๊ะหรือไม่ (log ไว้ช่วยดีบัก ไม่รบกวนผู้ใช้)
         const stillPending = allData.filter(d => d.type === 'pending_score');
         stillPending.forEach(p => {
-          const sameStudentRegs = allData.filter(r => r.type === 'student_registration' && r.student_id === p.student_id);
+          const sameStudentRegs = allData.filter(r => r.type === 'student_registration' && String(r.student_id) === String(p.student_id));
           if (sameStudentRegs.length > 0 && !sameStudentRegs.some(r => r.subject_name === p.subject_name)) {
             console.warn(`⚠️ คะแนนสำรองค้าง: รหัส ${p.student_id} รอวิชา "${p.subject_name}" แต่ลงทะเบียนวิชา "${sameStudentRegs.map(r=>r.subject_name).join('", "')}" (ชื่อวิชาอาจไม่ตรงกัน)`);
           }
@@ -9054,7 +9054,7 @@ const supabaseDataSdk = {
       const modeLabelMap = { overwrite:'🔄 ทับ', max:'📈 มากกว่า', add:'➕ บวก' };
       tbody.innerHTML = list.map(p => {
         const student = allData.find(s => s.type === 'student' && s.student_id === p.student_id);
-        const reg = allData.find(r => r.type === 'student_registration' && r.student_id === p.student_id && r.subject_name === p.subject_name);
+        const reg = allData.find(r => r.type === 'student_registration' && String(r.student_id) === String(p.student_id) && r.subject_name === p.subject_name);
         const examLabel = p.exam_type === 'mid' ? 'กลางภาค' : p.exam_type === 'final' ? 'ปลายภาค' : 'K';
         const scoreMode = modeLabelMap[p.score_mode] || '🔄 ทับ';
         const fullMode = modeLabelMap[p.full_mode] ? `คะแนนเต็ม: ${modeLabelMap[p.full_mode]}` : '';
@@ -9105,9 +9105,12 @@ const supabaseDataSdk = {
     }
 
     async function applyPendingScore(pendingRecord) {
-      const reg = allData.find(r => r.type === 'student_registration' && r.student_id === pendingRecord.student_id && r.subject_name === pendingRecord.subject_name);
+      // ⚠️ เทียบแบบข้อความเสมอ กันชนิดข้อมูลไม่ตรงกันจนหาไม่เจอ (หลังย้ายมา Supabase)
+      const reg = allData.find(r => r.type === 'student_registration'
+        && String(r.student_id) === String(pendingRecord.student_id)
+        && r.subject_name === pendingRecord.subject_name);
       if (!reg) return false;
-      const studentForName = allData.find(s => s.type === 'student' && s.student_id === pendingRecord.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท (ไม่ต้องไปเปิดดูชีทอื่น)
+      const studentForName = allData.find(s => s.type === 'student' && String(s.student_id) === String(pendingRecord.student_id)); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท (ไม่ต้องไปเปิดดูชีทอื่น)
       const scoreField = pendingRecord.exam_type === 'mid' ? 'm_scores' : pendingRecord.exam_type === 'final' ? 'f_scores' : 'k_scores';
       const fullScoreField = pendingRecord.exam_type === 'mid' ? 'm_full_scores' : pendingRecord.exam_type === 'final' ? 'f_full_scores' : 'k_full_scores';
       const round = pendingRecord.score_round;
@@ -9135,7 +9138,15 @@ const supabaseDataSdk = {
         }
       }
       // อัปเดตคะแนนดิบ
-      const grade = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
+      // 🔍 หาแถวคะแนนแบบมีทางสำรอง กันสร้างแถวซ้ำ
+      let grade = allData.find(g => g.type === 'grade' && String(g.registration_id) === String(reg.__backendId));
+      if (!grade) {
+        grade = allData.find(g => g.type === 'grade'
+          && String(g.student_id) === String(reg.student_id)
+          && g.class_name === reg.class_name
+          && String(g.room_number) === String(reg.room_number)
+          && g.subject_name === reg.subject_name);
+      }
       let scoresArr = (grade?.[scoreField] || '').split(',').map(s => s.trim());
       while (scoresArr.length < round) scoresArr.push('');
       const existingVal = parseFloat(scoresArr[round-1]) || 0;
@@ -9166,7 +9177,7 @@ const supabaseDataSdk = {
       _reconcileRunning = true;
       try {
         // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ แล้วลบออก
-        const pendings = allData.filter(d => d.type === 'pending_score' && d.student_id === studentId && d.subject_name === subjectName);
+        const pendings = allData.filter(d => d.type === 'pending_score' && String(d.student_id) === String(studentId) && d.subject_name === subjectName);
         let applied = 0;
         for (const p of pendings) {
           const ok = await applyPendingScore(p);
@@ -11637,16 +11648,50 @@ const supabaseDataSdk = {
             btnHtml = `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาสอบ ${kLabel}</span>`;
           }
         } else if (submission.status === 'submitted') {
+          // ════════════════════════════════════════════════════
+          // ✅ สอบเสร็จแล้ว — ปุ่มเปลี่ยนตามสิทธิ์สอบแก้ตัวที่เหลือ
+          // ════════════════════════════════════════════════════
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          // 📸 ปุ่มบันทึกผลสอบเป็นภาพ — นักเรียนเก็บไว้เป็นหลักฐานในโทรศัพท์ได้
-          // แสดงเฉพาะเมื่อตรวจเสร็จแล้ว (มีคะแนนจริง) ไม่งั้นบันทึกไปก็ไม่มีประโยชน์
           const hasScore = scoreText !== '-' && scoreText !== null && scoreText !== undefined;
-          const saveBtn = hasScore
-            ? ` <button onclick="saveExamResultAsImage('${submission.__backendId}')" style="${btnBase};background:#0ea5e9;color:white" class="btn-3d">📸 บันทึกผลสอบ</button>`
+
+          // 👁️ ปุ่มดูคะแนนสอบครั้งนี้ (คะแนนโอนเข้าระบบอัตโนมัติแล้ว ปุ่มนี้แค่ดูและดาวน์โหลด)
+          const viewBtn = hasScore
+            ? ` <button onclick="showExamResultDetail('${submission.__backendId}')" style="${btnBase};background:#0ea5e9;color:white" class="btn-3d">👁️ ดูคะแนนสอบ</button>`
             : '';
-          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel} (${scoreText}/${examSet.total_score})</span>${saveBtn}`;
-          // 🔄 ปรับตามที่ขอ: ถ้ายังอยู่ในเวลาสอบ ให้ขอแก้ไขคำตอบได้จนหมดเวลา (เดิมชื่อ "ขอสอบแก้ตัว") — พอหมดเวลาสอบ ปุ่มนี้หายไปเลย ไม่มีทางขอแก้ไขได้อีก
-          btnHtml = isOpen ? `${scoreLabel} ` + renderRetryRequestButton(examSet, submission, kLabel) : scoreLabel;
+
+          const usedRetries = parseInt(submission.retry_count) || 0;
+          const retriesLeft = 2 - usedRetries;
+          const attemptLabel = usedRetries > 0 ? ` (แก้ตัวครั้งที่ ${usedRetries})` : '';
+          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel}${attemptLabel} (${scoreText}/${examSet.total_score})</span>${viewBtn}`;
+
+          if (retriesLeft <= 0) {
+            // ใช้สิทธิ์ครบแล้ว — ไม่มีปุ่มสอบและปุ่มขอสอบแก้ตัวอีก
+            btnHtml = scoreLabel;
+          } else {
+            // 🔍 ดูว่ามีคำขอที่แอดมินอนุมัติแล้วและยังอยู่ในเวลาหรือไม่
+            const approvedRetry = allData.filter(d => d.type === 'exam_retry_request'
+              && String(d.exam_set_id) === String(examSet.__backendId)
+              && String(d.student_id) === String(currentUser.student_id)
+              && d.status === 'approved')
+              .sort((a,b) => new Date(b.reviewed_at||0) - new Date(a.reviewed_at||0))[0];
+
+            let retryWindowOpen = false;
+            if (approvedRetry) {
+              const nowT = new Date();
+              const sT = approvedRetry.approved_start_time ? new Date(approvedRetry.approved_start_time) : null;
+              const eT = approvedRetry.approved_end_time ? new Date(approvedRetry.approved_end_time) : null;
+              // ถ้าไม่ได้กำหนดเวลา ให้ถือว่าเปิดให้สอบได้เลย
+              retryWindowOpen = (!sT || nowT >= sT) && (!eT || nowT <= eT);
+            }
+
+            if (retryWindowOpen) {
+              // 🟢 แอดมินอนุมัติแล้วและอยู่ในเวลา → แสดงปุ่มสอบแก้ตัวสีเขียว (ปุ่มขอสอบแก้ตัวหายไป)
+              btnHtml = `${scoreLabel} <button onclick="startRetryExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 สอบแก้ตัวครั้งที่ ${usedRetries + 1}</button>`;
+            } else {
+              // ⏳ ยังไม่อนุมัติ หรือยังไม่ถึงเวลา → แสดงปุ่มขอสอบแก้ตัว
+              btnHtml = `${scoreLabel} ` + renderRetryRequestButton(examSet, submission, kLabel);
+            }
+          }
         } else if (submission.status === 'terminated') {
           const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
           btnHtml = `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${kLabel} (${scoreText}/${examSet.total_score})</span> ` + renderRetryRequestButton(examSet, submission, kLabel);
@@ -11656,6 +11701,58 @@ const supabaseDataSdk = {
     }
 
     // ปุ่มขออนุญาต/สถานะคำขอสอบแก้ — ครอบคลุมทั้ง exam_retry_request (นักเรียนขอเอง) และ exam_retry_permission (แอดมินอนุมัติจาก popup แจ้งเตือน)
+    /** 👁️ แสดงรายละเอียดคะแนนสอบครั้งนี้ พร้อมปุ่มดาวน์โหลดเป็นภาพ
+     *  ⚠️ แสดงเฉพาะการสอบครั้งปัจจุบันเท่านั้น (ครั้งก่อนถูกรวมเข้าคะแนนหลักไปแล้ว ดูไม่ได้) */
+    function showExamResultDetail(submissionId) {
+      const sub = allData.find(d => String(d.__backendId) === String(submissionId) && d.type === 'exam_submission');
+      if (!sub) { showToast('ไม่พบข้อมูลผลสอบ', 'error'); return; }
+      const examSet = allData.find(d => String(d.__backendId) === String(sub.exam_set_id) && d.type === 'exam_set');
+      if (!examSet) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
+
+      const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '')
+        ? sub.manual_score : (sub.auto_score ?? 0);
+      const full = examSet.total_score || 0;
+      const percent = full > 0 ? Math.round((parseFloat(score) / parseFloat(full)) * 100) : 0;
+      const scoreType = (examSet.score_type === 'c' ? 'C' : 'K');
+      const usedRetries = parseInt(sub.retry_count) || 0;
+      const attemptText = usedRetries > 0 ? `สอบแก้ตัวครั้งที่ ${usedRetries}` : 'สอบปกติ';
+      const stuName = sub.student_name || `${currentUser?.prefix||''}${currentUser?.first_name||''} ${currentUser?.last_name||''}`;
+      const pad = n => String(n).padStart(2, '0');
+      const subAt = sub.submitted_at ? new Date(sub.submitted_at) : null;
+      const timeText = subAt ? `${pad(subAt.getDate())}/${pad(subAt.getMonth()+1)}/${subAt.getFullYear()} ${pad(subAt.getHours())}:${pad(subAt.getMinutes())} น.` : '-';
+      const color = percent >= 80 ? '#16a34a' : (percent >= 50 ? '#f59e0b' : '#dc2626');
+      const bgColor = percent >= 80 ? '#dcfce7' : (percent >= 50 ? '#fef3c7' : '#fee2e2');
+
+      document.getElementById('exam-result-detail')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'exam-result-detail';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999997;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:16px';
+      wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+      wrap.innerHTML = `
+        <div style="background:white;border-radius:18px;max-width:380px;width:100%;padding:22px;text-align:center;max-height:90vh;overflow-y:auto">
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 4px">📊 คะแนนสอบครั้งนี้</p>
+          <p style="font-size:11px;color:#94a3b8;margin:0 0 14px">คะแนนถูกบันทึกเข้าระบบเรียบร้อยแล้ว</p>
+
+          <div style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:14px;text-align:left">
+            <p style="font-size:13px;font-weight:600;color:#1e293b;margin:0 0 6px">${escHtml(stuName.trim())}</p>
+            <p style="font-size:11px;color:#64748b;margin:0 0 3px">🆔 ${escHtml(String(sub.student_id||'-'))} · ${escHtml(sub.class_name||'')}/${escHtml(String(sub.room_number||''))}</p>
+            <p style="font-size:11px;color:#64748b;margin:0 0 3px">📚 ${escHtml(sub.subject_name||'-')}</p>
+            <p style="font-size:11px;color:#64748b;margin:0 0 3px">📝 ${scoreType} ครั้งที่ ${examSet.k_round} · <b style="color:${usedRetries > 0 ? '#16a34a' : '#7c3aed'}">${attemptText}</b></p>
+            <p style="font-size:11px;color:#64748b;margin:0">🕐 ส่งเมื่อ ${timeText}</p>
+          </div>
+
+          <div style="width:130px;height:130px;margin:0 auto 12px;border-radius:50%;background:${bgColor};border:8px solid ${color};display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <p style="font-size:34px;font-weight:700;color:${color};margin:0;line-height:1">${score}</p>
+            <p style="font-size:12px;color:${color};margin:2px 0 0">เต็ม ${full}</p>
+          </div>
+          <p style="font-size:20px;font-weight:700;color:${color};margin:0 0 16px">${percent}%</p>
+
+          <button onclick="saveExamResultAsImage('${sub.__backendId}')" style="width:100%;padding:12px;background:#0ea5e9;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px" class="btn-3d">📸 ดาวน์โหลดเป็นภาพ</button>
+          <button onclick="document.getElementById('exam-result-detail')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-size:13px;cursor:pointer">ปิด</button>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
     /** 📸 สร้างภาพผลการสอบให้นักเรียนบันทึกเก็บไว้ในโทรศัพท์
      *  วาดด้วย canvas เอง ไม่ต้องพึ่งไลบรารีภายนอก จึงเร็วและใช้ได้ทุกเครื่อง */
     function saveExamResultAsImage(submissionId) {
@@ -11718,15 +11815,17 @@ const supabaseDataSdk = {
       const subjName = sub.subject_name || '-';
       ctx.fillText(subjName.length > 28 ? subjName.slice(0, 28) + '…' : subjName, W/2, by + 250);
 
-      // ป้ายครั้งที่สอบ
-      ctx.fillStyle = '#dbeafe';
-      const tagW = 260, tagX = (W - tagW) / 2, tagY = by + 275;
+      // ป้ายครั้งที่สอบ พร้อมบอกว่าเป็นสอบปกติหรือสอบแก้ตัว (ตามที่ผู้ใช้ต้องการ)
+      const _usedRetries = parseInt(sub.retry_count) || 0;
+      const _attemptText = _usedRetries > 0 ? `สอบแก้ตัวครั้งที่ ${_usedRetries}` : 'สอบปกติ';
+      ctx.fillStyle = _usedRetries > 0 ? '#dcfce7' : '#dbeafe';
+      const tagW = 340, tagX = (W - tagW) / 2, tagY = by + 275;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(tagX, tagY, tagW, 46, 23); else ctx.rect(tagX, tagY, tagW, 46);
       ctx.fill();
-      ctx.fillStyle = '#1d4ed8';
-      ctx.font = 'bold 22px "Sarabun", sans-serif';
-      ctx.fillText(`${scoreType} ครั้งที่ ${examSet.k_round}`, W/2, tagY + 31);
+      ctx.fillStyle = _usedRetries > 0 ? '#15803d' : '#1d4ed8';
+      ctx.font = 'bold 21px "Sarabun", sans-serif';
+      ctx.fillText(`${scoreType} ครั้งที่ ${examSet.k_round} · ${_attemptText}`, W/2, tagY + 31);
 
       // วงกลมคะแนน
       const cx = W/2, cy = by + 450, r = 110;
@@ -11763,7 +11862,9 @@ const supabaseDataSdk = {
       // บันทึกเป็นไฟล์ภาพ
       cv.toBlob(blob => {
         if (!blob) { showToast('สร้างภาพไม่สำเร็จ', 'error'); return; }
-        const fileName = `ผลสอบ_${subjName}_${scoreType}${examSet.k_round}_${sub.student_id}.png`.replace(/[\/\\:*?"<>|]/g, '_');
+        const _rt = parseInt(sub.retry_count) || 0;
+        const _suffix = _rt > 0 ? `_แก้ตัว${_rt}` : '';
+        const fileName = `ผลสอบ_${subjName}_${scoreType}${examSet.k_round}${_suffix}_${sub.student_id}.png`.replace(/[\/\\:*?"<>|]/g, '_');
         // มือถือรุ่นใหม่: ใช้ระบบแชร์ของเครื่อง (บันทึกลงคลังภาพได้เลย)
         const file = new File([blob], fileName, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -11820,8 +11921,9 @@ const supabaseDataSdk = {
           return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาแก้ไขคำตอบ ${kLabel}</span>`;
         }
       }
-      // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต (บอกจำนวนครั้งที่เหลือให้ชัดเจน)
-      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ขอสอบแก้ตัว ${kLabel} <span style="font-size:10px;opacity:0.85">(เหลือ ${_retriesLeft} ครั้ง)</span></button>`;
+      // ยังไม่เคยขอ → เสนอปุ่มขออนุญาต (บอกว่าเป็นครั้งที่เท่าไร ตามที่ผู้ใช้ต้องการ)
+      const nextRetryNo = _usedRetries + 1;
+      return `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ขอสอบแก้ตัวครั้งที่ ${nextRetryNo}</button>`;
     }
 
     function openRetryRequestForm(examSetId, submissionId) {
@@ -23524,7 +23626,10 @@ const supabaseDataSdk = {
     var configRecord = (allData || []).find(function(d) { return d.type === 'tray_menu_config' && d.tray_key === trayKey; });
     if (!configRecord || !configRecord.items_json) return defaults;
     try {
-      var overrides = JSON.parse(configRecord.items_json);
+      // ⚠️ รองรับทั้งข้อความและข้อมูลพร้อมใช้
+      var _raw2 = configRecord.items_json;
+      var overrides = typeof _raw2 === 'string' ? JSON.parse(_raw2) : _raw2;
+      if (!Array.isArray(overrides) || overrides.length === 0) return defaults;
       var overrideMap = {};
       overrides.forEach(function(o) { overrideMap[o.id] = o; });
       return defaults
