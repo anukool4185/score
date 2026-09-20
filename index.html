@@ -599,7 +599,9 @@
     })();
   </script>
  </head>
- <body class="h-full bg-gray-100 overflow-auto">
+ <!-- 📌 เอาสกรอลบาร์ชั้นนอกออก (overflow-hidden) เหลือแต่สกรอลบาร์ด้านในของเนื้อหา
+      เดิมมี 2 ชั้นซ้อนกัน ทำให้เลื่อนแล้วสับสน -->
+ <body class="h-full bg-gray-100 overflow-hidden">
   <script>
   (function() {
     function applyMobile() {
@@ -2653,7 +2655,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.103';
+    const APP_VERSION = 'SUPABASE-2026.09.08.104';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
