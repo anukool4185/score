@@ -85,6 +85,8 @@
       /* ── ป้องกันหน้ากว้างเกิน ── */
       html,
           body { overflow-x: hidden !important; max-width: 100vw; }
+      /* 📌 บังคับให้ hidden ทำงาน แม้จะมี style inline กำหนดความสูงไว้ */
+      #app-main.hidden { display: none !important; }
       /* 🖱️ สกรอลบาร์ฝั่งคอม — ทำให้เห็นชัดและใช้งานง่าย (มือถือใช้ปัดนิ้วอยู่แล้ว) */
       body:not(.is-mobile) #app-main::-webkit-scrollbar { width: 12px; }
       body:not(.is-mobile) #app-main::-webkit-scrollbar-track { background: #e2e8f0; }
@@ -966,7 +968,7 @@
         วิธีนี้ดีกว่า sticky เพราะเนื้อหาไม่มีทางถูกแถบทับ และแถบไม่ขยับตามการเลื่อนแน่นอน -->
    <!-- 📌 โครงสร้าง: แถบสีฟ้าลอยติดด้านบนเสมอ (sticky) เนื้อหาเลื่อนผ่านใต้ได้
         เมนูด้านข้างวางต่อจากแถบสีฟ้าพอดี และเลื่อนไปพร้อมหน้าเพจ -->
-   <div id="app-main" class="h-full overflow-y-auto hidden" style="position:relative">
+   <div id="app-main" class="hidden" style="position:relative;height:100vh;overflow-y:scroll;overflow-x:hidden">
     <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50 shadow-lg sticky top-0">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-col">
@@ -2660,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.107';
+    const APP_VERSION = 'SUPABASE-2026.09.08.108';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
