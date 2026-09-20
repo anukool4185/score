@@ -2655,7 +2655,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.104';
+    const APP_VERSION = 'SUPABASE-2026.09.08.105';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5795,9 +5795,24 @@ const supabaseDataSdk = {
       if (!document.body.classList.contains('is-mobile')) {
         const topNav = document.getElementById('desktop-top-nav');
         if (topNav) sidebar.style.top = topNav.offsetHeight + 'px';
-        sidebar.style.minHeight = 'auto';   // ให้สูงตามเนื้อหา เห็นเมนูครบทุกอัน
+        sidebar.style.minHeight = 'auto';
+
+        setTimeout(_syncPageMinHeight, 50);
       }
     }
+    /** 📏 ดันความสูงหน้าเนื้อหาให้ยาวพอที่จะเลื่อนเห็นเมนูด้านซ้ายครบทุกอัน
+     *  ⚠️ จำเป็นเพราะเมนูใช้ absolute จึงไม่นับเป็นความสูงของพื้นที่เลื่อน
+     *  ถ้าไม่ดัน จะเลื่อนไม่สุด มองไม่เห็นเมนูอันล่างๆ */
+    function _syncPageMinHeight() {
+      if (document.body.classList.contains('is-mobile')) return;
+      const sidebar = document.getElementById('desktop-sidebar');
+      const topNav = document.getElementById('desktop-top-nav');
+      const activePage = document.querySelector('#app-main .page:not(.hidden)');
+      if (!sidebar || sidebar.classList.contains('hidden') || !activePage) return;
+      const needed = (topNav ? topNav.offsetHeight : 0) + sidebar.offsetHeight + 24;
+      activePage.style.minHeight = needed + 'px';
+    }
+
     window.addEventListener('resize', () => { if (typeof buildDesktopSidebar === 'function' && currentUser) buildDesktopSidebar(); });
 
     /** 🗑️ ปิดหน้าต่างลอยทั้งหมด — แต่ไม่แตะเมนูและส่วนประกอบถาวรของระบบ
@@ -15091,6 +15106,7 @@ const supabaseDataSdk = {
       container.innerHTML = renderEvalSummaryHtml(140);
     }
     function showAdminTab(tabName) {
+      setTimeout(_syncPageMinHeight, 80); // 📏 ปรับความสูงให้เลื่อนเห็นเมนูครบหลังเปลี่ยนหน้า
       _currentAdminTab = tabName;
       if (document.body.classList.contains('is-mobile') && typeof mBuildNav === 'function') {
         mBuildNav();
