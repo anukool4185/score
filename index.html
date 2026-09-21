@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.112';
+    const APP_VERSION = 'SUPABASE-2026.09.08.113';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -24244,7 +24244,9 @@ const supabaseDataSdk = {
   function mRenderMyGrades() {
     var c = document.getElementById('m-content');
     var _sid2 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
-    var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2));
+    // 🔒 แสดงเฉพาะวิชาที่ลงทะเบียนแล้ว — คะแนนที่ครูกรอกเก็บรอไว้ (ยังไม่ลงทะเบียน) นักเรียนยังดูไม่ได้
+    var _myRegSubjects = new Set((allData||[]).filter(r=>r.type==='student_registration'&&String(r.student_id)===String(_sid2)).map(r=>r.subject_name));
+    var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2)&&_myRegSubjects.has(d.subject_name));
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
       ${grades.length ? grades.map(g=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
