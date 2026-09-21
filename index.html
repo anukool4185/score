@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.122';
+    const APP_VERSION = 'SUPABASE-2026.09.08.123';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3553,24 +3553,8 @@ const supabaseDataSdk = {
             }
           }
         }
-        // 📨 คำขอสอบแก้ตัว: อัปเดตหน้ารายการสด + เด้งแจ้งแอดมินเมื่อมีคำขอใหม่ (ไม่ต้องกดรีเฟรชเอง)
-        // เทียบรายการที่รออนุมัติก่อน ถ้าไม่เปลี่ยนไม่ต้องวาดใหม่ (กันหน้ากระพริบทุก 3 วินาที)
-        if (currentUser && currentUser.user_type === 'admin') {
-          const pendingRetryIds = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending')
-            .map(d => String(d.__backendId)).sort().join(',');
-          if (window._lastRetryPendingIds !== undefined && pendingRetryIds !== window._lastRetryPendingIds) {
-            const before = new Set((window._lastRetryPendingIds || '').split(',').filter(Boolean));
-            const newCount = pendingRetryIds.split(',').filter(id => id && !before.has(id)).length;
-            if (newCount > 0 && typeof showToast === 'function') showToast(`📨 มีคำขอสอบแก้ตัวใหม่ ${newCount} รายการ`);
-            const retryTabEl = document.getElementById('admin-tab-retryrequest');
-            // ถ้าแอดมินกำลังเปิดหน้าต่างอนุมัติอยู่ ไม่วาดใหม่ กันค่าที่กรอกไว้หาย
-            if (retryTabEl && !retryTabEl.classList.contains('hidden') && !document.getElementById('approve-retry-panel')
-                && typeof renderRetryRequestsList === 'function') {
-              renderRetryRequestsList();
-            }
-          }
-          window._lastRetryPendingIds = pendingRetryIds;
-        }
+        // 🔄 อัปเดตปุ่ม/รายการที่เปลี่ยนสถานะทุกหน้าที่เปิดอยู่ (ระบบกลาง ดู _LIVE_VIEWS)
+        try { if (typeof _runLiveViews === 'function') _runLiveViews(); } catch (e) { console.log('[LiveView]', e.message); }
         // 📝 ฝั่งนักเรียน: ถ้ากำลังถูก freeze อยู่ ให้เช็คว่าแอดมินตัดสินใจแล้วหรือยัง ตอบสนองอัตโนมัติทันที ไม่ต้องรีเฟรช
         if (typeof checkExamLiveStatus === 'function' && (document.getElementById('exam-freeze-overlay') || _examAntiCheatActive)) {
           checkExamLiveStatus();
@@ -3687,26 +3671,6 @@ const supabaseDataSdk = {
           updateLoginPageRegistrations();
         }
         
-        // 🔘 อัปเดตปุ่มสอบของนักเรียนแบบสด — แอดมินอนุมัติ/ไม่อนุมัติ/เปิดชุดสอบใหม่ ปุ่มเปลี่ยนเองไม่ต้องรีเฟรช
-        // วาดใหม่เฉพาะเมื่อข้อมูลที่เกี่ยวกับปุ่มสอบของคนนี้เปลี่ยนจริง และไม่วาดทับตอนกำลังทำข้อสอบ/เปิดหน้าต่างอยู่
-        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'grades'
-            && document.getElementById('student-content')) {
-          const sid = String(currentUser.student_id);
-          const sig = allData.filter(d =>
-              (d.type === 'exam_set') ||
-              ((d.type === 'exam_submission' || d.type === 'exam_retry_request' || d.type === 'exam_retry_permission' || d.type === 'grade') && String(d.student_id) === sid))
-            .map(d => [d.type, d.__backendId, d.status, d.retry_count, d.auto_score, d.manual_score, d.start_time, d.end_time,
-                       d.approved_start_time, d.approved_end_time, d.allowed, d.submitted_at, d.k_scores, d.c_scores].join('|'))
-            .sort().join('#');
-          const busy = document.getElementById('exam-taking-overlay') || document.getElementById('retry-request-panel')
-            || document.getElementById('exam-result-detail') || document.getElementById('unreg-scores-popup')
-            || document.getElementById('exam-monitoring-gate');
-          if (window._lastStudentExamSig !== undefined && sig !== window._lastStudentExamSig && !busy
-              && typeof showStudentGrades === 'function') {
-            showStudentGrades(true);
-          }
-          if (!busy) window._lastStudentExamSig = sig;
-        }
         // อัปเดตหน้านักเรียนแบบสด ถ้านักเรียนกำลังดูแท็บ "ลงทะเบียนเรียน" อยู่ตอนนั้น
         // (เช่น แอดมินแก้ไขชั้น/ห้องของนักเรียนคนนี้ ระบบจะตรวจสอบสิทธิ์ใหม่ทันที ไม่ต้องออกจากแท็บ)
         // เช็คก่อนว่าข้อมูลที่เกี่ยวกับสิทธิ์เปลี่ยนจริงหรือไม่ ถ้าไม่เปลี่ยนจะไม่ re-render
@@ -5968,7 +5932,96 @@ const supabaseDataSdk = {
     }
     /** ⬆️ เลื่อนหน้าขึ้นบนสุดทุกครั้งที่กดเมนู — ให้เห็นหัวข้อของหน้าที่เพิ่งเปิดเสมอ
      *  เลื่อนทุกกล่องที่อาจเป็นตัวเลื่อน (ฝั่งคอมเลื่อนที่ #app-main, มือถือเลื่อนที่หน้าเว็บ/กล่องเนื้อหา) */
+    // ════════════════════════════════════════════════════════════
+    // 🔄 ระบบอัปเดตปุ่มเปลี่ยนสถานะแบบสด (ไม่ต้องรีเฟรชหน้า)
+    // ════════════════════════════════════════════════════════════
+    // ทำงานทุกครั้งที่ข้อมูลเปลี่ยน — ทั้งตอนเราบันทึกเอง (ทันที) และตอนดึงข้อมูลใหม่ทุก 3 วินาที (จากเครื่องอื่น)
+    // แต่ละหน้า: วาดใหม่เฉพาะเมื่อข้อมูลที่เกี่ยวข้องเปลี่ยนจริง (ไม่กระพริบ)
+    //            ถ้ามีหน้าต่างเปิดอยู่ จะรอก่อน แล้ววาดทันทีที่ปิดหน้าต่าง (ค่าที่กรอกไม่หาย)
+    // ⚠️ ไม่รวมหน้ากรอกคะแนน/ลงเวลา เพราะวาดใหม่จะทำให้ตัวเลขที่พิมพ์ค้างไว้หาย
+    var _isShown = id => { const el = document.getElementById(id); return !!el && !el.classList.contains('hidden') && el.offsetParent !== null; };
+    var _sigOf = (rows, fields) => rows.map(d => fields.map(f => d[f] ?? '').join('|')).sort().join('#');
+    var _LIVE_VIEWS = [
+      { // 🔘 ปุ่มสอบของนักเรียน (เข้าสอบ → ขอสอบแก้ → รออนุมัติ → สอบแก้ → ...)
+        key: 'studentExam',
+        visible: () => currentUser?.user_type === 'student' && currentStudentTab === 'grades' && !!document.getElementById('student-content'),
+        sig: () => { const sid = String(currentUser.student_id);
+          return _sigOf(allData.filter(d => d.type === 'exam_set' ||
+            (['exam_submission','exam_retry_request','exam_retry_permission','grade','student_registration'].includes(d.type) && String(d.student_id) === sid)),
+            ['type','__backendId','status','retry_count','auto_score','manual_score','start_time','end_time','approved_start_time','approved_end_time','allowed','submitted_at','k_scores','c_scores','k_percent']); },
+        render: () => showStudentGrades(true),
+        busy: ['exam-taking-overlay','retry-request-panel','exam-result-detail','unreg-scores-popup','exam-monitoring-gate'],
+      },
+      { // 📨 รายการคำขอสอบแก้ตัว (แอดมิน)
+        key: 'adminRetry',
+        visible: () => currentUser?.user_type === 'admin' && _isShown('admin-tab-retryrequest'),
+        sig: () => _sigOf(allData.filter(d => d.type === 'exam_retry_request'), ['__backendId','status']),
+        render: () => renderRetryRequestsList(),
+        busy: ['approve-retry-panel'],
+      },
+      { // 📝 รายการชุดสอบ (ปุ่มรีเซ็ต/โอนคะแนนตกหล่น/จำนวนคนส่ง)
+        key: 'adminExamSets',
+        visible: () => _isShown('admin-tab-examassign'),
+        sig: () => _sigOf(allData.filter(d => d.type === 'exam_set' || d.type === 'exam_submission'),
+          ['type','__backendId','status','imported_to_grade','needs_manual_grading','total_score','start_time','end_time']),
+        render: () => renderExamSetList(),
+        busy: [],
+      },
+      { // ✍️ รายการชุดสอบอัตนัย
+        key: 'adminEssaySets',
+        visible: () => _isShown('admin-tab-essayassign'),
+        sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done']),
+        render: () => renderEssayExamSetList(),
+        busy: [],
+      },
+      { // 👥 รายชื่อนักเรียนของผู้ช่วยแอดมิน (ปุ่มขอลงทะเบียน → รออนุมัติ → อนุมัติแล้ว → ลงทะเบียนแล้ว)
+        key: 'subadminStudents',
+        visible: () => _isShown('subadmin-section-students'),
+        sig: () => _sigOf(allData.filter(d => ['registration_request','kpac_request','student_registration','student'].includes(d.type)),
+          ['type','__backendId','status','approved_date','student_id']),
+        render: () => renderSubAdminStudents(),
+        busy: [],
+      },
+    ];
+    window._liveSigs = window._liveSigs || {};
+    window._livePending = window._livePending || {};
+
+    function _runLiveViews() {
+      if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
+      // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
+      if (currentUser.user_type === 'admin') {
+        const ids = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending').map(d => String(d.__backendId)).sort().join(',');
+        if (window._lastRetryPendingIds !== undefined && ids !== window._lastRetryPendingIds) {
+          const before = new Set((window._lastRetryPendingIds || '').split(',').filter(Boolean));
+          const n = ids.split(',').filter(id => id && !before.has(id)).length;
+          if (n > 0) showToast(`📨 มีคำขอสอบแก้ตัวใหม่ ${n} รายการ`);
+        }
+        window._lastRetryPendingIds = ids;
+      }
+      for (const v of _LIVE_VIEWS) {
+        let vis = false;
+        try { vis = v.visible(); } catch (e) { vis = false; }
+        if (!vis) { delete window._liveSigs[v.key]; continue; }   // ไม่ได้เปิดหน้านี้ — เปิดครั้งหน้าจะวาดตามปกติอยู่แล้ว
+        let sig;
+        try { sig = v.sig(); } catch (e) { continue; }
+        const prev = window._liveSigs[v.key];
+        if (prev === undefined) { window._liveSigs[v.key] = sig; continue; }   // เพิ่งเปิดหน้า — จำค่าไว้ก่อน
+        if (sig === prev && !window._livePending[v.key]) continue;
+        if (v.busy.some(id => document.getElementById(id))) { window._livePending[v.key] = true; continue; }   // รอปิดหน้าต่างก่อน
+        try { v.render(); } catch (e) { console.log('[LiveView] วาดใหม่ไม่สำเร็จ:', v.key, e.message); }
+        window._liveSigs[v.key] = sig;
+        window._livePending[v.key] = false;
+      }
+    }
+
+    // 👀 ปิดหน้าต่างเมื่อไร วาดหน้าที่ค้างไว้ทันที (ไม่ต้องรอรอบดึงข้อมูลถัดไป)
+    new MutationObserver(muts => {
+      if (!Object.values(window._livePending || {}).some(Boolean)) return;
+      if (muts.some(m => m.removedNodes && m.removedNodes.length)) setTimeout(_runLiveViews, 0);
+    }).observe(document.body, { childList: true });
+
     function _scrollPageTop() {
+      window._liveSigs = {};   // เปลี่ยนหน้าแล้ว เริ่มจำสถานะใหม่
       const doScroll = () => {
         ['app-main', 'm-content', 'page-admin', 'page-home', 'page-student-management', 'page-subadmin', 'page-director-management']
           .forEach(id => { const el = document.getElementById(id); if (el) el.scrollTop = 0; });
