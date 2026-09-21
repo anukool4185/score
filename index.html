@@ -2660,7 +2660,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.125';
+    const APP_VERSION = 'SUPABASE-2026.09.08.126';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9822,16 +9822,33 @@ const supabaseDataSdk = {
         .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
           score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words }));
 
+      // ❓ ครั้งนี้มีคะแนนเต็มอยู่แล้ว (จากชุดสอบเดิม/กรอกมือ) → ถามเหมือนปรนัย: เพิ่มเป็นชุดใหม่ หรือชุดเดิม
+      const _editingSet = editId ? allData.find(d => String(d.__backendId) === String(editId) && d.type === 'essay_exam_set') : null;
+      let fullScoreMode = 'add';
+      if (_editingSet) {
+        fullScoreMode = _editingSet.full_score_mode === 'same' ? 'same' : 'add';   // แก้ไขชุดเดิม: คงโหมดเดิม
+      } else {
+        const _info = _getExistingRoundFullScore(cls, room, subj, kRound, scoreType, null);
+        if (_info.full > 0 || _info.sets.length > 0) {
+          const chosen = await _askFullScoreMode(_info, totalScore, kRound, scoreType);
+          if (!chosen) { showToast('ยกเลิกการตั้งชุดสอบ', 'info'); return; }
+          fullScoreMode = chosen;
+        }
+      }
+      const _newApplied = fullScoreMode === 'same' ? 0 : totalScore;
+      const _oldApplied = _editingSet ? (parseFloat(_editingSet.applied_full_score_delta) || 0) : 0;
+
       const btn = document.getElementById('esa-save-btn');
       await withButtonLock(btn, '⏳ กำลังบันทึก...', async () => {
         const payload = {
           type: 'essay_exam_set',
+          full_score_mode: fullScoreMode,   // 'add' บวกคะแนนเต็ม / 'same' ใช้คะแนนเต็มเดิม (เหมือนปรนัย)
           class_name: cls, room_number: room, subject_name: subj,
           k_round: parseInt(kRound), score_type: scoreType,
           question_ids: qIds.join(','),
           question_snapshot_json: JSON.stringify(snapshot),
           total_score: totalScore,
-          applied_full_score_delta: totalScore,
+          applied_full_score_delta: _newApplied,   // ส่วนที่สมทบคะแนนเต็มจริง (โหมดชุดเดิม = 0 ตอนลบจะได้ไม่หักคะแนนเต็มเดิม)
           start_time: new Date(startStr).toISOString(),
           end_time: new Date(endStr).toISOString(),
         };
@@ -9840,10 +9857,9 @@ const supabaseDataSdk = {
           : await window.dataSdk.create(payload);
         if (!result.isOk) { showToast('บันทึกไม่สำเร็จ: ' + (result.error?.message || ''), 'error'); return; }
 
-        // 📊 เพิ่มคะแนนเต็มเข้าระบบ (ใช้ระบบเดียวกับปรนัย)
-        if (!editId) {
-          await _applyExamFullScoreDelta(cls, room, subj, parseInt(kRound), totalScore, scoreType);
-        }
+        // 📊 ปรับคะแนนเต็มตามส่วนต่างจริง (ใช้ระบบเดียวกับปรนัย) — สร้างใหม่บวกเต็ม, แก้ไขปรับเฉพาะส่วนที่เปลี่ยน
+        const _delta = _newApplied - _oldApplied;
+        if (_delta) await _applyExamFullScoreDelta(cls, room, subj, parseInt(kRound), _delta, scoreType);
 
         // 👥 จองแถวให้นักเรียนที่เลือก
         if (!editId) {
@@ -9928,18 +9944,34 @@ const supabaseDataSdk = {
 
     /** ลบชุดสอบอัตนัย */
     async function deleteEssayExamSet(id) {
-      const s = allData.find(d => d.__backendId === id && d.type === 'essay_exam_set');
+      const s = allData.find(d => String(d.__backendId) === String(id) && d.type === 'essay_exam_set');
       if (!s) return;
-      const subs = allData.filter(d => d.type === 'essay_submission' && d.essay_exam_set_id === id);
+      const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(id));
       const withScore = subs.filter(d => d.manual_score !== undefined && d.manual_score !== null && d.manual_score !== '').length;
       let msg = `ยืนยันลบชุดสอบอัตนัย "${s.subject_name} ${(s.score_type||'k').toUpperCase()}.${s.k_round}"?`;
       if (withScore > 0) msg += `\n\n⚠️ มีนักเรียน ${withScore} คนที่ได้คะแนนแล้ว คะแนนจะถูกลบออกด้วย`;
       if (!confirm(msg)) return;
 
-      // คืนคะแนนเต็มที่เคยเพิ่มไว้
-      const delta = parseFloat(s.applied_full_score_delta) || parseFloat(s.total_score) || 0;
+      // คืนคะแนนเต็มเท่าที่ชุดนี้สมทบจริง (โหมดชุดเดิมสมทบ 0 — เดิมถอยไปใช้คะแนนเต็มทั้งชุด ทำให้หักคะแนนเต็มเกิน)
+      const _applied = parseFloat(s.applied_full_score_delta);
+      const delta = !isNaN(_applied) ? _applied : (parseFloat(s.total_score) || 0);
       if (delta > 0) {
         await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, parseInt(s.k_round) || 1, -delta, s.score_type);
+      }
+      // คืนคะแนนนักเรียนที่โอนเข้าช่องคะแนนไปแล้ว (หักเฉพาะส่วนที่ชุดนี้สมทบ คะแนนส่วนอื่นในช่องคงอยู่) — เหมือนปรนัย
+      const _sType = ['k', 'p', 'c'].includes(s.score_type) ? s.score_type : 'k';
+      const _round = parseInt(s.k_round) || 1;
+      for (const sub of subs) {
+        const contributed = parseFloat(sub.k_score_contributed) || 0;
+        if (!(sub.imported_to_grade === true || sub.imported_to_grade === 'true') || contributed <= 0) continue;
+        const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id,
+          class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
+        if (!g) continue;
+        const arr = String(g[_sType + '_scores'] || '').split(',').map(x => x.trim());
+        while (arr.length < _round) arr.push('');
+        const left = (parseFloat(arr[_round - 1]) || 0) - contributed;
+        arr[_round - 1] = left > 0 ? String(left) : '';
+        await window.dataSdk.update({ ...g, [_sType + '_scores']: arr.join(',') });
       }
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
@@ -10937,8 +10969,8 @@ const supabaseDataSdk = {
 
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType) {
       if (!delta) return;
-      // 📊 รองรับทั้ง K และ C (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบการเรียกใช้แบบเก่า)
-      const sType = (scoreType === 'c') ? 'c' : 'k';
+      // 📊 รองรับ K / P / C (อัตนัยเลือกเก็บที่ P ได้ — เดิมรองรับแค่ K/C ทำให้ P ไปบวกคะแนนเต็มผิดช่องเป็น K)
+      const sType = ['k', 'p', 'c'].includes(scoreType) ? scoreType : 'k';
       const fullScoreField = sType + '_full_scores';
       const fullScoreSingular = sType + '_full_score';
       // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
@@ -11000,23 +11032,24 @@ const supabaseDataSdk = {
 
     /** 📊 ดูว่าครั้งที่นี้มีคะแนนเต็มอยู่แล้วหรือยัง (จากชุดสอบเดิม หรือครูกรอกมือไว้) */
     function _getExistingRoundFullScore(className, roomNumber, subjectName, round, scoreType, excludeSetId) {
-      const sType = scoreType === 'c' ? 'c' : 'k';
+      const sType = ['k', 'p', 'c'].includes(scoreType) ? scoreType : 'k';
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const sc = allData.find(d => d.type === 'class_subject_scores'
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName))
         || allData.find(d => d.type === 'class_subject_scores' && norm(d.class_subject_id) === norm(`${className}_${roomNumber}_${subjectName}`));
       const arr = String(sc?.[sType + '_full_scores'] || '').split(',').map(s => s.trim());
       const full = parseFloat(arr[(parseInt(round) || 1) - 1]) || 0;
-      const sets = allData.filter(d => d.type === 'exam_set' && String(d.__backendId) !== String(excludeSetId || '')
+      // รวมทั้งชุดสอบปรนัยและอัตนัยในครั้งเดียวกัน (ใช้ช่องคะแนนเดียวกัน)
+      const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(excludeSetId || '')
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName)
-        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((d.score_type === 'c' ? 'c' : 'k') === sType));
+        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((['k','p','c'].includes(d.score_type) ? d.score_type : 'k') === sType));
       return { full, sets };
     }
 
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
-        const T = (scoreType === 'c' ? 'C' : 'K');
+        const T = String(['k','p','c'].includes(scoreType) ? scoreType : 'k').toUpperCase();
         document.getElementById('fullscore-mode-popup')?.remove();
         const wrap = document.createElement('div');
         wrap.id = 'fullscore-mode-popup';
@@ -13927,7 +13960,8 @@ const supabaseDataSdk = {
       // แต่นักเรียนบางคนไม่ได้ออกจริง แท็บเบราว์เซอร์ยังเปิดค้างพร้อมตัวจับเวลาเดิมทำงานต่อ พอหมดเวลา/กดส่ง จะยังคงเขียนคะแนนทับเข้าไปอีก
       // ทั้งที่ฝั่งแอดมินมองว่า "ยังไม่เคยมีใครสอบเลย" (เพราะลบ/รีเซ็ตไปแล้ว) ทำให้คะแนนเกินคะแนนเต็มโดยไม่ทราบสาเหตุ
       // แก้โดยเช็คก่อนเสมอว่า exam_set นี้ยังมีอยู่จริงในข้อมูลปัจจุบันหรือไม่ ถ้าถูกลบ/รีเซ็ตไปแล้ว ไม่เขียนคะแนนเลย
-      const examSetStillExists = allData.some(d => d.__backendId === examSet.__backendId && d.type === 'exam_set');
+      const _setType = examSet.type === 'essay_exam_set' ? 'essay_exam_set' : 'exam_set';   // ใช้ร่วมกันทั้งปรนัยและอัตนัย
+      const examSetStillExists = allData.some(d => String(d.__backendId) === String(examSet.__backendId) && d.type === _setType);
       if (!examSetStillExists) {
         console.error('[_writeExamScoreToKField Debug] ชุดสอบนี้ถูกลบ/รีเซ็ตไปแล้วโดยแอดมิน (อาจเป็นเซสชันเก่าที่นักเรียนไม่ได้ออกจากระบบตามที่แจ้ง) — ข้ามการเขียนคะแนนทิ้งเพื่อป้องกันคะแนนเกินคะแนนเต็ม', examSet.__backendId, submission.student_id);
         showToast('⚠️ ชุดข้อสอบนี้ถูกยกเลิกไปแล้ว คะแนนของคุณจะไม่ถูกบันทึกในรอบนี้ กรุณาติดต่อครูผู้สอน', 'error');
@@ -13947,8 +13981,8 @@ const supabaseDataSdk = {
         if (grade) console.log('[Score] หาแถวคะแนนด้วยรหัสอ้างอิงไม่เจอ แต่หาด้วยชื่อวิชาเจอ — ใช้แถวเดิม ไม่สร้างซ้ำ');
       }
       const round = parseInt(examSet.k_round) || 1;
-      // 📊 รองรับทั้ง K และ C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
-      const sType = (examSet.score_type === 'c') ? 'c' : 'k';
+      // 📊 รองรับ K / P / C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
+      const sType = ['k', 'p', 'c'].includes(examSet.score_type) ? examSet.score_type : 'k';
       const scoreField = sType + '_scores';           // k_scores หรือ c_scores
       const fullScoreField = sType + '_full_scores';  // k_full_scores หรือ c_full_scores
       const fullScoreSingular = sType + '_full_score';
@@ -13967,11 +14001,13 @@ const supabaseDataSdk = {
       let _replacedOthers = [];
       if (examSet.full_score_mode === 'same') {
         const _n = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
-        const _sameRoundSetIds = new Set(allData.filter(d => d.type === 'exam_set' && String(d.__backendId) !== String(examSet.__backendId)
+        // ชุดสอบอื่นในครั้งเดียวกัน — ทั้งปรนัยและอัตนัย (ใช้ช่องคะแนนเดียวกัน จึงแทนที่กันได้)
+        const _sameRoundSetIds = new Set(allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(examSet.__backendId)
             && _n(d.class_name) === _n(examSet.class_name) && _n(d.room_number) === _n(examSet.room_number)
             && _n(d.subject_name) === _n(examSet.subject_name) && String(parseInt(d.k_round) || 1) === String(round)
-            && ((d.score_type === 'c') ? 'c' : 'k') === sType).map(d => String(d.__backendId)));
-        _replacedOthers = allData.filter(d => d.type === 'exam_submission' && _sameRoundSetIds.has(String(d.exam_set_id))
+            && (['k','p','c'].includes(d.score_type) ? d.score_type : 'k') === sType).map(d => String(d.__backendId)));
+        _replacedOthers = allData.filter(d => (d.type === 'exam_submission' || d.type === 'essay_submission')
+          && _sameRoundSetIds.has(String(d.type === 'essay_submission' ? d.essay_exam_set_id : d.exam_set_id))
           && String(d.student_id) === String(submission.student_id) && String(d.__backendId) !== String(submission.__backendId)
           && (d.imported_to_grade === true || d.imported_to_grade === 'true') && (parseFloat(d.k_score_contributed) || 0) > 0);
       }
