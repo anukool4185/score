@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.115';
+    const APP_VERSION = 'SUPABASE-2026.09.08.116';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5839,6 +5839,10 @@ const supabaseDataSdk = {
     }
 
     window.addEventListener('resize', () => { if (typeof buildDesktopSidebar === 'function' && currentUser) buildDesktopSidebar(); });
+    // ⬆️ กดเมนูไหนในแถบด้านข้างก็ตาม ให้เลื่อนขึ้นบนสุด (ครอบคลุมเมนูที่เปิดหน้าด้วยฟังก์ชันอื่น)
+    document.addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('#desktop-sidebar .sb-btn, #m-bottom-nav button, .m-menu-item')) _scrollPageTop();
+    }, true);
 
     /** 🗑️ ปิดหน้าต่างลอยทั้งหมด — แต่ไม่แตะเมนูและส่วนประกอบถาวรของระบบ
      *  ⚠️ บั๊กที่พบและแก้แล้ว: เดิมใช้ querySelectorAll('.fixed') ลบทุกอย่างที่มี class fixed
@@ -5942,7 +5946,24 @@ const supabaseDataSdk = {
       
       console.log('✅ showLoggedInUI completed successfully');
     }
+    /** ⬆️ เลื่อนหน้าขึ้นบนสุดทุกครั้งที่กดเมนู — ให้เห็นหัวข้อของหน้าที่เพิ่งเปิดเสมอ
+     *  เลื่อนทุกกล่องที่อาจเป็นตัวเลื่อน (ฝั่งคอมเลื่อนที่ #app-main, มือถือเลื่อนที่หน้าเว็บ/กล่องเนื้อหา) */
+    function _scrollPageTop() {
+      const doScroll = () => {
+        ['app-main', 'm-content', 'page-admin', 'page-home', 'page-student-management', 'page-subadmin', 'page-director-management']
+          .forEach(id => { const el = document.getElementById(id); if (el) el.scrollTop = 0; });
+        document.querySelectorAll('#app-main .page:not(.hidden), .m-page:not(.hidden)').forEach(el => { el.scrollTop = 0; });
+        if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+        window.scrollTo(0, 0);
+      };
+      doScroll();
+      // เรียกซ้ำหลังหน้าวาดเสร็จ (บางหน้าวาดเนื้อหาช้ากว่า ทำให้ตำแหน่งเลื่อนเพี้ยน)
+      requestAnimationFrame(doScroll);
+      setTimeout(doScroll, 120);
+    }
+
     function goToHomePage() {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       showPage('home');
       if (!currentUser) return;
       if (currentUser.user_type === 'student') {
@@ -5954,6 +5975,7 @@ const supabaseDataSdk = {
       }
     }
     function goToStudentManagementPage() {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       if (!currentUser || currentUser.user_type !== 'student') return;
       showPage('student-management');
       showStudentTab('profile');
@@ -5964,11 +5986,13 @@ const supabaseDataSdk = {
       showDirectorMainPage();
     }
     function goToSubAdminPage() {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       if (!currentUser) return;
       showPage('subadmin');
       renderSubAdminPage();
     }
     function goToSubAdminPageFromStudent() {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       if (!currentUser || !currentUser.linked_admin_id) return;
       const adminRecord = allData.find(d => d.__backendId === currentUser.linked_admin_id);
       if (!adminRecord) { showToast('ไม่พบข้อมูลผู้ช่วยแอดมิน', 'error'); return; }
@@ -6095,6 +6119,7 @@ const supabaseDataSdk = {
       }
     }
     function showSubAdminTab(tabName) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       currentSubAdminTab = tabName;
       _currentSubAdminTab = tabName;
       ['homework', 'timekeeping', 'grading', 'students'].forEach(t => {
@@ -15211,6 +15236,7 @@ const supabaseDataSdk = {
       container.innerHTML = renderEvalSummaryHtml(140);
     }
     function showAdminTab(tabName) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       setTimeout(_syncPageMinHeight, 80); // 📏 ปรับความสูงให้เลื่อนเห็นเมนูครบหลังเปลี่ยนหน้า
       _currentAdminTab = tabName;
       if (document.body.classList.contains('is-mobile') && typeof mBuildNav === 'function') {
@@ -20709,6 +20735,7 @@ const supabaseDataSdk = {
       });
     }
     function showStudentTab(tabName) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       currentStudentTab = tabName;
       const allTabIds = ['tab-profile', 'tab-notif', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
       allTabIds.forEach(id => {
@@ -21393,6 +21420,7 @@ const supabaseDataSdk = {
       showDirectorTab('kpacfull');
     }
     function showDirectorTab(tabName) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       currentDirectorTab = tabName;
       ['kpacfull', 'gradesummary', 'attendance', 'gradedist', 'evaluate'].forEach(name => {
         const btn = document.getElementById('director-tab-btn-' + name);
@@ -23264,6 +23292,7 @@ const supabaseDataSdk = {
 
   // แสดงแท็บแอดมิน (ใช้หน้าเดสก์ท็อปจริง ทำได้ทุกอย่างเหมือนคอม)
   function mShowDesktopAdminTab(tabName, title) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
     mShowDesktopView(title, function() {
       mHideAllDesktopPages('page-admin');
       document.getElementById('app-main')?.classList.remove('hidden');
@@ -24137,6 +24166,7 @@ const supabaseDataSdk = {
 
   // ── Section Renderer ──
   function mShowSection(section) {
+      _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
     mCloseTray();
     var content = document.getElementById('m-content');
     if (!content) return;
