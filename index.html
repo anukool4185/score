@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.109';
+    const APP_VERSION = 'SUPABASE-2026.09.08.112';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6242,17 +6242,20 @@ const supabaseDataSdk = {
       `;
       const classSubjectId = `${scope.className}_${scope.roomNumber}_${scope.subjectName}`;
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      // 🔔 รวมนักเรียนที่ยังไม่ลงทะเบียน ให้ผู้ช่วยแอดมินกรอกคะแนนเก็บไว้ได้เหมือนหน้าแอดมิน
       const registrations = allData.filter(d =>
         d.type === 'student_registration' && d.class_name === scope.className &&
-        d.room_number === scope.roomNumber && d.subject_name === scope.subjectName
+        String(d.room_number) === String(scope.roomNumber) && d.subject_name === scope.subjectName
+      ).concat(_getUnregisteredStudents(scope.className, scope.roomNumber, scope.subjectName)
+        .map(s => _makeVirtualReg(s, scope.subjectName))
       ).sort((a, b) => {
-        const sa = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const sb = allData.find(s => s.type === 'student' && s.student_id === b.student_id);
+        const sa = allData.find(s => s.type === 'student' && String(s.student_id) === String(a.student_id));
+        const sb = allData.find(s => s.type === 'student' && String(s.student_id) === String(b.student_id));
         return (parseFloat(sa?.student_number) || 0) - (parseFloat(sb?.student_number) || 0);
       });
       const namelistEl = document.getElementById('subadmin-grading-namelist');
       if (registrations.length === 0) {
-        namelistEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนลงทะเบียน</p>';
+        namelistEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนในห้องนี้</p>';
         return;
       }
       if (!window.subAdminSelectedGradingRegId || !registrations.find(r => r.__backendId === window.subAdminSelectedGradingRegId)) {
@@ -6260,7 +6263,8 @@ const supabaseDataSdk = {
       }
       const renderDetail = (regId) => {
         const detailEl = document.getElementById('subadmin-grading-detail');
-        const reg = allData.find(d => d.__backendId === regId);
+        const reg = _getRegById(regId);   // รองรับทั้งคนที่ลงทะเบียนแล้วและยังไม่ลงทะเบียน
+        if (!reg) { detailEl.innerHTML = ''; return; }
         detailEl.innerHTML = buildGradingCardHtml(reg, scoresData, scope.className, scope.subjectName);
         document.querySelectorAll('#subadmin-grading-detail input[type="number"].score-input').forEach(input => {
           input.addEventListener('focus', function() { this.select(); });
@@ -6283,7 +6287,7 @@ const supabaseDataSdk = {
           const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
           const isActive = reg.__backendId === window.subAdminSelectedGradingRegId;
           const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
-          return `<button onclick="selectSubAdminGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">#${student?.student_number || '-'} ${name}</button>`;
+          return `<button onclick="selectSubAdminGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">#${student?.student_number || '-'} ${name}${reg.__virtual ? ' <span class="text-[10px] bg-red-100 text-red-600 px-1 rounded">🔔 ยังไม่ลงทะเบียน</span>' : ''}</button>`;
         }).join('');
       };
       renderList();
@@ -7694,7 +7698,7 @@ const supabaseDataSdk = {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const studentName = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
         const studentNumber = student?.student_number || '-';
-        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
         const totalFull = (scoresConfig?.k_full_score || 0) + (scoresConfig?.p_full_score || 0) + (scoresConfig?.a_full_score || 0) +
                            (scoresConfig?.c_full_score || 0) + (scoresConfig?.m_full_score || 0) + (scoresConfig?.f_full_score || 0);
@@ -9223,6 +9227,9 @@ const supabaseDataSdk = {
       while (_reconcileRunning && waitCount < 50) { await new Promise(r => setTimeout(r, 100)); waitCount++; }
       _reconcileRunning = true;
       try {
+        // 🔗 ขั้นแรก: ผูกคะแนนที่ครูกรอกไว้ตอนยังไม่ลงทะเบียน เข้ากับการลงทะเบียนใหม่
+        try { await _linkOrphanGradeRow(studentId, subjectName); }
+        catch (e) { console.log('[Enroll] ผูกคะแนนเก็บรอไม่สำเร็จ:', e.message); }
         // เรียกเมื่อนักเรียนลงทะเบียนวิชาใหม่ → ดึงคะแนน pending ที่ตรงทั้ง 4 มิติ ใส่อัตโนมัติ แล้วลบออก
         const pendings = allData.filter(d => d.type === 'pending_score' && String(d.student_id) === String(studentId) && d.subject_name === subjectName);
         let applied = 0;
@@ -13664,7 +13671,7 @@ const supabaseDataSdk = {
       await window.dataSdk.update({ ...submission, k_score_contributed: score });
       // ตั้งคะแนนเต็มของ K ครั้งนี้ให้ตรงกับคะแนนเต็มของชุดสอบด้วย (ถ้ายังไม่เคยตั้งไว้ก่อน ไม่ทับของที่ครูตั้งเองไว้แล้ว)
       if (reg?.class_subject_id) {
-        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const scoresConfig = _findScoresConfig(reg);
         if (scoresConfig) {
           let fullArr = (scoresConfig[fullScoreField] || '').split(',').map(s => s.trim());
           while (fullArr.length < round) fullArr.push('');
@@ -14576,6 +14583,27 @@ const supabaseDataSdk = {
       return g || null;
     }
 
+    /** 📊 หาคะแนนเต็มของรายวิชา — หาด้วยรหัสรายวิชาก่อน ถ้าไม่เจอหาด้วยชั้น/ห้อง/วิชา
+     *  ⚠️ สำคัญมาก: ถ้าหาไม่เจอ คะแนนเต็มจะเป็น 0 ทำให้คิดเกรดผิดทั้งห้อง */
+    function _findScoresConfig(reg) {
+      if (!reg) return null;
+      let sc = reg.class_subject_id
+        ? allData.find(d => d.type === 'class_subject_scores' && String(d.class_subject_id) === String(reg.class_subject_id))
+        : null;
+      if (!sc) {
+        sc = allData.find(d => d.type === 'class_subject_scores'
+          && d.class_name === reg.class_name
+          && String(d.room_number) === String(reg.room_number)
+          && d.subject_name === reg.subject_name);
+      }
+      if (!sc) {
+        // ทางสุดท้าย: สร้างรหัสตามรูปแบบมาตรฐานแล้วหา
+        const stdId = `${reg.class_name}_${reg.room_number}_${reg.subject_name}`;
+        sc = allData.find(d => d.type === 'class_subject_scores' && String(d.class_subject_id) === stdId);
+      }
+      return sc || null;
+    }
+
     function computeGradeReportRows(className, roomNumber, subjectName) {
       if (!className || !roomNumber || !subjectName) return [];
       const registrations = allData.filter(d =>
@@ -14591,7 +14619,7 @@ const supabaseDataSdk = {
       };
       const rows = registrations.map(reg => {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
         // น้ำหนัก% ของ K/P/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
         const kWeight = reg.k_percent || 0;
@@ -14659,9 +14687,33 @@ const supabaseDataSdk = {
           special1, special2, special3, pointsNeededFor25
         };
       });
+      // 🔔 เพิ่มนักเรียนที่ยังไม่ลงทะเบียน — เกรดเป็น ร. จนกว่าจะลงทะเบียน (คะแนนที่กรอกไว้ยังเก็บอยู่ครบ)
+      _getUnregisteredStudents(className, roomNumber, subjectName).forEach(student => {
+        const vreg = _makeVirtualReg(student, subjectName);
+        const grade = _findGradeRow(vreg);
+        const scoresConfig = _findScoresConfig(vreg);
+        const wS = (str, full, w) => { const a = sumScoresStrLocal(str); return (!full || full <= 0) ? 0 : (a / full) * w; };
+        const mScore = roundGradeValue(wS(grade?.m_scores, scoresConfig?.m_full_score, midPercentWeight));
+        const fScore = roundGradeValue(wS(grade?.f_scores, scoresConfig?.f_full_score, finalPercentWeight));
+        rows.push({
+          studentNumber: parseFloat(student.student_number) || 0,
+          studentName: `${student.prefix||''} ${student.first_name||''} ${student.last_name||''}`,
+          kScore: 0, pScore: 0, aScore: 0, cScore: 0, totalKPAC: 0, mScore, fScore,
+          totalAll: mScore + fScore, gradeValue: 'ร.',
+          special1: '-', special2: '-', special3: 'ร.', pointsNeededFor25: null,
+          unregistered: true, studentBackendId: student.__backendId, subjectName,
+        });
+      });
       rows.sort((a, b) => a.studentNumber - b.studentNumber);
       return rows;
     }
+
+    /** เซลล์เกรด — ถ้ายังไม่ลงทะเบียน แสดง ร. สีแดง กดแล้วเปิดบล็อกแจ้งเตือนเพื่อสมัคร/ลงทะเบียน */
+    function _gradeCellHtml(r, displayValue) {
+      if (!r.unregistered) return displayValue;
+      return `<button onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')" class="text-red-600 font-bold underline decoration-dotted hover:text-red-800" title="ยังไม่ลงทะเบียน — กดเพื่อจัดการ">ร. 🔔</button>`;
+    }
+
     function updateGradeReportTable() {
       const className = document.getElementById('gradereport-filter-class')?.value || '';
       const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
@@ -14674,7 +14726,7 @@ const supabaseDataSdk = {
       }
       const rows = computeGradeReportRows(className, roomNumber, subjectName);
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">ไม่มีนักเรียนลงทะเบียนวิชานี้</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้ หรือห้องนี้ไม่ได้เปิดสอนวิชานี้</td></tr>';
         return;
       }
       const fmt = (n) => String(n);
@@ -14690,7 +14742,7 @@ const supabaseDataSdk = {
           <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.mScore)}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.fScore)}</td>
           <td class="px-2 py-2 text-center font-bold bg-amber-50 whitespace-nowrap">${fmt(r.totalAll)}</td>
-          <td class="px-2 py-2 text-center font-bold whitespace-nowrap">${r.gradeValue}</td>
+          <td class="px-2 py-2 text-center font-bold whitespace-nowrap">${_gradeCellHtml(r, r.gradeValue)}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap ${r.special1 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special1}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap ${r.special2 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special2}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap ${r.special3 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special3}</td>
@@ -16447,9 +16499,9 @@ const supabaseDataSdk = {
       if(ids.length===0){showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน','error');return;}
       let enrolled=0, skipped=0;
       for(const sid of ids){
-        const s=allData.find(s=>s.type==='student'&&s.student_id===sid);
+        const s=allData.find(s=>s.type==='student'&&String(s.student_id)===String(sid));
         if(!s){skipped++;continue;}
-        const ex=allData.find(r=>r.type==='student_registration'&&r.student_id===sid&&r.subject_name===sn);
+        const ex=allData.find(r=>r.type==='student_registration'&&String(r.student_id)===String(sid)&&r.subject_name===sn);
         if(ex){skipped++;continue;}
         const res=await window.dataSdk.create({type:'student_registration',student_id:sid,class_name:s.class_name,room_number:s.room_number,subject_name:sn,class_subject_id:`${s.class_name}_${s.room_number}_${sn}`,k_percent:k,p_percent:p,a_percent:a,c_percent:c,created_at:new Date().toISOString()});
         if(res.isOk){enrolled++;await applyPendingScoresOnRegistration(sid,sn);}
@@ -16678,7 +16730,19 @@ const supabaseDataSdk = {
       const getCol = key => { const v = document.getElementById(`import-map-${key}`)?.value; return v !== '' ? parseInt(v) : -1; };
       _importMapped = _importRows.map(row => {
         const obj = {};
-        IMPORT_FIELDS.forEach(f => { const c = getCol(f.key); if (c >= 0) obj[f.key] = String(row[c] ?? '').trim(); });
+        IMPORT_FIELDS.forEach(f => {
+          const c = getCol(f.key);
+          if (c < 0) return;
+          // ตัดอักขระแฝงที่มากับ Excel และช่องว่างหัวท้าย
+          let v = String(row[c] ?? '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+          // Excel บางครั้งแปลงตัวเลขเป็นทศนิยม เช่น 12345 → "12345.0"
+          if (['student_id', 'room_number', 'student_number', 'phone_number'].includes(f.key) && /^\d+\.0+$/.test(v)) {
+            v = v.replace(/\.0+$/, '');
+          }
+          // Excel ตัดเลข 0 หน้าเบอร์โทรทิ้ง (0812345678 → 812345678) ต้องเติมกลับ
+          if (f.key === 'phone_number' && /^\d{9}$/.test(v)) v = '0' + v;
+          obj[f.key] = v;
+        });
         return obj;
       }).filter(o => o.student_id || o.first_name);
       if (_importMapped.length === 0) { showToast('ไม่พบข้อมูล กรุณาตรวจสอบ mapping', 'error'); return; }
@@ -16899,9 +16963,9 @@ const supabaseDataSdk = {
       const dupIdList = [];
       const dupNameList = [];
       for (const sid of ids) {
-        const row = _importMapped.find(r => r.student_id === sid);
+        const row = _importMapped.find(r => String(r.student_id) === String(sid));
         if (!row) continue;
-        const dupId = allData.find(s => s.type === 'student' && s.student_id === sid);
+        const dupId = allData.find(s => s.type === 'student' && String(s.student_id) === String(sid));
         if (dupId) { dupIdList.push(sid); continue; }
         const dupName = allData.find(s => s.type === 'student' &&
           s.first_name === row.first_name && s.last_name === row.last_name && row.first_name);
@@ -16916,7 +16980,7 @@ const supabaseDataSdk = {
       let added = 0, skippedId = dupIdList.length;
       for (const sid of ids) {
         if (dupIdList.includes(sid)) continue;
-        const row = _importMapped.find(r => r.student_id === sid);
+        const row = _importMapped.find(r => String(r.student_id) === String(sid));
         if (!row) continue;
         const result = await window.dataSdk.create({
           type: 'student', student_id: sid, username: sid, password: sid,
@@ -16962,25 +17026,35 @@ const supabaseDataSdk = {
       if (k+p+a+c > limit) { showToast(`รวม KPAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
       const ids = getImportSelectedIds();
       if (ids.length === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
-      let enrolled = 0, skipped = 0;
+      let enrolled = 0, skipped = 0, skippedNoSubject = 0;
       for (const sid of ids) {
-        const student = allData.find(s => s.type === 'student' && s.student_id === sid);
+        const student = allData.find(s => s.type === 'student' && String(s.student_id) === String(sid));
         if (!student) { skipped++; continue; }
-        const existingReg = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === subjectName);
+        // ⚠️ เทียบแบบข้อความเสมอ กันลงทะเบียนซ้ำเพราะชนิดข้อมูลไม่ตรงกัน
+        const existingReg = allData.find(r => r.type === 'student_registration'
+          && String(r.student_id) === String(sid) && r.subject_name === subjectName);
         if (existingReg) { skipped++; continue; }
-        const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName && d.class_name === student.class_name && d.room_number === student.room_number);
+        const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName
+          && d.class_name === student.class_name && String(d.room_number) === String(student.room_number));
+        // 🛡️ วิชานี้ต้องเปิดสอนในชั้น/ห้องของนักเรียนจริง ไม่งั้นจะคิดเกรดไม่ได้ (ไม่มีคะแนนเต็ม/สัดส่วน M F)
+        if (!cs) { skippedNoSubject++; continue; }
         const result = await window.dataSdk.create({
-          type: 'student_registration', student_id: sid, student_name: `${student.prefix}${student.first_name} ${student.last_name}`, class_name: student.class_name,
-          room_number: student.room_number, subject_name: subjectName,
-          class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
-          k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+          type: 'student_registration', student_id: String(sid),
+          student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
+          class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
+          // ใช้รหัสรายวิชาจริงจากระบบ (ถ้ามี) เพื่อให้จับคู่กับคะแนนเต็มได้แน่นอน
+          class_subject_id: cs.class_subject_id || `${student.class_name}_${student.room_number}_${subjectName}`,
+          k_percent: k, p_percent: p, a_percent: a, c_percent: c,
         });
         if (result.isOk) {
           enrolled++;
           await applyPendingScoresOnRegistration(sid, subjectName);
         }
       }
-      showToast(`✅ ลงทะเบียนวิชา ${subjectName} ให้ ${enrolled} คน${skipped > 0 ? ` (ข้าม ${skipped} คน)` : ''}`);
+      let msg = `✅ ลงทะเบียนวิชา ${subjectName} ให้ ${enrolled} คน`;
+      if (skipped > 0) msg += ` · ข้าม ${skipped} คน (ลงแล้ว/ไม่พบในระบบ)`;
+      if (skippedNoSubject > 0) msg += ` · ⚠️ ${skippedNoSubject} คน ห้องไม่ได้เปิดสอนวิชานี้`;
+      showToast(msg, skippedNoSubject > 0 ? 'error' : undefined);
       renderImportTable();
       refreshCurrentView();
     }
@@ -17124,9 +17198,9 @@ const supabaseDataSdk = {
       if (selectedIds.length === 0) { showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน', 'error'); return; }
       let enrolled = 0, skipped = 0;
       for (const sid of selectedIds) {
-        const student = allData.find(s => s.type === 'student' && s.student_id === sid);
+        const student = allData.find(s => s.type === 'student' && String(s.student_id) === String(sid));
         if (!student) { skipped++; continue; }
-        const exists = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === subjectName);
+        const exists = allData.find(r => r.type === 'student_registration' && String(r.student_id) === String(sid) && r.subject_name === subjectName);
         if (exists) { skipped++; continue; }
         const result = await window.dataSdk.create({
           type: 'student_registration', student_id: sid, student_name: `${student.prefix}${student.first_name} ${student.last_name}`,
@@ -19193,6 +19267,200 @@ const supabaseDataSdk = {
       if (page === 'timekeeping' && typeof updateTimekeepingStudents === 'function') updateTimekeepingStudents();
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 🔔 นักเรียนที่ยังไม่ลงทะเบียน — ให้กรอกคะแนนเก็บไว้ได้ แล้วโอนเข้าเมื่อลงทะเบียน
+    // ════════════════════════════════════════════════════════════
+    // หลักการ: คะแนนของคนที่ยังไม่ลงทะเบียน เก็บในตาราง grades โดย "ยังไม่ผูกรหัสลงทะเบียน"
+    // พอลงทะเบียนเสร็จ ระบบผูกแถวคะแนนนั้นเข้ากับการลงทะเบียนใหม่ทันที → นำไปคิดเกรดได้เลย
+    window._virtualRegs = window._virtualRegs || {};
+
+    /** หานักเรียนในชั้น/ห้องที่ยังไม่ลงทะเบียนวิชานี้ (เฉพาะวิชาที่เปิดสอนในห้องนั้นจริง) */
+    function _getUnregisteredStudents(className, roomNumber, subjectName) {
+      const opened = allData.some(d => d.type === 'class_subject' && d.class_name === className
+        && String(d.room_number) === String(roomNumber) && d.subject_name === subjectName);
+      if (!opened) return [];
+      const registered = new Set(allData.filter(r => r.type === 'student_registration'
+        && r.class_name === className && String(r.room_number) === String(roomNumber)
+        && r.subject_name === subjectName).map(r => String(r.student_id)));
+      return allData.filter(s => s.type === 'student' && s.class_name === className
+        && String(s.room_number) === String(roomNumber) && !registered.has(String(s.student_id)));
+    }
+
+    /** สร้างการลงทะเบียนเสมือน (ยังไม่มีในฐานข้อมูล) เพื่อให้หน้าให้คะแนนใช้งานได้เหมือนทุกคน */
+    function _makeVirtualReg(student, subjectName) {
+      const id = 'virt_' + student.__backendId;
+      const v = {
+        type: 'student_registration', __virtual: true, __backendId: id,
+        student_id: String(student.student_id), student_backend_id: String(student.__backendId),
+        student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
+        class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
+        class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
+        k_percent: 0, p_percent: 0, a_percent: 0, c_percent: 0,
+      };
+      window._virtualRegs[id] = v;
+      return v;
+    }
+
+    /** หาการลงทะเบียนจากรหัส — รองรับทั้งของจริงและแบบเสมือน */
+    function _getRegById(regId) {
+      return allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId))
+        || window._virtualRegs[regId] || null;
+    }
+
+    /** สถานะการสมัคร: สมัครเองจะมีเบอร์โทร หรือตั้ง username เองที่ไม่ใช่รหัสนักเรียน */
+    function _isStudentSignedUp(student) {
+      if (!student) return false;
+      const hasPhone = !!String(student.phone_number || '').trim();
+      const customUser = student.username && String(student.username) !== String(student.student_id);
+      return hasPhone || !!customUser;
+    }
+
+    /** 🔔 บล็อกแจ้งเตือนสถานะการสมัคร + การลงทะเบียน (ใช้ทั้งหลังคะแนน F และตอนกดเกรด ร.) */
+    function _buildEnrollAlertBlock(student, subjectName, isRegistered) {
+      if (!student) return '';
+      const signed = _isStudentSignedUp(student);
+      if (signed && isRegistered) return ''; // ครบทั้งสองอย่าง ไม่ต้องแจ้งเตือน
+      const subjEnc = encodeURIComponent(subjectName);
+      const signupLine = signed
+        ? `<div class="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex-wrap">
+             <span class="text-sm text-green-700">✅ <b>สมัครแล้ว</b> — เข้าใช้ระบบได้</span>
+             <button onclick="editStudent('${student.__backendId}')" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs btn-3d">📝 แก้ไขข้อมูล</button>
+           </div>`
+        : `<div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex-wrap">
+             <span class="text-sm text-amber-800">⚠️ <b>ยังไม่สมัครใช้ระบบ</b> — ครูเพิ่มรายชื่อให้ ยังไม่มีเบอร์โทรสำหรับเข้าระบบ</span>
+             <button onclick="editStudent('${student.__backendId}')" class="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs font-semibold btn-3d">📋 สมัคร</button>
+           </div>`;
+      const enrollLine = isRegistered
+        ? `<div class="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex-wrap">
+             <span class="text-sm text-green-700">✅ <b>ลงทะเบียนแล้ว</b> — กำหนด KPAC เรียบร้อย</span>
+           </div>`
+        : `<div class="flex items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex-wrap">
+             <span class="text-sm text-red-700">❌ <b>ยังไม่ลงทะเบียนวิชานี้</b> — คะแนนที่กรอกถูกเก็บไว้รอ เกรดจะแสดงเป็น ร. จนกว่าจะลงทะเบียน</span>
+             <button onclick="openEnrollKpacPopup('${student.__backendId}','${subjEnc}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold btn-3d">📝 ลงทะเบียน (กำหนด KPAC)</button>
+           </div>`;
+      return `
+        <div class="mt-4 bg-white border-2 border-red-300 rounded-xl p-4">
+          <p class="text-base font-bold text-red-700 mb-3 flex items-center gap-2">
+            <span class="text-2xl animate-bell-shake inline-block">🔔</span> แจ้งเตือน
+          </p>
+          <div class="space-y-2">${signupLine}${enrollLine}</div>
+        </div>`;
+    }
+
+    /** เปิดบล็อกแจ้งเตือนเป็นหน้าต่าง (ใช้ตอนกดที่เกรด ร. ในหน้าสัดส่วน) */
+    function showEnrollAlertPopup(studentBackendId, subjEnc) {
+      const subjectName = decodeURIComponent(subjEnc);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
+      if (!student) { showToast('ไม่พบข้อมูลนักเรียน', 'error'); return; }
+      const isReg = allData.some(r => r.type === 'student_registration'
+        && String(r.student_id) === String(student.student_id) && r.subject_name === subjectName);
+      document.getElementById('enroll-alert-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'enroll-alert-popup';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
+      wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+      wrap.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 max-w-lg w-full">
+          <p class="font-bold text-gray-800">${escHtml(student.prefix||'')}${escHtml(student.first_name||'')} ${escHtml(student.last_name||'')}</p>
+          <p class="text-xs text-gray-500 mb-1">🆔 ${escHtml(String(student.student_id))} · ${escHtml(student.class_name||'')}/${escHtml(String(student.room_number||''))} · 📚 ${escHtml(subjectName)}</p>
+          ${_buildEnrollAlertBlock(student, subjectName, isReg) || '<p class="text-green-700 text-sm mt-3">✅ สมัครและลงทะเบียนครบแล้ว</p>'}
+          <button onclick="document.getElementById('enroll-alert-popup')?.remove()" class="w-full mt-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ปิด</button>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
+    /** 📝 หน้าต่างลงทะเบียนให้นักเรียน (กำหนด KPAC) */
+    function openEnrollKpacPopup(studentBackendId, subjEnc) {
+      const subjectName = decodeURIComponent(subjEnc);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
+      if (!student) { showToast('ไม่พบข้อมูลนักเรียน', 'error'); return; }
+      const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName
+        && d.class_name === student.class_name && String(d.room_number) === String(student.room_number));
+      if (!cs) { showToast('⚠️ ห้องนี้ไม่ได้เปิดสอนวิชานี้ ลงทะเบียนไม่ได้', 'error'); return; }
+      const limit = 100 - (parseFloat(cs.mid_percent) || 0) - (parseFloat(cs.final_percent) || 0);
+      document.getElementById('enroll-kpac-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'enroll-kpac-popup';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
+      wrap.style.zIndex = '60';
+      const inp = (id, label) => `<div><label class="block text-xs text-gray-600 mb-1">${label}</label>
+        <input type="number" id="${id}" min="0" placeholder="0" oninput="_updateEnrollKpacSum(${limit})"
+          class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></div>`;
+      wrap.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 max-w-md w-full">
+          <p class="text-lg font-bold text-gray-800 mb-1">📝 ลงทะเบียน (กำหนด KPAC)</p>
+          <p class="text-xs text-gray-500 mb-3">${escHtml(student.prefix||'')}${escHtml(student.first_name||'')} ${escHtml(student.last_name||'')} · 📚 ${escHtml(subjectName)}</p>
+          <p class="text-xs text-blue-600 mb-2">M ${cs.mid_percent||0}% · F ${cs.final_percent||0}% · KPAC รวมได้ไม่เกิน ${limit}%</p>
+          <div class="grid grid-cols-4 gap-2 mb-2">${inp('ek-k','K')}${inp('ek-p','P')}${inp('ek-a','A')}${inp('ek-c','C')}</div>
+          <p id="ek-sum" class="text-xs text-gray-500 mb-4">รวม: 0 / ${limit}</p>
+          <div class="flex gap-2">
+            <button onclick="confirmEnrollKpac('${student.__backendId}','${subjEnc}',${limit})" id="ek-save-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold btn-3d">💾 ลงทะเบียน</button>
+            <button onclick="document.getElementById('enroll-kpac-popup')?.remove()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg">ยกเลิก</button>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+    function _updateEnrollKpacSum(limit) {
+      const s = ['ek-k','ek-p','ek-a','ek-c'].reduce((t,id) => t + (parseFloat(document.getElementById(id)?.value) || 0), 0);
+      const el = document.getElementById('ek-sum');
+      if (el) { el.textContent = `รวม: ${s} / ${limit}`; el.style.color = s > limit ? '#dc2626' : '#64748b'; }
+    }
+
+    /** 💾 ยืนยันลงทะเบียน → ผูกคะแนนที่เก็บรอไว้ทันที → คิดเกรดใหม่ */
+    async function confirmEnrollKpac(studentBackendId, subjEnc, limit) {
+      const subjectName = decodeURIComponent(subjEnc);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
+      if (!student) return;
+      const k = parseFloat(document.getElementById('ek-k')?.value) || 0;
+      const p = parseFloat(document.getElementById('ek-p')?.value) || 0;
+      const a = parseFloat(document.getElementById('ek-a')?.value) || 0;
+      const cc = parseFloat(document.getElementById('ek-c')?.value) || 0;
+      if (k + p + a + cc > limit) { showToast(`รวม KPAC เกิน ${limit}%`, 'error'); return; }
+      if (k + p + a + cc === 0 && !confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0) ยืนยันลงทะเบียนต่อหรือไม่?')) return;
+      const dup = allData.find(r => r.type === 'student_registration'
+        && String(r.student_id) === String(student.student_id) && r.subject_name === subjectName);
+      if (dup) { showToast('นักเรียนคนนี้ลงทะเบียนวิชานี้แล้ว', 'info'); document.getElementById('enroll-kpac-popup')?.remove(); return; }
+      const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName
+        && d.class_name === student.class_name && String(d.room_number) === String(student.room_number));
+      const btn = document.getElementById('ek-save-btn');
+      await withButtonLock(btn, '⏳ กำลังลงทะเบียน...', async () => {
+        const res = await window.dataSdk.create({
+          type: 'student_registration', student_id: String(student.student_id),
+          student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
+          class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
+          class_subject_id: cs?.class_subject_id || `${student.class_name}_${student.room_number}_${subjectName}`,
+          k_percent: k, p_percent: p, a_percent: a, c_percent: cc,
+        });
+        if (!res.isOk) { showToast('ลงทะเบียนไม่สำเร็จ: ' + (res.error?.message || ''), 'error'); return; }
+        // ผูกคะแนนที่เก็บรอ + โอนคะแนนจากไฟล์ที่รออยู่ (ทำในฟังก์ชันกลางที่ทุกการลงทะเบียนเรียกใช้)
+        await applyPendingScoresOnRegistration(student.student_id, subjectName);
+        document.getElementById('enroll-kpac-popup')?.remove();
+        document.getElementById('enroll-alert-popup')?.remove();
+        showToast(`✅ ลงทะเบียนสำเร็จ — นำคะแนนที่เก็บไว้ไปคิดเกรดแล้ว`);
+        // เลือกคนเดิมต่อ (เปลี่ยนจากรหัสเสมือนเป็นรหัสจริง)
+        const newId = res.data?.__backendId;
+        if (newId && String(selectedGradingRegId || '').startsWith('virt_')) selectedGradingRegId = String(newId);
+        if (typeof updateGradingStudents === 'function' && document.getElementById('filter-grading-subject')?.value) updateGradingStudents();
+        if (typeof updateGradeReportTable === 'function') updateGradeReportTable();
+        if (typeof renderNotificationBells === 'function') renderNotificationBells();
+      });
+    }
+
+    /** 🔗 ผูกแถวคะแนนที่เก็บรอ (ยังไม่มีรหัสลงทะเบียน) เข้ากับการลงทะเบียนที่เพิ่งสร้าง */
+    async function _linkOrphanGradeRow(studentId, subjectName) {
+      const reg = allData.find(r => r.type === 'student_registration'
+        && String(r.student_id) === String(studentId) && r.subject_name === subjectName);
+      if (!reg) return false;
+      const orphan = allData.find(g => g.type === 'grade'
+        && String(g.student_id) === String(studentId) && g.subject_name === subjectName
+        && g.class_name === reg.class_name && String(g.room_number) === String(reg.room_number)
+        && String(g.registration_id || '') !== String(reg.__backendId));
+      if (!orphan) return false;
+      const r = await window.dataSdk.update({ ...orphan, registration_id: reg.__backendId });
+      if (r.isOk) console.log('[Enroll] ผูกคะแนนที่เก็บรอเข้ากับการลงทะเบียนแล้ว:', studentId, subjectName);
+      return r.isOk;
+    }
+
     function refreshGradingNameListOnly() {
       const className = document.getElementById('filter-grading-class')?.value;
       const roomNumber = document.getElementById('filter-grading-room')?.value;
@@ -19206,10 +19474,13 @@ const supabaseDataSdk = {
         d.room_number === roomNumber &&
         d.subject_name === subjectName
       );
+      // 🔔 รวมนักเรียนที่ยังไม่ลงทะเบียนเข้ามาด้วย ให้กรอกคะแนนเก็บไว้ได้เหมือนทุกคน
+      const _unreg = _getUnregisteredStudents(className, roomNumber, subjectName).map(s => _makeVirtualReg(s, subjectName));
+      registrations = registrations.concat(_unreg);
       registrations = _sortRegistrations(registrations, _sortPrefs.grading); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
         container.classList.add('hidden');
-        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
+        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนในห้องนี้'; emptyMsg.classList.remove('hidden'); }
         return registrations;
       }
       if (emptyMsg) emptyMsg.classList.add('hidden');
@@ -19226,7 +19497,7 @@ const supabaseDataSdk = {
           const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
           return `
             <button onclick="selectGradingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-              #${student?.student_number || '-'} ${name}
+              #${student?.student_number || '-'} ${name}${reg.__virtual ? ' <span class="text-[10px] bg-red-100 text-red-600 px-1 rounded">🔔 ยังไม่ลงทะเบียน</span>' : ''}
             </button>
           `;
         }).join('');
@@ -19275,7 +19546,7 @@ const supabaseDataSdk = {
     function renderGradingDetail(regId, scoresData, className, subjectName) {
       const detailEl = document.getElementById('grading-student-detail');
       if (!detailEl) return;
-      const reg = allData.find(d => d.type === 'student_registration' && d.__backendId === regId);
+      const reg = _getRegById(regId);
       if (!reg) { detailEl.innerHTML = ''; return; }
       detailEl.innerHTML = buildGradingCardHtml(reg, scoresData, className, subjectName);
       // เพิ่ม event listeners (มีแค่นักเรียนคนเดียวในหน้าตอนนี้ จึงไม่ต้องกรองเฉพาะ)
@@ -19369,8 +19640,9 @@ const supabaseDataSdk = {
       }
     }
     function buildGradingCardHtml(reg, scoresData, className, subjectName) {
-        const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        const gradeRecord = allData.find(g => g.type === 'grade' && g.registration_id === reg.__backendId);
+        const student = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
+        // หาแถวคะแนนแบบมีทางสำรอง (คนที่ยังไม่ลงทะเบียน แถวคะแนนยังไม่ผูกรหัส จึงต้องหาด้วยรหัสนักเรียน+วิชา)
+        const gradeRecord = _findGradeRow(reg);
         
         const scores = gradeRecord || {
           pretest_scores: '',
@@ -19463,6 +19735,7 @@ const supabaseDataSdk = {
                 <p class="text-xs font-semibold text-red-600 hidden" id="f-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
             </div>
+            ${_buildEnrollAlertBlock(student, subjectName, !reg.__virtual)}
             <div class="mt-4 flex gap-2">
               <button onclick="saveGrades('${reg.__backendId}')" class="flex-1 btn-primary text-white px-4 py-2 rounded-lg font-medium">💾 บันทึก</button>
               <button onclick="clearAllScores('${reg.__backendId}')" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium">🔄 ลบทั้งหมด</button>
@@ -19575,8 +19848,8 @@ const supabaseDataSdk = {
       }
     }
     async function saveGrades(regId) {
-      const reg = allData.find(d => d.type === 'student_registration' && d.__backendId === regId);
-      if (!reg) return;
+      const reg = _getRegById(regId);
+      if (!reg) { showToast('ไม่พบข้อมูลนักเรียน กรุณาโหลดหน้าใหม่', 'error'); return; }
       const studentForName = allData.find(s => s.type === 'student' && s.student_id === reg.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
       const getScores = (type, times) => {
         const scores = [];
@@ -19595,7 +19868,8 @@ const supabaseDataSdk = {
       const c_scores = getScores('c', 3);
       const m_scores = getScores('m', 2);
       const f_scores = getScores('f', 2);
-      const existing = allData.find(g => g.type === 'grade' && g.registration_id === regId);
+      // หาแถวคะแนนแบบมีทางสำรอง กันสร้างแถวซ้ำ (คนที่ยังไม่ลงทะเบียน แถวคะแนนยังไม่ผูกรหัส)
+      const existing = _findGradeRow(reg);
       const result = existing
         ? await window.dataSdk.update({
             ...existing,
@@ -19609,7 +19883,8 @@ const supabaseDataSdk = {
           })
         : await window.dataSdk.create({
             type: 'grade',
-            registration_id: regId,
+            // คนที่ยังไม่ลงทะเบียน: ยังไม่ผูกรหัส เก็บไว้รอ — ระบบจะผูกให้อัตโนมัติเมื่อลงทะเบียน
+            registration_id: reg.__virtual ? '' : regId,
             student_id: reg.student_id,
             student_name: studentForName ? `${studentForName.prefix}${studentForName.first_name} ${studentForName.last_name}` : '',
             class_name: reg.class_name,
@@ -19624,6 +19899,10 @@ const supabaseDataSdk = {
             f_scores,
             created_at: new Date().toISOString()
           });
+      if (result.isOk && reg.__virtual) {
+        showToast('💾 เก็บคะแนนไว้แล้ว — จะนำไปคิดเกรดเมื่อนักเรียนลงทะเบียน (ตอนนี้เกรดแสดงเป็น ร.)');
+        return;
+      }
       if (result.isOk) {
         // 🔔 แจ้งเตือนนักเรียนว่ามีการอัพเดทคะแนน
         // ⚡ ปรับให้เร็วขึ้น: เดิม await ตรงนี้ทำให้แอดมินต้องรอ 2 ครั้ง (บันทึกคะแนน + สร้างแจ้งเตือน) กว่าจะเห็นข้อความสำเร็จ
@@ -19779,7 +20058,7 @@ const supabaseDataSdk = {
           const name = student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id;
           return `
             <button onclick="selectTimekeepingStudent('${reg.__backendId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-gray-100 text-gray-700'}">
-              #${student?.student_number || '-'} ${name}
+              #${student?.student_number || '-'} ${name}${reg.__virtual ? ' <span class="text-[10px] bg-red-100 text-red-600 px-1 rounded">🔔 ยังไม่ลงทะเบียน</span>' : ''}
             </button>
           `;
         }).join('');
@@ -20591,7 +20870,7 @@ const supabaseDataSdk = {
         </div>
       `;
       const cardsHtml = registrations.map(reg => {
-        const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === reg.class_subject_id);
+        const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
         const kFull = scoresConfig?.k_full_score || 0;
         const pFull = scoresConfig?.p_full_score || 0;
@@ -21509,7 +21788,7 @@ const supabaseDataSdk = {
           <td class="px-3 py-2 text-center">${r.fScore}</td>
           <td class="px-3 py-2 text-center font-semibold text-blue-600">${(r.mScore+r.fScore)}</td>
           <td class="px-3 py-2 text-center font-bold text-green-600">${r.totalAll}</td>
-          <td class="px-3 py-2 text-center font-bold text-blue-600">${r.special1==='มส.'||r.special2==='มส.' ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue)}</td>
+          <td class="px-3 py-2 text-center font-bold text-blue-600">${_gradeCellHtml(r, r.special1==='มส.'||r.special2==='มส.' ? 'มส.' : (r.special3==='ร.' ? 'ร.' : r.gradeValue))}</td>
         </tr>
       `).join('');
     }
@@ -23220,7 +23499,7 @@ const supabaseDataSdk = {
             <p style="font-weight:700;color:#1e293b;margin:0;font-size:13px">👤 ${r.studentName}</p>
             <p style="font-size:11px;color:#94a3b8;margin:2px 0 0">${r.comboClass}/${r.comboRoom} · ${r.comboSubject}</p>
           </div>
-          <span style="background:#2563eb;color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0">${gradeDisplay}</span>
+          <span ${r.unregistered ? `onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')"` : ''} style="background:${r.unregistered ? '#dc2626' : '#2563eb'};color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0;${r.unregistered ? 'cursor:pointer' : ''}">${gradeDisplay}${r.unregistered ? ' 🔔' : ''}</span>
         </div>
         <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KPAC ${r.totalKPAC}</b></p>
         <p style="font-size:11px;color:#64748b;margin:2px 0 0">M ${r.mScore} · F ${r.fScore} → <b style="color:#2563eb">รวม MF ${(r.mScore+r.fScore)}</b></p>
@@ -23262,7 +23541,7 @@ const supabaseDataSdk = {
             <p style="font-weight:700;color:#1e293b;margin:0;font-size:13px">👤 ${r.studentName}</p>
             <p style="font-size:11px;color:#94a3b8;margin:2px 0 0">${r.comboClass}/${r.comboRoom} · ${r.comboSubject}</p>
           </div>
-          <span style="background:#2563eb;color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0">${gradeDisplay}</span>
+          <span ${r.unregistered ? `onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')"` : ''} style="background:${r.unregistered ? '#dc2626' : '#2563eb'};color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0;${r.unregistered ? 'cursor:pointer' : ''}">${gradeDisplay}${r.unregistered ? ' 🔔' : ''}</span>
         </div>
         <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KPAC ${r.totalKPAC}</b></p>
         <p style="font-size:11px;color:#64748b;margin:2px 0 0">M ${r.mScore} · F ${r.fScore} → <b style="color:#2563eb">รวม MF ${(r.mScore+r.fScore)}</b></p>
