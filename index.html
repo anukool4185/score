@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.108';
+    const APP_VERSION = 'SUPABASE-2026.09.08.109';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10859,6 +10859,13 @@ const supabaseDataSdk = {
       const subjectName = document.getElementById('ea-subject')?.value;
       const kRound = document.getElementById('ea-kround')?.value;
       const scoreType = document.getElementById('ea-scoretype')?.value || 'k'; // 📊 ประเภทคะแนน: k หรือ c
+      // 🛡️ ตรวจสอบว่าครั้งที่เลือกอยู่ในช่วงที่ระบบบันทึกคะแนนรองรับ
+      // K รองรับ 10 ครั้ง, C รองรับ 3 ครั้ง — ถ้าเกินคะแนนจะไม่แสดงในหน้าบันทึกคะแนน
+      const _maxRound = scoreType === 'c' ? 3 : 10;
+      if ((parseInt(kRound) || 1) > _maxRound) {
+        showToast(`⚠️ ${scoreType.toUpperCase()} รองรับได้สูงสุด ${_maxRound} ครั้ง กรุณาเลือกครั้งที่ไม่เกินนี้`, 'error');
+        return;
+      }
       const startTime = document.getElementById('ea-start')?.value;
       const endTime = document.getElementById('ea-end')?.value;
       const shuffle = document.getElementById('ea-shuffle')?.checked;
@@ -11124,11 +11131,23 @@ const supabaseDataSdk = {
     function _getEaSelectedRegIds() {
       return Array.from(document.querySelectorAll('.ea-student-cb:checked')).map(cb => cb.value);
     }
-    /** 📊 เปลี่ยนป้ายกำกับตามประเภทคะแนนที่เลือก (K หรือ C) ให้เห็นชัดว่ากำลังตั้งค่าให้อะไร */
+    /** 📊 เปลี่ยนป้ายกำกับและจำนวนครั้งตามประเภทคะแนนที่เลือก (K หรือ C)
+     *  ⚠️ สำคัญ: K รองรับ 10 ครั้ง แต่ C รองรับแค่ 3 ครั้ง (ตามที่ระบบบันทึกคะแนนกำหนดไว้)
+     *  ถ้าเลือกเกิน คะแนนจะบันทึกได้แต่ไม่แสดงในหน้าบันทึกคะแนน */
     function _updateScoreTypeLabel() {
       const t = document.getElementById('ea-scoretype')?.value || 'k';
       const label = document.getElementById('ea-round-label');
       if (label) label.textContent = t === 'c' ? '🔢 C ครั้งที่' : '🔢 K ครั้งที่';
+
+      // ปรับจำนวนครั้งให้ตรงกับที่หน้าบันทึกคะแนนรองรับ
+      const maxTimes = (t === 'c') ? 3 : 10;
+      const sel = document.getElementById('ea-kround');
+      if (sel) {
+        const cur = parseInt(sel.value) || 1;
+        sel.innerHTML = Array.from({ length: maxTimes }, (_, i) =>
+          `<option value="${i + 1}">ครั้งที่ ${i + 1}</option>`).join('');
+        sel.value = String(Math.min(cur, maxTimes));   // ถ้าเดิมเลือกเกิน ปรับลงมาให้พอดี
+      }
     }
     function resetExamSetForm() {
       document.getElementById('ea-edit-id').value = '';
