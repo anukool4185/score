@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.114';
+    const APP_VERSION = 'SUPABASE-2026.09.08.115';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3552,6 +3552,24 @@ const supabaseDataSdk = {
               renderExamCheatList();
             }
           }
+        }
+        // 📨 คำขอสอบแก้ตัว: อัปเดตหน้ารายการสด + เด้งแจ้งแอดมินเมื่อมีคำขอใหม่ (ไม่ต้องกดรีเฟรชเอง)
+        // เทียบรายการที่รออนุมัติก่อน ถ้าไม่เปลี่ยนไม่ต้องวาดใหม่ (กันหน้ากระพริบทุก 3 วินาที)
+        if (currentUser && currentUser.user_type === 'admin') {
+          const pendingRetryIds = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending')
+            .map(d => String(d.__backendId)).sort().join(',');
+          if (window._lastRetryPendingIds !== undefined && pendingRetryIds !== window._lastRetryPendingIds) {
+            const before = new Set((window._lastRetryPendingIds || '').split(',').filter(Boolean));
+            const newCount = pendingRetryIds.split(',').filter(id => id && !before.has(id)).length;
+            if (newCount > 0 && typeof showToast === 'function') showToast(`📨 มีคำขอสอบแก้ตัวใหม่ ${newCount} รายการ`);
+            const retryTabEl = document.getElementById('admin-tab-retryrequest');
+            // ถ้าแอดมินกำลังเปิดหน้าต่างอนุมัติอยู่ ไม่วาดใหม่ กันค่าที่กรอกไว้หาย
+            if (retryTabEl && !retryTabEl.classList.contains('hidden') && !document.getElementById('approve-retry-panel')
+                && typeof renderRetryRequestsList === 'function') {
+              renderRetryRequestsList();
+            }
+          }
+          window._lastRetryPendingIds = pendingRetryIds;
         }
         // 📝 ฝั่งนักเรียน: ถ้ากำลังถูก freeze อยู่ ให้เช็คว่าแอดมินตัดสินใจแล้วหรือยัง ตอบสนองอัตโนมัติทันที ไม่ต้องรีเฟรช
         if (typeof checkExamLiveStatus === 'function' && (document.getElementById('exam-freeze-overlay') || _examAntiCheatActive)) {
@@ -12084,12 +12102,18 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กสำคัญที่พบ: ถ้าครั้งก่อนมีคะแนนติดไปแล้ว (เช่น ครูกำหนดคะแนนเอง หรือตรวจอัตโนมัติ/อัตนัยไปแล้ว)
       // แล้วให้สอบแก้โดยไม่ลบคะแนนเก่าออกก่อน พอสอบแก้เสร็จคะแนนใหม่จะถูก "บวกเพิ่ม" ทับคะแนนเก่า กลายเป็นคะแนนซ้อนสองเท่า
       // ต้องลบคะแนนที่ครั้งก่อนทำให้ได้ออกจากยอดปัจจุบันก่อน เหมือนหลักการเดียวกับตอนลบ/รีเซ็ทชุดสอบ
-      const prevSubmission = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.registration_id === registrationId)
+      const prevSubmission = allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(examSetId) && String(d.registration_id) === String(registrationId))
         .sort((a,b) => new Date(b.started_at||0) - new Date(a.started_at||0))[0];
       if (prevSubmission) {
         const prevScore = prevSubmission.manual_score !== undefined && prevSubmission.manual_score !== null ? prevSubmission.manual_score
           : (prevSubmission.auto_score !== undefined && prevSubmission.auto_score !== null ? prevSubmission.auto_score : null);
-        if (prevScore !== null && !prevSubmission.score_reversed) {
+        // ⚠️ หักเท่าที่ "เคยโอนเข้าคะแนนหลักจริง" เท่านั้น — ถ้าครั้งก่อนยังไม่ได้โอน (เช่น รอตรวจอัตนัย/โอนล้มเหลว)
+        // แล้วไปหักคะแนนเต็มจำนวน จะไปกินคะแนนจากแหล่งอื่นในช่องเดียวกันจนหายไป
+        const _contributed = parseFloat(prevSubmission.k_score_contributed);
+        const _wasImported = prevSubmission.imported_to_grade === true || prevSubmission.imported_to_grade === 'true';
+        const _amountToReverse = !isNaN(_contributed) && prevSubmission.k_score_contributed !== ''
+          ? _contributed : (_wasImported ? (parseFloat(prevScore) || 0) : 0);
+        if (prevScore !== null && !prevSubmission.score_reversed && _amountToReverse > 0) {
           const round = parseInt(examSet.k_round) || 1;
           // 🔍 หาแถวคะแนนแบบมีทางสำรอง (ถ้าหาไม่เจอ คะแนนเก่าจะค้างอยู่ถาวร แล้วบวกซ้อนกับคะแนนใหม่)
           let grade = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(registrationId));
@@ -12106,7 +12130,7 @@ const supabaseDataSdk = {
             let scoresArr = (grade[retryField] || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = (currentValue - prevScore) > 0 ? String(currentValue - prevScore) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
+            scoresArr[round - 1] = (currentValue - _amountToReverse) > 0 ? String(currentValue - _amountToReverse) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
             await window.dataSdk.update({ ...grade, [retryField]: scoresArr.join(',') });
           }
           // ทำเครื่องหมายว่าคะแนนของครั้งนี้ถูกลบออกจากยอดแล้ว กัน deleteExamSet/resetExamSet มาลบซ้ำอีกทีในอนาคต
@@ -12201,7 +12225,7 @@ const supabaseDataSdk = {
       // เดิมสอบแก้ตัวสร้างแถวใหม่ จึงถูกปฏิเสธ ทำให้ขึ้นว่า "ไม่สามารถเริ่มสอบแก้ได้"
       // แก้โดยเขียนทับแถวเดิมของนักเรียนคนนี้แทน (คะแนนเก่าถูกหักออกไปแล้วในขั้นตอนก่อนหน้า)
       const existingRow = allData.find(d => d.type === 'exam_submission'
-        && d.exam_set_id === examSetId && d.student_id === currentUser.student_id);
+        && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(currentUser.student_id));
       const retryPayload = {
         type: 'exam_submission',
         exam_set_id: examSetId,
@@ -12220,9 +12244,12 @@ const supabaseDataSdk = {
         retry_count: usedRetries + 1, // 🔢 นับจำนวนครั้งที่สอบแก้ตัว (สูงสุด 2 ครั้ง)
         started_at: new Date().toISOString(),
         // ล้างข้อมูลของการสอบครั้งก่อนให้หมด เพื่อเริ่มใหม่อย่างสะอาด
-        submitted_at: '', auto_score: '', manual_score: '', k_score_contributed: '',
-        needs_manual_grading: '', manual_grading_done: '', imported_to_grade: '',
-        frozen: '', frozen_reason: '', cheat_warning_count: '', terminated_reason: '', score_reversed: '',
+        // ⚠️ ค่าจริง/เท็จต้องเป็น false ไม่ใช่ค่าว่าง — ค่าว่างกลายเป็น null ในฐานข้อมูล
+        // ระบบโอนคะแนนสำรองในฐานข้อมูล (ทุก 5 นาที) หาเฉพาะ imported_to_grade = false จะมองข้าม null
+        // ถ้าเบราว์เซอร์โอนคะแนนไม่สำเร็จ คะแนนสอบแก้ตัวจะไม่มีทางถูกโอนเลย
+        submitted_at: '', auto_score: '', manual_score: '', k_score_contributed: 0,
+        needs_manual_grading: false, manual_grading_done: false, imported_to_grade: false,
+        frozen: false, frozen_reason: '', cheat_warning_count: 0, terminated_reason: '', score_reversed: false,
       };
       const result = existingRow
         ? await window.dataSdk.update({ ...existingRow, ...retryPayload })
