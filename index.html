@@ -2412,9 +2412,7 @@
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
            <label class="block text-xs text-gray-600 mb-1"><span id="esa-round-label">🔢 K ครั้งที่</span></label>
-           <select id="esa-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
-            ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n}</option>`).join('')}
-           </select>
+           <select id="esa-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
           </div>
           <div class="flex items-end">
            <p class="text-sm text-amber-700 font-semibold" id="esa-total-label">เลือก 0 ข้อ = 0 คะแนน</p>
@@ -2662,7 +2660,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.124';
+    const APP_VERSION = 'SUPABASE-2026.09.08.125';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9650,6 +9648,7 @@ const supabaseDataSdk = {
       const classes = _eaClasses();   // รวมจากทุกแหล่ง ไม่ให้ชั้น/ห้องตกหล่น (เหมือนหน้าจัดสอบปรนัย)
       const sel = document.getElementById('esa-class');
       if (sel) sel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+      _updateEsaScoreTypeLabel();   // 🔢 เติมตัวเลือกครั้งที่ทันทีที่เปิดหน้า
       // เติมตัวเลือกเวลาแบบ 24 ชั่วโมง
       _initEsaTimeSelectors();
       updateEsaRoomOptions();
@@ -9698,6 +9697,15 @@ const supabaseDataSdk = {
       const t = document.getElementById('esa-scoretype')?.value || 'k';
       const label = document.getElementById('esa-round-label');
       if (label) label.textContent = `🔢 ${t.toUpperCase()} ครั้งที่`;
+      // 🔢 สร้างตัวเลือกครั้งที่ ตามจำนวนที่หน้าบันทึกคะแนนรองรับ (K 10 ครั้ง, P และ C อย่างละ 3 ครั้ง)
+      // ⚠️ เดิมเขียนคำสั่งสร้างตัวเลือกไว้ใน HTML ตรงๆ ซึ่งเบราว์เซอร์ไม่ประมวลผล ช่องครั้งที่จึงว่างเปล่า
+      const maxTimes = t === 'k' ? 10 : 3;
+      const sel = document.getElementById('esa-kround');
+      if (sel) {
+        const cur = parseInt(sel.value) || 1;
+        sel.innerHTML = Array.from({ length: maxTimes }, (_, i) => `<option value="${i + 1}">ครั้งที่ ${i + 1}</option>`).join('');
+        sel.value = String(Math.min(cur, maxTimes));
+      }
     }
 
     /** แสดงรายการข้อสอบอัตนัยให้เลือก */
@@ -9786,7 +9794,8 @@ const supabaseDataSdk = {
       const room = document.getElementById('esa-room')?.value;
       const subj = document.getElementById('esa-subject')?.value;
       const scoreType = document.getElementById('esa-scoretype')?.value || 'k';
-      const kRound = document.getElementById('esa-kround')?.value || '1';
+      const kRound = document.getElementById('esa-kround')?.value || '';
+      if (!kRound) { showToast('กรุณาเลือกครั้งที่', 'error'); return; }
 
       if (!cls || !room || !subj) { showToast('กรุณาเลือกชั้น ห้อง และวิชาให้ครบ', 'error'); return; }
 
