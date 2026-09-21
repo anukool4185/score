@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.117';
+    const APP_VERSION = 'SUPABASE-2026.09.08.121';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3687,6 +3687,26 @@ const supabaseDataSdk = {
           updateLoginPageRegistrations();
         }
         
+        // 🔘 อัปเดตปุ่มสอบของนักเรียนแบบสด — แอดมินอนุมัติ/ไม่อนุมัติ/เปิดชุดสอบใหม่ ปุ่มเปลี่ยนเองไม่ต้องรีเฟรช
+        // วาดใหม่เฉพาะเมื่อข้อมูลที่เกี่ยวกับปุ่มสอบของคนนี้เปลี่ยนจริง และไม่วาดทับตอนกำลังทำข้อสอบ/เปิดหน้าต่างอยู่
+        if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'grades'
+            && document.getElementById('student-content')) {
+          const sid = String(currentUser.student_id);
+          const sig = allData.filter(d =>
+              (d.type === 'exam_set') ||
+              ((d.type === 'exam_submission' || d.type === 'exam_retry_request' || d.type === 'exam_retry_permission' || d.type === 'grade') && String(d.student_id) === sid))
+            .map(d => [d.type, d.__backendId, d.status, d.retry_count, d.auto_score, d.manual_score, d.start_time, d.end_time,
+                       d.approved_start_time, d.approved_end_time, d.allowed, d.submitted_at, d.k_scores, d.c_scores].join('|'))
+            .sort().join('#');
+          const busy = document.getElementById('exam-taking-overlay') || document.getElementById('retry-request-panel')
+            || document.getElementById('exam-result-detail') || document.getElementById('unreg-scores-popup')
+            || document.getElementById('exam-monitoring-gate');
+          if (window._lastStudentExamSig !== undefined && sig !== window._lastStudentExamSig && !busy
+              && typeof showStudentGrades === 'function') {
+            showStudentGrades(true);
+          }
+          if (!busy) window._lastStudentExamSig = sig;
+        }
         // อัปเดตหน้านักเรียนแบบสด ถ้านักเรียนกำลังดูแท็บ "ลงทะเบียนเรียน" อยู่ตอนนั้น
         // (เช่น แอดมินแก้ไขชั้น/ห้องของนักเรียนคนนี้ ระบบจะตรวจสอบสิทธิ์ใหม่ทันที ไม่ต้องออกจากแท็บ)
         // เช็คก่อนว่าข้อมูลที่เกี่ยวกับสิทธิ์เปลี่ยนจริงหรือไม่ ถ้าไม่เปลี่ยนจะไม่ re-render
@@ -10928,7 +10948,7 @@ const supabaseDataSdk = {
             </button>
             <button data-v="same" class="w-full text-left mb-3 p-3 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100">
               <p class="font-bold text-green-800">🔁 ชุดเดิม — ไม่เพิ่มคะแนนเต็ม</p>
-              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b> · คะแนนสอบของนักเรียน<b>แทนที่</b>คะแนนเดิมในช่องนี้ (ใช้เมื่อเป็นการสอบเรื่องเดียวกับที่มีคะแนนอยู่แล้ว)</p>
+              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b> · คะแนนสอบชุดนี้<b>แทนที่เฉพาะคะแนนจากการสอบชุดเดิม</b>ในครั้งนี้ คะแนนส่วนอื่นที่ครูกรอกไว้ยังอยู่ครบ</p>
               ${newTotal > info.full ? `<p class="text-xs text-red-600 font-semibold mt-1">⚠️ ชุดสอบนี้ ${newTotal} คะแนน มากกว่าคะแนนเต็มเดิม ${info.full} — นักเรียนอาจได้คะแนนเกินเต็ม</p>` : ''}
             </button>
             <button data-v="" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
@@ -11814,7 +11834,7 @@ const supabaseDataSdk = {
         const _st = (examSet.score_type === 'c' ? 'C' : 'K');
         const kLabel = roundTotals[examSet.k_round] > 1 ? `${_st}.${examSet.k_round} ชุด ${setLabels.get(examSet.__backendId)}` : `${_st}.${examSet.k_round}`;
         const submission = allData.find(d => d.type === 'exam_submission' &&
-          d.exam_set_id === examSet.__backendId && d.student_id === currentUser.student_id);
+          String(d.exam_set_id) === String(examSet.__backendId) && String(d.student_id) === String(currentUser.student_id));
         const isOpen = isExamSetOpen(examSet);
         let btnHtml = '';
         // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
@@ -11822,66 +11842,115 @@ const supabaseDataSdk = {
           const notYetOpen = new Date() < new Date(examSet.start_time);
           // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
-            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white">📝 เข้าสอบ ${kLabel}</button>`
-            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ยังไม่ถึงเวลา ${kLabel}</span>` : '');
-        } else if (submission.status === 'in_progress') {
-          if (isOpen) {
-            btnHtml = `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white">✏️ ทำต่อ ${kLabel}</button>`;
-          } else {
-            // ⚠️ ปรับตามที่ขอ: หมดเวลาสอบแล้ว ปิดปุ่มไปเลย (ไม่เสนอ "ขอสอบแก้" อีกต่อไปตรงนี้) — ปกติจะไม่ถึงจุดนี้เพราะระบบส่งคำตอบอัตโนมัติเมื่อหมดเวลาอยู่แล้ว
-            btnHtml = `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">⏰ หมดเวลาสอบ ${kLabel}</span>`;
-          }
-        } else if (submission.status === 'submitted') {
-          // ════════════════════════════════════════════════════
-          // ✅ สอบเสร็จแล้ว — ปุ่มเปลี่ยนตามสิทธิ์สอบแก้ตัวที่เหลือ
-          // ════════════════════════════════════════════════════
-          const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          const hasScore = scoreText !== '-' && scoreText !== null && scoreText !== undefined;
-
-          // 👁️ ปุ่มดูคะแนนสอบครั้งนี้ (คะแนนโอนเข้าระบบอัตโนมัติแล้ว ปุ่มนี้แค่ดูและดาวน์โหลด)
-          const viewBtn = hasScore
-            ? ` <button onclick="showExamResultDetail('${submission.__backendId}')" style="${btnBase};background:#0ea5e9;color:white" class="btn-3d">👁️ ดูคะแนนสอบ</button>`
-            : '';
-
-          const usedRetries = parseInt(submission.retry_count) || 0;
-          const retriesLeft = 2 - usedRetries;
-          const attemptLabel = usedRetries > 0 ? ` (แก้ตัวครั้งที่ ${usedRetries})` : '';
-          const scoreLabel = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${kLabel}${attemptLabel} (${scoreText}/${examSet.total_score})</span>${viewBtn}`;
-
-          if (retriesLeft <= 0) {
-            // ใช้สิทธิ์ครบแล้ว — ไม่มีปุ่มสอบและปุ่มขอสอบแก้ตัวอีก
-            btnHtml = scoreLabel;
-          } else {
-            // 🔍 ดูว่ามีคำขอที่แอดมินอนุมัติแล้วและยังอยู่ในเวลาหรือไม่
-            const approvedRetry = allData.filter(d => d.type === 'exam_retry_request'
-              && String(d.exam_set_id) === String(examSet.__backendId)
-              && String(d.student_id) === String(currentUser.student_id)
-              && d.status === 'approved')
-              .sort((a,b) => new Date(b.reviewed_at||0) - new Date(a.reviewed_at||0))[0];
-
-            let retryWindowOpen = false;
-            if (approvedRetry) {
-              const nowT = new Date();
-              const sT = approvedRetry.approved_start_time ? new Date(approvedRetry.approved_start_time) : null;
-              const eT = approvedRetry.approved_end_time ? new Date(approvedRetry.approved_end_time) : null;
-              // ถ้าไม่ได้กำหนดเวลา ให้ถือว่าเปิดให้สอบได้เลย
-              retryWindowOpen = (!sT || nowT >= sT) && (!eT || nowT <= eT);
-            }
-
-            if (retryWindowOpen) {
-              // 🟢 แอดมินอนุมัติแล้วและอยู่ในเวลา → แสดงปุ่มสอบแก้ตัวสีเขียว (ปุ่มขอสอบแก้ตัวหายไป)
-              btnHtml = `${scoreLabel} <button onclick="startRetryExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 สอบแก้ตัวครั้งที่ ${usedRetries + 1}</button>`;
-            } else {
-              // ⏳ ยังไม่อนุมัติ หรือยังไม่ถึงเวลา → แสดงปุ่มขอสอบแก้ตัว
-              btnHtml = `${scoreLabel} ` + renderRetryRequestButton(examSet, submission, kLabel);
-            }
-          }
-        } else if (submission.status === 'terminated') {
-          const scoreText = submission.manual_score !== undefined && submission.manual_score !== null ? submission.manual_score : (submission.auto_score ?? '-');
-          btnHtml = `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${kLabel} (${scoreText}/${examSet.total_score})</span> ` + renderRetryRequestButton(examSet, submission, kLabel);
+            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white" class="btn-3d">📝 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2')} เข้าสอบ</button>`
+            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2')} ยังไม่ถึงเวลาสอบ</span>` : '');
+        } else {
+          // ════════════════════════════════════════════════════════════
+          // 🔘 ปุ่มเดียวต่อชุดสอบ — เปลี่ยนสถานะไปตามขั้นตอน ไม่สร้างปุ่มซ้อนเพิ่ม
+          //    (ป้ายคะแนน + ปุ่มดูคะแนน เป็นข้อมูลแสดงผล ไม่ใช่ปุ่มดำเนินการ)
+          // ════════════════════════════════════════════════════════════
+          btnHtml = _examActionHtml(examSet, submission, reg, kLabel, isOpen, btnBase, spanBase);
         }
         return btnHtml;
       }).join(' ');
+    }
+
+    /** 📨 คำขอสอบแก้ตัวที่ "ใช้กับรอบนี้" — ต้องขอหลังส่งคำตอบครั้งล่าสุด
+     *  คำขอเก่าที่ใช้สอบแก้ตัวไปแล้ว (ขอก่อนส่งครั้งล่าสุด) ถือว่าหมดอายุ ไม่นำมาแสดงซ้ำ */
+    function _currentRetryRequest(examSet, submission) {
+      const lastSubmit = submission?.submitted_at ? new Date(submission.submitted_at).getTime() : 0;
+      return allData.filter(d => d.type === 'exam_retry_request'
+          && String(d.exam_set_id) === String(examSet.__backendId)
+          && String(d.student_id) === String(currentUser.student_id)
+          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000))
+        .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0))[0] || null;
+    }
+
+    /** ⏰ ช่วงเวลาสอบแก้ตัวที่แอดมินอนุมัติ (ใช้ทั้งปุ่ม นาฬิกานับถอยหลัง และตอนเข้าสอบ) */
+    function _approvedRetryWindow(examSetId, studentId) {
+      const req = allData.filter(d => d.type === 'exam_retry_request'
+          && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(studentId)
+          && (d.status === 'approved' || d.status === 'used'))
+        .sort((a, b) => new Date(b.reviewed_at || 0) - new Date(a.reviewed_at || 0))[0];
+      if (!req) return null;
+      return {
+        start: req.approved_start_time ? new Date(req.approved_start_time) : null,
+        end: req.approved_end_time ? new Date(req.approved_end_time) : null,
+        request: req,
+      };
+    }
+
+    /** 🔘 สร้างปุ่มดำเนินการ "ปุ่มเดียว" ตามสถานะของผู้สอบ
+     *  ทำค้าง → ทำต่อ | ส่งแล้ว → ขอสอบแก้ตัว → รออนุมัติ → สอบแก้ตัว (เขียว) → ... → ครบโควต้า (ไม่มีปุ่ม) */
+    function _examActionHtml(examSet, submission, reg, kLabel, isOpen, btnBase, spanBase) {
+      const usedRetries = parseInt(submission.retry_count) || 0;
+      // 🏷️ ป้ายเต็ม เช่น "K ครั้งที่ 1" หรือ "C ครั้งที่ 2 ชุด 2" (ตามที่ผู้ใช้ต้องการ ให้บอกชัดว่าเป็น K หรือ C ครั้งที่เท่าไร)
+      const roundText = String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2');
+      const isRetry = submission.is_retry_attempt === true || submission.is_retry_attempt === 'true';
+      const fmt = d => d.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+
+      // ── กำลังทำค้างอยู่ ──
+      if (submission.status === 'in_progress') {
+        let canResume = isOpen;
+        if (isRetry) {
+          const w = _approvedRetryWindow(examSet.__backendId, currentUser.student_id);
+          const now = new Date();
+          canResume = !!w && (!w.start || now >= w.start) && (!w.end || now <= w.end);
+        }
+        if (!canResume) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ตัวรอบที่ ' + usedRetries : 'สอบ'}</span>`;
+        return isRetry
+          ? `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${roundText} สอบแก้ตัวรอบที่ ${usedRetries}</button>`
+          : `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white" class="btn-3d">✏️ ทำต่อ ${kLabel}</button>`;
+      }
+
+      // ── ส่งแล้ว / ถูกยุติ: ป้ายคะแนน + ปุ่มดูคะแนน + ปุ่มดำเนินการ 1 ปุ่ม ──
+      const scoreText = (submission.manual_score !== undefined && submission.manual_score !== null && submission.manual_score !== '')
+        ? submission.manual_score : (submission.auto_score ?? '-');
+      const hasScore = scoreText !== '-' && scoreText !== null && scoreText !== undefined && scoreText !== '';
+      const terminated = submission.status === 'terminated';
+      const attemptLabel = usedRetries > 0 ? ` สอบแก้ตัวรอบที่ ${usedRetries}` : '';
+      const scoreLabel = terminated
+        ? `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${roundText}${attemptLabel} (${hasScore ? scoreText : '-'}/${examSet.total_score})</span>`
+        : `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${roundText}${attemptLabel} (${hasScore ? scoreText : 'รอตรวจ'}/${examSet.total_score})</span>`;
+      const viewBtn = hasScore
+        ? ` <button onclick="showExamResultDetail('${submission.__backendId}')" style="${btnBase};background:#0ea5e9;color:white" class="btn-3d">👁️ ดูคะแนนสอบ</button>`
+        : '';
+
+      // 🏷️ ป้าย "ส่งแล้ว" + ปุ่มดูคะแนน แสดงเฉพาะตอนเพิ่งสอบเสร็จ ออกไปหน้าอื่นแล้วกลับมาจะไม่แสดงอีก
+      //    (คะแนนถูกรวมเข้าช่อง K/C แล้ว ดูได้จากช่องคะแนนของวิชา) — ป้าย "ถูกยุติ" แสดงเสมอ เพราะเป็นข้อมูลสำคัญ
+      const justSubmitted = !!(window._justSubmittedIds && window._justSubmittedIds.has(String(submission.__backendId)));
+      const infoHtml = (terminated || justSubmitted) ? (scoreLabel + (justSubmitted ? viewBtn : '')) : '';
+      const retriesLeft = 2 - usedRetries;
+      if (retriesLeft <= 0) return infoHtml;       // ครบโควต้า — ไม่มีปุ่มสอบ/ขอสอบแก้ตัวอีก
+      const nextNo = usedRetries + 1;
+      const now = new Date();
+      const greenBtn = `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id || reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${roundText} สอบแก้ตัวรอบที่ ${nextNo}</button>`;
+      const requestBtn = `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${roundText} ขอสอบแก้ตัวรอบที่ ${nextNo}</button>`;
+
+      // สิทธิ์จากหน้าต่างแจ้งเตือนทุจริต (แอดมินอนุญาตโดยตรง) — นับเฉพาะที่อนุญาตหลังส่งครั้งล่าสุด
+      const lastSubmit = submission.submitted_at ? new Date(submission.submitted_at).getTime() : 0;
+      const perm = allData.filter(d => d.type === 'exam_retry_permission' && d.allowed
+          && String(d.student_id) === String(currentUser.student_id)
+          && String(d.exam_id || d.exam_set_id) === String(examSet.__backendId)
+          && new Date(d.granted_at || 0).getTime() >= lastSubmit - 1000)
+        .sort((a, b) => new Date(b.granted_at) - new Date(a.granted_at))[0];
+      let action;
+      if (perm) {
+        action = greenBtn;
+      } else {
+        const req = _currentRetryRequest(examSet, submission);
+        if (!req) action = requestBtn;                                            // ยังไม่ขอ
+        else if (req.status === 'pending') action = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${roundText} รออนุมัติสอบแก้ตัวรอบที่ ${nextNo}</span>`;
+        else if (req.status === 'denied') action = '';                           // ไม่อนุมัติ — ปุ่มหายไป
+        else if (req.status === 'approved') {
+          const s = req.approved_start_time ? new Date(req.approved_start_time) : null;
+          const e = req.approved_end_time ? new Date(req.approved_end_time) : null;
+          if ((!s || now >= s) && (!e || now <= e)) action = greenBtn;            // อนุมัติ + อยู่ในเวลา → ปุ่มเขียว
+          else if (s && now < s) action = `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${roundText} อนุมัติสอบแก้ตัวรอบที่ ${nextNo} เริ่ม ${fmt(s)}</span>`;
+          else action = requestBtn;                                              // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
+        } else action = requestBtn;
+      }
+      return [infoHtml, action].filter(Boolean).join(' ');
     }
 
     // ปุ่มขออนุญาต/สถานะคำขอสอบแก้ — ครอบคลุมทั้ง exam_retry_request (นักเรียนขอเอง) และ exam_retry_permission (แอดมินอนุมัติจาก popup แจ้งเตือน)
@@ -11899,7 +11968,7 @@ const supabaseDataSdk = {
       const percent = full > 0 ? Math.round((parseFloat(score) / parseFloat(full)) * 100) : 0;
       const scoreType = (examSet.score_type === 'c' ? 'C' : 'K');
       const usedRetries = parseInt(sub.retry_count) || 0;
-      const attemptText = usedRetries > 0 ? `สอบแก้ตัวครั้งที่ ${usedRetries}` : 'สอบปกติ';
+      const attemptText = usedRetries > 0 ? `สอบแก้ตัวรอบที่ ${usedRetries}` : 'สอบปกติ';
       const stuName = sub.student_name || `${currentUser?.prefix||''}${currentUser?.first_name||''} ${currentUser?.last_name||''}`;
       const pad = n => String(n).padStart(2, '0');
       const subAt = sub.submitted_at ? new Date(sub.submitted_at) : null;
@@ -12001,7 +12070,7 @@ const supabaseDataSdk = {
 
       // ป้ายครั้งที่สอบ พร้อมบอกว่าเป็นสอบปกติหรือสอบแก้ตัว (ตามที่ผู้ใช้ต้องการ)
       const _usedRetries = parseInt(sub.retry_count) || 0;
-      const _attemptText = _usedRetries > 0 ? `สอบแก้ตัวครั้งที่ ${_usedRetries}` : 'สอบปกติ';
+      const _attemptText = _usedRetries > 0 ? `สอบแก้ตัวรอบที่ ${_usedRetries}` : 'สอบปกติ';
       ctx.fillStyle = _usedRetries > 0 ? '#dcfce7' : '#dbeafe';
       const tagW = 340, tagX = (W - tagW) / 2, tagY = by + 275;
       ctx.beginPath();
@@ -12190,6 +12259,10 @@ const supabaseDataSdk = {
         }
       }
       const useSameQuestions = !approvedReq || approvedReq.question_mode !== 'new'; // ค่าเริ่มต้นคือใช้ข้อสอบเดิม
+      // 📌 ทำเครื่องหมายว่าใช้คำขอนี้แล้ว — หลังสอบแก้ตัวเสร็จ ปุ่มจะกลับเป็น "ขอสอบแก้ตัวครั้งถัดไป" ไม่ใช่ปุ่มเขียวค้าง
+      if (approvedReq && approvedReq.status === 'approved') {
+        window.dataSdk.update({ ...approvedReq, status: 'used' }).catch(e => console.log('[RetryExam] บันทึกสถานะใช้แล้วไม่สำเร็จ:', e.message));
+      }
       console.log('[RetryExam] ครั้งที่', usedRetries + 1, '| ข้อสอบ:', useSameQuestions ? 'ชุดเดิม' : 'สุ่มใหม่');
 
       // ⚠️ บั๊กสำคัญที่พบ: ถ้าครั้งก่อนมีคะแนนติดไปแล้ว (เช่น ครูกำหนดคะแนนเอง หรือตรวจอัตโนมัติ/อัตนัยไปแล้ว)
@@ -12552,7 +12625,16 @@ const supabaseDataSdk = {
       const update = () => {
         const label = document.getElementById('exam-timer-label');
         if (!label) { clearInterval(_examTimerInterval); return; }
-        const remainMs = new Date(examSet.end_time) - new Date();
+        // ⚠️ สอบแก้ตัวใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน ไม่ใช่เวลาปิดของชุดสอบหลัก
+        // (เดิมใช้เวลาชุดหลักเสมอ → สอบแก้ตัวหลังชุดหลักปิด นาฬิกาหมดทันที แล้วส่งกระดาษเปล่าอัตโนมัติ)
+        let _deadline = new Date(examSet.end_time);
+        const _sub = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
+          ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
+        if (_sub && (_sub.is_retry_attempt === true || _sub.is_retry_attempt === 'true')) {
+          const _w = _approvedRetryWindow(examSet.__backendId, _sub.student_id);
+          if (_w && _w.end) _deadline = _w.end;
+        }
+        const remainMs = _deadline - new Date();
         if (remainMs <= 0) {
           label.textContent = 'เวลาที่เหลือ: หมดเวลาแล้ว — กำลังส่งคำตอบอัตโนมัติ...';
           clearInterval(_examTimerInterval);
@@ -13728,12 +13810,23 @@ const supabaseDataSdk = {
             : `<p style="font-size:13px;color:#64748b;margin:0 0 4px">คะแนนที่ได้</p>
                <p style="font-size:32px;font-weight:800;color:#16a34a;margin:0">${autoScore}<span style="font-size:16px;color:#94a3b8"> / ${examSet.total_score}</span></p>`
           }
-          <button onclick="document.getElementById('exam-taking-overlay')?.remove()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">ปิดหน้าต่างนี้</button>
+          <button onclick="_closeExamResultOverlay()" style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer">ปิดหน้าต่างนี้</button>
         </div>`;
       } else {
-        document.getElementById('exam-taking-overlay')?.remove();
+        setTimeout(_closeExamResultOverlay, 0);
       }
       showToast(hasWritten ? '✅ ส่งคำตอบสำเร็จ รอครูตรวจข้ออัตนัย' : `✅ ส่งคำตอบสำเร็จ ได้คะแนน ${autoScore}/${examSet.total_score}`);
+      // 🏷️ จำไว้ว่าเพิ่งส่งกระดาษนี้ — ป้าย "ส่งแล้ว" จะแสดงจนกว่านักเรียนจะออกไปหน้าอื่น
+      window._justSubmittedIds = window._justSubmittedIds || new Set();
+      window._justSubmittedIds.add(String(submissionId));
+    }
+
+    /** ปิดหน้าสรุปผลหลังส่งคำตอบ แล้ววาดหน้าคะแนนใหม่ทันที ให้เห็นคะแนนที่ลงในช่อง K/C แล้ว */
+    function _closeExamResultOverlay() {
+      document.getElementById('exam-taking-overlay')?.remove();
+      if (currentUser && currentUser.user_type === 'student' && currentStudentTab === 'grades' && typeof showStudentGrades === 'function') {
+        showStudentGrades(true);
+      }
     }
 
     // เขียนคะแนนเข้า k_scores ที่ตำแหน่ง k_round-1 — ใช้ logic เดียวกับที่แก้บั๊ก "อัตนัยหาย" ไว้ก่อนหน้า (ไม่เลื่อนตำแหน่งกัน)
@@ -13776,15 +13869,33 @@ const supabaseDataSdk = {
       // ผลคือเหมือน "แทนที่" ค่าเดิมของ submission นี้ ไม่ใช่ "บวกซ้ำ" แต่ยังคงบวกร่วมกับคะแนนจากแหล่งอื่น (เช่น ที่ครูกรอกมือแยกไว้ก่อน) ได้ถูกต้อง
       const previousContribution = parseFloat(submission.k_score_contributed) || 0;
       const existingScore = parseFloat(scoresArr[round - 1]) || 0;
-      const _additive = existingScore - previousContribution + score;
-      // 🔁 โหมดชุดเดิม: คะแนนสอบแทนที่คะแนนในช่องนี้ (ไม่บวกซ้อนกับคะแนนที่กรอกไว้เดิม)
-      const newTotal = (examSet.full_score_mode === 'same') ? score : _additive;
+      // 🔁 "ทับ" = แทนที่เฉพาะคะแนนที่มาจากการสอบ คะแนนส่วนอื่นในช่อง (เช่น ครูกรอกมือ) ต้องคงอยู่
+      //    ตัวอย่าง: ช่องมี 10 = ของเดิม 7 + สอบ 3 → สอบใหม่ได้ 5 → 7 + 5 = 12 (ไม่ใช่ 5)
+      //    - กระดาษเดิม (สอบแก้ตัว/ครูตรวจใหม่): หักส่วนที่กระดาษนี้เคยโอนไว้ แล้วใส่คะแนนใหม่
+      //    - โหมดชุดเดิม: หักส่วนที่ "ชุดสอบอื่นในครั้งเดียวกัน" เคยโอนไว้ด้วย เพราะชุดใหม่มาแทนชุดเก่า
+      let _replacedOthers = [];
+      if (examSet.full_score_mode === 'same') {
+        const _n = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+        const _sameRoundSetIds = new Set(allData.filter(d => d.type === 'exam_set' && String(d.__backendId) !== String(examSet.__backendId)
+            && _n(d.class_name) === _n(examSet.class_name) && _n(d.room_number) === _n(examSet.room_number)
+            && _n(d.subject_name) === _n(examSet.subject_name) && String(parseInt(d.k_round) || 1) === String(round)
+            && ((d.score_type === 'c') ? 'c' : 'k') === sType).map(d => String(d.__backendId)));
+        _replacedOthers = allData.filter(d => d.type === 'exam_submission' && _sameRoundSetIds.has(String(d.exam_set_id))
+          && String(d.student_id) === String(submission.student_id) && String(d.__backendId) !== String(submission.__backendId)
+          && (d.imported_to_grade === true || d.imported_to_grade === 'true') && (parseFloat(d.k_score_contributed) || 0) > 0);
+      }
+      const _othersContribution = _replacedOthers.reduce((t, d) => t + (parseFloat(d.k_score_contributed) || 0), 0);
+      const newTotal = existingScore - previousContribution - _othersContribution + score;
       // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมเช็ค newTotal > 0 ทำให้ "สอบได้ 0 คะแนน" ถูกเข้าใจผิดว่า "ไม่มีคะแนน" แล้วเคลียร์เป็นค่าว่างเปล่า
       // ทั้งที่ 0 คือผลการสอบจริงที่ต้องบันทึกและแสดงไว้เสมอ (นักเรียนสอบแล้ว ตอบผิดหมดก็ต้องเห็นว่า "สอบแล้วได้ 0" ไม่ใช่ "ยังไม่ได้สอบ")
       // แก้โดยเปลี่ยนเป็น >= 0 แทน (ยังกันค่าติดลบซึ่งไม่ควรเกิดในกรณีบันทึกคะแนนใหม่อยู่ดี แต่ไม่เคลียร์ 0 ทิ้งอีกต่อไป)
       scoresArr[round - 1] = newTotal >= 0 ? String(newTotal) : '';
       if (grade) {
         await window.dataSdk.update({ ...grade, [scoreField]: scoresArr.join(',') });
+        // ชุดสอบเก่าในครั้งเดียวกันถูกชุดใหม่แทนที่แล้ว — ตั้งส่วนที่สมทบเป็น 0 กันลบชุดเก่าทีหลังแล้วไปหักคะแนนซ้ำ
+        for (const _o of _replacedOthers) {
+          window.dataSdk.update({ ..._o, k_score_contributed: 0 }).catch(e => console.log('[Score] ปรับชุดเก่าไม่สำเร็จ:', e.message));
+        }
       } else {
         const studentForName = allData.find(s => s.type === 'student' && s.student_id === submission.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
         await window.dataSdk.create({ type: 'grade', registration_id: submission.registration_id, student_id: submission.student_id, student_name: studentForName ? `${studentForName.prefix}${studentForName.first_name} ${studentForName.last_name}` : '', class_name: submission.class_name, room_number: submission.room_number, subject_name: submission.subject_name, [scoreField]: scoresArr.join(','), created_at: new Date().toISOString() });
@@ -20806,6 +20917,8 @@ const supabaseDataSdk = {
     }
     function showStudentTab(tabName) {
       _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
+      // 🏷️ ออกจากหน้าคะแนนไปหน้าอื่น → ป้าย "ส่งแล้ว" ของการสอบที่เพิ่งจบจะไม่แสดงอีก (คะแนนยังอยู่ในช่อง K/C)
+      if (tabName !== 'grades' && window._justSubmittedIds) window._justSubmittedIds.clear();
       currentStudentTab = tabName;
       const allTabIds = ['tab-profile', 'tab-notif', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
       allTabIds.forEach(id => {
@@ -21062,7 +21175,7 @@ const supabaseDataSdk = {
       document.body.appendChild(wrap);
     }
 
-    function showStudentGrades() {
+    function showStudentGrades(silent) {
       const content = document.getElementById('student-content');
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
       if (!student) {
@@ -21073,7 +21186,7 @@ const supabaseDataSdk = {
       const _tempRegs = _getTempScoreRegs(student);
       const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id))
         .concat(_tempRegs);
-      if (_tempRegs.length > 0) setTimeout(showUnregisteredScoresPopup, 300);
+      if (_tempRegs.length > 0 && !silent) setTimeout(showUnregisteredScoresPopup, 300);   // วาดใหม่อัตโนมัติไม่เด้งซ้ำ
       if (registrations.length === 0) {
         content.innerHTML = `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
