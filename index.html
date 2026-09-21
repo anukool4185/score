@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.113';
+    const APP_VERSION = 'SUPABASE-2026.09.08.114';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -19308,7 +19308,14 @@ const supabaseDataSdk = {
     }
 
     /** สถานะการสมัคร: สมัครเองจะมีเบอร์โทร หรือตั้ง username เองที่ไม่ใช่รหัสนักเรียน */
+    /** สถานะการสมัคร (ตามที่ผู้ใช้กำหนด 2 แบบ)
+     *  แบบที่ 1: ยังไม่มีรายชื่อในระบบ → ต้องสมัครเองก่อน (คนกลุ่มนี้ไม่ปรากฏในหน้าให้คะแนนอยู่แล้ว)
+     *  แบบที่ 2: ครูนำเข้ารายชื่อให้แล้ว → ถือว่าสมัครแล้ว เข้าระบบด้วยรหัสนักเรียนได้ */
     function _isStudentSignedUp(student) {
+      return !!student;
+    }
+    /** สมัครเองหรือครูนำเข้าให้ — ใช้แสดงข้อความให้ชัดเจน */
+    function _isSelfSignedUp(student) {
       if (!student) return false;
       const hasPhone = !!String(student.phone_number || '').trim();
       const customUser = student.username && String(student.username) !== String(student.student_id);
@@ -19321,9 +19328,10 @@ const supabaseDataSdk = {
       const signed = _isStudentSignedUp(student);
       if (signed && isRegistered) return ''; // ครบทั้งสองอย่าง ไม่ต้องแจ้งเตือน
       const subjEnc = encodeURIComponent(subjectName);
+      const selfSigned = _isSelfSignedUp(student);
       const signupLine = signed
         ? `<div class="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex-wrap">
-             <span class="text-sm text-green-700">✅ <b>สมัครแล้ว</b> — เข้าใช้ระบบได้</span>
+             <span class="text-sm text-green-700">✅ <b>สมัครแล้ว</b> — ${selfSigned ? 'นักเรียนสมัครเอง เข้าใช้ระบบได้' : 'ครูนำเข้ารายชื่อให้ เข้าระบบด้วยรหัสนักเรียน (user และ password คือรหัสนักเรียน)'}</span>
              <button onclick="editStudent('${student.__backendId}')" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-xs btn-3d">📝 แก้ไขข้อมูล</button>
            </div>`
         : `<div class="flex items-center justify-between gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex-wrap">
@@ -20842,6 +20850,94 @@ const supabaseDataSdk = {
       }
       return html;
     }
+    /** 📋 หาวิชาที่ครูกรอกคะแนนเก็บไว้ชั่วคราว แต่นักเรียนยังไม่ลงทะเบียน */
+    function _getTempScoreRegs(student) {
+      if (!student) return [];
+      const regSubjects = new Set(allData.filter(r => r.type === 'student_registration'
+        && String(r.student_id) === String(student.student_id)).map(r => r.subject_name));
+      const seen = new Set();
+      return allData.filter(g => g.type === 'grade' && String(g.student_id) === String(student.student_id)
+          && g.subject_name && !regSubjects.has(g.subject_name))
+        .filter(g => { if (seen.has(g.subject_name)) return false; seen.add(g.subject_name); return true; })
+        .map(g => _makeVirtualReg(student, g.subject_name));
+    }
+
+    /** 🔒 ครอบการ์ดคะแนนชั่วคราวให้เลือน พร้อมป้ายกดเปิดคำเตือน */
+    function _wrapTempScoreCard(reg, html) {
+      if (!reg.__virtual) return html;
+      return `<div class="relative mb-6">
+          <div style="filter:blur(3px);opacity:.5;pointer-events:none;user-select:none" aria-hidden="true">${html}</div>
+          <div class="absolute inset-0 flex items-start justify-center pt-8">
+            <button onclick="showUnregisteredScoresPopup()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-sm btn-3d">
+              🔒 คะแนนชั่วคราว วิชา ${escHtml(reg.subject_name)} — ยังไม่ลงทะเบียน (กดอ่าน)
+            </button>
+          </div>
+        </div>`;
+    }
+
+    /** ⚠️ หน้าต่างเตือนนักเรียนที่มีคะแนนชั่วคราวแต่ยังไม่ลงทะเบียน */
+    function showUnregisteredScoresPopup() {
+      const student = allData.find(d => d.type === 'student' && String(d.__backendId) === String(currentUser?.__backendId));
+      const temps = _getTempScoreRegs(student);
+      if (!student || temps.length === 0) return;
+
+      // ช่วงเวลาลงทะเบียนที่แอดมินกำหนด
+      const sch = allData.find(d => d.type === 'registration_schedule');
+      const fmtD = (s) => s ? new Date(s).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+      const schText = sch
+        ? `${fmtD(sch.start_date)} เวลา ${sch.start_time || '00:00'} น. ถึง ${fmtD(sch.end_date)} เวลา ${sch.end_time || '23:59'} น.`
+        : 'แอดมินยังไม่ได้กำหนดช่วงเวลา';
+      const isOpen = typeof isRegistrationOpen === 'function' ? isRegistrationOpen() : false;
+
+      // ตาราง KPACMF ของแต่ละวิชา (ค่าที่นักเรียนกำหนดไว้ ถ้ามีคำขอค้างอยู่ใช้ค่าจากคำขอ)
+      const rowsHtml = temps.map(reg => {
+        const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === reg.subject_name
+          && d.class_name === reg.class_name && String(d.room_number) === String(reg.room_number));
+        const req = allData.find(d => d.type === 'kpac_request' && d.status === 'pending'
+          && String(d.student_id) === String(student.student_id) && d.subject_name === reg.subject_name);
+        const k = parseFloat(req?.k_percent) || 0, p = parseFloat(req?.p_percent) || 0;
+        const a = parseFloat(req?.a_percent) || 0, cc = parseFloat(req?.c_percent) || 0;
+        const m = parseFloat(cs?.mid_percent) || 0, f = parseFloat(cs?.final_percent) || 0;
+        const total = k + p + a + cc + m + f;
+        const cell = (label, meaning, v, fixed) => `<div class="bg-white rounded-lg border ${fixed ? 'border-blue-200' : (v > 0 ? 'border-green-300' : 'border-red-300')} p-2 text-center">
+            <p class="text-xs font-bold text-gray-700">${label}</p>
+            <p class="text-[10px] text-gray-500 leading-tight">${meaning}</p>
+            <p class="text-lg font-bold ${fixed ? 'text-blue-700' : (v > 0 ? 'text-green-700' : 'text-red-600')}">${v}%</p>
+          </div>`;
+        return `<div class="bg-gray-50 rounded-xl p-3 mb-3 text-left">
+            <p class="text-sm font-bold text-gray-800 mb-2">📚 ${escHtml(reg.subject_name)} ${req ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">คำขอรออนุมัติ</span>' : ''}</p>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
+              ${cell('K', 'ความรู้', k)}${cell('P', 'ทักษะ/กระบวนการ', p)}${cell('A', 'เจตคติ/คุณลักษณะ', a)}
+              ${cell('C', 'สมรรถนะ', cc)}${cell('M', 'สอบกลางภาค<br>(ครูกำหนด)', m, true)}${cell('F', 'สอบปลายภาค<br>(ครูกำหนด)', f, true)}
+            </div>
+            <p class="text-sm font-bold ${total === 100 ? 'text-green-700' : 'text-red-600'}">รวม K+P+A+C+M+F = ${total} จากเต็ม 100 ${total === 100 ? '✅' : `(ยังขาดอีก ${100 - total})`}</p>
+          </div>`;
+      }).join('');
+
+      document.getElementById('unreg-scores-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'unreg-scores-popup';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999990;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      wrap.innerHTML = `
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 text-center" style="max-height:90vh;overflow-y:auto;border:4px solid #dc2626">
+          <p class="text-5xl mb-2 animate-bell-shake inline-block">🔔</p>
+          <p class="text-2xl font-extrabold text-red-600 mb-3">คุณยังไม่ได้ลงทะเบียน!</p>
+          <div class="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4 text-left">
+            <p class="text-base text-gray-800 leading-relaxed">ให้ลงทะเบียนในช่วงเวลาที่แอดมินกำหนด</p>
+            <p class="text-base font-bold ${isOpen ? 'text-green-700' : 'text-red-700'} my-2">📅 ${schText} ${isOpen ? '(🟢 เปิดอยู่ตอนนี้)' : '(🔴 ปิดแล้ว/ยังไม่เปิด)'}</p>
+            <p class="text-base text-gray-800">หากพ้นเวลา <b>ติดต่อผู้ช่วยแอดมิน</b> เพื่อขอลงทะเบียน</p>
+          </div>
+          <p class="text-sm font-semibold text-gray-700 mb-2 text-left">📊 สัดส่วนคะแนน KPACMF ที่คุณกำหนดไว้ (ต้องรวมได้ 100)</p>
+          ${rowsHtml}
+          <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4">
+            <p class="text-base text-gray-800 leading-relaxed">เพื่อให้คะแนนชั่วคราวของคุณสามารถปรับสัดส่วนและคำนวณเกรดได้ มิฉะนั้น ท่านยังคงติด <b class="text-red-600 text-xl">ร.</b> ไว้ก่อน!</p>
+            <p class="text-lg font-extrabold text-red-700 mt-2">นี่คือความรับผิดชอบของคุณ!</p>
+          </div>
+          <button onclick="document.getElementById('unreg-scores-popup')?.remove()" class="w-full px-4 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold btn-3d">รับทราบ</button>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
     function showStudentGrades() {
       const content = document.getElementById('student-content');
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
@@ -20849,7 +20945,11 @@ const supabaseDataSdk = {
         content.innerHTML = '<p class="text-gray-400 text-center py-4">ไม่พบข้อมูลนักเรียน</p>';
         return;
       }
-      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
+      // 🔒 รวมวิชาที่ครูเก็บคะแนนชั่วคราวไว้ (ยังไม่ลงทะเบียน) — แสดงแบบเลือน พร้อมคำเตือน
+      const _tempRegs = _getTempScoreRegs(student);
+      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id))
+        .concat(_tempRegs);
+      if (_tempRegs.length > 0) setTimeout(showUnregisteredScoresPopup, 300);
       if (registrations.length === 0) {
         content.innerHTML = `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -20869,7 +20969,7 @@ const supabaseDataSdk = {
           <p class="font-bold text-gray-800">${sum.toFixed(1)} <span class="text-gray-400 text-sm">/ ${full || '-'}</span></p>
         </div>
       `;
-      const cardsHtml = registrations.map(reg => {
+      const cardsHtml = registrations.map(reg => _wrapTempScoreCard(reg, (() => {
         const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
         const kFull = scoresConfig?.k_full_score || 0;
@@ -20921,7 +21021,7 @@ const supabaseDataSdk = {
                 <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFull}</p>
                 <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('k', reg.__backendId, grade?.k_scores, 10, kFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${kSum.toFixed(1)}/${kFull}</p>
-                <div class="mt-2 flex flex-wrap gap-2">${generateExamButtonsForRegistration(reg)}</div>
+                <div class="mt-2 flex flex-wrap gap-2">${reg.__virtual ? '' : generateExamButtonsForRegistration(reg)}</div>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
@@ -20971,7 +21071,7 @@ const supabaseDataSdk = {
             </div>
           </div>
         `;
-      }).join('');
+      })())).join('');
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <div class="flex items-center justify-between flex-wrap gap-3 mb-6">
@@ -24246,16 +24346,18 @@ const supabaseDataSdk = {
     var _sid2 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
     // 🔒 แสดงเฉพาะวิชาที่ลงทะเบียนแล้ว — คะแนนที่ครูกรอกเก็บรอไว้ (ยังไม่ลงทะเบียน) นักเรียนยังดูไม่ได้
     var _myRegSubjects = new Set((allData||[]).filter(r=>r.type==='student_registration'&&String(r.student_id)===String(_sid2)).map(r=>r.subject_name));
-    var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2)&&_myRegSubjects.has(d.subject_name));
+    var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2));
+    var _hasTemp = grades.some(g => !_myRegSubjects.has(g.subject_name));
+    if (_hasTemp) setTimeout(showUnregisteredScoresPopup, 300);
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
-      ${grades.length ? grades.map(g=>`<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
+      ${grades.length ? grades.map(g=>{ var _t = !_myRegSubjects.has(g.subject_name); var _h = `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           ${g.m_scores?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:999px">กลางภาค: ${g.m_scores}</span>`:''}
           ${g.f_scores?`<span style="font-size:10px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:999px">ปลายภาค: ${g.f_scores}</span>`:''}
           ${g.k_scores?`<span style="font-size:10px;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:999px">K: ${g.k_scores}</span>`:''}
         </div>
-      </div>`).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่มีข้อมูลคะแนน</p></div>'}`;
+      </div>`; return _t ? `<div style="position:relative;margin-bottom:8px" onclick="showUnregisteredScoresPopup()"><div style="filter:blur(3px);opacity:.5;pointer-events:none">${_h}</div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="background:#dc2626;color:white;font-weight:700;font-size:12px;padding:8px 12px;border-radius:10px">🔒 ${escHtml(g.subject_name||'')} — ยังไม่ลงทะเบียน (แตะอ่าน)</span></div></div>` : _h; }).join('') : '<div style="text-align:center;padding:30px"><p style="font-size:11px;color:#94a3b8">ยังไม่มีข้อมูลคะแนน</p></div>'}`;
   }
 
   // ── Mobile Marquee — ใช้ข้อมูลเดียวกับ desktop ──
