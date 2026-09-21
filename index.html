@@ -2397,11 +2397,11 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
-           <select id="esa-subject" onchange="renderEsaQuestionPicker();renderEsaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
+           <select id="esa-subject" onchange="renderEsaChapterFilter();renderEsaQuestionPicker();updateEsaRandomInfo();renderEsaStudentPicker();updateEsaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
-           <select id="esa-scoretype" onchange="_updateEsaScoreTypeLabel()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
+           <select id="esa-scoretype" onchange="_updateEsaScoreTypeLabel();updateEsaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
             <option value="k">K (ความรู้)</option>
             <option value="p">P (ทักษะ)</option>
             <option value="c">C (คุณลักษณะ)</option>
@@ -2412,12 +2412,14 @@
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div>
            <label class="block text-xs text-gray-600 mb-1"><span id="esa-round-label">🔢 K ครั้งที่</span></label>
-           <select id="esa-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
+           <select id="esa-kround" onchange="updateEsaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select>
           </div>
           <div class="flex items-end">
            <p class="text-sm text-amber-700 font-semibold" id="esa-total-label">เลือก 0 ข้อ = 0 คะแนน</p>
           </div>
          </div>
+         <!-- 📊 คะแนนเต็มเดิมของครั้งนี้ (ถ้ามี ตอนบันทึกจะถามว่าเพิ่มคะแนนเต็มหรือทับคะแนนเดิม เหมือนปรนัย) -->
+         <p id="esa-fullscore-info" class="text-xs mb-3 hidden"></p>
 
          <!-- เลือกเวลาสอบแบบ 24 ชั่วโมง -->
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -2443,6 +2445,20 @@
           </div>
          </div>
 
+         <!-- 🔀 สลับลำดับข้อ (เหมือนปรนัย) -->
+         <div class="mb-3">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+           <input type="checkbox" id="esa-shuffle" checked class="w-4 h-4"> สลับลำดับข้อให้แต่ละคนไม่เหมือนกัน (กันลอกข้อ)
+          </label>
+         </div>
+
+         <!-- 🎯🎲 โหมดเลือกข้อสอบ: เลือกเอง / สุ่มอัตโนมัติ (เหมือนปรนัย) -->
+         <div class="flex gap-2 mb-3">
+          <button type="button" onclick="switchEsaPickerMode('manual')" id="esa-mode-manual-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white">🎯 เลือกข้อสอบเอง</button>
+          <button type="button" onclick="switchEsaPickerMode('random')" id="esa-mode-random-btn" class="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-700">🎲 สุ่มอัตโนมัติ (แต่ละคนได้ข้อไม่เหมือนกัน)</button>
+         </div>
+         <input type="hidden" id="esa-picker-mode" value="manual">
+
          <!-- เลือกนักเรียน -->
          <div class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -2457,12 +2473,26 @@
           </div>
          </div>
 
-         <!-- เลือกข้อสอบ -->
-         <div class="mb-3">
+         <!-- 🏷️ กรองเรื่อง/บท (ใช้ทั้งเลือกเองและสุ่ม) -->
+         <div class="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+          <p class="text-xs font-semibold text-indigo-800 mb-2">🏷️ เรื่อง/บทที่ใช้ออกข้อสอบ <span class="font-normal text-indigo-500">(ไม่เลือก = ทุกบท)</span></p>
+          <div id="esa-chapter-checkboxes" class="flex flex-wrap gap-2"><p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p></div>
+         </div>
+
+         <!-- 🎯 เลือกข้อสอบเอง -->
+         <div id="esa-manual-picker-section" class="mb-3">
           <p class="text-xs font-semibold text-gray-700 mb-2">✍️ เลือกข้อสอบอัตนัยจากคลัง</p>
           <div id="esa-question-picker" class="bg-white border-2 border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto space-y-2">
            <p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>
           </div>
+         </div>
+
+         <!-- 🎲 สุ่มอัตโนมัติ -->
+         <div id="esa-random-picker-section" class="mb-3 hidden bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <label class="block text-xs text-gray-600 mb-1">🎲 จำนวนข้อที่สุ่มให้แต่ละคน</label>
+          <input type="number" id="esa-random-count" min="1" value="3" oninput="updateEsaRandomInfo()" class="w-32 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
+          <p id="esa-random-info-label" class="text-xs text-amber-700 font-semibold mt-2"></p>
+          <p class="text-[11px] text-gray-500 mt-1">ระบบสุ่มแยกตามกลุ่มคะแนนรายข้อ ให้ทุกคนได้คะแนนเต็มเท่ากัน</p>
          </div>
 
          <div class="flex gap-2">
@@ -2660,7 +2690,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.126';
+    const APP_VERSION = 'SUPABASE-2026.09.08.128';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9715,8 +9745,8 @@ const supabaseDataSdk = {
       const subj = document.getElementById('esa-subject')?.value;
       if (!subj) { box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
 
-      const questions = allData.filter(d => d.type === 'essay_question' && d.subject_name === subj)
-        .sort((a,b) => (a.chapter||'').localeCompare(b.chapter||''));
+      // 🏷️ กรองตามเรื่อง/บทที่เลือก (ถ้าไม่เลือก = ทุกบท)
+      const questions = _getEsaPool().sort((a,b) => (a.chapter||'').localeCompare(b.chapter||'', 'th', { numeric: true }));
       if (questions.length === 0) {
         box.innerHTML = `<p class="text-amber-600 text-xs">⚠️ ยังไม่มีข้อสอบอัตนัยของวิชานี้ในคลัง — ไปเพิ่มที่เมนู "คลังข้อสอบอัตนัย" ก่อน</p>`;
         return;
@@ -9732,8 +9762,102 @@ const supabaseDataSdk = {
       updateEsaTotalScore();
     }
 
+    // ════════ 🎯🎲 โหมดเลือก/สุ่ม + กรองบท + สลับข้อ ของอัตนัย (หลักการเดียวกับปรนัย) ════════
+    function switchEsaPickerMode(mode) {
+      document.getElementById('esa-picker-mode').value = mode;
+      const on = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-amber-600 text-white';
+      const off = 'flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-gray-200 text-gray-700';
+      document.getElementById('esa-mode-manual-btn').className = mode === 'manual' ? on : off;
+      document.getElementById('esa-mode-random-btn').className = mode === 'random' ? on : off;
+      document.getElementById('esa-manual-picker-section')?.classList.toggle('hidden', mode !== 'manual');
+      document.getElementById('esa-random-picker-section')?.classList.toggle('hidden', mode !== 'random');
+      updateEsaRandomInfo();
+      updateEsaTotalScore();
+    }
+    function renderEsaChapterFilter() {
+      const box = document.getElementById('esa-chapter-checkboxes');
+      if (!box) return;
+      const subj = document.getElementById('esa-subject')?.value;
+      if (!subj) { box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
+      const counts = {};
+      allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj))
+        .forEach(q => { const ch = q.chapter || 'ไม่ระบุบท'; counts[ch] = (counts[ch] || 0) + 1; });
+      const chs = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+      box.innerHTML = chs.length ? chs.map(ch => `<label class="flex items-center gap-1 text-xs bg-white border border-indigo-200 rounded px-2 py-1 cursor-pointer">
+          <input type="checkbox" class="esa-chapter-cb" value="${escHtml(ch)}" onchange="renderEsaQuestionPicker();updateEsaRandomInfo()"> ${escHtml(ch)} <span class="text-gray-400">(${counts[ch]})</span></label>`).join('')
+        : '<p class="text-amber-600 text-xs">ยังไม่มีข้อสอบอัตนัยของวิชานี้ในคลัง</p>';
+    }
+    function _getEsaSelectedChapters() {
+      const sel = Array.from(document.querySelectorAll('.esa-chapter-cb:checked')).map(cb => cb.value);
+      return sel.length ? sel : null;   // null = ทุกบท
+    }
+    function _getEsaPool() {
+      const subj = document.getElementById('esa-subject')?.value;
+      const chs = _getEsaSelectedChapters();
+      let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj));
+      if (chs) pool = pool.filter(q => chs.includes(q.chapter || 'ไม่ระบุบท'));
+      return pool;
+    }
+    function updateEsaRandomInfo() {
+      const label = document.getElementById('esa-random-info-label');
+      if (!label) return;
+      const pool = _getEsaPool();
+      const count = parseInt(document.getElementById('esa-random-count')?.value) || 0;
+      const expected = (count > 0 && pool.length) ? _computeRandomExamExpectedScore(pool, Math.min(count, pool.length)) : 0;
+      label.textContent = `มีข้อสอบในคลังที่ตรงกัน: ${pool.length} ข้อ` + (count > 0 && pool.length ? ` → สุ่ม ${count} ข้อ = ${expected} คะแนน` : '')
+        + (pool.length < count ? ` ⚠️ น้อยกว่าที่ต้องการ (${count} ข้อ) บางคนจะได้ข้อซ้ำ` : '');
+      label.className = pool.length < count ? 'text-xs text-red-600 font-semibold mt-2' : 'text-xs text-amber-700 font-semibold mt-2';
+      if (document.getElementById('esa-picker-mode')?.value === 'random') {
+        const t = document.getElementById('esa-total-label');
+        if (t) t.textContent = `สุ่ม ${count} ข้อ = ${expected} คะแนน`;
+      }
+    }
+    /** 📊 แสดงคะแนนเต็มเดิมของครั้งที่เลือก — ถ้ามี ตอนบันทึกจะถามว่าเพิ่มคะแนนเต็มหรือทับคะแนนเดิม */
+    function updateEsaFullScoreInfo() {
+      const el = document.getElementById('esa-fullscore-info');
+      if (!el) return;
+      const cls = document.getElementById('esa-class')?.value, room = document.getElementById('esa-room')?.value;
+      const subj = document.getElementById('esa-subject')?.value, round = document.getElementById('esa-kround')?.value;
+      const t = document.getElementById('esa-scoretype')?.value || 'k';
+      const editId = document.getElementById('esa-edit-id')?.value;
+      if (!cls || !room || !subj || !round) { el.classList.add('hidden'); return; }
+      const info = _getExistingRoundFullScore(cls, room, subj, round, t, editId || null);
+      el.classList.remove('hidden');
+      if (info.full > 0 || info.sets.length > 0) {
+        el.className = 'text-xs mb-3 bg-amber-100 border border-amber-300 text-amber-800 rounded px-3 py-2';
+        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน${info.sets.length ? ` (${info.sets.length} ชุดสอบ)` : ' (ครูกรอกมือ)'} — ตอนบันทึกจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b>`;
+      } else {
+        el.className = 'text-xs mb-3 bg-green-50 border border-green-200 text-green-700 rounded px-3 py-2';
+        el.innerHTML = `✅ ${t.toUpperCase()} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
+      }
+    }
+    /** 🎲 สุ่มข้อสอบให้นักเรียนหนึ่งคน — แบ่งตามกลุ่มคะแนนรายข้อ ทุกคนได้คะแนนเต็มเท่ากัน (ตรรกะเดียวกับปรนัย) */
+    function _pickEssayRandomForStudent(pool, wantCount, seed) {
+      const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
+      let picked = [];
+      if (groupKeys.length > 1 && pool.length > 0) {
+        plan.forEach((tier, gi) => {
+          const g = _seededShuffle(tier.poolInThisTier, seed + gi);
+          picked.push(...g.slice(0, Math.min(tier.count, g.length)));
+        });
+        if (picked.length < wantCount) {
+          const ids = new Set(picked.map(q => q.__backendId));
+          picked.push(..._seededShuffle(pool.filter(q => !ids.has(q.__backendId)), seed + 999).slice(0, wantCount - picked.length));
+        }
+      } else {
+        picked = _seededShuffle(pool, seed).slice(0, Math.min(wantCount, pool.length));
+      }
+      while (picked.length < wantCount && pool.length > 0) picked.push(pool[Math.floor(Math.random() * pool.length)]);
+      return picked;
+    }
+    function _essaySnap(q) {
+      return { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+        score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words, chapter: q.chapter };
+    }
+
     /** คำนวณคะแนนรวมจากข้อที่เลือก */
     function updateEsaTotalScore() {
+      if (document.getElementById('esa-picker-mode')?.value === 'random') { updateEsaRandomInfo(); return; }
       const checked = document.querySelectorAll('.esa-q-check:checked');
       let total = 0;
       checked.forEach(cb => { total += parseFloat(cb.dataset.score) || 0; });
@@ -9799,8 +9923,17 @@ const supabaseDataSdk = {
 
       if (!cls || !room || !subj) { showToast('กรุณาเลือกชั้น ห้อง และวิชาให้ครบ', 'error'); return; }
 
+      const pickerMode = document.getElementById('esa-picker-mode')?.value || 'manual';
+      const shuffleOn = !!document.getElementById('esa-shuffle')?.checked;
+      const chaptersSel = _getEsaSelectedChapters();
       const checkedQs = Array.from(document.querySelectorAll('.esa-q-check:checked'));
-      if (checkedQs.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
+      const randomCount = parseInt(document.getElementById('esa-random-count')?.value) || 0;
+      const randomPool = pickerMode === 'random' ? _getEsaPool() : [];
+      if (pickerMode === 'manual' && checkedQs.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
+      if (pickerMode === 'random') {
+        if (randomCount < 1) { showToast('กรุณากำหนดจำนวนข้อที่จะสุ่ม', 'error'); return; }
+        if (randomPool.length === 0) { showToast('ไม่มีข้อสอบในคลังตามบทที่เลือก', 'error'); return; }
+      }
 
       // รวมเวลาจากช่องแยก
       const _join = (p) => {
@@ -9814,13 +9947,15 @@ const supabaseDataSdk = {
       if (!startStr || !endStr) { showToast('กรุณากำหนดเวลาเปิด-ปิดสอบให้ครบ', 'error'); return; }
       if (new Date(endStr) <= new Date(startStr)) { showToast('เวลาปิดสอบต้องอยู่หลังเวลาเปิดสอบ', 'error'); return; }
 
-      const qIds = checkedQs.map(cb => cb.value);
-      const totalScore = checkedQs.reduce((t, cb) => t + (parseFloat(cb.dataset.score) || 0), 0);
-      // สร้างสำเนาข้อสอบติดไปด้วย (กันกระดาษว่างเปล่าเหมือนที่เคยเจอกับปรนัย)
-      const snapshot = qIds.map(id => allData.find(d => d.__backendId === id && d.type === 'essay_question'))
-        .filter(Boolean)
-        .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
-          score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words }));
+      // โหมดเลือกเอง: ข้อชุดเดียวกันทุกคน / โหมดสุ่ม: คลังข้อสอบที่ใช้สุ่ม (แต่ละคนได้ข้อต่างกัน)
+      const qIds = pickerMode === 'manual' ? checkedQs.map(cb => cb.value) : [];
+      const totalScore = pickerMode === 'manual'
+        ? checkedQs.reduce((t, cb) => t + (parseFloat(cb.dataset.score) || 0), 0)
+        : _computeRandomExamExpectedScore(randomPool, Math.min(randomCount, randomPool.length));
+      // สร้างสำเนาข้อสอบติดไปด้วย (กันกระดาษว่างเปล่าเหมือนที่เคยเจอกับปรนัย) — โหมดสุ่มเก็บทั้งคลังไว้เป็นตัวสำรอง
+      const snapshot = pickerMode === 'manual'
+        ? qIds.map(id => allData.find(d => String(d.__backendId) === String(id) && d.type === 'essay_question')).filter(Boolean).map(_essaySnap)
+        : randomPool.map(_essaySnap);
 
       // ❓ ครั้งนี้มีคะแนนเต็มอยู่แล้ว (จากชุดสอบเดิม/กรอกมือ) → ถามเหมือนปรนัย: เพิ่มเป็นชุดใหม่ หรือชุดเดิม
       const _editingSet = editId ? allData.find(d => String(d.__backendId) === String(editId) && d.type === 'essay_exam_set') : null;
@@ -9847,6 +9982,10 @@ const supabaseDataSdk = {
           k_round: parseInt(kRound), score_type: scoreType,
           question_ids: qIds.join(','),
           question_snapshot_json: JSON.stringify(snapshot),
+          is_random_mode: pickerMode === 'random',
+          random_count: pickerMode === 'random' ? randomCount : 0,
+          selected_chapters: chaptersSel ? chaptersSel.join(',') : '',
+          shuffle_enabled: shuffleOn,
           total_score: totalScore,
           applied_full_score_delta: _newApplied,   // ส่วนที่สมทบคะแนนเต็มจริง (โหมดชุดเดิม = 0 ตอนลบจะได้ไม่หักคะแนนเต็มเดิม)
           start_time: new Date(startStr).toISOString(),
@@ -9881,22 +10020,66 @@ const supabaseDataSdk = {
                 class_name: cls, room_number: room, subject_name: subj,
                 k_round: parseInt(kRound),
                 status: 'not_started', answers: '{}',
-                question_order: qIds.join(','),
-                question_snapshot_json: JSON.stringify(snapshot),
+                // 🎲 ข้อสอบของแต่ละคน: สุ่มแยกรายคน / เลือกเองแล้วสลับลำดับ (ถ้าเปิดสลับข้อ)
+                ...(() => {
+                  const seed = _seedFromString(String(reg.student_id) + '_' + setId + '_essay');
+                  let mine;
+                  if (pickerMode === 'random') mine = _pickEssayRandomForStudent(randomPool, randomCount, seed);
+                  else mine = snapshot.slice();
+                  if (shuffleOn) mine = _seededShuffle(mine, seed + 7);
+                  const snaps = mine.map(q => q.type === 'essay_question' ? _essaySnap(q) : q);   // ข้อจากคลัง → ทำสำเนา, ข้อจากสำเนาเดิม → ใช้ต่อ
+                  return { question_order: snaps.map(q => q.__backendId).join(','), question_snapshot_json: JSON.stringify(snaps) };
+                })(),
               });
               created++;
             } catch (e) { console.error('[EssayAssign] จองแถวไม่สำเร็จ:', reg.student_id, e.message); }
           }
-          showToast(`✅ มอบหมายข้อสอบอัตนัยสำเร็จ ${created} คน (${qIds.length} ข้อ = ${totalScore} คะแนน)`);
+          showToast(`✅ มอบหมายข้อสอบอัตนัยสำเร็จ ${created} คน (${pickerMode === 'random' ? 'สุ่ม ' + randomCount : qIds.length} ข้อ = ${totalScore} คะแนน${shuffleOn ? ' · สลับข้อ' : ''})`);
         } else {
-          showToast('✅ แก้ไขชุดสอบอัตนัยสำเร็จ');
+          const _started = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(editId) && d.status !== 'not_started').length;
+          showToast('✅ แก้ไขชุดสอบอัตนัยสำเร็จ' + (_started ? ` (นักเรียน ${_started} คนที่เริ่มสอบแล้ว ใช้ข้อสอบชุดเดิม)` : ''));
         }
         resetEssayExamSetForm();
         renderEssayExamSetList();
       });
     }
 
+    /** ✏️ แก้ไขชุดสอบอัตนัย — โหลดค่าเดิมกลับเข้าฟอร์ม (เหมือนปรนัย) */
+    function editEssayExamSet(id) {
+      const s = allData.find(d => String(d.__backendId) === String(id) && d.type === 'essay_exam_set');
+      if (!s) return;
+      const setVal = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v; };
+      setVal('esa-class', s.class_name); updateEsaRoomOptions();
+      setVal('esa-room', s.room_number); updateEsaSubjectOptions();
+      setVal('esa-subject', s.subject_name);
+      setVal('esa-scoretype', ['k','p','c'].includes(s.score_type) ? s.score_type : 'k'); _updateEsaScoreTypeLabel();
+      setVal('esa-kround', String(parseInt(s.k_round) || 1));
+      renderEsaChapterFilter();
+      const chs = String(s.selected_chapters || '').split(',').filter(Boolean);
+      document.querySelectorAll('.esa-chapter-cb').forEach(cb => { cb.checked = chs.includes(cb.value); });
+      document.getElementById('esa-shuffle').checked = s.shuffle_enabled === true || s.shuffle_enabled === 'true';
+      const isRandom = s.is_random_mode === true || s.is_random_mode === 'true';
+      setVal('esa-random-count', s.random_count || 3);
+      renderEsaQuestionPicker();
+      const ids = String(s.question_ids || '').split(',').filter(Boolean);
+      document.querySelectorAll('.esa-q-check').forEach(cb => { cb.checked = ids.includes(String(cb.value)); });
+      switchEsaPickerMode(isRandom ? 'random' : 'manual');
+      const toParts = (iso, p) => { if (!iso) return; const d = new Date(iso), pad = n => String(n).padStart(2, '0');
+        setVal(p + '-date', `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+        setVal(p + '-hour', pad(d.getHours())); setVal(p + '-min', pad(Math.floor(d.getMinutes() / 5) * 5)); };
+      toParts(s.start_time, 'esa-start'); toParts(s.end_time, 'esa-end');
+      document.getElementById('esa-edit-id').value = id;
+      document.getElementById('esa-form-title').textContent = `✏️ แก้ไขชุดสอบอัตนัย (${(s.full_score_mode === 'same') ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม'})`;
+      document.getElementById('esa-save-btn').textContent = '💾 บันทึกการแก้ไข';
+      renderEsaStudentPicker();
+      updateEsaFullScoreInfo();
+      document.getElementById('admin-tab-essayassign')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     function resetEssayExamSetForm() {
+      if (typeof switchEsaPickerMode === 'function') switchEsaPickerMode('manual');
+      document.querySelectorAll('.esa-chapter-cb').forEach(cb => { cb.checked = false; });
+      const _sh = document.getElementById('esa-shuffle'); if (_sh) _sh.checked = true;
       document.getElementById('esa-edit-id').value = '';
       document.getElementById('esa-form-title').textContent = '➕ มอบหมายข้อสอบอัตนัยใหม่';
       document.getElementById('esa-save-btn').textContent = '💾 มอบหมายข้อสอบ';
@@ -9929,12 +10112,19 @@ const supabaseDataSdk = {
             <div class="flex items-start justify-between gap-2 flex-wrap">
               <div class="flex-1 min-w-0">
                 <p class="font-semibold text-gray-800">✍️ ${escHtml(s.class_name)}/${escHtml(s.room_number)} · ${escHtml(s.subject_name)} · ${(s.score_type||'k').toUpperCase()} ครั้งที่ ${s.k_round}</p>
-                <p class="text-xs text-gray-600 mt-1">📝 ${qCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · 👥 ${subs.length} คน</p>
+                <p class="text-xs text-gray-600 mt-1">📝 ${(s.is_random_mode === true || s.is_random_mode === 'true') ? 'สุ่ม ' + (s.random_count || 0) : qCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · 👥 ${subs.length} คน</p>
+                <p class="text-xs mt-1">
+                  <span class="bg-white border rounded px-1.5 py-0.5">${(s.is_random_mode === true || s.is_random_mode === 'true') ? '🎲 สุ่มข้อสอบ' : '🎯 เลือกเอง'}</span>
+                  ${(s.shuffle_enabled === true || s.shuffle_enabled === 'true') ? '<span class="bg-white border rounded px-1.5 py-0.5">🔀 สลับข้อ</span>' : ''}
+                  <span class="bg-white border rounded px-1.5 py-0.5">${s.full_score_mode === 'same' ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม'}</span>
+                </p>
+                ${_chapterBadgeHtml(s)}
                 <p class="text-xs text-gray-600 mt-1">📤 ส่งแล้ว ${submitted}/${subs.length} คน · ✍️ ตรวจแล้ว ${graded} คน</p>
                 <p class="text-xs text-gray-500 mt-1">🟢 ${start.toLocaleString('th-TH',{hour12:false})} → 🔴 ${end.toLocaleString('th-TH',{hour12:false})}</p>
                 <p class="text-xs mt-1">${badge}</p>
               </div>
               <div class="flex gap-1 flex-shrink-0">
+                <button onclick="editEssayExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs btn-3d">✏️ แก้ไข</button>
                 <button onclick="deleteEssayExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs btn-3d">🗑️ ลบ</button>
               </div>
             </div>
@@ -11432,6 +11622,13 @@ const supabaseDataSdk = {
       renderEaQuestionPicker();
     }
 
+    /** 🏷️ ป้ายแสดงเรื่อง/บทที่ชุดสอบนี้ใช้ออกข้อสอบ (ว่าง = ทุกบท) — ใช้ทั้งปรนัยและอัตนัย */
+    function _chapterBadgeHtml(s) {
+      const chs = String(s.selected_chapters || '').split(',').map(x => x.trim()).filter(Boolean);
+      if (chs.length === 0) return `<p class="text-xs text-gray-500 mt-1">🏷️ บท: <span class="text-gray-400">ทุกบท</span></p>`;
+      return `<p class="text-xs text-gray-600 mt-1">🏷️ บท: ${chs.map(ch => `<span class="inline-block bg-indigo-50 border border-indigo-200 text-indigo-700 rounded px-1.5 py-0.5 mr-1 mb-0.5">${escHtml(ch)}</span>`).join('')}</p>`;
+    }
+
     function renderExamSetList() {
       const listEl = document.getElementById('ea-list');
       if (!listEl) return;
@@ -11459,7 +11656,8 @@ const supabaseDataSdk = {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <p class="font-semibold text-gray-800">🏫 ${s.class_name}/${s.room_number} · 📚 ${s.subject_name} · ${(s.score_type==='c'?'C':'K')} ครั้งที่ ${s.k_round}</p>
-                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${_isRandomSet ? '🎲 สุ่มข้อสอบ' : '📋 เลือกข้อเอง'} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'}</p>
+                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${_isRandomSet ? '🎲 สุ่มข้อสอบ' : '📋 เลือกข้อเอง'} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'} · ${s.full_score_mode === 'same' ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม'}</p>
+                ${_chapterBadgeHtml(s)}
                 <p class="text-xs text-gray-500 mt-1">🟢 เปิด: ${start.toLocaleString('th-TH', { hour12: false })} → 🔴 ปิด: ${end.toLocaleString('th-TH', { hour12: false })}</p>
                 <p class="text-xs mt-1">${statusBadge}</p>
               </div>
