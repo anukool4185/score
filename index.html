@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.123';
+    const APP_VERSION = 'SUPABASE-2026.09.08.124';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9647,8 +9647,7 @@ const supabaseDataSdk = {
 
     /** โหลดหน้าจัดสอบอัตนัย */
     function loadEssayAssignTab() {
-      const csList = allData.filter(d => d.type === 'class_subject');
-      const classes = [...new Set(csList.map(d => d.class_name).filter(Boolean))].sort();
+      const classes = _eaClasses();   // รวมจากทุกแหล่ง ไม่ให้ชั้น/ห้องตกหล่น (เหมือนหน้าจัดสอบปรนัย)
       const sel = document.getElementById('esa-class');
       if (sel) sel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
       // เติมตัวเลือกเวลาแบบ 24 ชั่วโมง
@@ -9679,8 +9678,7 @@ const supabaseDataSdk = {
 
     function updateEsaRoomOptions() {
       const cls = document.getElementById('esa-class')?.value;
-      const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === cls)
-        .map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0));
+      const rooms = _eaRooms(cls);
       const sel = document.getElementById('esa-room');
       if (sel) sel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
       updateEsaSubjectOptions();
@@ -9689,9 +9687,7 @@ const supabaseDataSdk = {
     function updateEsaSubjectOptions() {
       const cls = document.getElementById('esa-class')?.value;
       const room = document.getElementById('esa-room')?.value;
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject'
-        && d.class_name === cls && String(d.room_number) === String(room))
-        .map(d => d.subject_name).filter(Boolean))].sort();
+      const subjects = _eaSubjects(cls, room);
       const sel = document.getElementById('esa-subject');
       if (sel) sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
       renderEsaQuestionPicker();
@@ -9751,7 +9747,7 @@ const supabaseDataSdk = {
         return;
       }
       const regs = allData.filter(d => d.type === 'student_registration'
-        && d.class_name === cls && String(d.room_number) === String(room) && d.subject_name === subj);
+        && _eaN(d.class_name) === _eaN(cls) && _eaN(d.room_number) === _eaN(room) && _eaN(d.subject_name) === _eaN(subj));
       if (regs.length === 0) {
         box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้</p>';
         if (countEl) countEl.textContent = '';
@@ -9844,7 +9840,7 @@ const supabaseDataSdk = {
         if (!editId) {
           const selectedRegIds = Array.from(document.querySelectorAll('.esa-student-cb:checked')).map(cb => cb.value);
           const allRegs = allData.filter(d => d.type === 'student_registration'
-            && d.class_name === cls && String(d.room_number) === String(room) && d.subject_name === subj);
+            && _eaN(d.class_name) === _eaN(cls) && _eaN(d.room_number) === _eaN(room) && _eaN(d.subject_name) === _eaN(subj));
           const targets = selectedRegIds.length > 0 ? allRegs.filter(r => selectedRegIds.includes(r.__backendId)) : allRegs;
           const setId = result.data?.__backendId;
           let created = 0;
@@ -10498,11 +10494,46 @@ const supabaseDataSdk = {
       renderExamSetList();
     }
 
+    /** 🏫 รายการชั้น/ห้อง/วิชาสำหรับหน้าจัดสอบ — รวมจากทุกแหล่ง ไม่ให้ห้องตกหล่น
+     *  ⚠️ เดิมดึงจากตารางรายวิชาที่เปิดสอนอย่างเดียว และเทียบชื่อแบบตรงตัว ห้องจึงหายเมื่อ
+     *     (1) ห้องนั้นมีนักเรียนลงทะเบียนแล้วแต่ยังไม่มีรายวิชาในตาราง  (2) ชื่อชั้นเขียนต่างกันเล็กน้อย เช่น "ม.6" กับ "ม. 6" */
+    function _eaN(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
+    function _eaOpt(v) { return `<option value="${escHtml(v)}">${escHtml(v)}</option>`; }
+    function _eaSources() {
+      return allData.filter(d => (d.type === 'class_subject' || d.type === 'student_registration') && d.class_name);
+    }
+    function _eaClasses() {
+      const map = new Map();
+      _eaSources().concat(allData.filter(d => d.type === 'student' && d.class_name)).forEach(d => {
+        const k = _eaN(d.class_name); if (k && !map.has(k)) map.set(k, String(d.class_name).trim());
+      });
+      return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    }
+    function _eaRooms(className) {
+      const cn = _eaN(className), map = new Map();
+      _eaSources().concat(allData.filter(d => d.type === 'student')).forEach(d => {
+        if (_eaN(d.class_name) !== cn) return;
+        const r = String(d.room_number == null ? '' : d.room_number).trim();
+        if (r && !map.has(_eaN(r))) map.set(_eaN(r), r);
+      });
+      return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));   // 1, 2, ..., 10 (ไม่ใช่ 1, 10, 2)
+    }
+    function _eaSubjects(className, roomNumber) {
+      const cn = _eaN(className), rn = _eaN(roomNumber), map = new Map();
+      _eaSources().forEach(d => {
+        if (cn && _eaN(d.class_name) !== cn) return;
+        if (rn && _eaN(d.room_number) !== rn) return;
+        const s = String(d.subject_name || '').trim();
+        if (s && !map.has(_eaN(s))) map.set(_eaN(s), s);
+      });
+      return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+    }
+
     function loadExamAssignTab() {
       loadAnswerSheetFormat();
-      const classes = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = _eaClasses();
       const classSel = document.getElementById('ea-class');
-      if (classSel) classSel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (classSel) classSel.innerHTML = '<option value="">-- เลือกชั้น --</option>' + classes.map(_eaOpt).join('');
       updateEaRoomOptions();
       renderEaQuestionPicker();
       renderExamSetList();
@@ -10510,9 +10541,9 @@ const supabaseDataSdk = {
 
     function updateEaRoomOptions() {
       const className = document.getElementById('ea-class')?.value || '';
-      const rooms = [...new Set(allData.filter(d => d.type === 'class_subject' && d.class_name === className).map(d => d.room_number).filter(Boolean))].sort();
+      const rooms = _eaRooms(className);
       const roomSel = document.getElementById('ea-room');
-      if (roomSel) roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      if (roomSel) roomSel.innerHTML = '<option value="">-- เลือกห้อง --</option>' + rooms.map(_eaOpt).join('');
       // ⚠️ บั๊กสำคัญที่พบ: เดิมช่องวิชาโชว์ทุกวิชาทั้งโรงเรียนไม่กรองตามชั้น/ห้อง — ทำให้เลือกวิชาที่ไม่มีจริงในชั้น/ห้องนั้นได้
       // ผลคือมอบหมายชุดสอบไปแล้ว ไม่มีนักเรียนคนไหนตรงกับชั้น/ห้อง/วิชานี้จริง ปุ่มเข้าสอบเลยไม่ขึ้นเลย — แก้ให้กรองตามชั้นที่เลือกก่อนเสมอ
       updateEaSubjectOptions();
@@ -10520,12 +10551,10 @@ const supabaseDataSdk = {
     function updateEaSubjectOptions() {
       const className = document.getElementById('ea-class')?.value || '';
       const roomNumber = document.getElementById('ea-room')?.value || '';
-      let list = allData.filter(d => d.type === 'class_subject');
-      if (className) list = list.filter(d => d.class_name === className);
-      if (roomNumber) list = list.filter(d => d.room_number === roomNumber);
-      const subjects = [...new Set(list.map(d => d.subject_name).filter(Boolean))].sort();
+      const subjects = _eaSubjects(className, roomNumber);
       const subjSel = document.getElementById('ea-subject');
-      if (subjSel) subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      if (subjSel) subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(_eaOpt).join('')
+        + (roomNumber && subjects.length === 0 ? '<option value="" disabled>⚠️ ห้องนี้ยังไม่มีวิชา/ยังไม่มีคนลงทะเบียน</option>' : '');
       renderEaQuestionPicker();
     }
 
@@ -11157,7 +11186,7 @@ const supabaseDataSdk = {
           // 👥 ใช้เฉพาะนักเรียนที่ติ๊กเลือกไว้ (ถ้าไม่ได้เลือกเลย = ทั้งห้อง เพื่อความเข้ากันได้กับการใช้งานแบบเดิม)
           const selectedRegIds = _getEaSelectedRegIds();
           const allRegsInRoom = allData.filter(d => d.type === 'student_registration' &&
-            d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+            _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
           const affectedRegs = selectedRegIds.length > 0
             ? allRegsInRoom.filter(r => selectedRegIds.includes(r.__backendId))
             : allRegsInRoom;
@@ -11282,7 +11311,7 @@ const supabaseDataSdk = {
         return;
       }
       const regs = allData.filter(d => d.type === 'student_registration' &&
-        d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+        _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
       if (regs.length === 0) {
         box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้ในห้องนี้</p>';
         if (countEl) countEl.textContent = '';
@@ -14896,7 +14925,7 @@ const supabaseDataSdk = {
         d.type === 'student_registration' &&
         d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName
       );
-      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName);
+      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
       const midPercentWeight = classSubjectRecord?.mid_percent || 0;
       const finalPercentWeight = classSubjectRecord?.final_percent || 0;
       const sumScoresStrLocal = (str) => {
