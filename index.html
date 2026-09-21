@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.121';
+    const APP_VERSION = 'SUPABASE-2026.09.08.122';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11842,8 +11842,8 @@ const supabaseDataSdk = {
           const notYetOpen = new Date() < new Date(examSet.start_time);
           // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
-            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white" class="btn-3d">📝 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2')} เข้าสอบ</button>`
-            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2')} ยังไม่ถึงเวลาสอบ</span>` : '');
+            ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white" class="btn-3d">📝 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} เข้าสอบ</button>`
+            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} ยังไม่ถึงเวลาสอบ</span>` : '');
         } else {
           // ════════════════════════════════════════════════════════════
           // 🔘 ปุ่มเดียวต่อชุดสอบ — เปลี่ยนสถานะไปตามขั้นตอน ไม่สร้างปุ่มซ้อนเพิ่ม
@@ -11884,8 +11884,8 @@ const supabaseDataSdk = {
      *  ทำค้าง → ทำต่อ | ส่งแล้ว → ขอสอบแก้ตัว → รออนุมัติ → สอบแก้ตัว (เขียว) → ... → ครบโควต้า (ไม่มีปุ่ม) */
     function _examActionHtml(examSet, submission, reg, kLabel, isOpen, btnBase, spanBase) {
       const usedRetries = parseInt(submission.retry_count) || 0;
-      // 🏷️ ป้ายเต็ม เช่น "K ครั้งที่ 1" หรือ "C ครั้งที่ 2 ชุด 2" (ตามที่ผู้ใช้ต้องการ ให้บอกชัดว่าเป็น K หรือ C ครั้งที่เท่าไร)
-      const roundText = String(kLabel).replace(/^([KC])\.(\d+)/, '$1 ครั้งที่ $2');
+      // 🏷️ ป้ายสั้น เช่น "K 1" หรือ "C 2 ชุด 2" (ผู้ใช้ขอให้สั้นลง ไม่ให้ปุ่มยาวเกินไป)
+      const roundText = String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2');
       const isRetry = submission.is_retry_attempt === true || submission.is_retry_attempt === 'true';
       const fmt = d => d.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -11897,9 +11897,9 @@ const supabaseDataSdk = {
           const now = new Date();
           canResume = !!w && (!w.start || now >= w.start) && (!w.end || now <= w.end);
         }
-        if (!canResume) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ตัวรอบที่ ' + usedRetries : 'สอบ'}</span>`;
+        if (!canResume) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + usedRetries : 'สอบ'}</span>`;
         return isRetry
-          ? `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${roundText} สอบแก้ตัวรอบที่ ${usedRetries}</button>`
+          ? `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${roundText} สอบแก้ครั้งที่ ${usedRetries}</button>`
           : `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white" class="btn-3d">✏️ ทำต่อ ${kLabel}</button>`;
       }
 
@@ -11908,7 +11908,7 @@ const supabaseDataSdk = {
         ? submission.manual_score : (submission.auto_score ?? '-');
       const hasScore = scoreText !== '-' && scoreText !== null && scoreText !== undefined && scoreText !== '';
       const terminated = submission.status === 'terminated';
-      const attemptLabel = usedRetries > 0 ? ` สอบแก้ตัวรอบที่ ${usedRetries}` : '';
+      const attemptLabel = usedRetries > 0 ? ` สอบแก้ครั้งที่ ${usedRetries}` : '';
       const scoreLabel = terminated
         ? `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ถูกยุติ ${roundText}${attemptLabel} (${hasScore ? scoreText : '-'}/${examSet.total_score})</span>`
         : `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ส่งแล้ว ${roundText}${attemptLabel} (${hasScore ? scoreText : 'รอตรวจ'}/${examSet.total_score})</span>`;
@@ -11924,8 +11924,8 @@ const supabaseDataSdk = {
       if (retriesLeft <= 0) return infoHtml;       // ครบโควต้า — ไม่มีปุ่มสอบ/ขอสอบแก้ตัวอีก
       const nextNo = usedRetries + 1;
       const now = new Date();
-      const greenBtn = `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id || reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${roundText} สอบแก้ตัวรอบที่ ${nextNo}</button>`;
-      const requestBtn = `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${roundText} ขอสอบแก้ตัวรอบที่ ${nextNo}</button>`;
+      const greenBtn = `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id || reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${roundText} สอบแก้ครั้งที่ ${nextNo}</button>`;
+      const requestBtn = `<button onclick="openRetryRequestForm('${examSet.__backendId}','${submission.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${roundText} ขอสอบแก้ครั้งที่ ${nextNo}</button>`;
 
       // สิทธิ์จากหน้าต่างแจ้งเตือนทุจริต (แอดมินอนุญาตโดยตรง) — นับเฉพาะที่อนุญาตหลังส่งครั้งล่าสุด
       const lastSubmit = submission.submitted_at ? new Date(submission.submitted_at).getTime() : 0;
@@ -11940,13 +11940,13 @@ const supabaseDataSdk = {
       } else {
         const req = _currentRetryRequest(examSet, submission);
         if (!req) action = requestBtn;                                            // ยังไม่ขอ
-        else if (req.status === 'pending') action = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${roundText} รออนุมัติสอบแก้ตัวรอบที่ ${nextNo}</span>`;
+        else if (req.status === 'pending') action = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${roundText} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
         else if (req.status === 'denied') action = '';                           // ไม่อนุมัติ — ปุ่มหายไป
         else if (req.status === 'approved') {
           const s = req.approved_start_time ? new Date(req.approved_start_time) : null;
           const e = req.approved_end_time ? new Date(req.approved_end_time) : null;
           if ((!s || now >= s) && (!e || now <= e)) action = greenBtn;            // อนุมัติ + อยู่ในเวลา → ปุ่มเขียว
-          else if (s && now < s) action = `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${roundText} อนุมัติสอบแก้ตัวรอบที่ ${nextNo} เริ่ม ${fmt(s)}</span>`;
+          else if (s && now < s) action = `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${roundText} อนุมัติสอบแก้ครั้งที่ ${nextNo} เริ่ม ${fmt(s)}</span>`;
           else action = requestBtn;                                              // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
         } else action = requestBtn;
       }
@@ -11968,7 +11968,7 @@ const supabaseDataSdk = {
       const percent = full > 0 ? Math.round((parseFloat(score) / parseFloat(full)) * 100) : 0;
       const scoreType = (examSet.score_type === 'c' ? 'C' : 'K');
       const usedRetries = parseInt(sub.retry_count) || 0;
-      const attemptText = usedRetries > 0 ? `สอบแก้ตัวรอบที่ ${usedRetries}` : 'สอบปกติ';
+      const attemptText = usedRetries > 0 ? `สอบแก้ครั้งที่ ${usedRetries}` : 'สอบปกติ';
       const stuName = sub.student_name || `${currentUser?.prefix||''}${currentUser?.first_name||''} ${currentUser?.last_name||''}`;
       const pad = n => String(n).padStart(2, '0');
       const subAt = sub.submitted_at ? new Date(sub.submitted_at) : null;
@@ -12070,7 +12070,7 @@ const supabaseDataSdk = {
 
       // ป้ายครั้งที่สอบ พร้อมบอกว่าเป็นสอบปกติหรือสอบแก้ตัว (ตามที่ผู้ใช้ต้องการ)
       const _usedRetries = parseInt(sub.retry_count) || 0;
-      const _attemptText = _usedRetries > 0 ? `สอบแก้ตัวรอบที่ ${_usedRetries}` : 'สอบปกติ';
+      const _attemptText = _usedRetries > 0 ? `สอบแก้ครั้งที่ ${_usedRetries}` : 'สอบปกติ';
       ctx.fillStyle = _usedRetries > 0 ? '#dcfce7' : '#dbeafe';
       const tagW = 340, tagX = (W - tagW) / 2, tagY = by + 275;
       ctx.beginPath();
