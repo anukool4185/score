@@ -2662,7 +2662,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.116';
+    const APP_VERSION = 'SUPABASE-2026.09.08.117';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10887,6 +10887,57 @@ const supabaseDataSdk = {
       return plan.reduce((sum, p) => sum + (p.count * p.scorePerQ), 0);
     }
 
+    /** 📊 ดูว่าครั้งที่นี้มีคะแนนเต็มอยู่แล้วหรือยัง (จากชุดสอบเดิม หรือครูกรอกมือไว้) */
+    function _getExistingRoundFullScore(className, roomNumber, subjectName, round, scoreType, excludeSetId) {
+      const sType = scoreType === 'c' ? 'c' : 'k';
+      const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const sc = allData.find(d => d.type === 'class_subject_scores'
+        && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName))
+        || allData.find(d => d.type === 'class_subject_scores' && norm(d.class_subject_id) === norm(`${className}_${roomNumber}_${subjectName}`));
+      const arr = String(sc?.[sType + '_full_scores'] || '').split(',').map(s => s.trim());
+      const full = parseFloat(arr[(parseInt(round) || 1) - 1]) || 0;
+      const sets = allData.filter(d => d.type === 'exam_set' && String(d.__backendId) !== String(excludeSetId || '')
+        && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName)
+        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((d.score_type === 'c' ? 'c' : 'k') === sType));
+      return { full, sets };
+    }
+
+    /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
+    function _askFullScoreMode(info, newTotal, round, scoreType) {
+      return new Promise(resolve => {
+        const T = (scoreType === 'c' ? 'C' : 'K');
+        document.getElementById('fullscore-mode-popup')?.remove();
+        const wrap = document.createElement('div');
+        wrap.id = 'fullscore-mode-popup';
+        wrap.className = 'fixed inset-0 bg-black/60 flex items-center justify-center p-4';
+        wrap.style.zIndex = '70';
+        const setsHtml = info.sets.length
+          ? `<p class="text-xs text-gray-600 mt-1">ชุดสอบที่ตั้งไว้แล้วในครั้งนี้: ${info.sets.length} ชุด (${info.sets.map(s => (s.total_score || 0) + ' คะแนน').join(', ')})</p>`
+          : `<p class="text-xs text-gray-600 mt-1">ยังไม่มีชุดสอบในครั้งนี้ — คะแนนเต็มมาจากที่ครูกรอกมือไว้</p>`;
+        const done = (v) => { wrap.remove(); resolve(v); };
+        wrap.innerHTML = `
+          <div class="bg-white rounded-2xl p-5 max-w-lg w-full">
+            <p class="text-lg font-bold text-gray-800 mb-1">⚠️ ${T} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว</p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p class="text-sm text-amber-800">คะแนนเต็มปัจจุบัน: <b>${info.full}</b> คะแนน · ชุดสอบนี้: <b>${newTotal}</b> คะแนน</p>
+              ${setsHtml}
+            </div>
+            <button data-v="add" class="w-full text-left mb-2 p-3 rounded-xl border-2 border-blue-300 bg-blue-50 hover:bg-blue-100">
+              <p class="font-bold text-blue-800">➕ เพิ่มเป็นชุดใหม่ — บวกคะแนนเต็ม</p>
+              <p class="text-xs text-blue-700 mt-1">คะแนนเต็มกลายเป็น ${info.full} + ${newTotal} = <b>${info.full + newTotal}</b> · คะแนนสอบของนักเรียนบวกเพิ่มจากคะแนนเดิมในช่องนี้</p>
+            </button>
+            <button data-v="same" class="w-full text-left mb-3 p-3 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100">
+              <p class="font-bold text-green-800">🔁 ชุดเดิม — ไม่เพิ่มคะแนนเต็ม</p>
+              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b> · คะแนนสอบของนักเรียน<b>แทนที่</b>คะแนนเดิมในช่องนี้ (ใช้เมื่อเป็นการสอบเรื่องเดียวกับที่มีคะแนนอยู่แล้ว)</p>
+              ${newTotal > info.full ? `<p class="text-xs text-red-600 font-semibold mt-1">⚠️ ชุดสอบนี้ ${newTotal} คะแนน มากกว่าคะแนนเต็มเดิม ${info.full} — นักเรียนอาจได้คะแนนเกินเต็ม</p>` : ''}
+            </button>
+            <button data-v="" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+          </div>`;
+        wrap.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => done(b.dataset.v || null));
+        document.body.appendChild(wrap);
+      });
+    }
+
     async function saveExamSet() {
       // ⏳ ปิดปุ่มชั่วคราว + แสดงสถานะกำลังบันทึก กันแอดมินคิดว่า "ค้าง" (เห็นความคืบหน้าจริง) และกันกดซ้ำซ้อน
       const saveBtn = document.getElementById('ea-save-btn');
@@ -10973,12 +11024,27 @@ const supabaseDataSdk = {
         }).filter(Boolean);
       }
 
+      // ❓ ถ้าครั้งที่นี้มีคะแนนเต็มอยู่แล้ว (ชุดสอบเดิม/กรอกมือ) ให้แอดมินเลือกว่าจะเพิ่มคะแนนเต็มหรือใช้ช่องเดิม
+      let fullScoreMode = 'add';
+      const _editingSet = editId ? allData.find(d => String(d.__backendId) === String(editId) && d.type === 'exam_set') : null;
+      if (_editingSet) {
+        fullScoreMode = _editingSet.full_score_mode === 'same' ? 'same' : 'add';   // แก้ไขชุดเดิม: คงโหมดเดิมไว้
+      } else {
+        const _info = _getExistingRoundFullScore(className, roomNumber, subjectName, kRound, scoreType, null);
+        if (_info.full > 0 || _info.sets.length > 0) {
+          const chosen = await _askFullScoreMode(_info, totalScore, kRound, scoreType);
+          if (!chosen) { showToast('ยกเลิกการตั้งชุดสอบ', 'info'); return; }
+          fullScoreMode = chosen;
+        }
+      }
+
       const record = {
         type: 'exam_set',
         class_name: className,
         room_number: roomNumber,
         subject_name: subjectName,
         k_round: kRound,
+        full_score_mode: fullScoreMode,   // 'add' = บวกคะแนนเต็มเพิ่ม, 'same' = ใช้คะแนนเต็มเดิม (คะแนนสอบแทนที่ของเดิม)
         score_type: scoreType, // 📊 บอกว่าคะแนนสอบชุดนี้จะไปเก็บที่ช่อง K หรือ C
         is_random_mode: pickerMode === 'random',
         random_count: randomCount,
@@ -10986,7 +11052,8 @@ const supabaseDataSdk = {
         question_ids: questionIds.join(','),
         question_snapshot_json: JSON.stringify(questionSnapshot),
         total_score: totalScore,
-        applied_full_score_delta: totalScore, // ⚡ ใส่ไว้ตั้งแต่ตอนบันทึกเลย ไม่ต้อง update ซ้ำทีหลัง (กันปัญหาจังหวะ/รายการหาย)
+        // ⚡ ส่วนที่สมทบคะแนนเต็มจริง — โหมดชุดเดิมไม่บวกคะแนนเต็ม จึงเป็น 0 (ตอนลบชุดสอบจะได้ไม่ไปหักคะแนนเต็มเดิม)
+        applied_full_score_delta: fullScoreMode === 'same' ? 0 : totalScore,
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
         shuffle_enabled: shuffle,
@@ -11006,8 +11073,9 @@ const supabaseDataSdk = {
 
       if (result.isOk) {
         // ตั้ง/ปรับคะแนนเต็มของทั้งห้องทันที ในเบื้องหลังทันทีที่บันทึกสำเร็จ — ไม่ต้องกดปุ่มซ่อมเองอีกต่อไป ทำงานอัตโนมัติทุกครั้ง
-        const delta = totalScore - oldTotalScore;
-        await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType);
+        // โหมดชุดเดิม: ไม่แตะคะแนนเต็มเลย
+        const delta = fullScoreMode === 'same' ? 0 : (totalScore - oldTotalScore);
+        if (delta) await _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType);
         // ⚠️ บั๊กสำคัญที่พบ: เดิม await การสร้างแจ้งเตือนของนักเรียนทุกคนให้เสร็จก่อน ถึงจะขึ้น "สำเร็จ" — ถ้ามีนักเรียนเยอะ (200 คน)
         // การสร้าง 200 รายการพร้อมกันใช้เวลานานมาก (Google Apps Script มีข้อจำกัดจำนวนคำขอพร้อมกัน) ทำให้แอดมินเห็นเหมือน "ค้าง"
         // ทั้งที่ตัวชุดสอบจริงบันทึกเสร็จไปนานแล้ว (นักเรียนถึงเห็นปุ่มสอบขึ้นได้ทันที) — แก้โดยไม่ต้องรอแจ้งเตือนเสร็จก่อนแสดงผลสำเร็จ ปล่อยให้ทำงานเบื้องหลังแทน
@@ -11590,9 +11658,9 @@ const supabaseDataSdk = {
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
-      await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, s.total_score || 0, s.score_type);
-      // อัปเดตค่าที่สมทบจริงให้ตรงกับปัจจุบัน (เท่ากับ total_score เต็มจำนวน เพราะเพิ่งป้อนกลับเข้าไปใหม่สดๆ)
-      await window.dataSdk.update({ ...s, applied_full_score_delta: s.total_score || 0 });
+      const _reapply = s.full_score_mode === 'same' ? 0 : (s.total_score || 0);   // โหมดชุดเดิมไม่บวกคะแนนเต็ม
+      if (_reapply) await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, round, _reapply, s.score_type);
+      await window.dataSdk.update({ ...s, applied_full_score_delta: _reapply });
 
       showToast('🔄 จัดสอบอีกครั้งสำเร็จ — นักเรียนสามารถเข้าสอบใหม่ได้แล้ว');
       renderExamSetList();
@@ -13708,7 +13776,9 @@ const supabaseDataSdk = {
       // ผลคือเหมือน "แทนที่" ค่าเดิมของ submission นี้ ไม่ใช่ "บวกซ้ำ" แต่ยังคงบวกร่วมกับคะแนนจากแหล่งอื่น (เช่น ที่ครูกรอกมือแยกไว้ก่อน) ได้ถูกต้อง
       const previousContribution = parseFloat(submission.k_score_contributed) || 0;
       const existingScore = parseFloat(scoresArr[round - 1]) || 0;
-      const newTotal = existingScore - previousContribution + score;
+      const _additive = existingScore - previousContribution + score;
+      // 🔁 โหมดชุดเดิม: คะแนนสอบแทนที่คะแนนในช่องนี้ (ไม่บวกซ้อนกับคะแนนที่กรอกไว้เดิม)
+      const newTotal = (examSet.full_score_mode === 'same') ? score : _additive;
       // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมเช็ค newTotal > 0 ทำให้ "สอบได้ 0 คะแนน" ถูกเข้าใจผิดว่า "ไม่มีคะแนน" แล้วเคลียร์เป็นค่าว่างเปล่า
       // ทั้งที่ 0 คือผลการสอบจริงที่ต้องบันทึกและแสดงไว้เสมอ (นักเรียนสอบแล้ว ตอบผิดหมดก็ต้องเห็นว่า "สอบแล้วได้ 0" ไม่ใช่ "ยังไม่ได้สอบ")
       // แก้โดยเปลี่ยนเป็น >= 0 แทน (ยังกันค่าติดลบซึ่งไม่ควรเกิดในกรณีบันทึกคะแนนใหม่อยู่ดี แต่ไม่เคลียร์ 0 ทิ้งอีกต่อไป)
