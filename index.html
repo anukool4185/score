@@ -2693,7 +2693,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.133';
+    const APP_VERSION = 'SUPABASE-2026.09.08.134';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5879,7 +5879,7 @@ const supabaseDataSdk = {
       // รายการที่ห้ามลบเด็ดขาด (ส่วนประกอบถาวรของระบบ)
       const KEEP_IDS = ['desktop-sidebar', 'desktop-top-nav', 'toast-container',
         'global-busy-overlay', 'app-main', 'page-login', 'page-register',
-        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay', 'essay-taking-overlay', 'essay-monitor-gate', 'essay-camera-preview', 'essay-warn-popup'];
+        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay', 'essay-taking-overlay', 'essay-monitor-gate', 'essay-camera-preview', 'essay-warn-popup', 'essay-freeze-overlay'];
       document.querySelectorAll('.fixed').forEach(el => {
         if (KEEP_IDS.includes(el.id)) return;                    // ข้ามส่วนประกอบถาวร
         if (el.closest('#app-main') && !el.dataset.popup && !el.id) {
@@ -6015,7 +6015,7 @@ const supabaseDataSdk = {
       { // ✍️ รายการชุดสอบอัตนัย
         key: 'adminEssaySets',
         visible: () => _isShown('admin-tab-essayassign'),
-        sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done','cheat_warning_count']),
+        sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done','cheat_warning_count','frozen']),
         render: () => renderEssayExamSetList(),
         busy: ['essay-grading-popup'],
       },
@@ -12258,6 +12258,10 @@ const supabaseDataSdk = {
         }
         const graded = sub.grading_done === true || sub.grading_done === 'true';
         const used = parseInt(sub.retry_count) || 0;
+        if (sub.status === 'terminated') {
+          const act = _essayRetryAction(set, sub, rt, btnBase, spanBase);
+          return `<span style="${spanBase};background:#fee2e2;color:#b91c1c">🚫 ${rt} ถูกยุติการสอบ${graded ? ` (${sub.manual_score ?? 0}/${set.total_score})` : ''}</span>` + (act ? ' ' + act : '');
+        }
         const attempt = used > 0 ? ` สอบแก้ครั้งที่ ${used}` : '';
         let info = '';
         if (!graded) info = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt}${attempt} ส่งแล้ว รอครูตรวจ</span>`;
@@ -12271,7 +12275,16 @@ const supabaseDataSdk = {
     /** ✍️ เปิดหน้าเขียนตอบข้อสอบอัตนัย */
     /** ✍️ เปิดหน้าเขียนตอบ — ผ่านด่านขออนุญาตกล้องก่อนเสมอ (เหมือนปรนัย) */
     function openEssayExam(subId) {
-      _essayCameraGate(subId, stream => _openEssayExamActual(subId, stream));
+      // 🚪 ใช้ด่านเดียวกับปรนัยทุกอย่าง: ข้อความแจ้ง คำเตือน คำแนะนำกล้อง และเปิดเบราว์เซอร์จริงให้อัตโนมัติ (LINE/Facebook/ฯลฯ)
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const set = sub && allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      window._examGateMode = { kind: 'essay', onPass: async () => {
+        let stream = null;
+        try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } }); }
+        catch (e) { console.log('[EssayGuard] เปิดกล้องไม่สำเร็จ:', e.message); }
+        _openEssayExamActual(subId, stream);
+      } };
+      _showExamMonitoringNoticeGate(subId, set);
     }
     async function _openEssayExamActual(subId, stream) {
       let sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
@@ -12326,6 +12339,7 @@ const supabaseDataSdk = {
       const _w = _isRetry ? _essayRetryWindow(set, sub) : null;
       _startEssayTimer(_w && _w.end ? { ...set, end_time: _w.end.toISOString() } : set);
       if (stream) _startEssayGuard(sub, set, stream);   // 📷 เริ่มเฝ้าระวัง
+      if (sub.frozen === true || sub.frozen === 'true') { _essayGuard.active = false; _showEssayFreeze(); }
     }
     function _updateEssayWordCount(t) {
       const n = _countWordsTh(t.value), min = parseInt(t.dataset.min) || 0;
@@ -12363,8 +12377,10 @@ const supabaseDataSdk = {
         const el = document.getElementById('essay-timer');
         if (!el) { clearInterval(_essayTimerId); return; }
         if (!set.end_time) { el.textContent = ''; return; }
+        if (typeof _essayCheckDecision === 'function') _essayCheckDecision();   // ⏸️ รอ/รับคำตัดสินของครู
+        if (!window._essayCur) return;
         const ms = new Date(set.end_time) - new Date();
-        if (ms <= 0) { clearInterval(_essayTimerId); el.textContent = '00:00'; submitEssayExam(true); return; }
+        if (ms <= 0) { clearInterval(_essayTimerId); el.textContent = '00:00'; _hideEssayFreeze(); submitEssayExam(true); return; }
         const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
         el.textContent = (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
         el.style.color = ms < 300000 ? '#fecaca' : 'white';
@@ -12506,7 +12522,12 @@ const supabaseDataSdk = {
         return;
       }
       _captureEssaySnapshot(kind);
-      _showEssayWarning(`🚨 ตรวจพบการ${_ESSAY_VIOLATION_TEXT[kind] || kind} (ครั้งที่ ${prior + 1})<br>ระบบบันทึกภาพหลักฐานและ<b>แจ้งครูแล้ว</b>`);
+      // ⏸️ หยุดหน้าจอรอครูตัดสิน (เหมือนปรนัย) — บันทึกคำตอบที่เขียนไว้ก่อน
+      if (typeof _flushEssayAnswers === 'function') await _flushEssayAnswers();
+      const s2 = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === _essayGuard.subId);
+      if (s2) await window.dataSdk.update({ ...s2, frozen: true, frozen_reason: _ESSAY_VIOLATION_TEXT[kind] || kind });
+      _essayGuard.active = false;
+      _showEssayFreeze();
     }
     function _showEssayWarning(html) {
       document.getElementById('essay-warn-popup')?.remove();
@@ -12578,6 +12599,71 @@ const supabaseDataSdk = {
       }));
       const grid = document.getElementById('essay-monitor-grid');
       if (grid) grid.innerHTML = cards.join('') || '<p class="text-gray-400 text-sm">ไม่มีภาพ</p>';
+    }
+
+    // ═══ ⏸️ หยุดหน้าจอรอครูตัดสิน (หลักเดียวกับปรนัย: ผิดครั้งที่ 2 ขึ้นไป → หยุดจอ → ครูเลือก ให้สอบต่อ / ยุติการสอบ) ═══
+    function _showEssayFreeze() {
+      if (document.getElementById('essay-freeze-overlay')) return;
+      const w = document.createElement('div');
+      w.id = 'essay-freeze-overlay';
+      w.style.cssText = 'position:fixed;inset:0;z-index:999993;background:rgba(127,29,29,.94);display:flex;align-items:center;justify-content:center;padding:16px';
+      w.innerHTML = `<div style="background:white;border-radius:16px;max-width:360px;width:100%;padding:24px;text-align:center">
+          <p style="font-size:44px;margin:0 0 8px">⏸️</p>
+          <p style="font-size:16px;font-weight:700;color:#b91c1c;margin:0 0 8px">หยุดการสอบชั่วคราว</p>
+          <p style="font-size:13px;color:#475569;line-height:1.7;margin:0">ระบบตรวจพบพฤติกรรมเสี่ยงซ้ำ และแจ้งครูแล้ว<br>คำตอบที่เขียนไว้ถูกบันทึกเรียบร้อย<br><b>กรุณารอครูตัดสิน</b> หน้านี้จะเปลี่ยนเองอัตโนมัติ</p>
+          <p style="font-size:11px;color:#94a3b8;margin:12px 0 0">⏳ กำลังรอ...</p></div>`;
+      document.body.appendChild(w);
+    }
+    function _hideEssayFreeze() { document.getElementById('essay-freeze-overlay')?.remove(); }
+
+    /** 🔁 ฝั่งนักเรียน: ตรวจคำตัดสินของครูทุกวินาที (ข้อมูลใหม่มาถึงทุก 3 วินาที) */
+    function _essayCheckDecision() {
+      const cur = window._essayCur;
+      if (!cur) return;
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
+      if (!sub) return;
+      if (sub.status === 'terminated') {
+        // ⛔ ครูยุติการสอบ — ปิดหน้าเขียนตอบ คำตอบที่เขียนไว้ครูยังตรวจให้คะแนนได้
+        clearInterval(_essayTimerId); clearTimeout(_essaySaveTimer);
+        _stopEssayGuard(); _hideEssayFreeze();
+        window._essayCur = null;
+        document.getElementById('essay-taking-overlay')?.remove();
+        _showEssayWarning('⛔ <b>ครูยุติการสอบนี้แล้ว</b><br>คำตอบที่เขียนไว้ถูกส่งให้ครูตรวจ<br>หากต้องการสอบใหม่ ใช้ปุ่ม "ขอสอบแก้"');
+        if (currentStudentTab === 'grades' && typeof showStudentGrades === 'function') showStudentGrades(true);
+        return;
+      }
+      const frozen = sub.frozen === true || sub.frozen === 'true';
+      if (frozen) { _showEssayFreeze(); _essayGuard.active = false; }
+      else if (document.getElementById('essay-freeze-overlay')) {
+        // ✅ ครูให้สอบต่อ — ปลดหน้าจอ แล้วเริ่มนับช่วงผ่อนผันใหม่ (กันจับซ้ำทันทีตอนสลับกลับมา)
+        _hideEssayFreeze();
+        _essayGuard.active = !!_essayGuard.stream;
+        _essayGuard.startedAt = Date.now();
+        showToast('✅ ครูอนุญาตให้สอบต่อ');
+      }
+    }
+
+    /** 👩‍🏫 ฝั่งครู: ตัดสิน ให้สอบต่อ / ยุติการสอบ */
+    async function decideEssayFrozen(subId, decision) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      if (!sub) return;
+      if (decision === 'terminate' && !confirm('ยืนยันยุติการสอบของนักเรียนคนนี้? คำตอบที่เขียนไว้จะถูกส่งให้ตรวจ')) return;
+      const patch = decision === 'continue'
+        ? { frozen: false }
+        : { frozen: false, status: 'terminated', submitted_at: new Date().toISOString(), terminated_reason: 'ครูยุติการสอบจากพฤติกรรมเสี่ยง', grading_done: false };
+      const r = await window.dataSdk.update({ ...sub, ...patch });
+      if (!r.isOk) { showToast('บันทึกคำตัดสินไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+      showToast(decision === 'continue' ? '✅ อนุญาตให้สอบต่อแล้ว' : '⛔ ยุติการสอบแล้ว — ตรวจคำตอบที่เขียนไว้ได้');
+      if (document.getElementById('essay-grading-popup')) { openEssayGrading(sub.essay_exam_set_id); _renderEssayGradeDetail(subId); }
+    }
+    function _essayFrozenBoxHtml(sub) {
+      if (!(sub.frozen === true || sub.frozen === 'true') || sub.status !== 'in_progress') return '';
+      return `<div class="bg-red-100 border-2 border-red-400 rounded-lg p-3 mb-3">
+          <p class="font-bold text-red-800 text-sm mb-2">⏸️ หน้าจอนักเรียนถูกหยุดไว้ รอครูตัดสิน</p>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="decideEssayFrozen('${sub.__backendId}','continue')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-semibold btn-3d">✅ ให้สอบต่อ</button>
+            <button onclick="decideEssayFrozen('${sub.__backendId}','terminate')" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold btn-3d">⛔ ยุติการสอบ</button>
+          </div></div>`;
     }
 
     // ═══ 🔄 สอบแก้อัตนัย (หลักเดียวกับปรนัย: สอบ 1 + แก้ได้ 2 ครั้ง, ทับเฉพาะคะแนนสอบ) ═══
@@ -12769,7 +12855,7 @@ const supabaseDataSdk = {
       const badge = s => {
         if (s.status === 'submitted' || s.status === 'terminated') return (s.grading_done === true || s.grading_done === 'true')
           ? `<span class="text-green-700">✅ ตรวจแล้ว ${s.manual_score ?? 0}/${set.total_score}</span>` : '<span class="text-amber-700 font-semibold">⏳ รอตรวจ</span>';
-        if (s.status === 'in_progress') return '<span class="text-blue-600">✏️ กำลังทำ</span>';
+        if (s.status === 'in_progress') return (s.frozen === true || s.frozen === 'true') ? '<span class="text-red-600 font-bold">⏸️ รอครูตัดสิน</span>' : '<span class="text-blue-600">✏️ กำลังทำ</span>';
         return '<span class="text-gray-400">ยังไม่เข้าสอบ</span>';
       };
       document.getElementById('essay-grading-popup')?.remove();
@@ -12807,6 +12893,7 @@ const supabaseDataSdk = {
       box.innerHTML = `
         <p class="font-bold text-gray-800 mb-1">${escHtml(sub.student_name || sub.student_id)}</p>
         <p class="text-xs text-gray-500 mb-3">🆔 ${escHtml(String(sub.student_id))} · ส่งเมื่อ ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>
+        ${_essayFrozenBoxHtml(sub)}
         ${_essayMonitorSummaryHtml(sub)}
         ${!canGrade ? '<p class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-sm mb-3">นักเรียนยังไม่ได้ส่งคำตอบ — ตรวจได้หลังส่งแล้ว</p>' : ''}
         ${qs.map((q, i) => { const qid = String(q.__backendId), max = parseFloat(q.score_per_question) || 0;
@@ -12857,11 +12944,21 @@ const supabaseDataSdk = {
         } catch (e) {
           showToast('บันทึกคะแนนแล้ว แต่โอนเข้าช่องคะแนนไม่สำเร็จ: ' + e.message, 'error');
         }
-        // ไปคนถัดไปที่ยังรอตรวจ
-        const next = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(set.__backendId)
-          && d.status === 'submitted' && !(d.grading_done === true || d.grading_done === 'true') && String(d.__backendId) !== String(subId))[0];
+        // ไปคนถัดไปที่ยังรอตรวจ — ถ้าตรวจครบทุกคนที่ส่งแล้ว ปิดหน้าตรวจให้เลย (เช่น ส่งมา 3 จาก 10 คน ตรวจ 3 คนเสร็จก็ปิด)
+        const all = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(set.__backendId));
+        const isDone = d => d.grading_done === true || d.grading_done === 'true';
+        const handedIn = d => d.status === 'submitted' || d.status === 'terminated';
+        const next = all.find(d => handedIn(d) && !isDone(d) && String(d.__backendId) !== String(subId));
+        if (!next) {
+          document.getElementById('essay-grading-popup')?.remove();
+          const graded = all.filter(d => handedIn(d) && isDone(d)).length;
+          const notYet = all.filter(d => !handedIn(d)).length;
+          showToast(`🎉 ตรวจครบทุกคนที่ส่งแล้ว (${graded} คน)${notYet ? ` · ยังไม่ส่ง ${notYet} คน — กดปุ่ม 📝 ตรวจ อีกครั้งเมื่อมีคนส่งเพิ่ม` : ''}`);
+          if (typeof renderEssayExamSetList === 'function') renderEssayExamSetList();
+          return;
+        }
         openEssayGrading(set.__backendId);
-        if (next) _renderEssayGradeDetail(next.__backendId); else _renderEssayGradeDetail(subId);
+        _renderEssayGradeDetail(next.__backendId);
       });
     }
 
@@ -13894,6 +13991,12 @@ const supabaseDataSdk = {
     // 🚪 ปิดการสอบครั้งนี้อย่างเด็ดขาด (ไม่ใช่แค่ปิด popup) — เพราะนักเรียนเลือกไม่เปิดกล้องตามที่กำหนด
     async function _closeExamGateDefinitively(submissionId) {
       document.getElementById('exam-monitoring-gate')?.remove();
+      // ✍️ โหมดอัตนัย: ห้ามลบกระดาษคำตอบอัตนัย (รหัสอยู่คนละตาราง อาจไปลบกระดาษปรนัยผิดคน) — แค่ปิดด่าน
+      if (window._examGateMode && window._examGateMode.kind === 'essay') {
+        window._examGateMode = null;
+        showToast('ยังไม่ได้เข้าสอบ — กดปุ่มเข้าสอบอีกครั้งเมื่อพร้อมเปิดกล้อง');
+        return;
+      }
       const submission = allData.find(d => d.__backendId === submissionId && d.type === 'exam_submission');
       if (submission) {
         // ยุติการสอบครั้งนี้จริง (ยังไม่เคยเห็นคำถามเลย จึงไม่มีคะแนนต้องคืน) — ต้องขออนุญาตจากแอดมินถ้าจะสอบใหม่
@@ -14125,6 +14228,14 @@ const supabaseDataSdk = {
         // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมรอผลการบันทึก ถ้าบันทึกล้มเหลว (เช่น ฐานข้อมูลไม่มีคอลัมน์รองรับ)
         // จะหยุดทั้งกระบวนการ ทำให้นักเรียนเข้าสอบไม่ได้เลย ทั้งที่กล้องทำงานปกติ
         // แก้โดยบันทึกแบบไม่รอผล — เข้าสอบได้ทันที ส่วนหลักฐานบันทึกเบื้องหลัง ล้มเหลวก็ไม่กระทบการสอบ
+        // ✍️ โหมดอัตนัย: ใช้ด่านเดียวกับปรนัยทุกอย่าง แต่ผ่านแล้วเปิดหน้าเขียนตอบอัตนัยแทน
+        if (window._examGateMode && window._examGateMode.kind === 'essay') {
+          const onPass = window._examGateMode.onPass;
+          window._examGateMode = null;
+          document.getElementById('exam-monitoring-gate')?.remove();
+          onPass();
+          return;
+        }
         window.dataSdk.create({
           type: 'exam_camera_consent', student_id: currentUser?.student_id, submission_id: submissionId,
           granted_at: new Date().toISOString(), status: 'granted',
