@@ -2693,7 +2693,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.134';
+    const APP_VERSION = 'SUPABASE-2026.09.08.135';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3588,7 +3588,8 @@ const supabaseDataSdk = {
         // แก้โดยเช็คก่อนว่ารายการที่ pending อยู่ตอนนี้ "เปลี่ยนไปจริง" หรือไม่ (เทียบ id ทั้งหมด) ถ้าเหมือนเดิมเป๊ะ ไม่ต้อง render ซ้ำ กัน checkbox ที่ติ๊กไว้หาย
         const examCheatTabEl = document.getElementById('admin-tab-examcheat');
         if (examCheatTabEl && !examCheatTabEl.classList.contains('hidden') && typeof renderExamCheatList === 'function') {
-          const currentPendingIds = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').map(d => d.__backendId).sort().join(',');
+          const currentPendingIds = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').map(d => d.__backendId).sort().join(',')
+            + '|' + _essayCheatItems().map(s => [s.__backendId, s.cheat_warning_count, s.frozen, s.status].join(':')).sort().join(',');
           if (currentPendingIds !== window._lastExamCheatPendingIds) {
             window._lastExamCheatPendingIds = currentPendingIds;
             // ⏸️ ถ้าแอดมินกดปุ่ม "หยุด render ชั่วคราว" ไว้ (กำลังเลือกหลายรายการอยู่) ให้ข้ามการ render แม้มีข้อมูลใหม่จริง จนกว่าจะกดกลับมาทำงานอัตโนมัติเอง
@@ -11109,7 +11110,7 @@ const supabaseDataSdk = {
         pauseBtn.textContent = '⏸️ หยุด render ชั่วคราว';
         pauseBtn.className = 'px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-medium';
       }
-      const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending');
+      const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').concat(_essayCheatItems());
       const classes = [...new Set(alerts.map(a => a.class_name).filter(Boolean))].sort();
       const rooms = [...new Set(alerts.map(a => a.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(alerts.map(a => a.subject_name).filter(Boolean))].sort();
@@ -11121,6 +11122,29 @@ const supabaseDataSdk = {
       if (subjSel) subjSel.innerHTML = '<option value="">-- ทุกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
       renderExamCheatList();
     }
+    /** 👤 หาชื่อนักเรียนจากหลายทาง — รหัสนักเรียน → กระดาษคำตอบ → ชื่อที่เก็บไว้กับรายการ (เดิมหาทางเดียว หาไม่เจอจึงไม่มีชื่อ) */
+    function _cheatStudentName(studentId, submissionId, submissionType, storedName) {
+      let sid = studentId;
+      const sub = submissionId ? allData.find(d => d.type === submissionType && String(d.__backendId) === String(submissionId)) : null;
+      if (!sid && sub) sid = sub.student_id;
+      const stu = sid ? allData.find(s => s.type === 'student' && String(s.student_id) === String(sid)) : null;
+      const full = stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`.trim() : '';
+      const name = full || storedName || sub?.student_name || '';
+      return { name: name || 'ไม่ทราบชื่อ', sid: sid || '-', number: stu?.student_number || '' };
+    }
+
+    function _essayCheatItems() {
+      return allData.filter(d => d.type === 'essay_submission' && (parseInt(d.cheat_warning_count) || 0) >= 2
+        && !(d.cheat_reviewed === true || d.cheat_reviewed === 'true'));
+    }
+    async function markEssayCheatReviewed(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      if (!sub) return;
+      if (sub.frozen === true || sub.frozen === 'true') { showToast('นักเรียนคนนี้ยังถูกหยุดหน้าจออยู่ กรุณาเลือก ให้สอบต่อ หรือ ยุติการสอบ ก่อน', 'error'); return; }
+      const r = await window.dataSdk.update({ ...sub, cheat_reviewed: true });
+      if (r.isOk) { showToast('✅ รับทราบแล้ว'); renderExamCheatList(); }
+    }
+
     function renderExamCheatList() {
       const listEl = document.getElementById('examcheat-list');
       if (!listEl) return;
@@ -11132,14 +11156,40 @@ const supabaseDataSdk = {
       if (fRoom) alerts = alerts.filter(a => a.room_number === fRoom);
       if (fSubject) alerts = alerts.filter(a => a.subject_name === fSubject);
       alerts.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
-      if (alerts.length === 0) {
+      // ✍️ อัตนัย (กรองด้วยเงื่อนไขเดียวกัน)
+      let essays = _essayCheatItems();
+      if (fClass) essays = essays.filter(s => s.class_name === fClass);
+      if (fRoom) essays = essays.filter(s => String(s.room_number) === String(fRoom));
+      if (fSubject) essays = essays.filter(s => s.subject_name === fSubject);
+      const essayHtml = essays.map(s => {
+        const w = _cheatStudentName(s.student_id, s.__backendId, 'essay_submission', s.student_name);
+        const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(s.essay_exam_set_id));
+        const ev = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(s.__backendId) && d.event_type !== 'periodic');
+        const cnt = k => ev.filter(e => e.event_type === k).length;
+        const imgs = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(s.__backendId) && (d.has_image === true || d.has_image === 'true')).length;
+        const frozen = (s.frozen === true || s.frozen === 'true') && s.status === 'in_progress';
+        const last = ev.map(e => e.captured_at).sort().pop();
+        return `<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:8px;padding:12px;margin-bottom:8px">
+            <p style="font-size:13px;font-weight:700;color:#9a3412;margin:0">✍️ สงสัยทุจริต (อัตนัย) — ${w.number ? 'เลขที่ ' + w.number + ' ' : ''}${escHtml(w.name)} (${escHtml(String(w.sid))})</p>
+            <p style="font-size:13px;color:#7c2d12;margin:2px 0">${escHtml(s.subject_name || '')} · ${set ? _essayRoundText(set) : ''} อัตนัย · ${escHtml(s.class_name || '')}/${escHtml(String(s.room_number || ''))}</p>
+            <p style="font-size:12px;color:#7c2d12;margin:2px 0">พฤติกรรมเสี่ยง ${parseInt(s.cheat_warning_count) || 0} ครั้ง (ครั้งแรกเป็นคำเตือน) · 🚪 ออกจากหน้า ${cnt('tab_switch')} · 📋 คัดลอก ${cnt('copy')} · 📥 วาง ${cnt('paste')}</p>
+            <p style="font-size:11px;color:#94a3b8;margin:0 0 8px">${last ? new Date(last).toLocaleString('th-TH', { hour12: false }) : ''} ${frozen ? '<b style="color:#dc2626">· ⏸️ หน้าจอถูกหยุด รอตัดสิน</b>' : (s.status === 'terminated' ? '· ⛔ ยุติการสอบแล้ว' : '')}</p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${frozen ? `<button onclick="decideEssayFrozen('${s.__backendId}','continue').then(renderExamCheatList)" style="padding:6px 12px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">✅ ให้สอบต่อ</button>
+                <button onclick="decideEssayFrozen('${s.__backendId}','terminate').then(renderExamCheatList)" style="padding:6px 12px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">⛔ ยุติการสอบ</button>` : ''}
+              ${imgs ? `<button onclick="showEssayMonitorImages('${s.__backendId}')" style="padding:6px 12px;background:#475569;color:white;border:none;border-radius:8px;font-size:12px;cursor:pointer">📷 ดูภาพ (${imgs})</button>` : ''}
+              ${!frozen ? `<button onclick="markEssayCheatReviewed('${s.__backendId}')" style="padding:6px 12px;background:#e2e8f0;color:#475569;border:none;border-radius:8px;font-size:12px;cursor:pointer">✓ รับทราบ</button>` : ''}
+            </div></div>`;
+      }).join('');
+      if (alerts.length === 0 && !essayHtml) {
         listEl.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:20px 0">📭 ไม่มีรายการสงสัยทุจริตตามเงื่อนไขที่เลือก</p>';
         return;
       }
+      if (alerts.length === 0) { listEl.innerHTML = essayHtml; return; }
       const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' };
       listEl.innerHTML = alerts.map(a => {
-        const student = allData.find(s => s.type === 'student' && s.student_id === a.student_id);
-        const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : a.student_id;
+        const _who = _cheatStudentName(a.student_id, a.submission_id, 'exam_submission', a.student_name);
+        const name = `${_who.number ? 'เลขที่ ' + _who.number + ' ' : ''}${escHtml(_who.name)} (${escHtml(String(_who.sid))})`;
         return `
           <div class="flex items-start gap-3" style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:12px;margin-bottom:8px">
             <input type="checkbox" class="examcheat-select-cb mt-1" value="${a.__backendId}" style="width:16px;height:16px;flex-shrink:0">
@@ -11150,7 +11200,7 @@ const supabaseDataSdk = {
               <button onclick="openExamAlertControlPanel('${a.__backendId}')" style="padding:6px 14px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔍 ตรวจสอบ/จัดการ</button>
             </div>
           </div>`;
-      }).join('');
+      }).join('') + essayHtml;
     }
     function toggleAllExamCheatSelection(checked) {
       document.querySelectorAll('.examcheat-select-cb').forEach(cb => { cb.checked = checked; });
@@ -15337,13 +15387,13 @@ const supabaseDataSdk = {
         const alert = allData.find(d => d.type === 'exam_alert' && d.__backendId === alertId);
         const stillValid = alert && alert.status === 'pending'
           && (!alert.submission_id || allData.some(d => d.type === 'exam_submission' && d.__backendId === alert.submission_id))
-          && (!alert.exam_id || allData.some(d => d.type === 'exam_set' && d.__backendId === alert.exam_id));
+          && (!(alert.exam_id || alert.exam_set_id) || allData.some(d => d.type === 'exam_set' && String(d.__backendId) === String(alert.exam_id || alert.exam_set_id)));
         if (!stillValid) banner.remove();
       });
       const alerts = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').filter(a => {
         // กันการแจ้งเตือนค้าง: ถ้ากระดาษคำตอบหรือชุดสอบที่เกี่ยวข้องถูกลบไปแล้ว ไม่ต้องแจ้งอีก (รวมถึงข้อมูลเก่าที่ค้างมาก่อนแก้บั๊กนี้)
         const submissionExists = a.submission_id ? allData.some(d => d.type === 'exam_submission' && d.__backendId === a.submission_id) : true;
-        const examSetExists = a.exam_id ? allData.some(d => d.type === 'exam_set' && d.__backendId === a.exam_id) : true;
+        const examSetExists = (a.exam_id || a.exam_set_id) ? allData.some(d => d.type === 'exam_set' && String(d.__backendId) === String(a.exam_id || a.exam_set_id)) : true;
         return submissionExists && examSetExists;
       });
       alerts.forEach(a => {
@@ -15435,8 +15485,8 @@ const supabaseDataSdk = {
               <button onclick="setExamSubmissionScore('${alert.submission_id}','${alert.__backendId}')" style="background:#2563eb;color:white;border:none;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:600;cursor:pointer">✏️ บันทึกคะแนน</button>
             </div>
             <div style="display:flex;gap:8px">
-              <button onclick="setExamRetryPermission('${alert.student_id}','${alert.exam_id}',true,'${alert.__backendId}')" style="flex:1;background:#16a34a;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🔁 อนุญาตให้สอบแก้</button>
-              <button onclick="setExamRetryPermission('${alert.student_id}','${alert.exam_id}',false,'${alert.__backendId}')" style="flex:1;background:#64748b;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🚫 ไม่อนุญาตให้แก้</button>
+              <button onclick="setExamRetryPermission('${alert.student_id}','${alert.exam_id || alert.exam_set_id}',true,'${alert.__backendId}')" style="flex:1;background:#16a34a;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🔁 อนุญาตให้สอบแก้</button>
+              <button onclick="setExamRetryPermission('${alert.student_id}','${alert.exam_id || alert.exam_set_id}',false,'${alert.__backendId}')" style="flex:1;background:#64748b;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🚫 ไม่อนุญาตให้แก้</button>
             </div>
             <button onclick="dismissExamAlert('${alert.__backendId}')" style="background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:10px;font-size:13px;cursor:pointer">✅ รับทราบ ไม่ต้องดำเนินการ (ปิดแจ้งเตือน)</button>
             <button onclick="document.getElementById('exam-alert-panel')?.remove()" style="background:transparent;color:#94a3b8;border:none;padding:8px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้ (ไม่ปิดแจ้งเตือน)</button>
@@ -15653,11 +15703,13 @@ const supabaseDataSdk = {
       // บันทึกการแจ้งเตือนทันที
       await window.dataSdk.create({
         type: 'exam_alert',
-        student_id: info.student_id,
+        student_id: info.student_id || submission?.student_id || currentUser?.student_id,
+        student_name: submission?.student_name || `${currentUser?.prefix||''}${currentUser?.first_name||''} ${currentUser?.last_name||''}`.trim(),
         subject_name: info.subject_name,
         class_name: info.class_name,
         room_number: info.room_number,
         exam_id: info.exam_id,
+        exam_set_id: info.exam_id,   // ⚠️ ตารางใช้ชื่อคอลัมน์ exam_set_id — เดิมส่งแค่ exam_id จึงถูกตัดทิ้ง แจ้งเตือนไม่ผูกกับชุดสอบ
         submission_id: _examAntiCheatSubmissionId,
         violation_type: violationType,
         status: 'pending',
