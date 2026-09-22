@@ -2684,6 +2684,9 @@
          <div><label class="block text-xs text-gray-600 mb-1">❓ ข้อที่ตรวจ</label>
           <select id="egq-question" onchange="renderEssayByQuestion()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select></div>
         </div>
+        <label class="flex items-center gap-2 text-xs text-gray-600 mb-3 cursor-pointer">
+         <input type="checkbox" id="egq-show-done" onchange="loadEssayByQuestionSets()"> แสดงที่ตรวจแล้วด้วย (ใช้เมื่อต้องการแก้คะแนน)
+        </label>
         <div id="egq-panel"></div>
        </div>
       </div>
@@ -2708,7 +2711,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.140';
+    const APP_VERSION = 'SUPABASE-2026.09.08.142';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -12981,149 +12984,199 @@ const supabaseDataSdk = {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 📝 ตรวจอัตนัยรายข้อ: ข้อเดียวกันของทั้งห้อง เรียงตามเลขที่ (เทียบคำตอบ) — บันทึกและโอนคะแนนด้วยกติกาเดียวกับหน้าตรวจรายคน
+    // 📝 ตรวจอัตนัยรายข้อ (เทียบทั้งห้อง)
+    //    ให้คะแนนทีละข้อ → คะแนนยังไม่บันทึก ระบบจำไว้ในเครื่อง (สลับข้อไปมาได้ ไม่หาย แม้รีเฟรชหน้า)
+    //    → ข้อสุดท้ายของแต่ละคนมีปุ่มบันทึกท้ายชื่อ บันทึกทุกข้อของคนนั้นครั้งเดียว + โอนคะแนน (เหมือนหน้าตรวจรายคน)
     // ════════════════════════════════════════════════════════════
+    const _EGQ_KEY = 'kpac_egq_draft';
+    function _egqLoadDraft() { try { return JSON.parse(localStorage.getItem(_EGQ_KEY) || '{}') || {}; } catch (e) { return {}; } }
+    function _egqSaveDraft(d) { try { localStorage.setItem(_EGQ_KEY, JSON.stringify(d)); } catch (e) { /* เก็บไม่ได้ก็ยังใช้ในหน้านี้ได้ */ } }
+    window._egqDraft = window._egqDraft || _egqLoadDraft();   // { subId: { qid: คะแนน } }
+
+    function _egqShowDone() { return !!document.getElementById('egq-show-done')?.checked; }
     function _egqHandedIn(s) { return s.status === 'submitted' || s.status === 'terminated'; }
+    function _egqIsDone(s) { return s.grading_done === true || s.grading_done === 'true'; }
     function _egqStudentNo(s) {
       return parseInt(allData.find(x => x.type === 'student' && String(x.student_id) === String(s.student_id))?.student_number) || 9999;
     }
-    /** เติมรายการชุดสอบอัตนัย (เฉพาะชุดที่มีคนส่งแล้ว) */
+    /** คะแนนของข้อนี้: ที่กำลังให้อยู่ (ยังไม่บันทึก) ก่อน ถ้าไม่มีใช้ที่บันทึกไว้แล้ว */
+    function _egqScore(sub, qid) {
+      const d = window._egqDraft[String(sub.__backendId)];
+      if (d && d[qid] !== undefined && d[qid] !== '') return d[qid];
+      const saved = (_parseJsonSafe(sub.score_per_question_json, {}) || {})[qid];
+      return (saved === undefined || saved === '') ? '' : saved;
+    }
+    /** กระดาษที่อยู่ในรอบตรวจนี้ (ค่าเริ่มต้น: ส่งแล้วแต่ยังไม่ได้บันทึกผลตรวจ) */
+    function _egqSubs(setId) {
+      return allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId)
+        && _egqHandedIn(d) && (_egqShowDone() || !_egqIsDone(d)));
+    }
+    /** ลำดับข้อของชุดนี้ (รวมทุกข้อในห้อง — ชุดสุ่มแต่ละคนได้ข้อต่างกัน) */
+    function _egqOrder(subs) {
+      const m = new Map();
+      subs.forEach(s => (_parseJsonSafe(s.question_snapshot_json, []) || []).forEach(q => { const id = String(q.__backendId); if (!m.has(id)) m.set(id, q); }));
+      return [...m.entries()];   // [[qid, q], ...]
+    }
+
     function loadEssayByQuestionSets() {
       const sel = document.getElementById('egq-set');
       if (!sel) return;
       const keep = sel.value;
       const sets = allData.filter(d => d.type === 'essay_exam_set').map(s => {
-        const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(s.__backendId));
-        const handed = subs.filter(_egqHandedIn);
-        const waiting = handed.filter(d => !(d.grading_done === true || d.grading_done === 'true')).length;
-        return { s, handed: handed.length, waiting, total: subs.length };
-      }).filter(x => x.handed > 0)
+        const all = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(s.__backendId));
+        const handed = all.filter(_egqHandedIn);
+        return { s, handed: handed.length, waiting: handed.filter(d => !_egqIsDone(d)).length, total: all.length };
+      }).filter(x => x.handed > 0 && (_egqShowDone() || x.waiting > 0))
         .sort((a, b) => b.waiting - a.waiting || String(a.s.subject_name).localeCompare(String(b.s.subject_name), 'th'));
-      sel.innerHTML = '<option value="">-- เลือกชุดสอบ --</option>' + sets.map(x =>
-        `<option value="${x.s.__backendId}">${x.waiting ? '⏳ ' : '✅ '}${escHtml(x.s.class_name)}/${escHtml(String(x.s.room_number))} · ${escHtml(x.s.subject_name)} · ${_essayRoundText(x.s)} (ส่ง ${x.handed}/${x.total}${x.waiting ? ` · รอตรวจ ${x.waiting}` : ''})</option>`).join('');
+      sel.innerHTML = sets.length
+        ? '<option value="">-- เลือกชุดสอบ --</option>' + sets.map(x =>
+            `<option value="${x.s.__backendId}">${x.waiting ? '⏳ ' : '✅ '}${escHtml(x.s.class_name)}/${escHtml(String(x.s.room_number))} · ${escHtml(x.s.subject_name)} · ${_essayRoundText(x.s)} (ส่ง ${x.handed}/${x.total}${x.waiting ? ` · รอตรวจ ${x.waiting}` : ''})</option>`).join('')
+        : `<option value="">${_egqShowDone() ? 'ยังไม่มีชุดสอบอัตนัยที่มีคนส่งคำตอบ' : '🎉 ตรวจครบทุกชุดแล้ว ไม่มีคำตอบรอตรวจ'}</option>`;
       if (keep && sets.some(x => String(x.s.__backendId) === keep)) sel.value = keep;
-      if (!sets.length) sel.innerHTML = '<option value="">ยังไม่มีชุดสอบอัตนัยที่มีคนส่งคำตอบ</option>';
+      else if (sets.length === 1) sel.value = String(sets[0].s.__backendId);
       renderEssayByQuestionPicker();
     }
-    /** เติมรายการข้อ — รวมทุกข้อที่มีในกระดาษของห้องนี้ (ชุดสุ่มแต่ละคนได้ข้อต่างกัน) */
+
     function renderEssayByQuestionPicker() {
       const setId = document.getElementById('egq-set')?.value;
       const qSel = document.getElementById('egq-question');
       if (!qSel) return;
       const keep = qSel.value;
       if (!setId) { qSel.innerHTML = '<option value="">-- เลือกชุดสอบก่อน --</option>'; document.getElementById('egq-panel').innerHTML = ''; return; }
-      const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId) && _egqHandedIn(d));
-      const qmap = new Map();   // qid → { q, answered, graded }
-      subs.forEach(s => {
-        const qs = _parseJsonSafe(s.question_snapshot_json, []) || [];
-        const sc = _parseJsonSafe(s.score_per_question_json, {}) || {};
-        qs.forEach(q => {
-          const id = String(q.__backendId);
-          if (!qmap.has(id)) qmap.set(id, { q, count: 0, graded: 0 });
-          const m = qmap.get(id); m.count++; if (sc[id] !== undefined && sc[id] !== '') m.graded++;
-        });
-      });
-      const list = [...qmap.entries()];
-      qSel.innerHTML = list.map(([id, m], i) =>
-        `<option value="${escHtml(id)}">${m.graded < m.count ? '⏳' : '✅'} ข้อ ${i + 1}: ${escHtml(String(m.q.question_text || '').slice(0, 40))}${String(m.q.question_text || '').length > 40 ? '…' : ''} (ตรวจแล้ว ${m.graded}/${m.count})</option>`).join('')
-        || '<option value="">ไม่พบข้อสอบ</option>';
-      if (keep && qmap.has(keep)) qSel.value = keep;
-      else { const firstTodo = list.find(([, m]) => m.graded < m.count); if (firstTodo) qSel.value = firstTodo[0]; }
+      const subs = _egqSubs(setId), order = _egqOrder(subs);
+      qSel.innerHTML = order.map(([id, q], i) => {
+        const have = subs.filter(s => (_parseJsonSafe(s.question_snapshot_json, []) || []).some(x => String(x.__backendId) === id));
+        const filled = have.filter(s => _egqScore(s, id) !== '').length;
+        return `<option value="${escHtml(id)}">${filled < have.length ? '⏳' : '✅'} ข้อ ${i + 1}: ${escHtml(String(q.question_text || '').slice(0, 40))}${String(q.question_text || '').length > 40 ? '…' : ''} (ให้คะแนนแล้ว ${filled}/${have.length})</option>`;
+      }).join('') || '<option value="">ไม่พบข้อสอบ</option>';
+      if (keep && order.some(([id]) => id === keep)) qSel.value = keep;
       renderEssayByQuestion();
     }
-    /** ตารางคำตอบข้อเดียวกันของทั้งห้อง — แถวสลับสี เรียงตามเลขที่ */
+    function egqGo(step) {
+      const qSel = document.getElementById('egq-question');
+      if (!qSel) return;
+      const i = qSel.selectedIndex + step;
+      if (i < 0 || i >= qSel.options.length) return;
+      qSel.selectedIndex = i;
+      renderEssayByQuestion();
+      document.getElementById('egq-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     function renderEssayByQuestion() {
       const panel = document.getElementById('egq-panel');
       const setId = document.getElementById('egq-set')?.value, qid = document.getElementById('egq-question')?.value;
       if (!panel) return;
       if (!setId || !qid) { panel.innerHTML = ''; return; }
       const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
-      const rows = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId) && _egqHandedIn(d))
-        .map(s => ({ s, q: (_parseJsonSafe(s.question_snapshot_json, []) || []).find(q => String(q.__backendId) === String(qid)) }))
-        .filter(r => r.q)
-        .sort((a, b) => _egqStudentNo(a.s) - _egqStudentNo(b.s));
+      const subs = _egqSubs(setId), order = _egqOrder(subs).map(([id]) => id);
+      const qIdx = order.indexOf(qid);
+      const rows = subs.map(s => {
+          const qs = _parseJsonSafe(s.question_snapshot_json, []) || [];
+          return { s, qs, q: qs.find(q => String(q.__backendId) === qid) };
+        }).filter(r => r.q).sort((a, b) => _egqStudentNo(a.s) - _egqStudentNo(b.s));
       if (!rows.length) { panel.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีคำตอบของข้อนี้</p>'; return; }
       const q = rows[0].q, max = parseFloat(q.score_per_question) || 0;
-      const palette = [['#fffbeb', '#fde68a'], ['#eff6ff', '#bfdbfe']];   // แถวสลับสี เหลือง / ฟ้า
+      const palette = [['#fffbeb', '#fde68a'], ['#eff6ff', '#bfdbfe']];
+      const nav = `<div class="flex items-center gap-2 my-2">
+          <button onclick="egqGo(-1)" ${qIdx <= 0 ? 'disabled style="opacity:.4"' : ''} class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">◀ ข้อก่อน</button>
+          <span class="text-sm font-semibold text-gray-700 flex-1 text-center">ข้อ ${qIdx + 1} / ${order.length}</span>
+          <button onclick="egqGo(1)" ${qIdx >= order.length - 1 ? 'disabled style="opacity:.4"' : ''} class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold">ข้อถัดไป ▶</button>
+        </div>`;
       panel.innerHTML = `
-        <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 mb-3">
-          <p class="text-sm font-bold text-gray-800">โจทย์ <span class="font-normal text-amber-700">(เต็ม ${max} คะแนน${parseInt(q.min_words) ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''})</span></p>
+        <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 mb-2">
+          <p class="text-sm font-bold text-gray-800">ข้อ ${qIdx + 1} <span class="font-normal text-amber-700">(เต็ม ${max} คะแนน${parseInt(q.min_words) ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''})</span></p>
           <p class="text-sm text-gray-700 whitespace-pre-wrap">${escHtml(q.question_text || '')}</p>
           ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mt-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
         </div>
+        <p class="text-[11px] text-gray-500 mb-1">💡 คะแนนที่ใส่ยังไม่บันทึก ระบบจำไว้ให้ — สลับข้อไปมาได้ ปุ่มบันทึกอยู่ท้ายชื่อในข้อสุดท้ายของแต่ละคน</p>
         <div class="flex items-center gap-2 mb-2 flex-wrap text-xs">
           <span class="text-gray-600">ให้คะแนนเร็ว:</span>
           <button onclick="_egqFillBlank(${max})" class="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded">เต็มทุกคนที่ยังว่าง</button>
           <button onclick="_egqFillBlank(0)" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">0 คนที่ไม่ได้ตอบ</button>
           <span class="ml-auto text-gray-500">${rows.length} คน</span>
         </div>
+        ${nav}
         <div class="rounded-xl overflow-hidden border-2 border-gray-200">
-          <div class="grid text-xs font-bold text-white bg-slate-700" style="grid-template-columns:64px 1fr 110px">
+          <div class="grid text-xs font-bold text-white bg-slate-700" style="grid-template-columns:56px 1fr 128px">
             <div class="p-2 text-center">เลขที่</div><div class="p-2">นักเรียน / คำตอบ</div><div class="p-2 text-center">คะแนน / ${max}</div>
           </div>
           ${rows.map((r, i) => {
-            const s = r.s, [bg, bd] = palette[i % 2];
+            const s = r.s, [bg, bd] = palette[i % 2], sid = String(s.__backendId);
             const ans = String((_parseJsonSafe(s.answers, {}) || {})[qid] || '');
-            const prev = (_parseJsonSafe(s.score_per_question_json, {}) || {})[qid];
             const wc = _countWordsTh(ans), minW = parseInt(q.min_words) || 0;
             const flag = (parseInt(s.cheat_warning_count) || 0) > 1 ? ' <span title="พบพฤติกรรมเสี่ยง">🚩</span>' : '';
             const no = _egqStudentNo(s);
-            return `<div class="grid" style="grid-template-columns:64px 1fr 110px;background:${bg};border-top:1px solid ${bd}">
+            // ข้อสุดท้ายของคนนี้ = ข้อลำดับหลังสุดตามรายการข้อ ที่คนนี้มีในกระดาษ
+            const myIds = r.qs.map(x => String(x.__backendId));
+            const myLast = order.filter(id => myIds.includes(id)).pop();
+            return `<div class="grid" style="grid-template-columns:56px 1fr 128px;background:${bg};border-top:1px solid ${bd}">
               <div class="p-2 text-center font-bold text-gray-700">${no === 9999 ? '-' : no}</div>
               <div class="p-2">
-                <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}</p>
+                <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}${_egqIsDone(s) ? ' <span class="text-green-700">(บันทึกแล้ว)</span>' : ''}</p>
                 <p class="text-sm text-gray-800 whitespace-pre-wrap mt-1">${escHtml(ans) || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</p>
                 <p class="text-[10px] mt-1 ${minW && wc < minW ? 'text-red-600' : 'text-gray-500'}">${wc} คำ${minW ? ` / ขั้นต่ำ ${minW}` : ''}</p>
               </div>
-              <div class="p-2 flex items-start justify-center">
+              <div class="p-2 flex flex-col items-center gap-1">
                 <input type="number" class="egq-score w-20 px-2 py-1 border-2 rounded text-center font-bold" style="border-color:${bd}"
-                  data-sub="${s.__backendId}" data-max="${max}" data-empty="${ans.trim() ? '0' : '1'}" min="0" max="${max}" step="0.5" value="${prev ?? ''}">
+                  data-sub="${sid}" data-qid="${escHtml(qid)}" data-max="${max}" data-empty="${ans.trim() ? '0' : '1'}"
+                  min="0" max="${max}" step="0.5" value="${_egqScore(s, qid)}" oninput="_egqOnInput(this)">
+                ${qid === myLast ? `<div id="egq-save-box-${sid}" class="w-full">${_egqSaveBoxHtml(s)}</div>` : ''}
               </div></div>`;
           }).join('')}
         </div>
-        <button onclick="saveEssayByQuestion()" id="egq-save" class="w-full mt-3 px-5 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold btn-3d">💾 บันทึกคะแนนข้อนี้ของทุกคน</button>
-        <p class="text-[11px] text-gray-500 mt-1 text-center">นักเรียนที่ได้คะแนนครบทุกข้อแล้ว ระบบโอนคะแนนรวมเข้าช่อง ${set ? _essayRoundText(set) : ''} ให้อัตโนมัติ</p>`;
+        ${nav}`;
+    }
+    /** ท้ายชื่อในข้อสุดท้าย: ครบทุกข้อ → ปุ่มบันทึก / ยังไม่ครบ → บอกว่าขาดข้อไหน */
+    function _egqSaveBoxHtml(s) {
+      const order = _egqOrder(_egqSubs(s.essay_exam_set_id)).map(([id]) => id);
+      const qs = _parseJsonSafe(s.question_snapshot_json, []) || [];
+      const missing = qs.map(q => String(q.__backendId)).filter(id => _egqScore(s, id) === '').map(id => order.indexOf(id) + 1).sort((a, b) => a - b);
+      const total = Math.round(qs.reduce((t, q) => t + (parseFloat(_egqScore(s, String(q.__backendId))) || 0), 0) * 100) / 100;
+      if (missing.length) return `<p class="text-[10px] text-red-600 text-center leading-tight">ยังขาดข้อ ${missing.join(', ')}</p>`;
+      return `<p class="text-[10px] text-gray-600 text-center">รวม ${total}</p>
+        <button onclick="saveEssayByQuestionStudent('${s.__backendId}')" id="egq-save-${s.__backendId}" class="w-full px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs font-bold btn-3d">💾 บันทึก</button>`;
+    }
+    function _egqOnInput(inp) {
+      const sid = inp.dataset.sub, qid = inp.dataset.qid;
+      window._egqDraft[sid] = window._egqDraft[sid] || {};
+      if (inp.value === '') delete window._egqDraft[sid][qid]; else window._egqDraft[sid][qid] = inp.value;
+      _egqSaveDraft(window._egqDraft);
+      const box = document.getElementById('egq-save-box-' + sid);
+      const s = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(sid));
+      if (box && s) box.innerHTML = _egqSaveBoxHtml(s);
     }
     function _egqFillBlank(v) {
       document.querySelectorAll('.egq-score').forEach(i => {
         if (i.value !== '') return;
-        if (v === 0 ? i.dataset.empty === '1' : true) i.value = v;
+        if (v === 0 ? i.dataset.empty === '1' : true) { i.value = v; _egqOnInput(i); }
       });
     }
-    /** 💾 บันทึกคะแนนข้อนี้ทุกคน → ใครครบทุกข้อแล้ว รวมคะแนนและโอนเข้าช่องคะแนน (ตัวเดียวกับหน้าตรวจรายคน) */
-    async function saveEssayByQuestion() {
-      const setId = document.getElementById('egq-set')?.value, qid = document.getElementById('egq-question')?.value;
-      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
-      if (!set || !qid) return;
-      const inputs = [...document.querySelectorAll('.egq-score')].filter(i => i.value !== '');
-      if (!inputs.length) { showToast('ยังไม่ได้ให้คะแนนใครเลย', 'error'); return; }
-      await withButtonLock(document.getElementById('egq-save'), '⏳ กำลังบันทึก...', async () => {
-        let saved = 0, transferred = 0, fail = 0;
-        for (const inp of inputs) {
-          const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(inp.dataset.sub));
-          if (!sub) continue;
-          const max = parseFloat(inp.dataset.max) || 0;
-          const v = Math.max(0, Math.min(parseFloat(inp.value) || 0, max));
-          const perQ = { ...(_parseJsonSafe(sub.score_per_question_json, {}) || {}), [qid]: v };
-          const qs = _parseJsonSafe(sub.question_snapshot_json, []) || [];
-          const complete = qs.length > 0 && qs.every(q => perQ[String(q.__backendId)] !== undefined && perQ[String(q.__backendId)] !== '');
-          const total = Math.round(qs.reduce((t, q) => t + (parseFloat(perQ[String(q.__backendId)]) || 0), 0) * 100) / 100;
-          const upd = { ...sub, score_per_question_json: JSON.stringify(perQ), manual_score: total, grading_done: complete };
-          const r = await window.dataSdk.update(upd);
-          if (!r.isOk) { fail++; continue; }
-          saved++;
-          if (complete) {
-            try {
-              await _writeExamScoreToKField(upd, set, total);   // เพิ่ม / ทับเฉพาะคะแนนสอบ / ตรวจซ้ำไม่บวกซ้อน
-              await window.dataSdk.update({ ...upd, imported_to_grade: true, k_score_contributed: total });
-              transferred++;
-            } catch (e) { console.log('[EssayByQ] โอนคะแนนไม่สำเร็จ:', e.message); }
-          }
-        }
-        showToast(`✅ บันทึก ${saved} คน${transferred ? ` · ครบทุกข้อและโอนคะแนนแล้ว ${transferred} คน` : ''}${fail ? ` · ไม่สำเร็จ ${fail} คน` : ''}`, fail ? 'error' : undefined);
-        // ไปข้อถัดไปที่ยังตรวจไม่ครบ (ล้างข้อที่เลือกไว้ ให้ระบบเลือกข้อแรกที่ยังตรวจไม่ครบ)
-        const _qs = document.getElementById('egq-question'); if (_qs) _qs.value = '';
-        loadEssayByQuestionSets();
+    /** 💾 บันทึกทุกข้อของนักเรียนคนเดียว → โอนคะแนน (กติกาเดียวกับหน้าตรวจรายคน) */
+    async function saveEssayByQuestionStudent(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const set = sub && allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      if (!sub || !set) return;
+      const qs = _parseJsonSafe(sub.question_snapshot_json, []) || [];
+      const perQ = {};
+      for (const q of qs) {
+        const id = String(q.__backendId), max = parseFloat(q.score_per_question) || 0, raw = _egqScore(sub, id);
+        if (raw === '') { showToast('ยังให้คะแนนไม่ครบทุกข้อ', 'error'); return; }
+        perQ[id] = Math.max(0, Math.min(parseFloat(raw) || 0, max));
+      }
+      const total = Math.round(Object.values(perQ).reduce((t, v) => t + v, 0) * 100) / 100;
+      await withButtonLock(document.getElementById('egq-save-' + subId), '⏳', async () => {
+        const upd = { ...sub, score_per_question_json: JSON.stringify(perQ), manual_score: total, grading_done: true };
+        const r = await window.dataSdk.update(upd);
+        if (!r.isOk) { showToast('บันทึกไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+        try {
+          await _writeExamScoreToKField(upd, set, total);   // เพิ่ม / ทับเฉพาะคะแนนสอบ / ตรวจซ้ำไม่บวกซ้อน
+          await window.dataSdk.update({ ...upd, imported_to_grade: true, k_score_contributed: total });
+        } catch (e) { showToast('บันทึกแล้ว แต่โอนคะแนนไม่สำเร็จ: ' + e.message, 'error'); }
+        delete window._egqDraft[String(subId)]; _egqSaveDraft(window._egqDraft);
+        showToast(`✅ ${sub.student_name || sub.student_id}: ${total}/${set.total_score} → โอนเข้า ${_essayRoundText(set)} แล้ว`);
+        const left = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(set.__backendId) && _egqHandedIn(d) && !_egqIsDone(d)).length;
+        if (!left && !_egqShowDone()) { showToast(`🎉 ตรวจครบทุกคนที่ส่งแล้วในชุดนี้`); loadEssayByQuestionSets(); return; }
+        renderEssayByQuestionPicker();   // คนที่บันทึกแล้วหายจากรายการ ข้อเดิมยังอยู่
       });
     }
 
