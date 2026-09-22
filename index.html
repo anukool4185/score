@@ -2364,7 +2364,7 @@
         <div class="flex gap-2 mb-4 flex-wrap items-end">
          <div>
           <label class="block text-xs text-gray-600 mb-1">กรองวิชา</label>
-          <select id="esq-filter-subject" onchange="renderEssayQuestionList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+          <select id="esq-filter-subject" onchange="updateEsqChapterFilter();renderEssayQuestionList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
          </div>
          <div>
           <label class="block text-xs text-gray-600 mb-1">กรองบท</label>
@@ -2693,7 +2693,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.131';
+    const APP_VERSION = 'SUPABASE-2026.09.08.133';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3050,7 +3050,8 @@ const SB_TABLE_MAP = [
   { table: 'essay_questions',       type: 'essay_question' },
   { table: 'essay_exam_sets',       type: 'essay_exam_set' },
   { table: 'essay_submissions',     type: 'essay_submission' },
-  { table: 'essay_retry_requests',  type: 'essay_retry_request' },   // ✍️ คำขอสอบแก้อัตนัย (แยกจากปรนัย เพราะตารางปรนัยผูกกับชุดสอบปรนัย)
+  { table: 'essay_retry_requests',  type: 'essay_retry_request' },
+  { table: 'essay_monitor_events',  type: 'essay_monitor_event' },   // 📷 กล้อง/พฤติกรรมเสี่ยงขณะสอบอัตนัย   // ✍️ คำขอสอบแก้อัตนัย (แยกจากปรนัย เพราะตารางปรนัยผูกกับชุดสอบปรนัย)
   { table: 'exam_sets',             type: 'exam_set' },
   { table: 'exam_submissions',      type: 'exam_submission' },
   { table: 'homework',              type: 'homework' },
@@ -3141,6 +3142,8 @@ const SB_LIGHT_SELECT = {
   // ตอนนี้เหลือตัดเฉพาะ "ภาพจากกล้อง" อย่างเดียว ซึ่งเป็นไฟล์ใหญ่จริงและไม่ได้ใช้ตอนสอบ
   // ตารางอื่นดึงครบทุกคอลัมน์เสมอ — ความปลอดภัยสำคัญกว่าความเร็วเล็กน้อยที่ได้มา
   'exam_camera_snapshots': 'exam_camera_snapshots?select=id,submission_id,student_id,reason,status,captured_at,granted_at&limit=2000',
+  // 📷 อัตนัย: ไม่ดึงภาพ (ใหญ่มาก) ทุก 3 วินาที — ดึงภาพเฉพาะตอนครูกดดู
+  'essay_monitor_events': 'essay_monitor_events?select=id,submission_id,essay_exam_set_id,student_id,event_type,captured_at,has_image&limit=5000',
 };
 
 const supabaseDataSdk = {
@@ -5876,7 +5879,7 @@ const supabaseDataSdk = {
       // รายการที่ห้ามลบเด็ดขาด (ส่วนประกอบถาวรของระบบ)
       const KEEP_IDS = ['desktop-sidebar', 'desktop-top-nav', 'toast-container',
         'global-busy-overlay', 'app-main', 'page-login', 'page-register',
-        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay', 'essay-taking-overlay'];
+        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay', 'essay-taking-overlay', 'essay-monitor-gate', 'essay-camera-preview', 'essay-warn-popup'];
       document.querySelectorAll('.fixed').forEach(el => {
         if (KEEP_IDS.includes(el.id)) return;                    // ข้ามส่วนประกอบถาวร
         if (el.closest('#app-main') && !el.dataset.popup && !el.id) {
@@ -6012,7 +6015,7 @@ const supabaseDataSdk = {
       { // ✍️ รายการชุดสอบอัตนัย
         key: 'adminEssaySets',
         visible: () => _isShown('admin-tab-essayassign'),
-        sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done']),
+        sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done','cheat_warning_count']),
         render: () => renderEssayExamSetList(),
         busy: ['essay-grading-popup'],
       },
@@ -6039,6 +6042,18 @@ const supabaseDataSdk = {
           if (n > 0) showToast(`📨 มีคำขอสอบแก้ตัวใหม่ ${n} รายการ`);
         }
         window._lastRetryPendingIds = ids;
+        // 🚨 พฤติกรรมเสี่ยงขณะสอบอัตนัย (ครั้งที่ 2 ขึ้นไป — ครั้งแรกเป็นแค่การเตือนนักเรียน)
+        const vids = allData.filter(d => d.type === 'essay_monitor_event' && d.event_type !== 'periodic').map(d => String(d.__backendId)).sort().join(',');
+        if (window._lastEssayViolationIds !== undefined && vids !== window._lastEssayViolationIds) {
+          const before = new Set((window._lastEssayViolationIds || '').split(',').filter(Boolean));
+          const fresh = allData.filter(d => d.type === 'essay_monitor_event' && d.event_type !== 'periodic' && !before.has(String(d.__backendId)));
+          if (fresh.length) {
+            const f = fresh[fresh.length - 1];
+            const who = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(f.submission_id));
+            showToast(`🚨 อัตนัย: ${who?.student_name || f.student_id} ${_ESSAY_VIOLATION_TEXT[f.event_type] || f.event_type}${fresh.length > 1 ? ` (+${fresh.length - 1})` : ''} — ดูหลักฐานได้ในหน้าตรวจ`, 'error');
+          }
+        }
+        window._lastEssayViolationIds = vids;
       }
       for (const v of _LIVE_VIEWS) {
         let vis = false;
@@ -9432,8 +9447,8 @@ const supabaseDataSdk = {
     function updateEqChapterFilterOptions() {
       const filterSubj = document.getElementById('eq-filter-subject')?.value || '';
       let questions = allData.filter(d => d.type === 'exam_question');
-      if (filterSubj) questions = questions.filter(q => q.subject_name === filterSubj);
-      const chapters = [...new Set(questions.map(q => q.chapter).filter(Boolean))].sort();
+      if (filterSubj) questions = questions.filter(q => _eaN(q.subject_name) === _eaN(filterSubj));
+      const chapters = [...new Set(questions.map(q => q.chapter).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'th', { numeric: true }));
       const chapterSel = document.getElementById('eq-filter-chapter');
       if (chapterSel) {
         const current = chapterSel.value;
@@ -9547,8 +9562,8 @@ const supabaseDataSdk = {
       const filterSubj = document.getElementById('eq-filter-subject')?.value || '';
       const filterChapter = document.getElementById('eq-filter-chapter')?.value || '';
       let questions = allData.filter(d => d.type === 'exam_question');
-      if (filterSubj) questions = questions.filter(q => q.subject_name === filterSubj);
-      if (filterChapter) questions = questions.filter(q => q.chapter === filterChapter);
+      if (filterSubj) questions = questions.filter(q => _eaN(q.subject_name) === _eaN(filterSubj));
+      if (filterChapter) questions = questions.filter(q => String(q.chapter || '') === filterChapter);
       questions.sort((a,b) => (a.subject_name||'').localeCompare(b.subject_name||'') || (a.chapter||'').localeCompare(b.chapter||''));
 
       const countLabel = document.getElementById('eq-count-label');
@@ -10211,7 +10226,11 @@ const supabaseDataSdk = {
 
     /** โหลดหน้าคลังข้อสอบอัตนัย */
     function loadEssayQuestionsTab() {
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      // รวมวิชาจากตารางรายวิชา + วิชาที่มีข้อสอบในคลังจริง (ไม่ให้วิชาตกหล่นจากตัวกรอง)
+      const _sm = new Map();
+      allData.filter(d => (d.type === 'class_subject' || d.type === 'essay_question') && d.subject_name)
+        .forEach(d => { const k = _eaN(d.subject_name); if (!_sm.has(k)) _sm.set(k, String(d.subject_name).trim()); });
+      const subjects = [..._sm.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
       const fSubj = document.getElementById('esq-filter-subject');
       if (fSubj) fSubj.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
       updateEsqChapterFilter();
@@ -10222,21 +10241,27 @@ const supabaseDataSdk = {
     function updateEsqChapterFilter() {
       const subj = document.getElementById('esq-filter-subject')?.value || '';
       let qs = allData.filter(d => d.type === 'essay_question');
-      if (subj) qs = qs.filter(q => q.subject_name === subj);
-      const chapters = [...new Set(qs.map(q => q.chapter || 'ไม่ระบุบท'))].sort();
+      if (subj) qs = qs.filter(q => _eaN(q.subject_name) === _eaN(subj));
+      const counts = {};
+      qs.forEach(q => { const ch = String(q.chapter || '').trim() || 'ไม่ระบุบท'; counts[ch] = (counts[ch] || 0) + 1; });
+      const chapters = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));   // บทที่ 2 มาก่อน บทที่ 10
       const sel = document.getElementById('esq-filter-chapter');
-      if (sel) sel.innerHTML = '<option value="">ทุกบท</option>' + chapters.map(ch => `<option value="${escHtml(ch)}">${escHtml(ch)}</option>`).join('');
+      if (!sel) return;
+      const keep = sel.value;   // ⚠️ จำบทที่เลือกไว้ — เดิมสร้างรายการใหม่แล้วค่ารีเซ็ตเป็น "ทุกบท" ทุกครั้ง กรองจึงไม่มีผล
+      sel.innerHTML = '<option value="">ทุกบท</option>' + chapters.map(ch => `<option value="${escHtml(ch)}">${escHtml(ch)} (${counts[ch]})</option>`).join('');
+      if (keep && chapters.includes(keep)) sel.value = keep;
     }
 
     /** แสดงรายการข้อสอบอัตนัย (แบ่งหน้าละ 50 ข้อ เหมือนคลังปรนัย) */
     function renderEssayQuestionList() {
-      updateEsqChapterFilter();
+      // อ่านค่าตัวกรองก่อน แล้วค่อยอัปเดตรายการบท (ซึ่งจำค่าที่เลือกไว้) — ไม่ให้ค่าที่เลือกหาย
       const fSubj = document.getElementById('esq-filter-subject')?.value || '';
       const fChap = document.getElementById('esq-filter-chapter')?.value || '';
+      updateEsqChapterFilter();
       let questions = allData.filter(d => d.type === 'essay_question');
-      if (fSubj) questions = questions.filter(q => q.subject_name === fSubj);
-      if (fChap) questions = questions.filter(q => (q.chapter || 'ไม่ระบุบท') === fChap);
-      questions.sort((a,b) => (a.subject_name||'').localeCompare(b.subject_name||'') || (a.chapter||'').localeCompare(b.chapter||''));
+      if (fSubj) questions = questions.filter(q => _eaN(q.subject_name) === _eaN(fSubj));
+      if (fChap) questions = questions.filter(q => (String(q.chapter || '').trim() || 'ไม่ระบุบท') === fChap);
+      questions.sort((a,b) => (a.subject_name||'').localeCompare(b.subject_name||'', 'th') || (a.chapter||'').localeCompare(b.chapter||'', 'th', { numeric: true }));
 
       const countEl = document.getElementById('esq-count-label');
       if (countEl) countEl.textContent = `ทั้งหมด ${questions.length} ข้อ`;
@@ -10244,7 +10269,9 @@ const supabaseDataSdk = {
       const listEl = document.getElementById('esq-list');
       if (!listEl) return;
       if (questions.length === 0) {
-        listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีข้อสอบอัตนัยในคลัง</p>';
+        listEl.innerHTML = (fSubj || fChap)
+          ? '<p class="text-gray-400 text-center py-8">ไม่พบข้อสอบตามตัวกรองที่เลือก</p>'
+          : '<p class="text-gray-400 text-center py-8">ยังไม่มีข้อสอบอัตนัยในคลัง</p>';
         return;
       }
       // ⚡ แสดงทีละ 50 ข้อ กันช้าเมื่อมีข้อสอบเยอะ
@@ -12242,21 +12269,25 @@ const supabaseDataSdk = {
     }
 
     /** ✍️ เปิดหน้าเขียนตอบข้อสอบอัตนัย */
-    async function openEssayExam(subId) {
+    /** ✍️ เปิดหน้าเขียนตอบ — ผ่านด่านขออนุญาตกล้องก่อนเสมอ (เหมือนปรนัย) */
+    function openEssayExam(subId) {
+      _essayCameraGate(subId, stream => _openEssayExamActual(subId, stream));
+    }
+    async function _openEssayExamActual(subId, stream) {
       let sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
-      if (!sub) { showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
+      if (!sub) { showToast('ไม่พบกระดาษคำตอบ', 'error'); stream?.getTracks().forEach(t => t.stop()); return; }
       const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
-      if (!set) { showToast('ไม่พบชุดสอบ', 'error'); return; }
+      if (!set) { showToast('ไม่พบชุดสอบ', 'error'); stream?.getTracks().forEach(t => t.stop()); return; }
       const _isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
-      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) { showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
-      if (sub.status === 'submitted') { showToast('ส่งคำตอบไปแล้ว', 'info'); return; }
+      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) { stream?.getTracks().forEach(t => t.stop()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      if (sub.status === 'submitted') { stream?.getTracks().forEach(t => t.stop()); showToast('ส่งคำตอบไปแล้ว', 'info'); return; }
       let questions = _parseJsonSafe(sub.question_snapshot_json, null);
       if (!Array.isArray(questions) || !questions.length) {
         // สำรอง: สร้างจากรายการข้อ + คลังข้อสอบ
         const ids = String(sub.question_order || set.question_ids || '').split(',').filter(Boolean);
         questions = ids.map(id => allData.find(d => d.type === 'essay_question' && String(d.__backendId) === String(id))).filter(Boolean).map(_essaySnap);
       }
-      if (!questions.length) { showToast('⚠️ ไม่พบข้อสอบในกระดาษคำตอบ กรุณาแจ้งครู', 'error'); return; }
+      if (!questions.length) { stream?.getTracks().forEach(t => t.stop()); showToast('⚠️ ไม่พบข้อสอบในกระดาษคำตอบ กรุณาแจ้งครู', 'error'); return; }
       if (sub.status !== 'in_progress') {
         const r = await window.dataSdk.update({ ...sub, status: 'in_progress', started_at: new Date().toISOString() });
         if (r.isOk) sub = { ...sub, status: 'in_progress' };
@@ -12294,6 +12325,7 @@ const supabaseDataSdk = {
       // ⏰ สอบแก้ใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน (บทเรียนจากปรนัย: ใช้เวลาชุดหลักจะส่งกระดาษเปล่าทันทีถ้าชุดหลักปิดแล้ว)
       const _w = _isRetry ? _essayRetryWindow(set, sub) : null;
       _startEssayTimer(_w && _w.end ? { ...set, end_time: _w.end.toISOString() } : set);
+      if (stream) _startEssayGuard(sub, set, stream);   // 📷 เริ่มเฝ้าระวัง
     }
     function _updateEssayWordCount(t) {
       const n = _countWordsTh(t.value), min = parseInt(t.dataset.min) || 0;
@@ -12360,6 +12392,7 @@ const supabaseDataSdk = {
           submitted_at: new Date().toISOString(), grading_done: false, imported_to_grade: false });
         if (!r.isOk) { showToast('ส่งคำตอบไม่สำเร็จ กรุณาลองใหม่: ' + (r.error?.message || ''), 'error'); return; }
         clearInterval(_essayTimerId);
+        _stopEssayGuard();   // 📷 ปิดกล้อง
         window._essayCur = null;
         window._justSubmittedIds = window._justSubmittedIds || new Set();
         window._justSubmittedIds.add(String(sub.__backendId));
@@ -12368,6 +12401,183 @@ const supabaseDataSdk = {
         if (currentStudentTab === 'grades' && typeof showStudentGrades === 'function') showStudentGrades(true);
       };
       if (btn && typeof withButtonLock === 'function') await withButtonLock(btn, '⏳ กำลังส่ง...', doSubmit); else await doSubmit();
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // 📷 เฝ้าระวังขณะสอบอัตนัย (หลักเดียวกับปรนัย: ขออนุญาตกล้อง → ถ่ายภาพเป็นระยะ → ตรวจจับออกจากหน้า/คัดลอก/วาง)
+    //    ผิดครั้งแรก = เตือน, ครั้งต่อไป = ถ่ายภาพหลักฐาน + บันทึก + แจ้งแอดมิน · ครูเห็นหลักฐานตอนตรวจ
+    // ════════════════════════════════════════════════════════════
+    const _essayGuard = { active: false, subId: null, setId: null, stream: null, timer: null, startedAt: 0 };
+
+    /** 🚪 ขออนุญาตใช้กล้องก่อนเข้าสอบ (บังคับเหมือนปรนัย) */
+    function _essayCameraGate(subId, onPass) {
+      document.getElementById('essay-monitor-gate')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'essay-monitor-gate';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999985;background:rgba(15,23,42,.92);display:flex;align-items:center;justify-content:center;padding:16px';
+      const card = (body) => `<div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center">${body}</div>`;
+      const ask = () => {
+        wrap.innerHTML = card(`
+          <p style="font-size:40px;margin:0 0 10px">📷</p>
+          <p style="font-size:15px;font-weight:700;color:#1e293b;margin:0 0 8px">การสอบนี้มีการเฝ้าระวังด้วยกล้อง</p>
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 16px">ระบบจะถ่ายภาพเป็นระยะ และบันทึกเมื่อออกจากหน้าสอบ คัดลอก หรือวางข้อความ<br><b>ผิดครั้งแรกจะเตือน ครั้งต่อไปจะแจ้งครู</b></p>
+          <button id="essay-gate-ok" style="width:100%;padding:12px;background:#16a34a;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-bottom:8px">✅ อนุญาตกล้องและเริ่มสอบ</button>
+          <button onclick="document.getElementById('essay-monitor-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;cursor:pointer">ยกเลิก</button>`);
+        wrap.querySelector('#essay-gate-ok').onclick = tryCam;
+      };
+      const blocked = (why) => {
+        wrap.innerHTML = card(`
+          <p style="font-size:40px;margin:0 0 10px">🚫</p>
+          <p style="font-size:15px;font-weight:700;color:#b91c1c;margin:0 0 8px">ต้องอนุญาตกล้องจึงจะเข้าสอบได้</p>
+          <p style="font-size:13px;color:#64748b;line-height:1.6;margin:0 0 16px">${why}</p>
+          <button id="essay-gate-retry" style="width:100%;padding:12px;background:#2563eb;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;margin-bottom:8px">🔄 ลองอีกครั้ง</button>
+          <button onclick="document.getElementById('essay-monitor-gate')?.remove()" style="width:100%;padding:10px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;cursor:pointer">ปิด</button>`);
+        wrap.querySelector('#essay-gate-retry').onclick = tryCam;
+      };
+      const tryCam = async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          blocked('เบราว์เซอร์นี้ใช้กล้องไม่ได้ กรุณาเปิดลิงก์ใน <b>Chrome</b> หรือ <b>Safari</b> (ไม่ใช่เปิดจาก LINE/Facebook)');
+          return;
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
+          wrap.remove();
+          onPass(stream);
+        } catch (e) {
+          blocked(e.name === 'NotAllowedError'
+            ? 'คุณไม่ได้อนุญาตกล้อง กดไอคอนกล้อง/แม่กุญแจที่ช่องที่อยู่เว็บ แล้วเลือก "อนุญาต" จากนั้นกดลองอีกครั้ง'
+            : 'เปิดกล้องไม่สำเร็จ (' + escHtml(e.name || e.message) + ') ตรวจสอบว่าไม่มีแอปอื่นใช้กล้องอยู่');
+        }
+      };
+      document.body.appendChild(wrap);
+      ask();
+    }
+
+    /** เริ่มเฝ้าระวัง: แสดงภาพกล้องมุมจอ + ถ่ายภาพทุก 90 วินาที + ดักการออกจากหน้า/คัดลอก/วาง */
+    function _startEssayGuard(sub, set, stream) {
+      _stopEssayGuard();
+      Object.assign(_essayGuard, { active: true, subId: String(sub.__backendId), setId: String(set.__backendId), stream, startedAt: Date.now() });
+      const v = document.createElement('video');
+      v.id = 'essay-camera-preview';
+      v.autoplay = true; v.muted = true; v.playsInline = true;
+      v.style.cssText = 'position:fixed;bottom:12px;right:12px;width:96px;height:72px;border-radius:8px;border:2px solid #b45309;object-fit:cover;z-index:999990;background:#000';
+      v.srcObject = stream;
+      document.body.appendChild(v);
+      setTimeout(() => _captureEssaySnapshot('periodic'), 4000);   // ภาพแรกหลังเริ่ม
+      _essayGuard.timer = setInterval(() => _captureEssaySnapshot('periodic'), 90000);
+      document.addEventListener('visibilitychange', _essayOnVisibility);
+      document.addEventListener('copy', _essayOnCopy, true);
+      document.addEventListener('paste', _essayOnPaste, true);
+    }
+    function _stopEssayGuard() {
+      _essayGuard.active = false;
+      clearInterval(_essayGuard.timer); _essayGuard.timer = null;
+      if (_essayGuard.stream) { _essayGuard.stream.getTracks().forEach(t => t.stop()); _essayGuard.stream = null; }
+      document.getElementById('essay-camera-preview')?.remove();
+      document.removeEventListener('visibilitychange', _essayOnVisibility);
+      document.removeEventListener('copy', _essayOnCopy, true);
+      document.removeEventListener('paste', _essayOnPaste, true);
+    }
+    function _essayOnVisibility() {
+      if (!_essayGuard.active || !document.hidden) return;
+      if (Date.now() - _essayGuard.startedAt < 3000) return;   // ช่วงเริ่มต้น เบราว์เซอร์บางตัวกระพริบสถานะ
+      const id = _essayGuard.subId;
+      setTimeout(() => { if (_essayGuard.active && _essayGuard.subId === id && document.hidden) _essayViolation('tab_switch'); }, 1000);
+    }
+    function _essayOnCopy(e) {
+      if (!_essayGuard.active || !e.target?.closest?.('#essay-taking-overlay')) return;
+      _essayViolation('copy');
+    }
+    function _essayOnPaste(e) {
+      if (!_essayGuard.active || !e.target?.closest?.('#essay-taking-overlay')) return;
+      e.preventDefault();   // อัตนัยห้ามวางข้อความ (ต้องเขียนเอง)
+      _essayViolation('paste');
+    }
+    const _ESSAY_VIOLATION_TEXT = { tab_switch: 'ออกจากหน้าสอบ', copy: 'คัดลอกข้อความ', paste: 'วางข้อความ' };
+
+    /** ⚠️ พฤติกรรมเสี่ยง: ครั้งแรกเตือน / ครั้งต่อไปถ่ายภาพหลักฐาน + บันทึก + แจ้งแอดมิน */
+    async function _essayViolation(kind) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === _essayGuard.subId);
+      if (!sub) return;
+      const prior = parseInt(sub.cheat_warning_count) || 0;
+      await window.dataSdk.update({ ...sub, cheat_warning_count: prior + 1 });
+      if (prior < 1) {
+        _showEssayWarning(`⚠️ ตรวจพบการ${_ESSAY_VIOLATION_TEXT[kind] || kind}<br>นี่คือการเตือนครั้งแรก — <b>ครั้งต่อไปจะถ่ายภาพและแจ้งครู</b>`);
+        return;
+      }
+      _captureEssaySnapshot(kind);
+      _showEssayWarning(`🚨 ตรวจพบการ${_ESSAY_VIOLATION_TEXT[kind] || kind} (ครั้งที่ ${prior + 1})<br>ระบบบันทึกภาพหลักฐานและ<b>แจ้งครูแล้ว</b>`);
+    }
+    function _showEssayWarning(html) {
+      document.getElementById('essay-warn-popup')?.remove();
+      const w = document.createElement('div');
+      w.id = 'essay-warn-popup';
+      w.style.cssText = 'position:fixed;inset:0;z-index:999995;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      w.innerHTML = `<div style="background:white;border-radius:14px;max-width:340px;width:100%;padding:20px;text-align:center;border:3px solid #dc2626">
+          <p style="font-size:14px;color:#1e293b;line-height:1.7;margin:0 0 14px">${html}</p>
+          <button onclick="document.getElementById('essay-warn-popup')?.remove()" style="width:100%;padding:10px;background:#dc2626;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer">รับทราบ กลับไปทำข้อสอบ</button></div>`;
+      document.body.appendChild(w);
+    }
+
+    /** 📸 ถ่ายภาพจากกล้อง — ภาพเป็นระยะเก็บภาพล่าสุดภาพเดียว (ไม่เปลืองพื้นที่) ภาพหลักฐานเก็บทุกภาพ */
+    async function _captureEssaySnapshot(kind) {
+      if (!_essayGuard.active || !_essayGuard.stream) return;
+      const v = document.getElementById('essay-camera-preview');
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === _essayGuard.subId);
+      if (!v || !sub) return;
+      let img = null;
+      try {
+        const cv = document.createElement('canvas'); cv.width = 240; cv.height = 180;
+        const ctx = cv.getContext('2d');
+        if (ctx && v.videoWidth) { ctx.drawImage(v, 0, 0, cv.width, cv.height); img = cv.toDataURL('image/jpeg', 0.5); }
+      } catch (e) { /* ถ่ายไม่ได้ก็ยังบันทึกเหตุการณ์ */ }
+      const base = { type: 'essay_monitor_event', submission_id: sub.__backendId, essay_exam_set_id: sub.essay_exam_set_id,
+        student_id: String(sub.student_id), event_type: kind, captured_at: new Date().toISOString(), has_image: !!img, image_data: img || '' };
+      try {
+        if (kind === 'periodic') {
+          const prev = allData.find(d => d.type === 'essay_monitor_event' && d.event_type === 'periodic' && String(d.submission_id) === String(sub.__backendId));
+          if (prev) { await window.dataSdk.update({ ...prev, ...base }); return; }
+        }
+        await window.dataSdk.create(base);
+      } catch (e) { console.log('[EssayGuard] บันทึกภาพไม่สำเร็จ:', e.message); }
+    }
+
+    /** 🛡️ สรุปพฤติกรรมเสี่ยงของกระดาษ (ใช้ในหน้าตรวจของครู) */
+    function _essayMonitorSummaryHtml(sub) {
+      const ev = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(sub.__backendId));
+      const cnt = k => ev.filter(e => e.event_type === k).length;
+      const warn = parseInt(sub.cheat_warning_count) || 0;
+      const imgs = ev.filter(e => e.has_image === true || e.has_image === 'true');
+      const risky = warn > 0 || cnt('tab_switch') + cnt('copy') + cnt('paste') > 0;
+      return `<div class="rounded-lg p-2 mb-3 text-xs ${risky ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-green-50 border border-green-200 text-green-700'}">
+          🛡️ ${risky ? `พฤติกรรมเสี่ยง ${warn} ครั้ง (ครั้งแรกเป็นการเตือน) · บันทึกหลักฐาน: ออกจากหน้า ${cnt('tab_switch')} · คัดลอก ${cnt('copy')} · วาง ${cnt('paste')}` : 'ไม่พบพฤติกรรมเสี่ยง'}
+          ${imgs.length ? ` <button onclick="showEssayMonitorImages('${sub.__backendId}')" class="ml-1 px-2 py-0.5 bg-white border rounded text-gray-700">📷 ดูภาพ (${imgs.length})</button>` : ''}
+        </div>`;
+    }
+    /** 📷 ดึงภาพเฉพาะตอนครูกดดู (ไม่ดึงทุก 3 วินาที) */
+    async function showEssayMonitorImages(subId) {
+      const ev = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(subId)
+        && (d.has_image === true || d.has_image === 'true')).sort((a, b) => new Date(a.captured_at) - new Date(b.captured_at));
+      document.getElementById('essay-monitor-images')?.remove();
+      const w = document.createElement('div');
+      w.id = 'essay-monitor-images';
+      w.className = 'fixed inset-0 bg-black/70 flex items-center justify-center p-4';
+      w.style.zIndex = '60';
+      w.onclick = e => { if (e.target === w) w.remove(); };
+      w.innerHTML = `<div class="bg-white rounded-2xl p-4 max-w-3xl w-full" style="max-height:90vh;overflow-y:auto">
+          <div class="flex justify-between items-center mb-3"><p class="font-bold">📷 ภาพจากกล้อง</p>
+          <button onclick="document.getElementById('essay-monitor-images')?.remove()" class="px-3 py-1 bg-gray-200 rounded text-sm">ปิด</button></div>
+          <div id="essay-monitor-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"><p class="text-gray-400 text-sm">⏳ กำลังโหลดภาพ...</p></div></div>`;
+      document.body.appendChild(w);
+      const label = k => k === 'periodic' ? '🕐 ภาพล่าสุด' : '🚨 ' + (_ESSAY_VIOLATION_TEXT[k] || k);
+      const cards = await Promise.all(ev.map(async e => {
+        const full = await window.dataSdk._fetchFullRecord('essay_monitor_events', e.__backendId);
+        const src = full?.image_data;
+        return `<div class="border rounded-lg p-1 text-center">${src ? `<img src="${src}" class="w-full rounded">` : '<p class="text-gray-400 text-xs py-6">ไม่มีภาพ</p>'}
+          <p class="text-[11px] mt-1">${label(e.event_type)}</p><p class="text-[10px] text-gray-500">${new Date(e.captured_at).toLocaleString('th-TH', { hour12: false })}</p></div>`;
+      }));
+      const grid = document.getElementById('essay-monitor-grid');
+      if (grid) grid.innerHTML = cards.join('') || '<p class="text-gray-400 text-sm">ไม่มีภาพ</p>';
     }
 
     // ═══ 🔄 สอบแก้อัตนัย (หลักเดียวกับปรนัย: สอบ 1 + แก้ได้ 2 ครั้ง, ทับเฉพาะคะแนนสอบ) ═══
@@ -12575,7 +12785,7 @@ const supabaseDataSdk = {
           <div class="flex flex-1 overflow-hidden" style="min-height:0">
             <div class="w-56 border-r overflow-y-auto p-2 space-y-1">
               ${subs.map(s => `<button onclick="_renderEssayGradeDetail('${s.__backendId}')" data-sub="${s.__backendId}" class="essay-grade-item w-full text-left px-2 py-1.5 rounded hover:bg-amber-50 text-xs">
-                  <p class="font-medium text-gray-800">#${num(s) === 9999 ? '-' : num(s)} ${escHtml(s.student_name || s.student_id)}</p><p>${badge(s)}</p></button>`).join('') || '<p class="text-gray-400 text-xs p-2">ยังไม่มีกระดาษคำตอบ</p>'}
+                  <p class="font-medium text-gray-800">#${num(s) === 9999 ? '-' : num(s)} ${escHtml(s.student_name || s.student_id)}${(parseInt(s.cheat_warning_count) || 0) > 1 ? ' <span title="พบพฤติกรรมเสี่ยง">🚩</span>' : ''}</p><p>${badge(s)}</p></button>`).join('') || '<p class="text-gray-400 text-xs p-2">ยังไม่มีกระดาษคำตอบ</p>'}
             </div>
             <div id="essay-grade-detail" class="flex-1 overflow-y-auto p-4"><p class="text-gray-400 text-sm">เลือกนักเรียนทางซ้ายเพื่อตรวจ</p></div>
           </div>
@@ -12597,6 +12807,7 @@ const supabaseDataSdk = {
       box.innerHTML = `
         <p class="font-bold text-gray-800 mb-1">${escHtml(sub.student_name || sub.student_id)}</p>
         <p class="text-xs text-gray-500 mb-3">🆔 ${escHtml(String(sub.student_id))} · ส่งเมื่อ ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>
+        ${_essayMonitorSummaryHtml(sub)}
         ${!canGrade ? '<p class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-sm mb-3">นักเรียนยังไม่ได้ส่งคำตอบ — ตรวจได้หลังส่งแล้ว</p>' : ''}
         ${qs.map((q, i) => { const qid = String(q.__backendId), max = parseFloat(q.score_per_question) || 0;
           return `<div class="border rounded-xl p-3 mb-3">
