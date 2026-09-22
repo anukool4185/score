@@ -2534,32 +2534,32 @@
          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
           <div>
            <label class="block text-xs text-gray-600 mb-1">🏫 ชั้น</label>
-           <select id="ea-class" onchange="updateEaRoomOptions();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-class" onchange="updateEaRoomOptions();renderEaStudentPicker();updateEaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกชั้น --</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">🚪 ห้อง</label>
-           <select id="ea-room" onchange="updateEaSubjectOptions();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-room" onchange="updateEaSubjectOptions();renderEaStudentPicker();updateEaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกห้อง --</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
-           <select id="ea-subject" onchange="renderEaChapterFilter();renderEaQuestionPicker();updateEaRandomInfo();renderEaStudentPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-subject" onchange="renderEaChapterFilter();renderEaQuestionPicker();updateEaRandomInfo();renderEaStudentPicker();updateEaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="">-- เลือกวิชา --</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
-           <select id="ea-scoretype" onchange="_updateScoreTypeLabel()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-scoretype" onchange="_updateScoreTypeLabel();updateEaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="k">K (ความรู้)</option>
             <option value="c">C (คุณลักษณะ)</option>
            </select>
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1"><span id="ea-round-label">🔢 K ครั้งที่</span></label>
-           <select id="ea-kround" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
+           <select id="ea-kround" onchange="updateEaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none">
             <option value="1">ครั้งที่ 1</option>
             <option value="2">ครั้งที่ 2</option>
             <option value="3">ครั้งที่ 3</option>
@@ -2611,6 +2611,8 @@
          </div>
          <input type="hidden" id="ea-picker-mode" value="manual">
 
+         <!-- 📊 คะแนนเต็มเดิมของครั้งนี้ (ถ้ามี ตอนบันทึกจะถามว่าเพิ่มคะแนนเต็มหรือทับคะแนนเดิม) -->
+         <p id="ea-fullscore-info" class="text-xs mb-3 hidden"></p>
          <!-- 👥 เลือกนักเรียนที่จะให้สอบ (เลือกรายบุคคล หรือทั้งห้อง) -->
          <div id="ea-student-picker-section" class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -2676,6 +2678,7 @@
         <h3 class="text-xl font-bold text-gray-800 mb-2">📨 คำขอสอบแก้ตัว</h3>
         <p class="text-gray-500 text-sm mb-4">คำขอจากนักเรียนที่หลุดออกจากการสอบและขออนุญาตสอบแก้ — พิจารณาจากเหตุผลที่แจ้งมา</p>
         <div id="rr-list" class="space-y-3"></div>
+        <div id="rr-essay-list" class="mt-6"></div>
        </div>
       </div>
      </div>
@@ -2690,7 +2693,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.128';
+    const APP_VERSION = 'SUPABASE-2026.09.08.131';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3047,6 +3050,7 @@ const SB_TABLE_MAP = [
   { table: 'essay_questions',       type: 'essay_question' },
   { table: 'essay_exam_sets',       type: 'essay_exam_set' },
   { table: 'essay_submissions',     type: 'essay_submission' },
+  { table: 'essay_retry_requests',  type: 'essay_retry_request' },   // ✍️ คำขอสอบแก้อัตนัย (แยกจากปรนัย เพราะตารางปรนัยผูกกับชุดสอบปรนัย)
   { table: 'exam_sets',             type: 'exam_set' },
   { table: 'exam_submissions',      type: 'exam_submission' },
   { table: 'homework',              type: 'homework' },
@@ -3164,12 +3168,21 @@ const supabaseDataSdk = {
       // แก้ปัญหา "Could not find the 'xxx' column" ที่ทำให้บันทึกไม่ผ่านและระบบหยุดทำงาน
       // (เกิดเมื่อระบบเดิมส่งฟิลด์ที่ Supabase ยังไม่มีคอลัมน์รองรับ)
       const colMatch = txt.match(/Could not find the '([^']+)' column/);
-      if (colMatch && body && !opts._retried) {
+      // ⚠️ เดิมลองใหม่ได้ครั้งเดียว ถ้าขาดหลายคอลัมน์ (เช่น ยังไม่ได้รัน SQL) ตัดได้ตัวเดียวแล้วบันทึกล้มเหลว
+      //    ตอนนี้ตัดได้สูงสุด 15 คอลัมน์ต่อการบันทึก 1 ครั้ง (กันวนไม่จบ)
+      const _tries = typeof _isRetry === 'number' ? _isRetry : (_isRetry ? 1 : 0);
+      if (colMatch && body && _tries < 15) {
         const badCol = colMatch[1];
-        console.warn(`[SDK] ฐานข้อมูลไม่มีคอลัมน์ "${badCol}" — ตัดออกแล้วลองใหม่อัตโนมัติ`);
+        console.warn(`[SDK] ฐานข้อมูลไม่มีคอลัมน์ "${badCol}" — ตัดออกแล้วลองใหม่อัตโนมัติ (ครั้งที่ ${_tries + 1})`);
         const clean = (obj) => { const o = { ...obj }; delete o[badCol]; return o; };
         const newBody = Array.isArray(body) ? body.map(clean) : clean(body);
-        return this._api(method, path, newBody, true); // ลองใหม่ (ครั้งเดียว กันวนซ้ำไม่จบ)
+        if (!window._missingDbColumns) window._missingDbColumns = new Set();
+        window._missingDbColumns.add(badCol);
+        return this._api(method, path, newBody, _tries + 1);
+      }
+      // 🚫 ชนกฎห้ามซ้ำของตาราง — แปลเป็นภาษาคนให้เข้าใจว่าต้องทำอะไร
+      if (txt.includes('uniq_essay_exam_set')) {
+        throw new Error('ตารางอัตนัยยังห้ามตั้งชุดสอบซ้ำในครั้งเดียวกัน — กรุณารันไฟล์ add_essay_score_mode.sql ใน Supabase ก่อน');
       }
       throw new Error(`Supabase ${res.status}: ${txt.substring(0, 200)}`);
     }
@@ -3331,7 +3344,7 @@ const supabaseDataSdk = {
       // แก้โดยแปลงค่าว่างเป็น null เพื่อให้ฐานข้อมูลล้างค่าจริงๆ
       if (v === '') { out[k] = null; return; }
       // 🔧 ฟิลด์ที่ฐานข้อมูลเก็บเป็น JSON — ระบบเดิมส่งมาเป็นข้อความ ต้องแปลงกลับก่อน ไม่งั้นบันทึกไม่ผ่าน
-      const JSON_FIELDS = ['answers', 'question_snapshot_json', 'activity_log', 'items_json', 'ratings_json'];
+      const JSON_FIELDS = ['answers', 'question_snapshot_json', 'activity_log', 'items_json', 'ratings_json', 'score_per_question_json'];
       if (JSON_FIELDS.includes(k)) {
         if (typeof v === 'string') {
           try { out[k] = JSON.parse(v); } catch (e) { out[k] = null; }
@@ -5863,7 +5876,7 @@ const supabaseDataSdk = {
       // รายการที่ห้ามลบเด็ดขาด (ส่วนประกอบถาวรของระบบ)
       const KEEP_IDS = ['desktop-sidebar', 'desktop-top-nav', 'toast-container',
         'global-busy-overlay', 'app-main', 'page-login', 'page-register',
-        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay'];
+        'm-marquee-track-container', 'exam-taking-overlay', 'exam-freeze-overlay', 'essay-taking-overlay'];
       document.querySelectorAll('.fixed').forEach(el => {
         if (KEEP_IDS.includes(el.id)) return;                    // ข้ามส่วนประกอบถาวร
         if (el.closest('#app-main') && !el.dataset.popup && !el.id) {
@@ -5975,17 +5988,18 @@ const supabaseDataSdk = {
         visible: () => currentUser?.user_type === 'student' && currentStudentTab === 'grades' && !!document.getElementById('student-content'),
         sig: () => { const sid = String(currentUser.student_id);
           return _sigOf(allData.filter(d => d.type === 'exam_set' ||
-            (['exam_submission','exam_retry_request','exam_retry_permission','grade','student_registration'].includes(d.type) && String(d.student_id) === sid)),
+            d.type === 'essay_exam_set' ||
+            (['exam_submission','essay_submission','exam_retry_request','essay_retry_request','exam_retry_permission','grade','student_registration'].includes(d.type) && String(d.student_id) === sid)),
             ['type','__backendId','status','retry_count','auto_score','manual_score','start_time','end_time','approved_start_time','approved_end_time','allowed','submitted_at','k_scores','c_scores','k_percent']); },
         render: () => showStudentGrades(true),
-        busy: ['exam-taking-overlay','retry-request-panel','exam-result-detail','unreg-scores-popup','exam-monitoring-gate'],
+        busy: ['exam-taking-overlay','essay-taking-overlay','retry-request-panel','essay-retry-form','exam-result-detail','unreg-scores-popup','exam-monitoring-gate'],
       },
       { // 📨 รายการคำขอสอบแก้ตัว (แอดมิน)
         key: 'adminRetry',
         visible: () => currentUser?.user_type === 'admin' && _isShown('admin-tab-retryrequest'),
-        sig: () => _sigOf(allData.filter(d => d.type === 'exam_retry_request'), ['__backendId','status']),
+        sig: () => _sigOf(allData.filter(d => d.type === 'exam_retry_request' || d.type === 'essay_retry_request'), ['type','__backendId','status']),
         render: () => renderRetryRequestsList(),
-        busy: ['approve-retry-panel'],
+        busy: ['approve-retry-panel', 'essay-retry-approve'],
       },
       { // 📝 รายการชุดสอบ (ปุ่มรีเซ็ต/โอนคะแนนตกหล่น/จำนวนคนส่ง)
         key: 'adminExamSets',
@@ -6000,7 +6014,7 @@ const supabaseDataSdk = {
         visible: () => _isShown('admin-tab-essayassign'),
         sig: () => _sigOf(allData.filter(d => d.type === 'essay_exam_set' || d.type === 'essay_submission'), ['type','__backendId','status','grading_done']),
         render: () => renderEssayExamSetList(),
-        busy: [],
+        busy: ['essay-grading-popup'],
       },
       { // 👥 รายชื่อนักเรียนของผู้ช่วยแอดมิน (ปุ่มขอลงทะเบียน → รออนุมัติ → อนุมัติแล้ว → ลงทะเบียนแล้ว)
         key: 'subadminStudents',
@@ -6018,7 +6032,7 @@ const supabaseDataSdk = {
       if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
       // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
       if (currentUser.user_type === 'admin') {
-        const ids = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending').map(d => String(d.__backendId)).sort().join(',');
+        const ids = allData.filter(d => (d.type === 'exam_retry_request' || d.type === 'essay_retry_request') && d.status === 'pending').map(d => d.type + String(d.__backendId)).sort().join(',');
         if (window._lastRetryPendingIds !== undefined && ids !== window._lastRetryPendingIds) {
           const before = new Set((window._lastRetryPendingIds || '').split(',').filter(Boolean));
           const n = ids.split(',').filter(id => id && !before.has(id)).length;
@@ -9825,12 +9839,32 @@ const supabaseDataSdk = {
       el.classList.remove('hidden');
       if (info.full > 0 || info.sets.length > 0) {
         el.className = 'text-xs mb-3 bg-amber-100 border border-amber-300 text-amber-800 rounded px-3 py-2';
-        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน${info.sets.length ? ` (${info.sets.length} ชุดสอบ)` : ' (ครูกรอกมือ)'} — ตอนบันทึกจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b>`;
+        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดมอบหมายจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
       } else {
         el.className = 'text-xs mb-3 bg-green-50 border border-green-200 text-green-700 rounded px-3 py-2';
         el.innerHTML = `✅ ${t.toUpperCase()} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
       }
     }
+    /** 📊 แจ้งคะแนนเต็มเดิมในฟอร์มจัดสอบปรนัย (เหมือนอัตนัย) */
+    function updateEaFullScoreInfo() {
+      const el = document.getElementById('ea-fullscore-info');
+      if (!el) return;
+      const cls = document.getElementById('ea-class')?.value, room = document.getElementById('ea-room')?.value;
+      const subj = document.getElementById('ea-subject')?.value, round = document.getElementById('ea-kround')?.value;
+      const t = document.getElementById('ea-scoretype')?.value || 'k';
+      const editId = document.getElementById('ea-edit-id')?.value;
+      if (!cls || !room || !subj || !round) { el.classList.add('hidden'); return; }
+      const info = _getExistingRoundFullScore(cls, room, subj, round, t, editId || null);
+      el.classList.remove('hidden');
+      if (info.full > 0 || info.sets.length > 0) {
+        el.className = 'text-xs mb-3 bg-amber-100 border border-amber-300 text-amber-800 rounded px-3 py-2';
+        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดบันทึกจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
+      } else {
+        el.className = 'text-xs mb-3 bg-green-50 border border-green-200 text-green-700 rounded px-3 py-2';
+        el.innerHTML = `✅ ${t.toUpperCase()} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
+      }
+    }
+
     /** 🎲 สุ่มข้อสอบให้นักเรียนหนึ่งคน — แบ่งตามกลุ่มคะแนนรายข้อ ทุกคนได้คะแนนเต็มเท่ากัน (ตรรกะเดียวกับปรนัย) */
     function _pickEssayRandomForStudent(pool, wantCount, seed) {
       const { plan, groupKeys } = _computeRandomExamTierPlan(pool, wantCount);
@@ -10085,6 +10119,7 @@ const supabaseDataSdk = {
       document.getElementById('esa-save-btn').textContent = '💾 มอบหมายข้อสอบ';
       document.querySelectorAll('.esa-q-check').forEach(cb => { cb.checked = false; });
       updateEsaTotalScore();
+      if (typeof updateEsaFullScoreInfo === 'function') setTimeout(updateEsaFullScoreInfo, 0);
     }
 
     /** แสดงรายการชุดสอบอัตนัย */
@@ -10124,6 +10159,7 @@ const supabaseDataSdk = {
                 <p class="text-xs mt-1">${badge}</p>
               </div>
               <div class="flex gap-1 flex-shrink-0">
+                <button onclick="openEssayGrading('${s.__backendId}')" class="px-2 py-1 ${subs.filter(d => d.status === 'submitted' && !(d.grading_done === true || d.grading_done === 'true')).length ? 'bg-amber-600 hover:bg-amber-700' : 'bg-gray-400 hover:bg-gray-500'} text-white rounded text-xs btn-3d">📝 ตรวจ${(() => { const n = subs.filter(d => d.status === 'submitted' && !(d.grading_done === true || d.grading_done === 'true')).length; return n ? ` (${n})` : ''; })()}</button>
                 <button onclick="editEssayExamSet('${s.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs btn-3d">✏️ แก้ไข</button>
                 <button onclick="deleteEssayExamSet('${s.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs btn-3d">🗑️ ลบ</button>
               </div>
@@ -11172,11 +11208,15 @@ const supabaseDataSdk = {
         norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName));
       // 🎯 ใช้ reg.class_subject_id "ตัวที่บันทึกไว้จริง" ตรงๆ (ไม่สร้างขึ้นใหม่เอง) เพราะฝั่งนักเรียนอ่านค่านี้ตรงๆ เช่นกัน (showStudentGrades)
       // การสร้างขึ้นใหม่เองมีความเสี่ยงไม่ตรงกัน ถ้าค่าดิบ (class_name/room_number/subject_name) ณ ตอนนี้ ไม่ตรงกับตอนที่คำนวณ class_subject_id ครั้งแรกตอนลงทะเบียน
-      const classSubjectId = matchingReg ? matchingReg.class_subject_id : `${className}_${roomNumber}_${subjectName}`;
+      const classSubjectId = (matchingReg && matchingReg.class_subject_id) || `${className}_${roomNumber}_${subjectName}`;
       if (!matchingReg) {
         console.warn('[Exam Debug] _applyExamFullScoreDelta: ไม่พบนักเรียนที่ลงทะเบียนตรงกับชั้น/ห้อง/วิชานี้เลย ใช้ค่าดิบแทน (อาจไม่ตรงกับหน้าให้คะแนนถ้ายังไม่มีคนลงทะเบียน)', { className, roomNumber, subjectName });
       }
-      const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
+      // 🔍 หาแถวคะแนนเต็มแบบมีทางสำรอง — ถ้าหาด้วยรหัสไม่เจอ ให้หาด้วยชั้น/ห้อง/วิชา (กันสร้างแถวคะแนนเต็มซ้ำ)
+      const scoresConfig = allData.find(d => d.type === 'class_subject_scores' && String(d.class_subject_id) === String(classSubjectId))
+        || allData.find(d => d.type === 'class_subject_scores'
+          && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName))
+        || allData.find(d => d.type === 'class_subject_scores' && norm(d.class_subject_id) === norm(`${className}_${roomNumber}_${subjectName}`));
       const round = parseInt(kRound) || 1;
       let fullArr = (scoresConfig?.[fullScoreField] || '').split(',').map(s => s.trim());
       while (fullArr.length < round) fullArr.push('');
@@ -11236,6 +11276,25 @@ const supabaseDataSdk = {
       return { full, sets };
     }
 
+    /** 📊 แยกที่มาของคะแนนเต็มในครั้งนี้: ครูกรอกมือเท่าไร แต่ละชุดสอบสมทบเท่าไร */
+    function _fullScoreSources(info) {
+      const rows = info.sets.map(s => ({
+        label: `${s.type === 'essay_exam_set' ? '✍️ อัตนัย' : '📝 ปรนัย'} ${s.total_score || 0} คะแนน`,
+        mode: s.full_score_mode === 'same' ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม',
+        applied: s.full_score_mode === 'same' ? 0 : (isNaN(parseFloat(s.applied_full_score_delta)) ? (parseFloat(s.total_score) || 0) : parseFloat(s.applied_full_score_delta)),
+      }));
+      const fromSets = rows.reduce((t, r) => t + r.applied, 0);
+      const manual = Math.max(0, Math.round((info.full - fromSets) * 100) / 100);
+      return { rows, fromSets, manual };
+    }
+    function _fullScoreSourcesHtml(info) {
+      const src = _fullScoreSources(info);
+      const lines = [];
+      if (src.manual > 0) lines.push(`<li>✏️ ครูกรอกมือ: <b>${src.manual}</b> คะแนน</li>`);
+      src.rows.forEach(r => lines.push(`<li>${r.label} · ${r.mode} → สมทบคะแนนเต็ม <b>${r.applied}</b></li>`));
+      return `<ul class="list-none space-y-0.5 mt-1">${lines.join('') || '<li>—</li>'}</ul>`;
+    }
+
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
@@ -11245,9 +11304,8 @@ const supabaseDataSdk = {
         wrap.id = 'fullscore-mode-popup';
         wrap.className = 'fixed inset-0 bg-black/60 flex items-center justify-center p-4';
         wrap.style.zIndex = '70';
-        const setsHtml = info.sets.length
-          ? `<p class="text-xs text-gray-600 mt-1">ชุดสอบที่ตั้งไว้แล้วในครั้งนี้: ${info.sets.length} ชุด (${info.sets.map(s => (s.total_score || 0) + ' คะแนน').join(', ')})</p>`
-          : `<p class="text-xs text-gray-600 mt-1">ยังไม่มีชุดสอบในครั้งนี้ — คะแนนเต็มมาจากที่ครูกรอกมือไว้</p>`;
+        const src = _fullScoreSources(info);
+        const setsHtml = `<div class="text-xs text-gray-700 mt-2"><b>คะแนนเต็มเดิม ${info.full} มาจาก:</b>${_fullScoreSourcesHtml(info)}</div>`;
         const done = (v) => { wrap.remove(); resolve(v); };
         wrap.innerHTML = `
           <div class="bg-white rounded-2xl p-5 max-w-lg w-full">
@@ -11258,11 +11316,14 @@ const supabaseDataSdk = {
             </div>
             <button data-v="add" class="w-full text-left mb-2 p-3 rounded-xl border-2 border-blue-300 bg-blue-50 hover:bg-blue-100">
               <p class="font-bold text-blue-800">➕ เพิ่มเป็นชุดใหม่ — บวกคะแนนเต็ม</p>
-              <p class="text-xs text-blue-700 mt-1">คะแนนเต็มกลายเป็น ${info.full} + ${newTotal} = <b>${info.full + newTotal}</b> · คะแนนสอบของนักเรียนบวกเพิ่มจากคะแนนเดิมในช่องนี้</p>
+              <p class="text-xs text-blue-700 mt-1">คะแนนเต็มใหม่ = ${src.manual > 0 ? `กรอกมือ ${src.manual} + ` : ''}${src.fromSets > 0 ? `ชุดเดิม ${src.fromSets} + ` : ''}ชุดนี้ ${newTotal} = <b>${info.full + newTotal}</b></p>
+              <p class="text-xs text-blue-700">คะแนนนักเรียน: คะแนนเดิมในช่อง <b>บวกเพิ่ม</b> ด้วยคะแนนสอบชุดนี้</p>
             </button>
             <button data-v="same" class="w-full text-left mb-3 p-3 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100">
               <p class="font-bold text-green-800">🔁 ชุดเดิม — ไม่เพิ่มคะแนนเต็ม</p>
-              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b> · คะแนนสอบชุดนี้<b>แทนที่เฉพาะคะแนนจากการสอบชุดเดิม</b>ในครั้งนี้ คะแนนส่วนอื่นที่ครูกรอกไว้ยังอยู่ครบ</p>
+              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b></p>
+              <p class="text-xs text-green-700">คะแนนนักเรียน: ${src.rows.length ? `คะแนนจาก<b>ชุดสอบเดิม ${src.rows.length} ชุด ถูกแทนที่</b>ด้วยคะแนนชุดนี้` : 'คะแนนสอบชุดนี้บวกเข้าช่องเดิม'}${src.manual > 0 ? ` · ส่วนกรอกมือ ${src.manual} คะแนน <b>คงอยู่</b>` : ''}</p>
+              <p class="text-[11px] text-green-600">ตัวอย่าง: ช่องมี 10 (ของเดิม 7 + สอบ 3) สอบชุดนี้ได้ 5 → 7 + 5 = 12</p>
               ${newTotal > info.full ? `<p class="text-xs text-red-600 font-semibold mt-1">⚠️ ชุดสอบนี้ ${newTotal} คะแนน มากกว่าคะแนนเต็มเดิม ${info.full} — นักเรียนอาจได้คะแนนเกินเต็ม</p>` : ''}
             </button>
             <button data-v="" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
@@ -11743,6 +11804,7 @@ const supabaseDataSdk = {
       updateEaTotalScore();
       if (typeof updateEaRandomInfo === 'function') updateEaRandomInfo(); // อัปเดตข้อมูลโหมดสุ่มให้ตรงกับค่าที่โหลดมา
       document.getElementById('ea-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof updateEaFullScoreInfo === 'function') setTimeout(updateEaFullScoreInfo, 0);   // 📊 อัปเดตคะแนนเต็มเดิม
     }
 
     // 🔄 จัดสอบอีกครั้ง — รีเซ็ทให้นักเรียนทุกคนสอบใหม่ได้ (ล้างคะแนนเดิม แต่ไม่ลบชุดสอบทิ้ง)
@@ -12114,6 +12176,484 @@ const supabaseDataSdk = {
     }
 
     // แสดงปุ่ม "เข้าสอบ/แก้ไข" ใต้ช่องคะแนน K แต่ละวิชาที่นักเรียนลงทะเบียน
+    // ════════════════════════════════════════════════════════════
+    // ✍️ ระบบสอบอัตนัย: นักเรียนเขียนตอบ → ครูตรวจ → โอนคะแนน (ใช้ฟังก์ชันลงคะแนนตัวเดียวกับปรนัย)
+    // ════════════════════════════════════════════════════════════
+    function _essayRoundText(set) {
+      return `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ${parseInt(set.k_round) || 1}`;
+    }
+    function _isEssaySetOpen(set) {
+      const now = new Date();
+      return (!set.start_time || now >= new Date(set.start_time)) && (!set.end_time || now <= new Date(set.end_time));
+    }
+    function _parseJsonSafe(v, fallback) {
+      if (v == null || v === '') return fallback;
+      if (typeof v === 'object') return v;
+      try { return JSON.parse(v); } catch (e) { return fallback; }
+    }
+    /** นับคำภาษาไทย (ภาษาไทยไม่เว้นวรรคระหว่างคำ จึงใช้ตัวตัดคำของเบราว์เซอร์ ถ้าไม่มีนับตามช่องว่าง) */
+    function _countWordsTh(text) {
+      const t = String(text || '').trim();
+      if (!t) return 0;
+      try {
+        if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+          let n = 0; for (const s of new Intl.Segmenter('th', { granularity: 'word' }).segment(t)) if (s.isWordLike) n++;
+          return n;
+        }
+      } catch (e) { /* ใช้วิธีสำรอง */ }
+      return t.split(/\s+/).filter(Boolean).length;
+    }
+
+    /** 🔘 ปุ่มสอบอัตนัยของนักเรียน — ปุ่มเดียวต่อชุดสอบ เปลี่ยนสถานะไปตามขั้นตอน */
+    function generateEssayButtonsForRegistration(reg) {
+      if (!currentUser || !reg) return '';
+      const btnBase = 'padding:3px 8px;border-radius:6px;font-size:10px;font-weight:600;white-space:nowrap;display:inline-block;border:none;cursor:pointer';
+      const spanBase = 'padding:3px 8px;border-radius:6px;font-size:10px;white-space:nowrap;display:inline-block';
+      const subs = allData.filter(d => d.type === 'essay_submission' && String(d.student_id) === String(currentUser.student_id)
+        && _eaN(d.subject_name) === _eaN(reg.subject_name) && _eaN(d.class_name) === _eaN(reg.class_name) && _eaN(d.room_number) === _eaN(reg.room_number));
+      return subs.map(sub => {
+        const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+        if (!set) return '';
+        const rt = _essayRoundText(set) + ' อัตนัย';
+        const open = _isEssaySetOpen(set);
+        if (sub.status === 'not_started' || !sub.status) {
+          if (open) return `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#d97706;color:white" class="btn-3d">✍️ ${rt} เข้าสอบ</button>`;
+          if (set.start_time && new Date() < new Date(set.start_time)) return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${rt} ยังไม่ถึงเวลาสอบ</span>`;
+          return '';
+        }
+        if (sub.status === 'in_progress') {
+          const isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
+          const canGo = isRetry ? _essayRetryWindowOpen(set, sub) : open;
+          if (!canGo) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${rt} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + (parseInt(sub.retry_count) || 0) : 'สอบ'}</span>`;
+          return isRetry
+            ? `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${rt} สอบแก้ครั้งที่ ${parseInt(sub.retry_count) || 0}</button>`
+            : `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#f59e0b;color:white" class="btn-3d">✏️ ทำต่อ ${rt}</button>`;
+        }
+        const graded = sub.grading_done === true || sub.grading_done === 'true';
+        const used = parseInt(sub.retry_count) || 0;
+        const attempt = used > 0 ? ` สอบแก้ครั้งที่ ${used}` : '';
+        let info = '';
+        if (!graded) info = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt}${attempt} ส่งแล้ว รอครูตรวจ</span>`;
+        else if (window._justSubmittedIds && window._justSubmittedIds.has(String(sub.__backendId)))   // ตรวจแล้ว: แสดงเฉพาะตอนเพิ่งส่ง (หลักเดียวกับปรนัย)
+          info = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ${rt}${attempt} ตรวจแล้ว (${sub.manual_score ?? '-'}/${set.total_score})</span>`;
+        const action = _essayRetryAction(set, sub, rt, btnBase, spanBase);
+        return [info, action].filter(Boolean).join(' ');
+      }).join(' ');
+    }
+
+    /** ✍️ เปิดหน้าเขียนตอบข้อสอบอัตนัย */
+    async function openEssayExam(subId) {
+      let sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      if (!sub) { showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
+      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      if (!set) { showToast('ไม่พบชุดสอบ', 'error'); return; }
+      const _isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
+      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) { showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      if (sub.status === 'submitted') { showToast('ส่งคำตอบไปแล้ว', 'info'); return; }
+      let questions = _parseJsonSafe(sub.question_snapshot_json, null);
+      if (!Array.isArray(questions) || !questions.length) {
+        // สำรอง: สร้างจากรายการข้อ + คลังข้อสอบ
+        const ids = String(sub.question_order || set.question_ids || '').split(',').filter(Boolean);
+        questions = ids.map(id => allData.find(d => d.type === 'essay_question' && String(d.__backendId) === String(id))).filter(Boolean).map(_essaySnap);
+      }
+      if (!questions.length) { showToast('⚠️ ไม่พบข้อสอบในกระดาษคำตอบ กรุณาแจ้งครู', 'error'); return; }
+      if (sub.status !== 'in_progress') {
+        const r = await window.dataSdk.update({ ...sub, status: 'in_progress', started_at: new Date().toISOString() });
+        if (r.isOk) sub = { ...sub, status: 'in_progress' };
+      }
+      const answers = _parseJsonSafe(sub.answers, {}) || {};
+      window._essayCur = { subId: String(sub.__backendId), setId: String(set.__backendId), answers, questions, dirty: false };
+
+      document.getElementById('essay-taking-overlay')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'essay-taking-overlay';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999980;background:#f8fafc;overflow-y:auto';
+      wrap.innerHTML = `
+        <div style="position:sticky;top:0;z-index:2;background:#b45309;color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div><p style="margin:0;font-weight:700">✍️ ${escHtml(set.subject_name)} · ${_essayRoundText(set)} อัตนัย</p>
+               <p style="margin:0;font-size:11px;opacity:.9">${questions.length} ข้อ · คะแนนเต็ม ${set.total_score} · บันทึกคำตอบอัตโนมัติ <span id="essay-save-state">✓</span></p></div>
+          <div style="font-weight:700;font-size:18px" id="essay-timer">--:--</div>
+        </div>
+        <div style="max-width:820px;margin:0 auto;padding:16px">
+          ${questions.map((q, i) => {
+            const qid = String(q.__backendId);
+            const minW = parseInt(q.min_words) || 0;
+            return `<div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:16px;margin-bottom:14px">
+              <p style="margin:0 0 6px;font-weight:700;color:#1e293b">ข้อ ${i + 1} <span style="font-weight:400;color:#b45309;font-size:12px">(${q.score_per_question || 0} คะแนน${minW ? ` · อย่างน้อย ${minW} คำ` : ''})</span></p>
+              <p style="margin:0 0 10px;white-space:pre-wrap;color:#334155">${escHtml(q.question_text || '')}</p>
+              ${q.question_image_url ? `<img src="${escHtml(q.question_image_url)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">` : ''}
+              <textarea data-qid="${escHtml(qid)}" data-min="${minW}" oninput="_onEssayInput(this)" rows="7" placeholder="พิมพ์คำตอบที่นี่..."
+                style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;line-height:1.6;font-family:inherit">${escHtml(answers[qid] || '')}</textarea>
+              <p class="essay-wc" data-qid="${escHtml(qid)}" style="margin:4px 0 0;font-size:11px;color:#64748b"></p>
+            </div>`;
+          }).join('')}
+          <button onclick="submitEssayExam()" id="essay-submit-btn" style="width:100%;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin:6px 0 30px" class="btn-3d">📤 ส่งคำตอบ</button>
+        </div>`;
+      document.body.appendChild(wrap);
+      wrap.querySelectorAll('textarea[data-qid]').forEach(t => _updateEssayWordCount(t));
+      // ⏰ สอบแก้ใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน (บทเรียนจากปรนัย: ใช้เวลาชุดหลักจะส่งกระดาษเปล่าทันทีถ้าชุดหลักปิดแล้ว)
+      const _w = _isRetry ? _essayRetryWindow(set, sub) : null;
+      _startEssayTimer(_w && _w.end ? { ...set, end_time: _w.end.toISOString() } : set);
+    }
+    function _updateEssayWordCount(t) {
+      const n = _countWordsTh(t.value), min = parseInt(t.dataset.min) || 0;
+      const _q = (window.CSS && CSS.escape) ? CSS.escape(t.dataset.qid) : String(t.dataset.qid).replace(/["\\]/g, '\\$&');   // เบราว์เซอร์เก่าบางรุ่นไม่มี CSS.escape
+      const el = document.querySelector(`.essay-wc[data-qid="${_q}"]`);
+      if (el) { el.textContent = `${n} คำ${min ? ` / ขั้นต่ำ ${min} คำ` : ''}`; el.style.color = (min && n < min) ? '#dc2626' : '#16a34a'; }
+    }
+    let _essaySaveTimer = null;
+    function _onEssayInput(t) {
+      if (!window._essayCur) return;
+      window._essayCur.answers[t.dataset.qid] = t.value;
+      window._essayCur.dirty = true;
+      _updateEssayWordCount(t);
+      const st = document.getElementById('essay-save-state'); if (st) st.textContent = '…';
+      clearTimeout(_essaySaveTimer);
+      _essaySaveTimer = setTimeout(_flushEssayAnswers, 2500);   // รวมการพิมพ์แล้วบันทึกทีเดียว ลดภาระเซิร์ฟเวอร์
+    }
+    async function _flushEssayAnswers() {
+      const cur = window._essayCur;
+      if (!cur || !cur.dirty) return true;
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
+      if (!sub) return false;
+      cur.dirty = false;
+      const r = await window.dataSdk.update({ ...sub, answers: JSON.stringify(cur.answers) });
+      const st = document.getElementById('essay-save-state');
+      if (!r.isOk) { cur.dirty = true; if (st) st.textContent = '⚠️ บันทึกไม่สำเร็จ จะลองใหม่'; setTimeout(_flushEssayAnswers, 4000); return false; }
+      if (st) st.textContent = '✓';
+      return true;
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden && window._essayCur) _flushEssayAnswers(); });
+    let _essayTimerId = null;
+    function _startEssayTimer(set) {
+      clearInterval(_essayTimerId);
+      const tick = () => {
+        const el = document.getElementById('essay-timer');
+        if (!el) { clearInterval(_essayTimerId); return; }
+        if (!set.end_time) { el.textContent = ''; return; }
+        const ms = new Date(set.end_time) - new Date();
+        if (ms <= 0) { clearInterval(_essayTimerId); el.textContent = '00:00'; submitEssayExam(true); return; }
+        const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+        el.textContent = (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        el.style.color = ms < 300000 ? '#fecaca' : 'white';
+      };
+      tick(); _essayTimerId = setInterval(tick, 1000);
+    }
+    /** 📤 ส่งคำตอบอัตนัย (auto = หมดเวลา ส่งอัตโนมัติไม่ถาม) */
+    async function submitEssayExam(auto) {
+      const cur = window._essayCur;
+      if (!cur) return;
+      if (!auto) {
+        const empty = cur.questions.filter(q => !String(cur.answers[String(q.__backendId)] || '').trim()).length;
+        const short = cur.questions.filter(q => { const min = parseInt(q.min_words) || 0; return min && _countWordsTh(cur.answers[String(q.__backendId)]) < min; }).length;
+        let msg = 'ยืนยันส่งคำตอบ? หลังส่งแล้วแก้ไขไม่ได้';
+        if (empty) msg = `ยังไม่ได้ตอบ ${empty} ข้อ\n` + msg;
+        if (short) msg = `มี ${short} ข้อที่เขียนไม่ถึงจำนวนคำขั้นต่ำ\n` + msg;
+        if (!confirm(msg)) return;
+      }
+      const btn = document.getElementById('essay-submit-btn');
+      const doSubmit = async () => {
+        clearTimeout(_essaySaveTimer);
+        const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
+        if (!sub) { showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
+        const r = await window.dataSdk.update({ ...sub, answers: JSON.stringify(cur.answers), status: 'submitted',
+          submitted_at: new Date().toISOString(), grading_done: false, imported_to_grade: false });
+        if (!r.isOk) { showToast('ส่งคำตอบไม่สำเร็จ กรุณาลองใหม่: ' + (r.error?.message || ''), 'error'); return; }
+        clearInterval(_essayTimerId);
+        window._essayCur = null;
+        window._justSubmittedIds = window._justSubmittedIds || new Set();
+        window._justSubmittedIds.add(String(sub.__backendId));
+        document.getElementById('essay-taking-overlay')?.remove();
+        showToast(auto ? '⏰ หมดเวลา ระบบส่งคำตอบให้อัตโนมัติแล้ว รอครูตรวจ' : '✅ ส่งคำตอบสำเร็จ รอครูตรวจให้คะแนน');
+        if (currentStudentTab === 'grades' && typeof showStudentGrades === 'function') showStudentGrades(true);
+      };
+      if (btn && typeof withButtonLock === 'function') await withButtonLock(btn, '⏳ กำลังส่ง...', doSubmit); else await doSubmit();
+    }
+
+    // ═══ 🔄 สอบแก้อัตนัย (หลักเดียวกับปรนัย: สอบ 1 + แก้ได้ 2 ครั้ง, ทับเฉพาะคะแนนสอบ) ═══
+    function _essayRetryReqs(sub) {
+      return allData.filter(d => d.type === 'essay_retry_request' && String(d.submission_id) === String(sub.__backendId))
+        .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0));
+    }
+    function _essayRetryWindow(set, sub) {
+      const r = _essayRetryReqs(sub).filter(d => d.status === 'approved' || d.status === 'used')
+        .sort((a, b) => new Date(b.reviewed_at || 0) - new Date(a.reviewed_at || 0))[0];
+      if (!r) return null;
+      return { start: r.approved_start_time ? new Date(r.approved_start_time) : null, end: r.approved_end_time ? new Date(r.approved_end_time) : null, request: r };
+    }
+    function _essayRetryWindowOpen(set, sub) {
+      const w = _essayRetryWindow(set, sub); if (!w) return false;
+      const now = new Date(); return (!w.start || now >= w.start) && (!w.end || now <= w.end);
+    }
+    /** ปุ่มดำเนินการหลังส่งคำตอบ: ขอสอบแก้ → รออนุมัติ → สอบแก้ (เขียว) → ... → ครบ 2 ครั้ง (ไม่มีปุ่ม) */
+    function _essayRetryAction(set, sub, rt, btnBase, spanBase) {
+      const used = parseInt(sub.retry_count) || 0;
+      if (2 - used <= 0) return '';
+      const nextNo = used + 1;
+      const lastSubmit = sub.submitted_at ? new Date(sub.submitted_at).getTime() : 0;
+      const req = _essayRetryReqs(sub).find(d => !lastSubmit || new Date(d.requested_at || 0).getTime() >= lastSubmit - 1000);
+      const requestBtn = `<button onclick="openEssayRetryRequestForm('${sub.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${rt} ขอสอบแก้ครั้งที่ ${nextNo}</button>`;
+      if (!req) return requestBtn;
+      if (req.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
+      if (req.status === 'denied') return '';   // ไม่อนุมัติ — ปุ่มหายไป
+      if (req.status === 'approved') {
+        const s = req.approved_start_time ? new Date(req.approved_start_time) : null, e = req.approved_end_time ? new Date(req.approved_end_time) : null, now = new Date();
+        if ((!s || now >= s) && (!e || now <= e)) return `<button onclick="startEssayRetryAttempt('${sub.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${rt} สอบแก้ครั้งที่ ${nextNo}</button>`;
+        if (s && now < s) return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${rt} อนุมัติสอบแก้ครั้งที่ ${nextNo} เริ่ม ${s.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</span>`;
+        return requestBtn;   // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
+      }
+      return requestBtn;
+    }
+    function openEssayRetryRequestForm(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      if (!sub) return;
+      document.getElementById('essay-retry-form')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'essay-retry-form';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50';
+      wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
+          <p class="font-bold text-gray-800 mb-1">🙋 ขอสอบแก้อัตนัย ครั้งที่ ${(parseInt(sub.retry_count) || 0) + 1}</p>
+          <p class="text-xs text-gray-500 mb-3">📚 ${escHtml(sub.subject_name || '')} · เหลือสิทธิ์ ${2 - (parseInt(sub.retry_count) || 0)} ครั้ง</p>
+          <textarea id="essay-retry-reason" rows="4" placeholder="เหตุผลที่ขอสอบแก้..." class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3"></textarea>
+          <div class="flex gap-2">
+            <button onclick="submitEssayRetryRequest('${sub.__backendId}')" id="essay-retry-send" class="flex-1 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold btn-3d">📨 ส่งคำขอ</button>
+            <button onclick="document.getElementById('essay-retry-form')?.remove()" class="px-4 py-2 bg-gray-200 rounded-lg">ยกเลิก</button>
+          </div></div>`;
+      document.body.appendChild(wrap);
+    }
+    async function submitEssayRetryRequest(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const reason = document.getElementById('essay-retry-reason')?.value.trim();
+      if (!sub) return;
+      if (!reason) { showToast('กรุณาระบุเหตุผล', 'error'); return; }
+      await withButtonLock(document.getElementById('essay-retry-send'), '⏳ กำลังส่ง...', async () => {
+        const r = await window.dataSdk.create({ type: 'essay_retry_request', student_id: String(sub.student_id), student_name: sub.student_name,
+          essay_exam_set_id: sub.essay_exam_set_id, submission_id: sub.__backendId, registration_id: sub.registration_id,
+          subject_name: sub.subject_name, class_name: sub.class_name, room_number: sub.room_number,
+          reason, status: 'pending', requested_at: new Date().toISOString() });
+        if (!r.isOk) { showToast('ส่งคำขอไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+        document.getElementById('essay-retry-form')?.remove();
+        showToast('📨 ส่งคำขอสอบแก้แล้ว รอแอดมินอนุมัติ');
+      });
+    }
+    /** 📋 คำขอสอบแก้อัตนัยในหน้าแอดมิน (อยู่ใต้คำขอของปรนัย) */
+    function _renderEssayRetryRequests() {
+      const box = document.getElementById('rr-essay-list');
+      if (!box) return;
+      const map = {};
+      allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending').forEach(r => {
+        const k = r.student_id + '|' + r.essay_exam_set_id;
+        if (!map[k] || new Date(r.requested_at) > new Date(map[k].requested_at)) map[k] = r;   // คนเดียวชุดเดียว เห็นคำขอเดียว
+      });
+      const reqs = Object.values(map).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+      box.innerHTML = `<h4 class="font-bold text-gray-700 mb-2">✍️ คำขอสอบแก้อัตนัย ${reqs.length ? `(${reqs.length})` : ''}</h4>` + (reqs.length ? reqs.map(r => {
+        const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(r.essay_exam_set_id));
+        const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(r.submission_id));
+        return `<div class="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 mb-2">
+          <p class="font-semibold text-gray-800">👤 ${escHtml(r.student_name || r.student_id)} (${escHtml(String(r.student_id))})</p>
+          <p class="text-xs text-gray-600">📚 ${escHtml(r.subject_name || '')} · ${set ? _essayRoundText(set) : ''} อัตนัย · ${escHtml(r.class_name || '')}/${escHtml(String(r.room_number || ''))} · ขอสอบแก้ครั้งที่ ${(parseInt(sub?.retry_count) || 0) + 1}</p>
+          <p class="text-sm text-gray-700 mt-1">💬 ${escHtml(r.reason || '-')}</p>
+          <div class="flex gap-2 mt-2">
+            <button onclick="openEssayRetryApprove('${r.__backendId}')" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-xs btn-3d">✅ อนุมัติ</button>
+            <button onclick="denyEssayRetry('${r.__backendId}')" class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs btn-3d">❌ ไม่อนุมัติ</button>
+          </div></div>`;
+      }).join('') : '<p class="text-gray-400 text-sm">ไม่มีคำขอสอบแก้อัตนัยที่รอพิจารณา</p>');
+    }
+    function openEssayRetryApprove(reqId) {
+      document.getElementById('essay-retry-approve')?.remove();
+      const pad = n => String(n).padStart(2, '0'), now = new Date(), later = new Date(Date.now() + 2 * 3600e3);
+      const dStr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const wrap = document.createElement('div');
+      wrap.id = 'essay-retry-approve';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50';
+      const timeRow = (p, d) => `<div class="flex gap-1 items-center mb-2"><input type="date" id="${p}-date" value="${dStr(d)}" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+        <select id="${p}-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">${_hourOpts(pad(d.getHours()))}</select><b>:</b>
+        <select id="${p}-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">${_minOpts('00')}</select><span class="text-xs">น.</span></div>`;
+      wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
+          <p class="font-bold text-gray-800 mb-3">✅ อนุมัติสอบแก้อัตนัย</p>
+          <p class="text-xs font-semibold text-gray-700 mb-1">📋 ใช้ข้อสอบชุดไหน</p>
+          <label class="flex items-center gap-2 text-sm mb-1"><input type="radio" name="essay-rq-mode" value="same" checked> ใช้ข้อสอบชุดเดิม</label>
+          <label class="flex items-center gap-2 text-sm mb-3"><input type="radio" name="essay-rq-mode" value="new"> สุ่ม/สลับข้อสอบใหม่ (คะแนนเต็มเท่าเดิม)</label>
+          <p class="text-xs text-gray-600">🟢 เริ่ม</p>${timeRow('erq-start', now)}
+          <p class="text-xs text-gray-600">🔴 สิ้นสุด</p>${timeRow('erq-end', later)}
+          <div class="flex gap-2 mt-2">
+            <button onclick="confirmEssayRetryApprove('${reqId}')" id="erq-ok" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold btn-3d">✅ อนุมัติ</button>
+            <button onclick="document.getElementById('essay-retry-approve')?.remove()" class="px-4 py-2 bg-gray-200 rounded-lg">ยกเลิก</button>
+          </div></div>`;
+      document.body.appendChild(wrap);
+    }
+    async function confirmEssayRetryApprove(reqId) {
+      const req = allData.find(d => d.type === 'essay_retry_request' && String(d.__backendId) === String(reqId));
+      if (!req) return;
+      const j = p => { const d = document.getElementById(p + '-date')?.value; return d ? new Date(`${d}T${document.getElementById(p + '-hour').value}:${document.getElementById(p + '-min').value}`) : null; };
+      const s = j('erq-start'), e = j('erq-end');
+      if (!s || !e || e <= s) { showToast('กรุณากำหนดช่วงเวลาให้ถูกต้อง', 'error'); return; }
+      const mode = document.querySelector('input[name="essay-rq-mode"]:checked')?.value || 'same';
+      await withButtonLock(document.getElementById('erq-ok'), '⏳ กำลังอนุมัติ...', async () => {
+        const r = await window.dataSdk.update({ ...req, status: 'approved', question_mode: mode,
+          approved_start_time: s.toISOString(), approved_end_time: e.toISOString(), reviewed_at: new Date().toISOString() });
+        if (!r.isOk) { showToast('อนุมัติไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+        document.getElementById('essay-retry-approve')?.remove();
+        showToast('✅ อนุมัติสอบแก้อัตนัยแล้ว');
+        _renderEssayRetryRequests();
+      });
+    }
+    async function denyEssayRetry(reqId) {
+      const req = allData.find(d => d.type === 'essay_retry_request' && String(d.__backendId) === String(reqId));
+      if (!req || !confirm('ยืนยันไม่อนุมัติคำขอนี้?')) return;
+      const r = await window.dataSdk.update({ ...req, status: 'denied', reviewed_at: new Date().toISOString() });
+      if (r.isOk) { showToast('❌ ไม่อนุมัติแล้ว'); _renderEssayRetryRequests(); }
+    }
+    /** 🔄 เริ่มสอบแก้อัตนัย: หักคะแนนที่เคยโอน (เฉพาะส่วนของกระดาษนี้) → ล้างกระดาษ → นับสิทธิ์ → เปิดหน้าเขียนตอบ */
+    async function startEssayRetryAttempt(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const set = sub && allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      if (!sub || !set) { showToast('ไม่พบข้อมูล', 'error'); return; }
+      const used = parseInt(sub.retry_count) || 0;
+      if (used >= 2) { showToast('ใช้สิทธิ์สอบแก้ครบ 2 ครั้งแล้ว', 'error'); return; }
+      const w = _essayRetryWindow(set, sub);
+      if (!w || w.request.status !== 'approved' || !_essayRetryWindowOpen(set, sub)) { showToast('ยังไม่อยู่ในช่วงเวลาสอบแก้ที่อนุมัติ', 'error'); return; }
+      if (!confirm(`เริ่มสอบแก้ครั้งที่ ${used + 1}? คะแนนครั้งก่อนจะถูกแทนที่ด้วยคะแนนครั้งนี้`)) return;
+      // 1) หักคะแนนที่กระดาษนี้เคยโอนเข้าไป (คะแนนส่วนอื่นในช่องคงอยู่)
+      const contributed = parseFloat(sub.k_score_contributed) || 0;
+      if ((sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
+        const sType = ['k','p','c'].includes(set.score_type) ? set.score_type : 'k', round = parseInt(set.k_round) || 1;
+        const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id, class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
+        if (g) {
+          const arr = String(g[sType + '_scores'] || '').split(',').map(x => x.trim()); while (arr.length < round) arr.push('');
+          const left = (parseFloat(arr[round - 1]) || 0) - contributed; arr[round - 1] = left > 0 ? String(left) : '';
+          await window.dataSdk.update({ ...g, [sType + '_scores']: arr.join(',') });
+        }
+      }
+      // 2) ข้อสอบรอบใหม่ (ถ้าแอดมินเลือกให้สุ่ม/สลับใหม่)
+      let order = sub.question_order, snap = sub.question_snapshot_json;
+      if (w.request.question_mode === 'new') {
+        const seed = _seedFromString(String(sub.student_id) + '_' + set.__backendId + '_retry' + (used + 1));
+        let qs;
+        if (set.is_random_mode === true || set.is_random_mode === 'true') {
+          let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(set.subject_name));
+          const chs = String(set.selected_chapters || '').split(',').filter(Boolean);
+          if (chs.length) pool = pool.filter(q => chs.includes(q.chapter || 'ไม่ระบุบท'));
+          qs = _pickEssayRandomForStudent(pool, parseInt(set.random_count) || 1, seed).map(_essaySnap);
+        } else {
+          qs = _seededShuffle(_parseJsonSafe(sub.question_snapshot_json, []) || [], seed);
+        }
+        if (qs.length) { order = qs.map(q => q.__backendId).join(','); snap = JSON.stringify(qs); }
+      }
+      // 3) ล้างกระดาษ + นับสิทธิ์ (ค่าจริง/เท็จใช้ false ไม่ใช่ค่าว่าง — บทเรียนจากปรนัย)
+      const r = await window.dataSdk.update({ ...sub, status: 'in_progress', answers: '{}', question_order: order, question_snapshot_json: snap,
+        manual_score: '', score_per_question_json: '', grading_done: false, imported_to_grade: false, k_score_contributed: 0,
+        is_retry_attempt: true, retry_count: used + 1, started_at: new Date().toISOString(), submitted_at: '' });
+      if (!r.isOk) { showToast('เริ่มสอบแก้ไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+      window.dataSdk.update({ ...w.request, status: 'used' }).catch(() => {});   // ใช้คำขอนี้แล้ว — หลังสอบเสร็จปุ่มกลับเป็น "ขอสอบแก้ครั้งถัดไป"
+      openEssayExam(sub.__backendId);
+    }
+
+    // ═══ 📝 ครูตรวจอัตนัย ═══
+    function openEssayGrading(setId) {
+      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
+      if (!set) return;
+      const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId));
+      const num = s => parseInt(allData.find(x => x.type === 'student' && String(x.student_id) === String(s.student_id))?.student_number) || 9999;
+      subs.sort((a, b) => num(a) - num(b));
+      const badge = s => {
+        if (s.status === 'submitted' || s.status === 'terminated') return (s.grading_done === true || s.grading_done === 'true')
+          ? `<span class="text-green-700">✅ ตรวจแล้ว ${s.manual_score ?? 0}/${set.total_score}</span>` : '<span class="text-amber-700 font-semibold">⏳ รอตรวจ</span>';
+        if (s.status === 'in_progress') return '<span class="text-blue-600">✏️ กำลังทำ</span>';
+        return '<span class="text-gray-400">ยังไม่เข้าสอบ</span>';
+      };
+      document.getElementById('essay-grading-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'essay-grading-popup';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50';
+      wrap.innerHTML = `
+        <div class="bg-white rounded-2xl w-full max-w-4xl flex flex-col" style="max-height:92vh">
+          <div class="p-4 border-b flex justify-between items-center gap-2 flex-wrap">
+            <p class="font-bold text-gray-800">📝 ตรวจอัตนัย · ${escHtml(set.class_name)}/${escHtml(String(set.room_number))} · ${escHtml(set.subject_name)} · ${_essayRoundText(set)}</p>
+            <button onclick="document.getElementById('essay-grading-popup')?.remove()" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">ปิด</button>
+          </div>
+          <div class="flex flex-1 overflow-hidden" style="min-height:0">
+            <div class="w-56 border-r overflow-y-auto p-2 space-y-1">
+              ${subs.map(s => `<button onclick="_renderEssayGradeDetail('${s.__backendId}')" data-sub="${s.__backendId}" class="essay-grade-item w-full text-left px-2 py-1.5 rounded hover:bg-amber-50 text-xs">
+                  <p class="font-medium text-gray-800">#${num(s) === 9999 ? '-' : num(s)} ${escHtml(s.student_name || s.student_id)}</p><p>${badge(s)}</p></button>`).join('') || '<p class="text-gray-400 text-xs p-2">ยังไม่มีกระดาษคำตอบ</p>'}
+            </div>
+            <div id="essay-grade-detail" class="flex-1 overflow-y-auto p-4"><p class="text-gray-400 text-sm">เลือกนักเรียนทางซ้ายเพื่อตรวจ</p></div>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+      const first = subs.find(s => s.status === 'submitted' && !(s.grading_done === true || s.grading_done === 'true'));
+      if (first) _renderEssayGradeDetail(first.__backendId);
+    }
+    function _renderEssayGradeDetail(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const box = document.getElementById('essay-grade-detail');
+      if (!sub || !box) return;
+      document.querySelectorAll('.essay-grade-item').forEach(b => b.classList.toggle('bg-amber-100', b.dataset.sub === String(subId)));
+      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      const qs = _parseJsonSafe(sub.question_snapshot_json, []) || [];
+      const ans = _parseJsonSafe(sub.answers, {}) || {};
+      const prev = _parseJsonSafe(sub.score_per_question_json, {}) || {};
+      const canGrade = sub.status === 'submitted' || sub.status === 'terminated';
+      box.innerHTML = `
+        <p class="font-bold text-gray-800 mb-1">${escHtml(sub.student_name || sub.student_id)}</p>
+        <p class="text-xs text-gray-500 mb-3">🆔 ${escHtml(String(sub.student_id))} · ส่งเมื่อ ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>
+        ${!canGrade ? '<p class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-sm mb-3">นักเรียนยังไม่ได้ส่งคำตอบ — ตรวจได้หลังส่งแล้ว</p>' : ''}
+        ${qs.map((q, i) => { const qid = String(q.__backendId), max = parseFloat(q.score_per_question) || 0;
+          return `<div class="border rounded-xl p-3 mb-3">
+            <p class="font-semibold text-sm text-gray-800">ข้อ ${i + 1} <span class="text-amber-700 font-normal">(เต็ม ${max})</span></p>
+            <p class="text-sm text-gray-700 whitespace-pre-wrap mb-2">${escHtml(q.question_text || '')}</p>
+            ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mb-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
+            <div class="bg-gray-50 border rounded p-2 text-sm whitespace-pre-wrap mb-2 min-h-[48px]">${escHtml(ans[qid] || '') || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</div>
+            <p class="text-[11px] text-gray-500 mb-1">${_countWordsTh(ans[qid])} คำ${parseInt(q.min_words) ? ` / ขั้นต่ำ ${q.min_words}` : ''}</p>
+            <label class="text-sm">คะแนน: <input type="number" class="essay-q-score w-20 px-2 py-1 border-2 border-gray-200 rounded" data-qid="${escHtml(qid)}" data-max="${max}"
+              min="0" max="${max}" step="0.5" value="${prev[qid] ?? ''}" ${canGrade ? '' : 'disabled'} oninput="_sumEssayGrade()"> / ${max}</label>
+          </div>`; }).join('')}
+        <div class="sticky bottom-0 bg-white border-t pt-3 flex items-center gap-3 flex-wrap">
+          <p class="font-bold text-gray-800">รวม <span id="essay-grade-total">0</span> / ${set?.total_score ?? '-'}</p>
+          ${canGrade ? `<button onclick="saveEssayGrade('${sub.__backendId}')" id="essay-grade-save" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold btn-3d">💾 บันทึกและโอนคะแนน</button>` : ''}
+        </div>`;
+      _sumEssayGrade();
+    }
+    function _sumEssayGrade() {
+      let t = 0;
+      document.querySelectorAll('.essay-q-score').forEach(i => { t += Math.min(parseFloat(i.value) || 0, parseFloat(i.dataset.max) || 0); });
+      const el = document.getElementById('essay-grade-total'); if (el) el.textContent = Math.round(t * 100) / 100;
+    }
+    /** 💾 บันทึกคะแนนอัตนัย แล้วโอนเข้าช่อง K/P/C ด้วยกติกาเดียวกับปรนัย (เพิ่ม / ทับเฉพาะคะแนนสอบ / ใส่ใหม่) */
+    async function saveEssayGrade(subId) {
+      const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
+      const set = sub && allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
+      if (!sub || !set) { showToast('ไม่พบข้อมูล', 'error'); return; }
+      const perQ = {}; let total = 0, over = false, blank = 0;
+      document.querySelectorAll('.essay-q-score').forEach(i => {
+        const max = parseFloat(i.dataset.max) || 0;
+        if (i.value === '') blank++;
+        let v = parseFloat(i.value) || 0;
+        if (v > max) { over = true; v = max; } if (v < 0) v = 0;
+        perQ[i.dataset.qid] = v; total += v;
+      });
+      total = Math.round(total * 100) / 100;
+      if (over) showToast('บางข้อให้คะแนนเกินเต็ม ระบบปรับเป็นคะแนนเต็มของข้อนั้นให้', 'info');
+      if (blank && !confirm(`ยังไม่ได้ให้คะแนน ${blank} ข้อ (นับเป็น 0) บันทึกต่อหรือไม่?`)) return;
+      await withButtonLock(document.getElementById('essay-grade-save'), '⏳ กำลังบันทึก...', async () => {
+        const graded = { ...sub, score_per_question_json: JSON.stringify(perQ), manual_score: total, grading_done: true };
+        const r1 = await window.dataSdk.update(graded);
+        if (!r1.isOk) { showToast('บันทึกคะแนนไม่สำเร็จ: ' + (r1.error?.message || ''), 'error'); return; }
+        try {
+          await _writeExamScoreToKField(graded, set, total);   // ตัวเดียวกับปรนัย — ตรวจซ้ำก็หักคะแนนที่เคยโอนก่อน ไม่บวกซ้อน
+          await window.dataSdk.update({ ...graded, imported_to_grade: true, k_score_contributed: total });
+          showToast(`✅ บันทึก ${total}/${set.total_score} และโอนเข้า ${_essayRoundText(set)} แล้ว`);
+        } catch (e) {
+          showToast('บันทึกคะแนนแล้ว แต่โอนเข้าช่องคะแนนไม่สำเร็จ: ' + e.message, 'error');
+        }
+        // ไปคนถัดไปที่ยังรอตรวจ
+        const next = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(set.__backendId)
+          && d.status === 'submitted' && !(d.grading_done === true || d.grading_done === 'true') && String(d.__backendId) !== String(subId))[0];
+        openEssayGrading(set.__backendId);
+        if (next) _renderEssayGradeDetail(next.__backendId); else _renderEssayGradeDetail(subId);
+      });
+    }
+
     function generateExamButtonsForRegistration(reg) {
       // ทำให้ทนทานต่อความต่างของข้อมูลให้มากที่สุด: ตัดช่องว่างทุกจุด (ไม่ใช่แค่หัวท้าย) + ไม่สนตัวพิมพ์เล็กใหญ่
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
@@ -14254,6 +14794,7 @@ const supabaseDataSdk = {
     function renderRetryRequestsList() {
       const listEl = document.getElementById('rr-list');
       if (!listEl) return;
+      if (typeof _renderEssayRetryRequests === 'function') _renderEssayRetryRequests();   // ✍️ คำขอสอบแก้อัตนัย
       // 🔄 กรองไม่ให้แสดงซ้ำ: นักเรียน 1 คน ต่อชุดสอบ 1 ชุด เห็นได้แค่คำขอเดียวเท่านั้น
       // (ถ้ากดขอหลายรอบในชุดสอบเดียวกัน จะเก็บรายการล่าสุดไว้ เพราะมีเหตุผลใหม่สุด)
       const allPending = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && allData.some(es => es.type === 'exam_set' && es.__backendId === d.exam_set_id));
@@ -21583,7 +22124,7 @@ const supabaseDataSdk = {
                 <p class="text-xs text-amber-700 font-semibold mb-2">คะแนนดิบ: ${kFull}</p>
                 <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('k', reg.__backendId, grade?.k_scores, 10, kFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${kSum.toFixed(1)}/${kFull}</p>
-                <div class="mt-2 flex flex-wrap gap-2">${reg.__virtual ? '' : generateExamButtonsForRegistration(reg)}</div>
+                <div class="mt-2 flex flex-wrap gap-2">${reg.__virtual ? '' : generateExamButtonsForRegistration(reg)}${reg.__virtual ? '' : generateEssayButtonsForRegistration(reg)}</div>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
