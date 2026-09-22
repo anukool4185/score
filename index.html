@@ -2674,6 +2674,18 @@
         <p class="text-gray-500 text-sm mb-4">รายการนักเรียนที่ส่งคำตอบแล้วแต่มีข้ออัตนัยรอครูตรวจให้คะแนน</p>
         <div id="eg-list" class="space-y-3"></div>
        </div>
+       <!-- ✍️ ตรวจอัตนัยรายข้อ: ข้อเดียวกันของทั้งห้อง เรียงตามเลขที่ เทียบคำตอบกันได้ -->
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📝 ตรวจอัตนัยรายข้อ (เทียบทั้งห้อง)</h3>
+        <p class="text-gray-500 text-sm mb-4">เลือกชุดสอบและข้อ แล้วตรวจคำตอบข้อเดียวกันของทุกคนพร้อมกัน เรียงตามเลขที่</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+         <div><label class="block text-xs text-gray-600 mb-1">📋 ชุดสอบอัตนัย</label>
+          <select id="egq-set" onchange="renderEssayByQuestionPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select></div>
+         <div><label class="block text-xs text-gray-600 mb-1">❓ ข้อที่ตรวจ</label>
+          <select id="egq-question" onchange="renderEssayByQuestion()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none"></select></div>
+        </div>
+        <div id="egq-panel"></div>
+       </div>
       </div>
       <!-- 📨 คำขอสอบแก้ตัว (แยกออกมาเป็นเมนูของตัวเอง) -->
       <div id="admin-tab-retryrequest" class="hidden">
@@ -2696,7 +2708,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.137';
+    const APP_VERSION = 'SUPABASE-2026.09.08.140';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5020,6 +5032,30 @@ const supabaseDataSdk = {
     // ============================================================
     // 🔔 ระบบแจ้งเตือน: ผู้สมัครใหม่ / ผู้ลงทะเบียนใหม่
     // ============================================================
+    // ════════════════════════════════════════════════════════════
+    // 📚 ตัวตรวจสถานะการลงทะเบียน "กลาง" — ทุกหน้าใช้ตัวนี้ ผลจึงตรงกันทั้งระบบ
+    //    ⚠️ เดิมแต่ละหน้าเทียบชื่อวิชา/ชั้น/ห้อง/รหัสแบบตรงทุกตัวอักษร ต่างแค่ช่องว่าง ("คณิต" กับ "คณิต ")
+    //       หรือเลขห้อง ("1" กับ "01") ก็ขึ้นว่า "ยังไม่ลงทะเบียน" ทั้งที่นักเรียนกำหนด KPAC แล้ว
+    // ════════════════════════════════════════════════════════════
+    function _rN(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
+    function _rRoom(v) { const s = _rN(v); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s; }
+    /** สถานะการลงทะเบียนของนักเรียน: วิชาที่เปิดในห้อง / ลงแล้ว / ยังขาด */
+    function _studentRegStatus(s) {
+      const regs = allData.filter(r => r.type === 'student_registration' && s && _rN(r.student_id) === _rN(s.student_id));
+      const regSet = new Set(regs.map(r => _rN(r.subject_name)));
+      const seen = new Set();
+      const allSubjects = allData.filter(cs => cs.type === 'class_subject' && s
+          && _rN(cs.class_name) === _rN(s.class_name) && _rRoom(cs.room_number) === _rRoom(s.room_number))
+        .filter(cs => { const k = _rN(cs.subject_name); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+      const missing = allSubjects.map(cs => cs.subject_name).filter(x => !regSet.has(_rN(x)));
+      return { regs, allSubjects, missing, hasAny: regs.length > 0, isFull: allSubjects.length > 0 && missing.length === 0 };
+    }
+    /** นักเรียนคนนี้ลงทะเบียนแล้วหรือยัง (ระบุวิชา = เฉพาะวิชานั้น) */
+    function _hasRegistration(studentId, subjectName) {
+      return allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(studentId)
+        && (!subjectName || _rN(r.subject_name) === _rN(subjectName)));
+    }
+
     function computeNewApplicants() {
       const students = allData.filter(d => d.type === 'student');
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมใช้ฟิลด์ notification_acknowledged ร่วมกับกระดิ่ง "ลงทะเบียนใหม่"
@@ -5028,7 +5064,7 @@ const supabaseDataSdk = {
       // 📌 ปรับตามที่ผู้ใช้ต้องการ: ไม่มีปุ่มรับทราบแล้ว
       // ชื่อจะหายไปเองเมื่อนักเรียนลงทะเบียนเรียนจริงเท่านั้น (ตรงกับข้อความเลื่อนหน้าแรก)
       const newOnes = students.filter(s =>
-        !allData.some(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id))
+        !_hasRegistration(s.student_id)   // 📚 ตัวตรวจกลาง (ไม่สนช่องว่าง)
       );
       // เรียงตามชั้น -> ห้อง -> เลขที่
       return newOnes.sort((a, b) => {
@@ -5104,16 +5140,11 @@ const supabaseDataSdk = {
         return;
       }
       container.innerHTML = students.map(s => {
-        const regs = allData.filter(r => r.type === 'student_registration' && String(r.student_id) === String(s.student_id));
-        const hasReg = regs.length > 0;
+        // 📚 ใช้ตัวตรวจกลาง (ไม่สนช่องว่าง/เลขห้อง 01) — ผลตรงกับทุกหน้า
+        const _st = _studentRegStatus(s);
+        const regs = _st.regs, hasReg = _st.hasAny, allSubjects = _st.allSubjects;
         const dataComplete = isStudentDataComplete(s);
-        // 📚 เช็ครายวิชา ไม่ใช่แค่ว่าเคยลงทะเบียนหรือยัง
-        // เดิมลงวิชาเดียวก็ขึ้นว่า "ลงทะเบียนแล้ว" ทั้งที่ยังเหลืออีกหลายวิชา
-        const allSubjects = allData.filter(cs => cs.type === 'class_subject'
-          && cs.class_name === s.class_name && String(cs.room_number) === String(s.room_number));
-        const registeredSet = new Set(regs.map(r => r.subject_name));
-        const missingSubjects = allSubjects.map(cs => cs.subject_name).filter(x => x && !registeredSet.has(x));
-        const isFullyRegistered = allSubjects.length > 0 && missingSubjects.length === 0;
+        const missingSubjects = _st.missing, isFullyRegistered = _st.isFull;
 
         const regBadge = dataComplete
           ? `<span class="flex items-center gap-1 text-[10px] font-semibold text-green-700"><span class="w-2 h-2 rounded-full bg-green-500"></span>สมัครแล้ว</span>`
@@ -6563,7 +6594,7 @@ const supabaseDataSdk = {
             </thead>
             <tbody>
               ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 7 : 6}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
-                const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
+                const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id));
                 // ⚠️ บั๊กที่พบและแก้แล้ว: เมื่อมีคำขอซ้ำหลายรายการ ระบบเจอรายการที่ยังไม่อนุมัติก่อน
                 // จึงแสดงว่ายังรออนุมัติ ทั้งที่มีอีกรายการที่อนุมัติแล้ว
                 // แก้โดยหารายการที่อนุมัติแล้วก่อนเสมอ และหาได้ทั้งจากรหัสอ้างอิงและรหัสนักเรียน
@@ -7327,14 +7358,7 @@ const supabaseDataSdk = {
         let missingSubjects = [];
         if (student) {
           // วิชาทั้งหมดที่เปิดสอนในชั้น/ห้องของนักเรียนคนนี้
-          const allSubjects = allData.filter(cs => cs.type === 'class_subject'
-            && cs.class_name === student.class_name
-            && String(cs.room_number) === String(student.room_number));
-          // วิชาที่ลงทะเบียนไปแล้ว
-          const registered = new Set(allData
-            .filter(r => r.type === 'student_registration' && String(r.student_id) === String(student.student_id))
-            .map(r => r.subject_name));
-          missingSubjects = allSubjects.map(cs => cs.subject_name).filter(s => s && !registered.has(s));
+          missingSubjects = _studentRegStatus(student).missing;   // 📚 ตัวตรวจกลาง
         }
         if (student && missingSubjects.length > 0) {
           // 📢 ใช้ข้อความที่แอดมินตั้งไว้ (ถ้าไม่เคยตั้ง ใช้ข้อความเริ่มต้น) และเคารพการซ่อน
@@ -12956,6 +12980,153 @@ const supabaseDataSdk = {
       openEssayExam(sub.__backendId);
     }
 
+    // ════════════════════════════════════════════════════════════
+    // 📝 ตรวจอัตนัยรายข้อ: ข้อเดียวกันของทั้งห้อง เรียงตามเลขที่ (เทียบคำตอบ) — บันทึกและโอนคะแนนด้วยกติกาเดียวกับหน้าตรวจรายคน
+    // ════════════════════════════════════════════════════════════
+    function _egqHandedIn(s) { return s.status === 'submitted' || s.status === 'terminated'; }
+    function _egqStudentNo(s) {
+      return parseInt(allData.find(x => x.type === 'student' && String(x.student_id) === String(s.student_id))?.student_number) || 9999;
+    }
+    /** เติมรายการชุดสอบอัตนัย (เฉพาะชุดที่มีคนส่งแล้ว) */
+    function loadEssayByQuestionSets() {
+      const sel = document.getElementById('egq-set');
+      if (!sel) return;
+      const keep = sel.value;
+      const sets = allData.filter(d => d.type === 'essay_exam_set').map(s => {
+        const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(s.__backendId));
+        const handed = subs.filter(_egqHandedIn);
+        const waiting = handed.filter(d => !(d.grading_done === true || d.grading_done === 'true')).length;
+        return { s, handed: handed.length, waiting, total: subs.length };
+      }).filter(x => x.handed > 0)
+        .sort((a, b) => b.waiting - a.waiting || String(a.s.subject_name).localeCompare(String(b.s.subject_name), 'th'));
+      sel.innerHTML = '<option value="">-- เลือกชุดสอบ --</option>' + sets.map(x =>
+        `<option value="${x.s.__backendId}">${x.waiting ? '⏳ ' : '✅ '}${escHtml(x.s.class_name)}/${escHtml(String(x.s.room_number))} · ${escHtml(x.s.subject_name)} · ${_essayRoundText(x.s)} (ส่ง ${x.handed}/${x.total}${x.waiting ? ` · รอตรวจ ${x.waiting}` : ''})</option>`).join('');
+      if (keep && sets.some(x => String(x.s.__backendId) === keep)) sel.value = keep;
+      if (!sets.length) sel.innerHTML = '<option value="">ยังไม่มีชุดสอบอัตนัยที่มีคนส่งคำตอบ</option>';
+      renderEssayByQuestionPicker();
+    }
+    /** เติมรายการข้อ — รวมทุกข้อที่มีในกระดาษของห้องนี้ (ชุดสุ่มแต่ละคนได้ข้อต่างกัน) */
+    function renderEssayByQuestionPicker() {
+      const setId = document.getElementById('egq-set')?.value;
+      const qSel = document.getElementById('egq-question');
+      if (!qSel) return;
+      const keep = qSel.value;
+      if (!setId) { qSel.innerHTML = '<option value="">-- เลือกชุดสอบก่อน --</option>'; document.getElementById('egq-panel').innerHTML = ''; return; }
+      const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId) && _egqHandedIn(d));
+      const qmap = new Map();   // qid → { q, answered, graded }
+      subs.forEach(s => {
+        const qs = _parseJsonSafe(s.question_snapshot_json, []) || [];
+        const sc = _parseJsonSafe(s.score_per_question_json, {}) || {};
+        qs.forEach(q => {
+          const id = String(q.__backendId);
+          if (!qmap.has(id)) qmap.set(id, { q, count: 0, graded: 0 });
+          const m = qmap.get(id); m.count++; if (sc[id] !== undefined && sc[id] !== '') m.graded++;
+        });
+      });
+      const list = [...qmap.entries()];
+      qSel.innerHTML = list.map(([id, m], i) =>
+        `<option value="${escHtml(id)}">${m.graded < m.count ? '⏳' : '✅'} ข้อ ${i + 1}: ${escHtml(String(m.q.question_text || '').slice(0, 40))}${String(m.q.question_text || '').length > 40 ? '…' : ''} (ตรวจแล้ว ${m.graded}/${m.count})</option>`).join('')
+        || '<option value="">ไม่พบข้อสอบ</option>';
+      if (keep && qmap.has(keep)) qSel.value = keep;
+      else { const firstTodo = list.find(([, m]) => m.graded < m.count); if (firstTodo) qSel.value = firstTodo[0]; }
+      renderEssayByQuestion();
+    }
+    /** ตารางคำตอบข้อเดียวกันของทั้งห้อง — แถวสลับสี เรียงตามเลขที่ */
+    function renderEssayByQuestion() {
+      const panel = document.getElementById('egq-panel');
+      const setId = document.getElementById('egq-set')?.value, qid = document.getElementById('egq-question')?.value;
+      if (!panel) return;
+      if (!setId || !qid) { panel.innerHTML = ''; return; }
+      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
+      const rows = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(setId) && _egqHandedIn(d))
+        .map(s => ({ s, q: (_parseJsonSafe(s.question_snapshot_json, []) || []).find(q => String(q.__backendId) === String(qid)) }))
+        .filter(r => r.q)
+        .sort((a, b) => _egqStudentNo(a.s) - _egqStudentNo(b.s));
+      if (!rows.length) { panel.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีคำตอบของข้อนี้</p>'; return; }
+      const q = rows[0].q, max = parseFloat(q.score_per_question) || 0;
+      const palette = [['#fffbeb', '#fde68a'], ['#eff6ff', '#bfdbfe']];   // แถวสลับสี เหลือง / ฟ้า
+      panel.innerHTML = `
+        <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 mb-3">
+          <p class="text-sm font-bold text-gray-800">โจทย์ <span class="font-normal text-amber-700">(เต็ม ${max} คะแนน${parseInt(q.min_words) ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''})</span></p>
+          <p class="text-sm text-gray-700 whitespace-pre-wrap">${escHtml(q.question_text || '')}</p>
+          ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mt-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
+        </div>
+        <div class="flex items-center gap-2 mb-2 flex-wrap text-xs">
+          <span class="text-gray-600">ให้คะแนนเร็ว:</span>
+          <button onclick="_egqFillBlank(${max})" class="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded">เต็มทุกคนที่ยังว่าง</button>
+          <button onclick="_egqFillBlank(0)" class="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">0 คนที่ไม่ได้ตอบ</button>
+          <span class="ml-auto text-gray-500">${rows.length} คน</span>
+        </div>
+        <div class="rounded-xl overflow-hidden border-2 border-gray-200">
+          <div class="grid text-xs font-bold text-white bg-slate-700" style="grid-template-columns:64px 1fr 110px">
+            <div class="p-2 text-center">เลขที่</div><div class="p-2">นักเรียน / คำตอบ</div><div class="p-2 text-center">คะแนน / ${max}</div>
+          </div>
+          ${rows.map((r, i) => {
+            const s = r.s, [bg, bd] = palette[i % 2];
+            const ans = String((_parseJsonSafe(s.answers, {}) || {})[qid] || '');
+            const prev = (_parseJsonSafe(s.score_per_question_json, {}) || {})[qid];
+            const wc = _countWordsTh(ans), minW = parseInt(q.min_words) || 0;
+            const flag = (parseInt(s.cheat_warning_count) || 0) > 1 ? ' <span title="พบพฤติกรรมเสี่ยง">🚩</span>' : '';
+            const no = _egqStudentNo(s);
+            return `<div class="grid" style="grid-template-columns:64px 1fr 110px;background:${bg};border-top:1px solid ${bd}">
+              <div class="p-2 text-center font-bold text-gray-700">${no === 9999 ? '-' : no}</div>
+              <div class="p-2">
+                <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}</p>
+                <p class="text-sm text-gray-800 whitespace-pre-wrap mt-1">${escHtml(ans) || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</p>
+                <p class="text-[10px] mt-1 ${minW && wc < minW ? 'text-red-600' : 'text-gray-500'}">${wc} คำ${minW ? ` / ขั้นต่ำ ${minW}` : ''}</p>
+              </div>
+              <div class="p-2 flex items-start justify-center">
+                <input type="number" class="egq-score w-20 px-2 py-1 border-2 rounded text-center font-bold" style="border-color:${bd}"
+                  data-sub="${s.__backendId}" data-max="${max}" data-empty="${ans.trim() ? '0' : '1'}" min="0" max="${max}" step="0.5" value="${prev ?? ''}">
+              </div></div>`;
+          }).join('')}
+        </div>
+        <button onclick="saveEssayByQuestion()" id="egq-save" class="w-full mt-3 px-5 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold btn-3d">💾 บันทึกคะแนนข้อนี้ของทุกคน</button>
+        <p class="text-[11px] text-gray-500 mt-1 text-center">นักเรียนที่ได้คะแนนครบทุกข้อแล้ว ระบบโอนคะแนนรวมเข้าช่อง ${set ? _essayRoundText(set) : ''} ให้อัตโนมัติ</p>`;
+    }
+    function _egqFillBlank(v) {
+      document.querySelectorAll('.egq-score').forEach(i => {
+        if (i.value !== '') return;
+        if (v === 0 ? i.dataset.empty === '1' : true) i.value = v;
+      });
+    }
+    /** 💾 บันทึกคะแนนข้อนี้ทุกคน → ใครครบทุกข้อแล้ว รวมคะแนนและโอนเข้าช่องคะแนน (ตัวเดียวกับหน้าตรวจรายคน) */
+    async function saveEssayByQuestion() {
+      const setId = document.getElementById('egq-set')?.value, qid = document.getElementById('egq-question')?.value;
+      const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
+      if (!set || !qid) return;
+      const inputs = [...document.querySelectorAll('.egq-score')].filter(i => i.value !== '');
+      if (!inputs.length) { showToast('ยังไม่ได้ให้คะแนนใครเลย', 'error'); return; }
+      await withButtonLock(document.getElementById('egq-save'), '⏳ กำลังบันทึก...', async () => {
+        let saved = 0, transferred = 0, fail = 0;
+        for (const inp of inputs) {
+          const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(inp.dataset.sub));
+          if (!sub) continue;
+          const max = parseFloat(inp.dataset.max) || 0;
+          const v = Math.max(0, Math.min(parseFloat(inp.value) || 0, max));
+          const perQ = { ...(_parseJsonSafe(sub.score_per_question_json, {}) || {}), [qid]: v };
+          const qs = _parseJsonSafe(sub.question_snapshot_json, []) || [];
+          const complete = qs.length > 0 && qs.every(q => perQ[String(q.__backendId)] !== undefined && perQ[String(q.__backendId)] !== '');
+          const total = Math.round(qs.reduce((t, q) => t + (parseFloat(perQ[String(q.__backendId)]) || 0), 0) * 100) / 100;
+          const upd = { ...sub, score_per_question_json: JSON.stringify(perQ), manual_score: total, grading_done: complete };
+          const r = await window.dataSdk.update(upd);
+          if (!r.isOk) { fail++; continue; }
+          saved++;
+          if (complete) {
+            try {
+              await _writeExamScoreToKField(upd, set, total);   // เพิ่ม / ทับเฉพาะคะแนนสอบ / ตรวจซ้ำไม่บวกซ้อน
+              await window.dataSdk.update({ ...upd, imported_to_grade: true, k_score_contributed: total });
+              transferred++;
+            } catch (e) { console.log('[EssayByQ] โอนคะแนนไม่สำเร็จ:', e.message); }
+          }
+        }
+        showToast(`✅ บันทึก ${saved} คน${transferred ? ` · ครบทุกข้อและโอนคะแนนแล้ว ${transferred} คน` : ''}${fail ? ` · ไม่สำเร็จ ${fail} คน` : ''}`, fail ? 'error' : undefined);
+        // ไปข้อถัดไปที่ยังตรวจไม่ครบ (ล้างข้อที่เลือกไว้ ให้ระบบเลือกข้อแรกที่ยังตรวจไม่ครบ)
+        const _qs = document.getElementById('egq-question'); if (_qs) _qs.value = '';
+        loadEssayByQuestionSets();
+      });
+    }
+
     // ═══ 📝 ครูตรวจอัตนัย ═══
     function openEssayGrading(setId) {
       const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(setId));
@@ -15229,6 +15400,7 @@ const supabaseDataSdk = {
     // ✍️ ตรวจข้ออัตนัย (Manual Grading for Written Answers)
     // ============================================================
     function loadExamGradingTab() {
+      if (typeof loadEssayByQuestionSets === 'function') setTimeout(loadEssayByQuestionSets, 0);   // 📝 ตรวจอัตนัยรายข้อ
       renderExamGradingList();
       // 📨 ย้ายคำขอสอบแก้ตัวไปเป็นเมนูแยกของตัวเองแล้ว (แท็บ retryrequest) ไม่ต้องโหลดที่นี่
     }
@@ -17743,7 +17915,7 @@ const supabaseDataSdk = {
         return;
       }
       container.innerHTML = students.map(s => {
-        const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id);
+        const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id));
         const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
         // ⚠️ บั๊กที่พบและแก้แล้ว: เทียบรหัสแบบเข้มงวด ซึ่งล้มเหลวถ้าชนิดข้อมูลไม่ตรงกัน
         // (Supabase ส่งรหัสมาเป็นตัวเลข แต่ระบบเก็บเป็นข้อความ) ทำให้หาผู้ช่วยแอดมินไม่เจอ
@@ -17931,7 +18103,7 @@ const supabaseDataSdk = {
       // ⚠️ ปรับให้ตรงกับพฤติกรรมจริงของตารางหลัก (renderNoEnrollTable) ซึ่งไม่มีการกรองตามชั้น/ห้องเลย (dropdown ที่เคยคาดว่ามีไม่เคยมีอยู่จริงในหน้า)
       // ฟังก์ชันนี้ใช้สำหรับส่งออก Excel/PDF เท่านั้น จึงควรแสดงรายการเดียวกับที่เห็นในตารางเป๊ะ (นักเรียนที่ยังไม่ลงทะเบียนทั้งหมด เรียงลำดับให้อ่านง่าย)
       return allData.filter(s => s.type === 'student' &&
-        !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id)
+        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id))
       ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
     }
 
@@ -17946,7 +18118,7 @@ const supabaseDataSdk = {
         noenrollSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
       }
       const allNoEnroll = allData.filter(s => s.type === 'student' &&
-        !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id));
+        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id)));
       // Build multi class/room checkboxes
       const classRoomMap = {};
       allNoEnroll.forEach(s => {
@@ -18417,7 +18589,7 @@ const supabaseDataSdk = {
         const inSystem = !!allData.find(s => s.type === 'student' && s.student_id === r.student_id);
         if (freg === 'yes' && !inSystem) return false;
         if (freg === 'no' && inSystem) return false;
-        const hasReg = inSystem && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        const hasReg = inSystem && allData.some(s => s.type === 'student_registration' && _rN(s.student_id) === _rN(r.student_id));
         if (fenroll === 'yes' && !hasReg) return false;
         if (fenroll === 'no' && hasReg) return false;
         return true;
@@ -18453,7 +18625,7 @@ const supabaseDataSdk = {
       if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-6">ไม่พบข้อมูล</td></tr>'; return; }
       tbody.innerHTML = list.map((r, idx) => {
         const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
-        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && _rN(s.student_id) === _rN(r.student_id));
         const regBadge = student
           ? '<span class="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full">✅ สมัครแล้ว</span>'
           : '<span class="text-xs font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full">🔴 ยังไม่สมัคร</span>';
@@ -18609,7 +18781,7 @@ const supabaseDataSdk = {
       const headers = ['เลขที่', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'รหัสนักเรียน', 'ชั้น', 'ห้อง', 'เบอร์โทร', 'สถานะสมัคร', 'สถานะลงทะเบียน'];
       const rows = list.map(r => {
         const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
-        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && _rN(s.student_id) === _rN(r.student_id));
         return [r.student_number||'', r.prefix||'', r.first_name||'', r.last_name||'', r.student_id||'', r.class_name||'', r.room_number||'', r.phone_number||'', student ? 'สมัครแล้ว' : 'ยังไม่สมัคร', hasReg ? 'ลงทะเบียนแล้ว' : 'ยังไม่ลงทะเบียน'];
       });
       const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -18622,7 +18794,7 @@ const supabaseDataSdk = {
       const list = getImportFiltered();
       const rows = list.map(r => {
         const student = allData.find(s => s.type === 'student' && s.student_id === r.student_id);
-        const hasReg = student && allData.some(s => s.type === 'student_registration' && s.student_id === r.student_id);
+        const hasReg = student && allData.some(s => s.type === 'student_registration' && _rN(s.student_id) === _rN(r.student_id));
         return `<tr><td>${r.student_number||'-'}</td><td>${r.prefix||''}${r.first_name||''} ${r.last_name||''}</td><td>${r.student_id||'-'}</td><td>${r.class_name||'-'}/${r.room_number||'-'}</td><td>${r.phone_number||'-'}</td><td style="color:${student?'green':'red'}">${student?'✅ สมัครแล้ว':'🔴 ยังไม่สมัคร'}</td><td style="color:${hasReg?'green':'red'}">${hasReg?'✅ ลงทะเบียนแล้ว':'🔴 ยังไม่ลงทะเบียน'}</td></tr>`;
       }).join('');
       printHtml('รายชื่อนักเรียน', `<h2>📋 รายชื่อนักเรียน</h2><table style="width:100%;border-collapse:collapse"><thead><tr><th>เลขที่</th><th>ชื่อ-นามสกุล</th><th>รหัส</th><th>ชั้น/ห้อง</th><th>เบอร์โทร</th><th>สถานะสมัคร</th><th>สถานะลงทะเบียน</th></tr></thead><tbody>${rows}</tbody></table>`);
@@ -18665,13 +18837,13 @@ const supabaseDataSdk = {
       students = students.sort((a, b) => (a.class_name||'').localeCompare(b.class_name||'') || (a.room_number||'').localeCompare(b.room_number||'') || (parseFloat(a.student_number)||0) - (parseFloat(b.student_number)||0));
       if (fstatus !== 'all') {
         students = students.filter(s => {
-          const hasReg = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id && (!fsub || r.subject_name === fsub));
+          const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)));
           return fstatus === 'not_reg' ? !hasReg : hasReg;
         });
       }
       if (students.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">ไม่พบนักเรียน</td></tr>'; return; }
       tbody.innerHTML = students.map(s => {
-        const hasReg = allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id && (!fsub || r.subject_name === fsub));
+        const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)));
         const badge = hasReg
           ? '<span class="text-green-600 text-xs">✅ ลงทะเบียนแล้ว</span>'
           : '<span class="text-red-600 text-xs">🔴 ยังไม่ลงทะเบียน</span>';
@@ -20820,14 +20992,18 @@ const supabaseDataSdk = {
 
     /** หานักเรียนในชั้น/ห้องที่ยังไม่ลงทะเบียนวิชานี้ (เฉพาะวิชาที่เปิดสอนในห้องนั้นจริง) */
     function _getUnregisteredStudents(className, roomNumber, subjectName) {
-      const opened = allData.some(d => d.type === 'class_subject' && d.class_name === className
-        && String(d.room_number) === String(roomNumber) && d.subject_name === subjectName);
+      // ⚠️ บั๊กที่แก้แล้ว: เดิมนับว่า "ลงทะเบียนแล้ว" เฉพาะเมื่อชั้น/ห้อง/วิชาในการลงทะเบียน ตรงกับรายชื่อนักเรียนทุกตัวอักษร
+      //    ต่างกันแค่ช่องว่าง ("ม.6" กับ "ม.6 ") หรือเลขห้อง ("1" กับ "01") ก็ขึ้นว่ายังไม่ลงทะเบียน ทั้งที่ลงแล้ว
+      //    ตอนนี้: มีการลงทะเบียน "วิชานี้" ด้วยรหัสนักเรียนนี้ = ลงทะเบียนแล้ว (ไม่สนช่องว่าง และไม่สนว่าบันทึกไว้ห้องไหน)
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const R = v => { const s = N(v); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s; };   // ห้อง "01" = "1"
+      const opened = allData.some(d => (d.type === 'class_subject' || d.type === 'student_registration')
+        && N(d.class_name) === N(className) && R(d.room_number) === R(roomNumber) && N(d.subject_name) === N(subjectName));
       if (!opened) return [];
-      const registered = new Set(allData.filter(r => r.type === 'student_registration'
-        && r.class_name === className && String(r.room_number) === String(roomNumber)
-        && r.subject_name === subjectName).map(r => String(r.student_id)));
-      return allData.filter(s => s.type === 'student' && s.class_name === className
-        && String(s.room_number) === String(roomNumber) && !registered.has(String(s.student_id)));
+      const registered = new Set(allData.filter(r => r.type === 'student_registration' && N(r.subject_name) === N(subjectName))
+        .map(r => N(r.student_id)));
+      return allData.filter(s => s.type === 'student' && N(s.class_name) === N(className)
+        && R(s.room_number) === R(roomNumber) && s.student_id && !registered.has(N(s.student_id)));
     }
 
     /** สร้างการลงทะเบียนเสมือน (ยังไม่มีในฐานข้อมูล) เพื่อให้หน้าให้คะแนนใช้งานได้เหมือนทุกคน */
@@ -22400,11 +22576,12 @@ const supabaseDataSdk = {
     /** 📋 หาวิชาที่ครูกรอกคะแนนเก็บไว้ชั่วคราว แต่นักเรียนยังไม่ลงทะเบียน */
     function _getTempScoreRegs(student) {
       if (!student) return [];
+      const _N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const regSubjects = new Set(allData.filter(r => r.type === 'student_registration'
-        && String(r.student_id) === String(student.student_id)).map(r => r.subject_name));
+        && _N(r.student_id) === _N(student.student_id)).map(r => _N(r.subject_name)));
       const seen = new Set();
       return allData.filter(g => g.type === 'grade' && String(g.student_id) === String(student.student_id)
-          && g.subject_name && !regSubjects.has(g.subject_name))
+          && g.subject_name && !regSubjects.has(_N(g.subject_name)))
         .filter(g => { if (seen.has(g.subject_name)) return false; seen.add(g.subject_name); return true; })
         .map(g => _makeVirtualReg(student, g.subject_name));
     }
@@ -25897,12 +26074,13 @@ const supabaseDataSdk = {
     var c = document.getElementById('m-content');
     var _sid2 = (typeof _getEffectiveStudentIdForNotifications === 'function') ? _getEffectiveStudentIdForNotifications() : currentUser?.student_id;
     // 🔒 แสดงเฉพาะวิชาที่ลงทะเบียนแล้ว — คะแนนที่ครูกรอกเก็บรอไว้ (ยังไม่ลงทะเบียน) นักเรียนยังดูไม่ได้
-    var _myRegSubjects = new Set((allData||[]).filter(r=>r.type==='student_registration'&&String(r.student_id)===String(_sid2)).map(r=>r.subject_name));
+    var _mN = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();   // ไม่สนช่องว่าง (เหมือนฝั่งคอม)
+    var _myRegSubjects = new Set((allData||[]).filter(r=>r.type==='student_registration'&&_mN(r.student_id)===_mN(_sid2)).map(r=>_mN(r.subject_name)));
     var grades = (allData||[]).filter(d=>d.type==='grade'&&String(d.student_id)===String(_sid2));
-    var _hasTemp = grades.some(g => !_myRegSubjects.has(g.subject_name));
+    var _hasTemp = grades.some(g => !_myRegSubjects.has(_mN(g.subject_name)));
     if (_hasTemp) setTimeout(showUnregisteredScoresPopup, 300);
     c.innerHTML = `<h2 style="font-size:14px;font-weight:700;color:#1e3a5f;margin:0 0 12px">📊 คะแนนของฉัน</h2>
-      ${grades.length ? grades.map(g=>{ var _t = !_myRegSubjects.has(g.subject_name); var _h = `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
+      ${grades.length ? grades.map(g=>{ var _t = !_myRegSubjects.has(_mN(g.subject_name)); var _h = `<div style="background:white;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:8px">
         <p style="font-size:13px;font-weight:600;color:#1e3a5f;margin:0">${g.subject_name||'วิชา'}</p>
         <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
           ${g.m_scores?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:999px">กลางภาค: ${g.m_scores}</span>`:''}
@@ -26129,7 +26307,7 @@ const supabaseDataSdk = {
     document.getElementById('m-noenroll-overlay')?.remove();
     const subjects = [...new Set((allData||[]).filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
     const list = (allData||[]).filter(s => s.type === 'student' &&
-      !allData.some(r => r.type === 'student_registration' && r.student_id === s.student_id)
+      !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id))
     ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
 
     const overlay = document.createElement('div');
@@ -26390,12 +26568,8 @@ const supabaseDataSdk = {
     var regs = (allData||[]).filter(d=>d.type==='student_registration');
     result.innerHTML = found.slice(0,5).map(s=>{
       // 📚 เช็ครายวิชา ไม่ใช่แค่ว่าเคยลงทะเบียนหรือยัง (ให้ตรงกับฝั่งคอม)
-      var myRegs = regs.filter(r=>String(r.student_id)===String(s.student_id));
-      var allSubjects = (allData||[]).filter(cs=>cs.type==='class_subject'
-        && cs.class_name===s.class_name && String(cs.room_number)===String(s.room_number));
-      var registeredSet = new Set(myRegs.map(r=>r.subject_name));
-      var missing = allSubjects.map(cs=>cs.subject_name).filter(x=>x && !registeredSet.has(x));
-      var isFull = allSubjects.length > 0 && missing.length === 0;
+      var _st = _studentRegStatus(s);   // 📚 ตัวตรวจกลาง
+      var myRegs = _st.regs, allSubjects = _st.allSubjects, missing = _st.missing, isFull = _st.isFull;
 
       // กล่องที่ 1: สถานะการสมัคร (เจอในระบบ = สมัครแล้วเสมอ)
       var signupBox = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px;margin-top:6px">' +
