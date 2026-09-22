@@ -2711,7 +2711,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.142';
+    const APP_VERSION = 'SUPABASE-2026.09.08.143';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6124,9 +6124,33 @@ const supabaseDataSdk = {
       });
     }
 
+    /** ⏰ ทางสำรองในเว็บ: ปิดกระดาษอัตนัยที่หมดเวลา (เผื่อฐานข้อมูลยังไม่ได้ตั้งเวลาทำงาน) — ผ่อนผัน 1 นาที */
+    async function _autoCloseExpiredEssays() {
+      if (!currentUser || currentUser.user_type !== 'admin') return;
+      if (window._essayAutoCloseAt && Date.now() - window._essayAutoCloseAt < 60000) return;
+      window._essayAutoCloseAt = Date.now();
+      const now = Date.now();
+      const due = allData.filter(d => d.type === 'essay_submission' && d.status === 'in_progress').map(s => {
+        const set = allData.find(e => e.type === 'essay_exam_set' && String(e.__backendId) === String(s.essay_exam_set_id));
+        if (!set) return null;
+        let end = set.end_time ? new Date(set.end_time) : null;
+        if (s.is_retry_attempt === true || s.is_retry_attempt === 'true') {
+          const w = typeof _essayRetryWindow === 'function' ? _essayRetryWindow(set, s) : null;
+          if (w && w.end) end = w.end;
+        }
+        return end && now - end.getTime() > 60000 ? { s, end } : null;
+      }).filter(Boolean);
+      for (const { s, end } of due) {
+        await window.dataSdk.update({ ...s, status: 'submitted', submitted_at: end.toISOString(), auto_closed: true,
+          frozen: false, grading_done: false, imported_to_grade: false }).catch(() => {});
+      }
+      if (due.length) console.log(`[EssayAutoClose] ปิดกระดาษที่หมดเวลา ${due.length} ใบ`);
+    }
+
     function _runLiveViews() {
       if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
       try { _updateSidebarBadges(); } catch (e) { /* ไม่ร้ายแรง */ }   // 🔢 ตัวเลขหลังเมนูอัปเดตสด
+      _autoCloseExpiredEssays().catch(() => {});   // ⏰ ปิดกระดาษอัตนัยที่หมดเวลา
       try { _updateMenuBadges(); } catch (e) { /* ไม่กระทบส่วนอื่น */ }
       // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
       if (currentUser.user_type === 'admin') {
@@ -12402,7 +12426,7 @@ const supabaseDataSdk = {
         }
         const attempt = used > 0 ? ` สอบแก้ครั้งที่ ${used}` : '';
         let info = '';
-        if (!graded) info = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt}${attempt} ส่งแล้ว รอครูตรวจ</span>`;
+        if (!graded) info = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt}${attempt} ${(sub.auto_closed === true || sub.auto_closed === 'true') ? 'หมดเวลา ระบบส่งให้แล้ว' : 'ส่งแล้ว'} รอครูตรวจ</span>`;
         else if (window._justSubmittedIds && window._justSubmittedIds.has(String(sub.__backendId)))   // ตรวจแล้ว: แสดงเฉพาะตอนเพิ่งส่ง (หลักเดียวกับปรนัย)
           info = `<span style="${spanBase};background:#dcfce7;color:#15803d">✅ ${rt}${attempt} ตรวจแล้ว (${sub.manual_score ?? '-'}/${set.total_score})</span>`;
         const action = _essayRetryAction(set, sub, rt, btnBase, spanBase);
@@ -12453,7 +12477,7 @@ const supabaseDataSdk = {
       wrap.innerHTML = `
         <div style="position:sticky;top:0;z-index:2;background:#b45309;color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
           <div><p style="margin:0;font-weight:700">✍️ ${escHtml(set.subject_name)} · ${_essayRoundText(set)} อัตนัย</p>
-               <p style="margin:0;font-size:11px;opacity:.9">${questions.length} ข้อ · คะแนนเต็ม ${set.total_score} · บันทึกคำตอบอัตโนมัติ <span id="essay-save-state">✓</span></p></div>
+               <p style="margin:0;font-size:11px;opacity:.9">${questions.length} ข้อ · คะแนนเต็ม ${set.total_score} · บันทึกคำตอบอัตโนมัติทุก 30 วินาที <span id="essay-save-state">✓</span></p></div>
           <div style="font-weight:700;font-size:18px" id="essay-timer">--:--</div>
         </div>
         <div style="max-width:820px;margin:0 auto;padding:16px">
@@ -12492,8 +12516,9 @@ const supabaseDataSdk = {
       window._essayCur.dirty = true;
       _updateEssayWordCount(t);
       const st = document.getElementById('essay-save-state'); if (st) st.textContent = '…';
-      clearTimeout(_essaySaveTimer);
-      _essaySaveTimer = setTimeout(_flushEssayAnswers, 2500);   // รวมการพิมพ์แล้วบันทึกทีเดียว ลดภาระเซิร์ฟเวอร์
+      // 💾 บันทึกทุก 30 วินาทีขณะพิมพ์ (ลดภาระระบบ — เดิมบันทึกทุกครั้งที่หยุดพิมพ์ 2.5 วินาที)
+      //    และบันทึกทันทีเมื่อสลับแอป / ปิดหน้า / ถูกหยุดหน้าจอ (จังหวะที่คำตอบเสี่ยงหายที่สุด)
+      if (!_essaySaveTimer) _essaySaveTimer = setTimeout(() => { _essaySaveTimer = null; _flushEssayAnswers(); }, 30000);
     }
     async function _flushEssayAnswers() {
       const cur = window._essayCur;
@@ -12508,6 +12533,7 @@ const supabaseDataSdk = {
       return true;
     }
     document.addEventListener('visibilitychange', () => { if (document.hidden && window._essayCur) _flushEssayAnswers(); });
+    window.addEventListener('pagehide', () => { if (window._essayCur) _flushEssayAnswers(); });   // ปิดหน้า/ออกจากหน้า
     let _essayTimerId = null;
     function _startEssayTimer(set) {
       clearInterval(_essayTimerId);
@@ -12539,7 +12565,7 @@ const supabaseDataSdk = {
       }
       const btn = document.getElementById('essay-submit-btn');
       const doSubmit = async () => {
-        clearTimeout(_essaySaveTimer);
+        clearTimeout(_essaySaveTimer); _essaySaveTimer = null;
         const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
         if (!sub) { showToast('ไม่พบกระดาษคำตอบ', 'error'); return; }
         const r = await window.dataSdk.update({ ...sub, answers: JSON.stringify(cur.answers), status: 'submitted',
@@ -12762,7 +12788,7 @@ const supabaseDataSdk = {
       if (!sub) return;
       if (sub.status === 'terminated') {
         // ⛔ ครูยุติการสอบ — ปิดหน้าเขียนตอบ คำตอบที่เขียนไว้ครูยังตรวจให้คะแนนได้
-        clearInterval(_essayTimerId); clearTimeout(_essaySaveTimer);
+        clearInterval(_essayTimerId); clearTimeout(_essaySaveTimer); _essaySaveTimer = null;
         _stopEssayGuard(); _hideEssayFreeze();
         window._essayCur = null;
         document.getElementById('essay-taking-overlay')?.remove();
@@ -13112,7 +13138,7 @@ const supabaseDataSdk = {
             return `<div class="grid" style="grid-template-columns:56px 1fr 128px;background:${bg};border-top:1px solid ${bd}">
               <div class="p-2 text-center font-bold text-gray-700">${no === 9999 ? '-' : no}</div>
               <div class="p-2">
-                <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}${_egqIsDone(s) ? ' <span class="text-green-700">(บันทึกแล้ว)</span>' : ''}</p>
+                <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}${(s.auto_closed === true || s.auto_closed === 'true') ? ' <span class="text-amber-700">(⏰ หมดเวลา ระบบส่งให้)</span>' : ''}${_egqIsDone(s) ? ' <span class="text-green-700">(บันทึกแล้ว)</span>' : ''}</p>
                 <p class="text-sm text-gray-800 whitespace-pre-wrap mt-1">${escHtml(ans) || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</p>
                 <p class="text-[10px] mt-1 ${minW && wc < minW ? 'text-red-600' : 'text-gray-500'}">${wc} คำ${minW ? ` / ขั้นต่ำ ${minW}` : ''}</p>
               </div>
@@ -13188,6 +13214,8 @@ const supabaseDataSdk = {
       const num = s => parseInt(allData.find(x => x.type === 'student' && String(x.student_id) === String(s.student_id))?.student_number) || 9999;
       subs.sort((a, b) => num(a) - num(b));
       const badge = s => {
+        if ((s.status === 'submitted' || s.status === 'terminated') && (s.auto_closed === true || s.auto_closed === 'true') && !(s.grading_done === true || s.grading_done === 'true'))
+          return '<span class="text-amber-700 font-semibold">⏰ หมดเวลา ระบบส่งให้ · รอตรวจ</span>';
         if (s.status === 'submitted' || s.status === 'terminated') return (s.grading_done === true || s.grading_done === 'true')
           ? `<span class="text-green-700">✅ ตรวจแล้ว ${s.manual_score ?? 0}/${set.total_score}</span>` : '<span class="text-amber-700 font-semibold">⏳ รอตรวจ</span>';
         if (s.status === 'in_progress') return (s.frozen === true || s.frozen === 'true') ? '<span class="text-red-600 font-bold">⏸️ รอครูตัดสิน</span>' : '<span class="text-blue-600">✏️ กำลังทำ</span>';
@@ -13227,7 +13255,7 @@ const supabaseDataSdk = {
       const canGrade = sub.status === 'submitted' || sub.status === 'terminated';
       box.innerHTML = `
         <p class="font-bold text-gray-800 mb-1">${escHtml(sub.student_name || sub.student_id)}</p>
-        <p class="text-xs text-gray-500 mb-3">🆔 ${escHtml(String(sub.student_id))} · ส่งเมื่อ ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>
+        <p class="text-xs text-gray-500 mb-3">🆔 ${escHtml(String(sub.student_id))} · ส่งเมื่อ ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleString('th-TH', { hour12: false }) : '-'}${(sub.auto_closed === true || sub.auto_closed === 'true') ? ' · <b class="text-amber-700">⏰ หมดเวลา ระบบส่งให้ (ข้อที่ไม่ได้ตอบให้ 0)</b>' : ''}</p>
         ${_essayFrozenBoxHtml(sub)}
         ${_essayMonitorSummaryHtml(sub)}
         ${!canGrade ? '<p class="text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-sm mb-3">นักเรียนยังไม่ได้ส่งคำตอบ — ตรวจได้หลังส่งแล้ว</p>' : ''}
@@ -13239,7 +13267,7 @@ const supabaseDataSdk = {
             <div class="bg-gray-50 border rounded p-2 text-sm whitespace-pre-wrap mb-2 min-h-[48px]">${escHtml(ans[qid] || '') || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</div>
             <p class="text-[11px] text-gray-500 mb-1">${_countWordsTh(ans[qid])} คำ${parseInt(q.min_words) ? ` / ขั้นต่ำ ${q.min_words}` : ''}</p>
             <label class="text-sm">คะแนน: <input type="number" class="essay-q-score w-20 px-2 py-1 border-2 border-gray-200 rounded" data-qid="${escHtml(qid)}" data-max="${max}"
-              min="0" max="${max}" step="0.5" value="${prev[qid] ?? ''}" ${canGrade ? '' : 'disabled'} oninput="_sumEssayGrade()"> / ${max}</label>
+              min="0" max="${max}" step="0.5" value="${prev[qid] ?? (String(ans[qid] || '').trim() ? '' : (canGrade ? 0 : ''))}" ${canGrade ? '' : 'disabled'} oninput="_sumEssayGrade()"> / ${max}</label>
           </div>`; }).join('')}
         <div class="sticky bottom-0 bg-white border-t pt-3 flex items-center gap-3 flex-wrap">
           <p class="font-bold text-gray-800">รวม <span id="essay-grade-total">0</span> / ${set?.total_score ?? '-'}</p>
