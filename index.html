@@ -591,9 +591,12 @@
     body:not(.is-mobile) #subadmin-tab-buttons,
     body:not(.is-mobile) #director-tab-buttons { display: none !important; }
     body.is-mobile #desktop-sidebar { display: none !important; }
-    #desktop-sidebar .sb-btn { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: transparent; color: #cbd5e1; border: none; font-size: 13px; text-align: left; cursor: pointer; width: 100%; transition: background 0.15s; }
+    #desktop-sidebar::-webkit-scrollbar { display: none; }   /* เลื่อนได้แต่ไม่แสดงแถบเลื่อน */
+    #desktop-sidebar .sb-badge { margin-left: auto; min-width: 18px; padding: 0 6px; border-radius: 9px; background: #dc2626; color: white; font-size: 10.5px; font-weight: 700; line-height: 17px; text-align: center; }
+    #desktop-sidebar .sb-btn { display: flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; background: transparent; color: #cbd5e1; border: none; font-size: 12px; line-height: 1.25; text-align: left; cursor: pointer; width: 100%; transition: background 0.15s; }
     #desktop-sidebar .sb-btn:hover { background: rgba(255,255,255,0.08); color: white; }
-    #desktop-sidebar .sb-section { font-size: 11px; color: #64748b; font-weight: 700; padding: 12px 12px 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    #desktop-sidebar .menu-badge { margin-left: auto; min-width: 18px; padding: 0 6px; border-radius: 999px; background: #dc2626; color: white; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+    #desktop-sidebar .sb-section { font-size: 10px; color: #64748b; font-weight: 700; padding: 6px 8px 1px; text-transform: uppercase; letter-spacing: 0.05em; }
     #desktop-sidebar .sb-section:first-child { padding-top: 4px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" type="text/javascript"></script>
@@ -1029,8 +1032,8 @@
     </nav>
     <!-- 📌 เมนูด้านข้าง: ติดใต้แถบสีฟ้าพอดี เห็นครบทุกเมนูถึงอันล่างสุด
          ไม่มีสกรอลบาร์ของตัวเอง — ถ้าเมนูยาวเกินจอ เลื่อนหน้าเพจเพื่อดูได้ -->
-    <nav id="desktop-sidebar" class="hidden absolute left-0 w-56 bg-slate-800 text-white z-40 pt-2 pb-4">
-     <div id="sidebar-content" class="flex flex-col gap-1 px-2"></div>
+    <nav id="desktop-sidebar" class="hidden fixed left-0 bottom-0 w-56 bg-slate-800 text-white z-40 pt-1 pb-3" style="overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none">
+     <div id="sidebar-content" class="flex flex-col gap-0 px-2"></div>
     </nav>
     <div id="toast-container" class="fixed top-20 right-4 z-50 space-y-2"></div>
     <div id="page-home" class="page p-4 md:p-8 flex flex-col">
@@ -2693,7 +2696,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.136';
+    const APP_VERSION = 'SUPABASE-2026.09.08.137';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5837,12 +5840,13 @@ const supabaseDataSdk = {
             if (item.section) html += sectionHtml(item.section);
             lastSection = item.section || null;
           }
-          html += btn(item.icon, item.label, actions[item.id] || '');
+          html += btn(item.icon, item.label + (['examcheat', 'retryrequest'].includes(item.id) ? `<span class="sb-badge hidden" id="sb-badge-${item.id}"></span>` : ''), actions[item.id] || '');
         });
       }
 
       content.innerHTML = html;
       sidebar.classList.remove('hidden');
+      if (typeof _updateSidebarBadges === 'function') _updateSidebarBadges();
 
       // 📌 เมนูใช้ absolute วางต่อจากแถบสีฟ้าพอดี (ไม่มีช่องว่างคั่น)
       // ความสูงแถบบนไม่คงที่เพราะมีกระดิ่งแจ้งเตือน จึงต้องวัดจริงทุกครั้ง
@@ -5853,11 +5857,15 @@ const supabaseDataSdk = {
 
         setTimeout(_syncPageMinHeight, 50);
       }
+      setTimeout(() => { try { _updateMenuBadges(); } catch (e) {} }, 0);   // 🔢 ตัวเลขหลังชื่อเมนู
     }
     /** 📏 ดันความสูงหน้าเนื้อหาให้ยาวพอที่จะเลื่อนเห็นเมนูด้านซ้ายครบทุกอัน
      *  ⚠️ จำเป็นเพราะเมนูใช้ absolute จึงไม่นับเป็นความสูงของพื้นที่เลื่อน
      *  ถ้าไม่ดัน จะเลื่อนไม่สุด มองไม่เห็นเมนูอันล่างๆ */
     function _syncPageMinHeight() {
+      // เมนูเลื่อนในตัวเองแล้ว (fixed + ซ่อนแถบเลื่อน) — ไม่ต้องดันความสูงหน้าเนื้อหา ล้างค่าที่เคยตั้งไว้
+      document.querySelectorAll('#app-main .page').forEach(p => { p.style.minHeight = ''; });
+      return;
       if (document.body.classList.contains('is-mobile')) return;
       const sidebar = document.getElementById('desktop-sidebar');
       const topNav = document.getElementById('desktop-top-nav');
@@ -6032,8 +6040,60 @@ const supabaseDataSdk = {
     window._liveSigs = window._liveSigs || {};
     window._livePending = window._livePending || {};
 
+    /** 🔢 จำนวนรายการที่รอดำเนินการ แสดงหลังชื่อเมนู (คนเดียวชุดเดียวนับครั้งเดียว เหมือนในหน้ารายการ) */
+    function _menuBadgeCounts() {
+      const uniq = (rows, keyFn) => new Set(rows.map(keyFn)).size;
+      const retry = uniq(allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending'), r => 'm' + r.student_id + '|' + r.exam_set_id)
+                  + uniq(allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending'), r => 'e' + r.student_id + '|' + r.essay_exam_set_id);
+      const cheat = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending').length
+                  + (typeof _essayCheatItems === 'function' ? _essayCheatItems().length : 0);
+      return { 'คำขอสอบแก้ตัว': retry, 'ตรวจสอบทุจริต': cheat };
+    }
+    function _updateMenuBadges() {
+      if (!currentUser || !['admin'].includes(currentUser.user_type)) return;
+      const counts = _menuBadgeCounts();
+      document.querySelectorAll('#desktop-sidebar .sb-btn, #m-content button, .m-menu-item').forEach(btn => {
+        const label = Object.keys(counts).find(k => (btn.dataset.menuLabel || btn.textContent).includes(k));
+        if (!label) return;
+        if (!btn.dataset.menuLabel) btn.dataset.menuLabel = btn.textContent.trim();
+        let b = btn.querySelector('.menu-badge');
+        const n = counts[label];
+        if (!n) { b?.remove(); return; }
+        if (!b) {
+          b = document.createElement('span');
+          b.className = 'menu-badge';
+          b.style.cssText = 'margin-left:auto;min-width:18px;padding:0 6px;border-radius:999px;background:#dc2626;color:white;font-size:11px;font-weight:700;line-height:18px;text-align:center;display:inline-block';
+          btn.appendChild(b);
+        }
+        b.textContent = n > 99 ? '99+' : String(n);
+      });
+    }
+
+    /** 🔢 ตัวเลขหลังเมนู "ตรวจสอบทุจริต" และ "คำขอสอบแก้ตัว" (ปรนัย + อัตนัย) — นับแบบเดียวกับที่หน้านั้นแสดง */
+    function _cheatAndRetryCounts() {
+      const setOk = id => !id || allData.some(d => d.type === 'exam_set' && String(d.__backendId) === String(id));
+      const cheat = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending' && setOk(d.exam_id || d.exam_set_id)).length
+        + (typeof _essayCheatItems === 'function' ? _essayCheatItems().length : 0);
+      const uniq = (arr, key) => new Set(arr.map(key)).size;   // คนเดียวชุดเดียวนับครั้งเดียว (ตรงกับรายการในหน้า)
+      const retry = uniq(allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && setOk(d.exam_set_id)), d => d.student_id + '|' + d.exam_set_id)
+        + uniq(allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending'), d => d.student_id + '|' + d.essay_exam_set_id);
+      return { examcheat: cheat, retryrequest: retry };
+    }
+    function _updateSidebarBadges() {
+      if (!currentUser || currentUser.user_type !== 'admin') return;
+      const n = _cheatAndRetryCounts();
+      Object.keys(n).forEach(k => {
+        const el = document.getElementById('sb-badge-' + k);
+        if (!el) return;
+        el.textContent = n[k] > 99 ? '99+' : String(n[k]);
+        el.classList.toggle('hidden', !n[k]);
+      });
+    }
+
     function _runLiveViews() {
       if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
+      try { _updateSidebarBadges(); } catch (e) { /* ไม่ร้ายแรง */ }   // 🔢 ตัวเลขหลังเมนูอัปเดตสด
+      try { _updateMenuBadges(); } catch (e) { /* ไม่กระทบส่วนอื่น */ }
       // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
       if (currentUser.user_type === 'admin') {
         const ids = allData.filter(d => (d.type === 'exam_retry_request' || d.type === 'essay_retry_request') && d.status === 'pending').map(d => d.type + String(d.__backendId)).sort().join(',');
