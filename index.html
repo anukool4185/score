@@ -2711,7 +2711,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.144';
+    const APP_VERSION = 'SUPABASE-2026.09.08.145';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3214,7 +3214,8 @@ const supabaseDataSdk = {
   async init(handler) {
     this._handler = handler;
     try {
-      const data = await this._fetchAll();
+      const data = await this._fetchAll({ full: true });
+      this._lastFullAt = Date.now();
       this._cache = data;
       handler.onDataChanged(this._cache);
       this._startPolling();
@@ -3229,10 +3230,15 @@ const supabaseDataSdk = {
     if (this._pollTimer) clearTimeout(this._pollTimer);
     const scheduleNext = () => {
       const isExamActive = typeof _examAntiCheatActive !== 'undefined' && _examAntiCheatActive;
-      const intervalToUse = isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_MS;
+      // ⚡ ลดภาระ: สลับไปแอปอื่น/ย่อหน้าต่าง = ไม่ต้องอัปเดตถี่ (ดึงรอบใหญ่ทุก 30 วินาทีพอ)
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const intervalToUse = hidden ? 30000 : (isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_MS);
       this._pollTimer = setTimeout(async () => {
         try {
-          const data = await this._fetchAll();
+          // 🔄 ทุก 2 นาที ดึงข้อมูลทั้งหมดหนึ่งรอบ (กันข้อมูลที่ถูกลบ/แก้จากเครื่องอื่นตกหล่น)
+          const needFull = !this._lastFullAt || Date.now() - this._lastFullAt > 120000;
+          const data = await this._fetchAll(needFull ? { full: true } : undefined);
+          if (needFull) this._lastFullAt = Date.now();
           this._cache = data;
           this._handler.onDataChanged(this._cache);
         } catch (e) {
@@ -3242,20 +3248,84 @@ const supabaseDataSdk = {
       }, intervalToUse);
     };
     scheduleNext();
+    // กลับมาที่หน้าจอ → ซิงก์ทันที ไม่ต้องรอรอบถัดไป
+    if (typeof document !== 'undefined' && !this._visBound) {
+      this._visBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) return;
+        clearTimeout(this._pollTimer);
+        this._fetchAll().then(d => { this._cache = d; this._handler.onDataChanged(d); }).catch(() => {}).finally(() => this._startPolling());
+      });
+    }
   },
 
   /** ดึงข้อมูลทุกตาราง แล้วแปลงเป็นรูปแบบเดิมที่ระบบเข้าใจ */
-  async _fetchAll() {
+  /** ให้ข้อมูลดิบที่เก็บไว้ตรงกับที่เพิ่งเพิ่ม/แก้/ลบในเครื่อง — กันแถวที่ลบแล้วกลับมาในรอบซิงก์ถัดไป */
+  _syncRaw(type, record, mode) {
+    if (!this._rawByTable) return;
+    const m = SB_TABLE_MAP.find(x => x.type === type) || SB_TABLE_MAP.find(x => SB_TYPE_TO_TABLE[type] === x.table);
+    const table = m ? m.table : SB_TYPE_TO_TABLE[type];
+    if (!table || !this._rawByTable[table]) return;
+    const id = String(record.__backendId);
+    const arr = this._rawByTable[table].filter(x => String(x.__backendId) !== id);
+    if (mode !== 'delete') arr.push({ ...(this._rawByTable[table].find(x => String(x.__backendId) === id) || {}), ...record });
+    this._rawByTable[table] = arr;
+  },
+
+  async _fetchAll(opts) {
+    // ⚡ ดึง "เฉพาะแถวที่เปลี่ยน" หลังการซิงก์ครั้งล่าสุด (เร็วกว่าดึงทั้งหมดมาก)
+    //    เดิมดึงทุกตาราง ทุกคอลัมน์ ทุกแถว ทุก 3 วินาที — ยิ่งสอบมาก ข้อมูลยิ่งโต จนเหมือนค้าง
+    //    เงื่อนไข: ต้องรันไฟล์ speed_incremental_sync.sql ก่อน (เพิ่มคอลัมน์ updated_at)
+    //    ถ้ายังไม่ได้รัน ระบบจะถอยไปดึงทั้งหมดเองอัตโนมัติ ใช้งานได้ปกติ
+    const full = !!(opts && opts.full) || !this._cache || this._cache.length === 0 || !this._syncAt;
+    const since = this._syncAt;
+    const t0 = Date.now();
     const results = await Promise.all(
-      SB_TABLE_MAP.map(m =>
-        // ⚡ ไม่ดึงภาพจากกล้อง (image_data) มาด้วย เพราะเป็นไฟล์ภาพขนาดใหญ่มาก ทำให้โหลดช้าทุกครั้ง
-        // ระบบจะดึงเฉพาะตอนแอดมินกดดูภาพจริงๆ เท่านั้น
-        this._api('GET', SB_LIGHT_SELECT[m.table] || `${m.table}?select=*&limit=50000`)
-          .then(rows => rows.map(r => this._toLegacy(r, m.type)))
-          .catch(e => { console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message); return []; })
-      )
+      SB_TABLE_MAP.map(m => {
+        const base = SB_LIGHT_SELECT[m.table] || `${m.table}?select=*&limit=50000`;
+        const path = (!full && this._incOk !== false) ? `${base}&updated_at=gt.${encodeURIComponent(since)}` : base;
+        return this._api('GET', path)
+          .then(rows => ({ table: m.table, type: m.type, rows: rows.map(r => this._toLegacy(r, m.type)) }))
+          .catch(e => {
+            // ตารางไหนยังไม่มีคอลัมน์ updated_at → เลิกใช้โหมดนี้ กลับไปดึงทั้งหมด (ไม่ให้ข้อมูลหาย)
+            if (!full && /updated_at/.test(String(e.message))) { this._incOk = false; }
+            else console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message);
+            return { table: m.table, type: m.type, rows: null };
+          });
+      })
     );
-    let flat = results.flat();
+    if (!full && this._incOk === false) return this._fetchAll({ full: true });   // ถอยไปดึงทั้งหมด
+
+    let flat;
+    if (full) {
+      flat = results.flatMap(r => r.rows || []);
+      this._rawByTable = {};
+      results.forEach(r => { if (r.rows) this._rawByTable[r.table] = r.rows; });
+    } else {
+      // รวมของเดิมกับแถวที่เปลี่ยน (แถวเดิมรหัสเดียวกันถูกแทนที่)
+      let changed = 0;
+      results.forEach(r => {
+        if (!r.rows) return;
+        changed += r.rows.length;
+        const prev = this._rawByTable[r.table] || [];
+        const map = new Map(prev.map(x => [String(x.__backendId), x]));
+        r.rows.forEach(x => map.set(String(x.__backendId), x));
+        this._rawByTable[r.table] = [...map.values()];
+      });
+      // แถวที่ถูกลบจากเครื่องอื่น
+      try {
+        const dels = await this._api('GET', `deleted_rows?select=table_name,row_id,deleted_at&deleted_at=gt.${encodeURIComponent(since)}&limit=5000`);
+        dels.forEach(d => {
+          const arr = this._rawByTable[d.table_name];
+          if (arr) this._rawByTable[d.table_name] = arr.filter(x => String(x.__backendId) !== String(d.row_id));
+        });
+        if (dels.length) changed += dels.length;
+      } catch (e) { /* ยังไม่ได้สร้างตารางบันทึกการลบ — รอบเต็มทุก 2 นาทีจะจัดการให้ */ }
+      flat = Object.values(this._rawByTable).flat();
+      if (changed) console.log(`[SDK] ซิงก์เฉพาะที่เปลี่ยน ${changed} แถว (${Date.now() - t0} ms)`);
+    }
+    this._syncAt = new Date(Date.now() - 5000).toISOString();   // เผื่อเวลาเครื่องต่างกัน 5 วินาที
+    if (full) console.log(`[SDK] ดึงข้อมูลทั้งหมด ${flat.length} แถว (${Date.now() - t0} ms)`);
 
     // 🔧 สร้างข้อมูลที่ระบบเดิมแยกเป็นคนละ type แต่ Supabase รวมไว้ตารางเดียว
     // ไม่งั้นหน้า "จัดการหน่วยกิตและเวลา" จะไม่แสดงข้อมูล เพราะหา type นี้ไม่เจอ
@@ -3436,6 +3506,7 @@ const supabaseDataSdk = {
       // ⚡ อัปเดตในเครื่องทันที ไม่ต้องรอดึงข้อมูลใหม่ทั้งหมด
       if (created) {
         this._cache = [...this._cache, created];
+      this._syncRaw(record.type, created, 'create');
         this._handler.onDataChanged(this._cache);
       }
       this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
@@ -3463,6 +3534,7 @@ const supabaseDataSdk = {
       this._cache = this._cache.map(d =>
         (String(d.__backendId) === String(record.__backendId) && d.type === record.type)
           ? { ...d, ...record } : d);
+      this._syncRaw(record.type, record, 'update');
       this._handler.onDataChanged(this._cache);
       this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
       return { isOk: true, data: { ...record } };
@@ -3485,6 +3557,7 @@ const supabaseDataSdk = {
       // ⚠️ ต้องเช็คประเภทด้วย ไม่งั้นอาจลบข้อมูลผิดตัวออกจากหน้าจอ (รหัสซ้ำกันได้ระหว่างตาราง)
       this._cache = this._cache.filter(d =>
         !(String(d.__backendId) === String(record.__backendId) && d.type === record.type));
+      this._syncRaw(record.type, record, 'delete');
       this._handler.onDataChanged(this._cache);
       this._fetchAll().then(f => { this._cache = f; this._handler.onDataChanged(f); }).catch(() => {});
       return { isOk: true };
