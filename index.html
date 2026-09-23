@@ -2617,19 +2617,8 @@
 
          <!-- 📊 คะแนนเต็มเดิมของครั้งนี้ (ถ้ามี ตอนบันทึกจะถามว่าเพิ่มคะแนนเต็มหรือทับคะแนนเดิม) -->
          <p id="ea-fullscore-info" class="text-xs mb-3 hidden"></p>
-         <!-- 👥 เลือกนักเรียนที่จะให้สอบ (เลือกรายบุคคล หรือทั้งห้อง) -->
-         <div id="ea-student-picker-section" class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-           <p class="text-xs font-semibold text-emerald-800">👥 เลือกนักเรียนที่จะให้สอบ <span id="ea-student-count" class="text-emerald-600"></span></p>
-           <div class="flex gap-1">
-            <button type="button" onclick="_eaToggleAllStudents(true)" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs">✅ เลือกทั้งห้อง</button>
-            <button type="button" onclick="_eaToggleAllStudents(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✖️ ล้างทั้งหมด</button>
-           </div>
-          </div>
-          <div id="ea-student-checkboxes" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-48 overflow-y-auto bg-white rounded p-2 border border-emerald-100">
-           <p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>
-          </div>
-         </div>
+         <!-- 👥 ระบบจัดสอบให้ทุกคนที่ลงทะเบียนวิชานี้ในชั้น/ห้องที่เลือกเสมอ (ไม่ต้องเลือกรายคน) -->
+         <p id="ea-student-summary" class="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-3 py-2 mb-3"></p>
 
          <!-- 🏷️ กรองเรื่อง/บทที่จะนำมาใช้ ก่อนเลือกข้อสอบเอง/สุ่มข้อสอบ ให้เจาะจงได้มากขึ้น (ติ๊กว่างหมด = ใช้ทุกเรื่อง) -->
          <div id="ea-chapter-filter-section" class="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
@@ -2712,7 +2701,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.153';
+    const APP_VERSION = 'SUPABASE-2026.09.08.154';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11694,7 +11683,7 @@ const supabaseDataSdk = {
         const done = (v) => { wrap.remove(); resolve(v); };
         wrap.innerHTML = `
           <div class="bg-white rounded-2xl p-5 max-w-lg w-full">
-            <p class="text-lg font-bold text-gray-800 mb-1">⚠️ ${T} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว</p>
+            <p class="text-lg font-bold text-gray-800 mb-1">➕ มีชุดสอบใน${T} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว</p>
             <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
               <p class="text-sm text-amber-800">คะแนนเต็มปัจจุบัน: <b>${info.full}</b> คะแนน · ชุดสอบนี้: <b>${newTotal}</b> คะแนน</p>
               ${setsHtml}
@@ -11704,14 +11693,7 @@ const supabaseDataSdk = {
               <p class="text-xs text-blue-700 mt-1">คะแนนเต็มใหม่ = ${src.manual > 0 ? `กรอกมือ ${src.manual} + ` : ''}${src.fromSets > 0 ? `ชุดเดิม ${src.fromSets} + ` : ''}ชุดนี้ ${newTotal} = <b>${info.full + newTotal}</b></p>
               <p class="text-xs text-blue-700">คะแนนนักเรียน: คะแนนเดิมในช่อง <b>บวกเพิ่ม</b> ด้วยคะแนนสอบชุดนี้</p>
             </button>
-            <button data-v="same" class="w-full text-left mb-3 p-3 rounded-xl border-2 border-green-300 bg-green-50 hover:bg-green-100">
-              <p class="font-bold text-green-800">🔁 ชุดเดิม — ไม่เพิ่มคะแนนเต็ม</p>
-              <p class="text-xs text-green-700 mt-1">คะแนนเต็มคงเดิม <b>${info.full}</b></p>
-              <p class="text-xs text-green-700">คะแนนนักเรียน: ${src.rows.length ? `คะแนนจาก<b>ชุดสอบเดิม ${src.rows.length} ชุด ถูกแทนที่</b>ด้วยคะแนนชุดนี้` : 'คะแนนสอบชุดนี้บวกเข้าช่องเดิม'}${src.manual > 0 ? ` · ส่วนกรอกมือ ${src.manual} คะแนน <b>คงอยู่</b>` : ''}</p>
-              <p class="text-[11px] text-green-600">ตัวอย่าง: ช่องมี 10 (ของเดิม 7 + สอบ 3) สอบชุดนี้ได้ 5 → 7 + 5 = 12</p>
-              ${newTotal > info.full ? `<p class="text-xs text-red-600 font-semibold mt-1">⚠️ ชุดสอบนี้ ${newTotal} คะแนน มากกว่าคะแนนเต็มเดิม ${info.full} — นักเรียนอาจได้คะแนนเกินเต็ม</p>` : ''}
-            </button>
-            <button data-v="" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+            <button data-v="" class="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">❌ ไม่สร้าง (ยกเลิก)</button>
           </div>`;
         wrap.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => done(b.dataset.v || null));
         document.body.appendChild(wrap);
@@ -11804,9 +11786,18 @@ const supabaseDataSdk = {
         }).filter(Boolean);
       }
 
-      // ❓ ถ้าครั้งที่นี้มีคะแนนเต็มอยู่แล้ว (ชุดสอบเดิม/กรอกมือ) ให้แอดมินเลือกว่าจะเพิ่มคะแนนเต็มหรือใช้ช่องเดิม
+      // ❓ ถ้าครั้งที่นี้มีคะแนนเต็มอยู่แล้ว (ชุดสอบเดิม/กรอกมือ) ให้แอดมินเลือกว่าจะเพิ่มคะแนนเต็มหรือไม่สร้าง
       let fullScoreMode = 'add';
       const _editingSet = editId ? allData.find(d => String(d.__backendId) === String(editId) && d.type === 'exam_set') : null;
+      // 🔒 แก้ไขชุดสอบ: คะแนนรวมต้องเท่าเดิม (เปลี่ยนข้อได้ แต่คะแนนเต็มของครั้งนี้ต้องไม่เปลี่ยน)
+      //    เพราะคะแนนเต็มลงไปในช่องคะแนนแล้ว และมีคนสอบไปแล้วด้วยเกณฑ์เดิม
+      if (_editingSet) {
+        const oldTotal = parseFloat(_editingSet.total_score) || 0;
+        if (Math.abs(totalScore - oldTotal) > 0.001) {
+          showToast(`🔒 แก้ไขชุดสอบต้องคงคะแนนรวมไว้ที่ ${oldTotal} คะแนน (ตอนนี้เลือกได้ ${totalScore}) — เปลี่ยนข้อได้ แต่คะแนนรวมต้องเท่าเดิม`, 'error');
+          return;
+        }
+      }
       if (_editingSet) {
         fullScoreMode = _editingSet.full_score_mode === 'same' ? 'same' : 'add';   // แก้ไขชุดเดิม: คงโหมดเดิมไว้
       } else {
@@ -11862,8 +11853,8 @@ const supabaseDataSdk = {
         // 🔁 ทำทั้งตอนสร้างใหม่และตอนแก้ไขชุดเดิม — แก้ไขแล้วเลือกคนสอบเพิ่ม/เปิดสอบใหม่ได้ (เดิมทำเฉพาะตอนสร้างใหม่)
         {
           const savedSetId = editId || result.data.__backendId;
-          // 👥 ใช้เฉพาะนักเรียนที่ติ๊กเลือกไว้ (ถ้าไม่ได้เลือกเลย = ทั้งห้อง เพื่อความเข้ากันได้กับการใช้งานแบบเดิม)
-          const selectedRegIds = _getEaSelectedRegIds();
+          // 👥 จัดสอบให้ทุกคนที่ลงทะเบียนวิชานี้ในชั้น/ห้องเสมอ (ไม่มีการเลือกรายคนแล้ว)
+          const selectedRegIds = [];
           const allRegsInRoom = allData.filter(d => d.type === 'student_registration' &&
             _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
           // เทียบแบบข้อความ กันชนิดข้อมูลไม่ตรงจนเลือกไม่ติด
@@ -11896,24 +11887,19 @@ const supabaseDataSdk = {
      *  ทำทีละคนตามลำดับ (ไม่ใช่พร้อมกันหมด) กันสร้างภาระให้เซิร์ฟเวอร์มากเกินไปเมื่อมีนักเรียนเยอะ */
     async function _reserveWaitTestRows(examSetId, registrations, info) {
       let created = 0, reopened = 0;
-      // 🔁 คนที่เคยมีกระดาษของชุดสอบนี้แล้ว (เช่น สอบครบและใช้สิทธิ์สอบแก้ครบแล้ว)
-      //    ถามครูก่อนว่าจะ "เปิดให้สอบใหม่" หรือ "ข้ามไป" — เดิมข้ามเสมอ กำหนดสอบซ้ำจึงไม่เกิดอะไรขึ้นเลย
-      const used = registrations.filter(reg => allData.some(d => d.type === 'exam_submission'
-        && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(reg.student_id)));
-      let reopen = false;
-      if (used.length > 0) {
-        const names = used.slice(0, 5).map(r => r.student_name || r.student_id).join(', ');
-        reopen = confirm(`นักเรียน ${used.length} คนเคยได้รับชุดสอบนี้แล้ว (${names}${used.length > 5 ? ' และอื่นๆ' : ''})\n\n` +
-          `กด "ตกลง" = เปิดให้สอบใหม่ทั้งหมด (ล้างคำตอบและผลเดิม คืนสิทธิ์สอบแก้ให้ใหม่ คะแนนเดิมของชุดนี้จะถูกหักออกจากช่องคะแนน)\n` +
-          `กด "ยกเลิก" = ข้ามคนเหล่านี้ เก็บผลเดิมไว้`);
-      }
+      // 📌 กติกาตอนแก้ไขชุดสอบ:
+      //    • คนที่สอบไปแล้ว → ปล่อยผลเดิมไว้ ไม่แตะ
+      //    • คนที่กำลังทำอยู่ → ใช้ข้อสอบชุดเดิมต่อจนจบ
+      //    • คนที่ยังไม่ได้เริ่มสอบ → เปลี่ยนเป็นข้อสอบชุดใหม่ (เกณฑ์ใหม่)
+      //    • คนที่ขอสอบแก้แต่ยังไม่เริ่ม → ได้เกณฑ์ใหม่เองตอนกดเริ่มสอบแก้
       for (const reg of registrations) {
         try {
           const existing = allData.find(d => d.type === 'exam_submission'
             && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(reg.student_id));
           if (existing) {
-            if (!reopen) continue;
-            if (await _reopenExamSubmission(existing, examSetId)) reopened++;
+            // ปรนัยสร้างข้อสอบรายคนตอนนักเรียนกดเข้าสอบ (ไม่ได้เก็บไว้ตั้งแต่จองกระดาษ)
+            //   → คนที่ยังไม่เริ่มสอบจึงได้ข้อสอบชุดใหม่เองอัตโนมัติ · คนที่ทำค้างอยู่ใช้ชุดเดิมต่อ · คนที่สอบแล้วไม่ถูกแตะ
+            if (existing.status === 'not_started' || !existing.status) reopened++;
             continue;
           }
           const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
@@ -11936,9 +11922,8 @@ const supabaseDataSdk = {
           console.error('[ReserveWaitTest] จองแถวไม่สำเร็จ:', reg.student_id, e.message);
         }
       }
-      console.log(`[ReserveWaitTest] จองแถวสำเร็จ ${created} คน · เปิดสอบใหม่ ${reopened} คน (จากทั้งหมด ${registrations.length} คน)`);
-      if (created || reopened) showToast(`✅ กำหนดสอบแล้ว — เพิ่มใหม่ ${created} คน${reopened ? ` · เปิดสอบใหม่ ${reopened} คน` : ''}`);
-      else if (registrations.length) showToast('ℹ️ ทุกคนที่เลือกมีกระดาษของชุดสอบนี้อยู่แล้ว (เลือกข้ามไว้)', 'info');
+      console.log(`[ReserveWaitTest] สร้างกระดาษ ${created} คน · ปรับเป็นข้อสอบชุดใหม่ ${reopened} คน (ทั้งหมด ${registrations.length} คน)`);
+      if (created || reopened) showToast(`✅ จัดสอบแล้ว — ผู้สอบใหม่ ${created} คน${reopened ? ` · อีก ${reopened} คนยังไม่เริ่มสอบ จะได้ข้อสอบชุดใหม่ตอนเข้าสอบ` : ''}`);
     }
 
     /** 🔁 เปิดให้สอบชุดเดิมใหม่: หักคะแนนที่ชุดนี้เคยโอนเข้าไป แล้วล้างกระดาษให้เป็นยังไม่เข้าสอบ
@@ -12036,59 +12021,23 @@ const supabaseDataSdk = {
       _syncTimeToHidden(prefix);
     }
     /** 👥 แสดงรายชื่อนักเรียนในชั้น/ห้อง/วิชาที่เลือก ให้ติ๊กเลือกได้ว่าใครจะสอบบ้าง */
+    /** 👥 สรุปว่าจะจัดสอบให้ใครบ้าง — ระบบให้ทุกคนที่ลงทะเบียนวิชานี้ในชั้น/ห้องที่เลือกเสมอ */
     function renderEaStudentPicker() {
-      const box = document.getElementById('ea-student-checkboxes');
-      const countEl = document.getElementById('ea-student-count');
-      if (!box) return;
-      const className = document.getElementById('ea-class')?.value;
-      const roomNumber = document.getElementById('ea-room')?.value;
-      const subjectName = document.getElementById('ea-subject')?.value;
-      if (!className || !roomNumber || !subjectName) {
-        box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง และวิชาก่อน</p>';
-        if (countEl) countEl.textContent = '';
-        return;
-      }
-      const regs = allData.filter(d => d.type === 'student_registration' &&
-        _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
-      if (regs.length === 0) {
-        box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้ในห้องนี้</p>';
-        if (countEl) countEl.textContent = '';
-        return;
-      }
-      // เรียงตามเลขที่ ถ้าไม่มีเลขที่ให้เรียงตามรหัสนักเรียน
-      const rows = regs.map(reg => {
-        const stu = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
-        return {
-          reg, stu,
-          num: parseInt(stu?.student_number) || 9999,
-          name: stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}` : reg.student_id,
-        };
-      }).sort((a, b) => a.num - b.num || String(a.reg.student_id).localeCompare(String(b.reg.student_id)));
+      const el = document.getElementById('ea-student-summary');
+      if (!el) return;
+      const cls = document.getElementById('ea-class')?.value, room = document.getElementById('ea-room')?.value, subj = document.getElementById('ea-subject')?.value;
+      if (!cls || !room || !subj) { el.textContent = '👥 เลือกชั้น ห้อง และวิชา เพื่อดูว่าจะจัดสอบให้กี่คน'; return; }
+      const n = allData.filter(d => d.type === 'student_registration' && _eaN(d.class_name) === _eaN(cls)
+        && _eaN(d.room_number) === _eaN(room) && _eaN(d.subject_name) === _eaN(subj)).length;
+      el.innerHTML = n ? `👥 จัดสอบให้ <b>ทุกคนที่ลงทะเบียนวิชานี้ ${n} คน</b> (ชั้น ${escHtml(cls)}/${escHtml(String(room))})`
+                       : '⚠️ ยังไม่มีนักเรียนลงทะเบียนวิชานี้ในห้องนี้';
+    }
+    function _eaToggleAllStudents() { /* ไม่ใช้แล้ว — ระบบจัดสอบให้ทุกคนเสมอ */ }
+    function updateEaStudentCount() { renderEaStudentPicker(); }
+    function _getEaSelectedRegIds() { return []; }   // ว่าง = ทุกคนที่ลงทะเบียน
 
-      box.innerHTML = rows.map(r => `
-        <label class="flex items-center gap-2 text-xs hover:bg-emerald-50 rounded px-1 py-0.5 cursor-pointer">
-          <input type="checkbox" class="ea-student-cb" value="${r.reg.__backendId}" checked onchange="_eaUpdateStudentCount()">
-          <span class="text-gray-400 w-6 text-right">${r.num !== 9999 ? r.num : '-'}</span>
-          <span class="text-gray-700">${escHtml(r.name)}</span>
-        </label>`).join('');
-      _eaUpdateStudentCount();
-    }
-    /** ติ๊กเลือกทั้งหมด หรือล้างทั้งหมด */
-    function _eaToggleAllStudents(checked) {
-      document.querySelectorAll('.ea-student-cb').forEach(cb => { cb.checked = checked; });
-      _eaUpdateStudentCount();
-    }
-    /** อัปเดตตัวเลขจำนวนคนที่เลือกไว้ */
-    function _eaUpdateStudentCount() {
-      const all = document.querySelectorAll('.ea-student-cb');
-      const checked = document.querySelectorAll('.ea-student-cb:checked');
-      const countEl = document.getElementById('ea-student-count');
-      if (countEl) countEl.textContent = all.length > 0 ? `(เลือก ${checked.length} จาก ${all.length} คน)` : '';
-    }
-    /** ดึงรายการ registration_id ของนักเรียนที่ติ๊กเลือกไว้ */
-    function _getEaSelectedRegIds() {
-      return Array.from(document.querySelectorAll('.ea-student-cb:checked')).map(cb => cb.value);
-    }
+    /** ไม่ใช้แล้ว — หน้าจัดสอบไม่มีการเลือกนักเรียนรายคน (ระบบให้ทุกคนที่ลงทะเบียนเสมอ) */
+    function _eaUpdateStudentCount() { renderEaStudentPicker(); }
     /** 📊 เปลี่ยนป้ายกำกับและจำนวนครั้งตามประเภทคะแนนที่เลือก (K หรือ C)
      *  ⚠️ สำคัญ: K รองรับ 10 ครั้ง แต่ C รองรับแค่ 3 ครั้ง (ตามที่ระบบบันทึกคะแนนกำหนดไว้)
      *  ถ้าเลือกเกิน คะแนนจะบันทึกได้แต่ไม่แสดงในหน้าบันทึกคะแนน */
@@ -12207,16 +12156,7 @@ const supabaseDataSdk = {
       // ⏱️ ทำหลังฟังก์ชันนี้จบ เพราะชั้น/ห้อง/วิชา ถูกตั้งค่าในบรรทัดถัดๆ ไป
       //    ถ้าวาดรายชื่อก่อน จะได้กล่องว่าง "กรุณาเลือกชั้น ห้อง และวิชาก่อน"
       setTimeout(() => {
-        if (typeof renderEaStudentPicker !== 'function') return;
-        renderEaStudentPicker();
-        const inSet = new Set(allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id))
-          .map(d => _eaN(d.student_id)));
-        if (inSet.size === 0) return;   // ชุดสอบยังไม่มีใคร → ติ๊กทั้งห้องตามค่าเริ่มต้น
-        document.querySelectorAll('.ea-student-cb').forEach(cb => {
-          const reg = allData.find(r => r.type === 'student_registration' && String(r.__backendId) === String(cb.value));
-          cb.checked = !!reg && inSet.has(_eaN(reg.student_id));
-        });
-        if (typeof updateEaStudentCount === 'function') updateEaStudentCount();
+        if (typeof renderEaStudentPicker === 'function') renderEaStudentPicker();
       }, 0);
       document.getElementById('ea-edit-id').value = id;
       // 📋 แสดงข้อมูลเดิมให้เห็นชัดเจน จะได้รู้ว่ากำลังแก้ชุดไหน และของเดิมตั้งค่าไว้อย่างไร
@@ -13634,6 +13574,20 @@ const supabaseDataSdk = {
       return html.replace(/<[^>]+>/g, '').trim() ? `<div class="mt-2 flex flex-wrap gap-2">${html}</div>` : '';
     }
 
+    /** 🕐 ช่วงเวลาสอบของกระดาษใบนี้ — ถ้าครูกำหนดเวลาเฉพาะคนนี้ไว้ ให้ใช้อันนั้นก่อน */
+    function _submissionWindow(sub, set) {
+      if (sub && (sub.allowed_start_time || sub.allowed_end_time)) {
+        return { start: sub.allowed_start_time ? new Date(sub.allowed_start_time) : null,
+                 end: sub.allowed_end_time ? new Date(sub.allowed_end_time) : null, personal: true };
+      }
+      return { start: set?.start_time ? new Date(set.start_time) : null,
+               end: set?.end_time ? new Date(set.end_time) : null, personal: false };
+    }
+    function _isSubmissionOpen(sub, set) {
+      const w = _submissionWindow(sub, set), now = new Date();
+      return (!w.start || now >= w.start) && (!w.end || now <= w.end);
+    }
+
     function generateExamButtonsForRegistration(reg, onlyType) {
       // ทำให้ทนทานต่อความต่างของข้อมูลให้มากที่สุด: ตัดช่องว่างทุกจุด (ไม่ใช่แค่หัวท้าย) + ไม่สนตัวพิมพ์เล็กใหญ่
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
@@ -13679,7 +13633,8 @@ const supabaseDataSdk = {
         const kLabel = roundTotals[examSet.k_round] > 1 ? `${_st}.${examSet.k_round} ชุด ${setLabels.get(examSet.__backendId)}` : `${_st}.${examSet.k_round}`;
         const submission = allData.find(d => d.type === 'exam_submission' &&
           String(d.exam_set_id) === String(examSet.__backendId) && String(d.student_id) === String(currentUser.student_id));
-        const isOpen = isExamSetOpen(examSet);
+        // 🕐 ถ้าครูจัดสอบเฉพาะคนนี้ไว้ (เช่น ตกหล่นเพราะหมดเวลา) ให้ใช้ช่วงเวลาของคนนี้แทนเวลาชุดสอบ
+        const isOpen = _isSubmissionOpen(submission, examSet);
         let btnHtml = '';
         // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
         if (!submission || submission.status === 'not_started') {
@@ -14320,7 +14275,7 @@ function _examResultIdentityHtml(sub, set) {
       const reg = allData.find(d => d.__backendId === registrationId && d.type === 'student_registration');
       console.log('[Exam Popup Debug] examSet found:', !!examSet, '| reg found:', !!reg);
       if (!examSet || !reg) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
-      if (!isExamSetOpen(examSet)) { console.log('[Exam Popup Debug] exam NOT open, start:', examSet.start_time, 'end:', examSet.end_time, 'now:', new Date().toISOString()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      if (!_isSubmissionOpen(submission, examSet)) { console.log('[Exam] นอกช่วงเวลาสอบ', examSet.start_time, examSet.end_time, submission?.allowed_start_time, submission?.allowed_end_time); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
 
       // ⚡ ดึงข้อมูลชุดข้อสอบเต็มเฉพาะตอนจะเข้าสอบจริง (ตอนโหลดหน้าแรกไม่ได้ดึงมา เพื่อความเร็ว)
       if (!examSet.question_snapshot_json && window.dataSdk._fetchFullRecord) {
@@ -14490,6 +14445,10 @@ function _examResultIdentityHtml(sub, set) {
         // ⚠️ สอบแก้ตัวใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน ไม่ใช่เวลาปิดของชุดสอบหลัก
         // (เดิมใช้เวลาชุดหลักเสมอ → สอบแก้ตัวหลังชุดหลักปิด นาฬิกาหมดทันที แล้วส่งกระดาษเปล่าอัตโนมัติ)
         let _deadline = new Date(examSet.end_time);
+        // 🕐 ครูกำหนดเวลาเฉพาะคนนี้ไว้ → ใช้เวลานั้น
+        if (_sub0 && _sub0.allowed_end_time) _deadline = new Date(_sub0.allowed_end_time);
+        const _sub0 = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
+          ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
         const _sub = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
           ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
         if (_sub && (_sub.is_retry_attempt === true || _sub.is_retry_attempt === 'true')) {
@@ -21775,6 +21734,133 @@ function _examResultIdentityHtml(sub, set) {
     }
     /** 📊 แถบความก้าวหน้าการสอบของนักเรียนคนนี้ (ให้แอดมินเห็นในหน้าให้คะแนน)
      *  ปุ่มเล็กๆ กดใช้งานได้จริง: ดูคะแนนสอบ · ตรวจอัตนัย · ไปหน้าคำขอสอบแก้ */
+    /** ➕ เพิ่มนักเรียนคนเดียวเข้าชุดสอบที่มีอยู่แล้ว (จากหน้าให้คะแนน ไม่ต้องไปเมนูจัดสอบ) */
+    async function assignExamToStudent(setId, kind, regId) {
+      const isEssay = kind === 'essay';
+      const set = allData.find(d => d.type === (isEssay ? 'essay_exam_set' : 'exam_set') && String(d.__backendId) === String(setId));
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!set || !reg) { showToast('ไม่พบข้อมูลชุดสอบหรือนักเรียน', 'error'); return; }
+      const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
+      const name = stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`.trim() : (reg.student_name || reg.student_id);
+      const round = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}`;
+      if (!confirm(`ให้ ${name} ได้สอบ ${round} ${isEssay ? 'อัตนัย' : 'ปรนัย'} วิชา ${set.subject_name} ด้วยหรือไม่?`)) return;
+      const base = {
+        registration_id: reg.__backendId, student_id: String(reg.student_id), student_name: name,
+        class_name: reg.class_name, room_number: String(reg.room_number), subject_name: reg.subject_name,
+        k_round: parseInt(set.k_round) || 1, status: 'not_started', answers: '{}',
+      };
+      let payload;
+      if (isEssay) {
+        // ข้อสอบของคนนี้: สุ่มให้ถ้าชุดนี้เป็นแบบสุ่ม / ไม่งั้นใช้ชุดเดียวกับคนอื่น
+        const snapAll = _parseJsonSafe(set.question_snapshot_json, []) || [];
+        const seed = _seedFromString(String(reg.student_id) + '_' + set.__backendId + '_essay');
+        let mine = snapAll;
+        if ((set.is_random_mode === true || set.is_random_mode === 'true') && snapAll.length) {
+          mine = _pickEssayRandomForStudent(snapAll, parseInt(set.random_count) || snapAll.length, seed);
+        }
+        if (set.shuffle_enabled === true || set.shuffle_enabled === 'true') mine = _seededShuffle(mine, seed + 7);
+        payload = { ...base, type: 'essay_submission', essay_exam_set_id: set.__backendId,
+          question_order: mine.map(q => q.__backendId).join(','), question_snapshot_json: JSON.stringify(mine) };
+      } else {
+        payload = { ...base, type: 'exam_submission', exam_set_id: set.__backendId, exam_id: set.__backendId };
+      }
+      const r = await window.dataSdk.create(payload);
+      if (!r.isOk) { showToast('เพิ่มไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+      showToast(`✅ ${name} ได้สอบ ${round} ${isEssay ? 'อัตนัย' : 'ปรนัย'} แล้ว`);
+      if (typeof refreshGradingNameListOnly === 'function') refreshGradingNameListOnly();
+      if (typeof renderGradingDetail === 'function' && typeof selectedGradingRegId !== 'undefined' && selectedGradingRegId) {
+        const el = document.getElementById('grading-detail');
+        if (el) el.innerHTML = buildGradingCardHtml(_getRegById(selectedGradingRegId), null,
+          reg.class_name, reg.subject_name);
+      }
+    }
+
+    /** 🕐 จัดสอบรายคนจากหน้าให้คะแนน — กำหนดช่วงเวลาเฉพาะคนนั้น แล้วสร้าง/เปิดกระดาษให้
+     *  ใช้กับกรณีนักเรียนตกหล่นเพราะหมดเวลาสอบไปแล้ว (ชุดสอบหลักปิดแล้วก็สอบได้) */
+    function openIndividualExamPopup(setId, regId, kind) {
+      const isEssay = kind === 'essay';
+      const set = allData.find(d => d.type === (isEssay ? 'essay_exam_set' : 'exam_set') && String(d.__backendId) === String(setId));
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!set || !reg) { showToast('ไม่พบข้อมูลชุดสอบหรือนักเรียน', 'error'); return; }
+      const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
+        && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(setId)
+        && String(d.student_id) === String(reg.student_id));
+      const pad = n => String(n).padStart(2, '0');
+      const now = new Date(), later = new Date(Date.now() + 60 * 60000);
+      const dStr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const row = (p, d) => `<div class="flex gap-1 items-center mb-2">
+          <input type="date" id="${p}-date" value="${dStr(d)}" class="flex-1 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+          <select id="${p}-hour" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">${_hourOpts(pad(d.getHours()))}</select><b>:</b>
+          <select id="${p}-min" class="px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">${_minOpts(pad(Math.floor(d.getMinutes() / 5) * 5))}</select><span class="text-xs">น.</span></div>`;
+      document.getElementById('indiv-exam-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'indiv-exam-popup';
+      wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
+      wrap.style.zIndex = '60';
+      const tag = `${(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
+      wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
+          <p class="text-lg font-bold text-gray-800 mb-1">🕐 จัดสอบเฉพาะคนนี้</p>
+          <p class="text-xs text-gray-500 mb-2">${escHtml(reg.student_name || String(reg.student_id))} · ${escHtml(set.subject_name || '')} · ${tag}</p>
+          <p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded p-2 mb-3">เวลาของชุดสอบหลัก: ${set.start_time ? new Date(set.start_time).toLocaleString('th-TH', { hour12: false }) : '-'} ถึง ${set.end_time ? new Date(set.end_time).toLocaleString('th-TH', { hour12: false }) : '-'}<br>เวลาด้านล่างใช้เฉพาะคนนี้ — ชุดสอบหลักปิดไปแล้วก็สอบได้</p>
+          <p class="text-xs text-gray-600">🟢 เริ่ม</p>${row('ie-start', now)}
+          <p class="text-xs text-gray-600">🔴 สิ้นสุด</p>${row('ie-end', later)}
+          <div class="flex gap-2 mt-2">
+            <button onclick="confirmIndividualExam('${setId}','${regId}','${kind}')" id="ie-ok" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold btn-3d">${sub ? '🕐 กำหนดเวลาให้' : '➕ จัดสอบให้'}</button>
+            <button onclick="document.getElementById('indiv-exam-popup')?.remove()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">ยกเลิก</button>
+          </div></div>`;
+      document.body.appendChild(wrap);
+    }
+
+    async function confirmIndividualExam(setId, regId, kind) {
+      const isEssay = kind === 'essay';
+      const set = allData.find(d => d.type === (isEssay ? 'essay_exam_set' : 'exam_set') && String(d.__backendId) === String(setId));
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!set || !reg) return;
+      const j = p => { const d = document.getElementById(p + '-date')?.value;
+        return d ? new Date(`${d}T${document.getElementById(p + '-hour').value}:${document.getElementById(p + '-min').value}`) : null; };
+      const s = j('ie-start'), e = j('ie-end');
+      if (!s || !e || e <= s) { showToast('กรุณากำหนดช่วงเวลาให้ถูกต้อง', 'error'); return; }
+      await withButtonLock(document.getElementById('ie-ok'), '⏳ กำลังจัดสอบ...', async () => {
+        const type = isEssay ? 'essay_submission' : 'exam_submission';
+        const existing = allData.find(d => d.type === type
+          && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(setId)
+          && String(d.student_id) === String(reg.student_id));
+        const stu = allData.find(x => x.type === 'student' && String(x.student_id) === String(reg.student_id));
+        const payload = { allowed_start_time: s.toISOString(), allowed_end_time: e.toISOString(),
+          status: 'not_started', answers: '{}', started_at: '', submitted_at: '' };
+        let r;
+        if (existing) {
+          r = await window.dataSdk.update({ ...existing, ...payload });
+        } else {
+          const base = { type, registration_id: reg.__backendId, student_id: reg.student_id,
+            student_name: stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : (reg.student_name || ''),
+            subject_name: set.subject_name, class_name: set.class_name, room_number: set.room_number,
+            k_round: set.k_round, ...payload };
+          if (isEssay) {
+            // อัตนัยต้องแนบข้อสอบไปกับกระดาษตั้งแต่ตอนสร้าง (เหมือนตอนมอบหมายปกติ)
+            const snap = _parseJsonSafe(set.question_snapshot_json, []) || [];
+            const seed = _seedFromString(String(reg.student_id) + '_' + setId + '_indiv');
+            let mine = snap;
+            if (set.is_random_mode === true || set.is_random_mode === 'true') mine = _pickEssayRandomForStudent(snap, parseInt(set.random_count) || 1, seed);
+            if (set.shuffle_enabled === true || set.shuffle_enabled === 'true') mine = _seededShuffle(mine, seed + 7);
+            const snaps = mine.map(q => q.type === 'essay_question' ? _essaySnap(q) : q);
+            base.essay_exam_set_id = setId;
+            base.question_order = snaps.map(q => q.__backendId).join(',');
+            base.question_snapshot_json = JSON.stringify(snaps);
+          } else {
+            // ปรนัยสร้างข้อสอบรายคนตอนนักเรียนกดเข้าสอบ จึงไม่ต้องแนบตอนนี้
+            base.exam_set_id = setId;
+            base.exam_id = setId;
+          }
+          r = await window.dataSdk.create(base);
+        }
+        if (!r.isOk) { showToast('จัดสอบไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+        document.getElementById('indiv-exam-popup')?.remove();
+        showToast(`✅ จัดสอบให้ ${reg.student_name || reg.student_id} แล้ว — สอบได้ถึง ${e.toLocaleString('th-TH', { hour12: false })}`);
+        if (typeof refreshGradingNameListOnly === 'function') refreshGradingNameListOnly();
+      });
+    }
+
     function _examProgressStripHtml(reg) {
       if (!reg || reg.__virtual) return '';
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
@@ -21789,13 +21875,17 @@ function _examResultIdentityHtml(sub, set) {
           && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
           && N(d.student_id) === N(reg.student_id));
         const tag = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
-        if (!sub) return `<span style="${chip};background:#f1f5f9;color:#94a3b8">${tag} ไม่ได้รับชุดนี้</span>`;
+        if (!sub) return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:#ede9fe;color:#6d28d9;border:none;cursor:pointer" title="จัดสอบให้คนนี้ พร้อมกำหนดช่วงเวลาเฉพาะคน">${tag} ➕ จัดสอบให้</button>`;
         const graded = sub.grading_done === true || sub.grading_done === 'true';
         const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '') ? sub.manual_score : sub.auto_score;
         const pending = allData.some(d => (d.type === 'exam_retry_request' || d.type === 'essay_retry_request')
           && String(d.submission_id) === String(sub.__backendId) && d.status === 'pending');
         const retry = (parseInt(sub.retry_count) || 0) ? ` ·แก้${sub.retry_count}` : '';
-        if (sub.status === 'not_started' || !sub.status) return `<span style="${chip};background:#f1f5f9;color:#64748b">${tag} ยังไม่สอบ</span>`;
+        if (sub.status === 'not_started' || !sub.status) {
+          const openNow = _isSubmissionOpen(sub, set);
+          const personal = !!(sub.allowed_start_time || sub.allowed_end_time);
+          return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:${openNow ? '#f1f5f9' : '#ede9fe'};color:${openNow ? '#64748b' : '#6d28d9'};border:none;cursor:pointer" title="กำหนดช่วงเวลาสอบเฉพาะคนนี้">${tag} ยังไม่สอบ${openNow ? (personal ? ' 🕐' : '') : ' ⏰ หมดเวลา'}</button>`;
+        }
         if (sub.status === 'in_progress') {
           const frozen = sub.frozen === true || sub.frozen === 'true';
           return `<span style="${chip};background:${frozen ? '#fee2e2' : '#dbeafe'};color:${frozen ? '#b91c1c' : '#1d4ed8'}">${tag} ${frozen ? '⏸️ รอตัดสิน' : '✏️ กำลังทำ'}</span>`;
