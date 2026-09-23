@@ -2712,7 +2712,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.149';
+    const APP_VERSION = 'SUPABASE-2026.09.08.150';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2910,6 +2910,9 @@
     }
     function beginRequest(message) {
       pendingRequestCount++;
+      // 🤫 งานเบื้องหลัง (ปิดกระดาษหมดเวลา / ล้างข้อมูลทุจริต / ซิงก์) ไม่ต้องเด้งหน้าจอ "กำลังบันทึก"
+      //    เพราะผู้ใช้ไม่ได้กดอะไร การเด้งขึ้นมาเองทำให้ตกใจและใช้งานสะดุด
+      if (window._sbQuietWrites > 0) return;
       showBusyOverlay(_customBusyMessage || message);
     }
     function endRequest() {
@@ -6325,11 +6328,26 @@ const supabaseDataSdk = {
       } catch (e) { console.log('[Cleanup] ล้างข้อมูลเฝ้าระวังไม่สำเร็จ:', e.message); }
     }
 
+    /** 🤫 ครอบงานเบื้องหลัง: บันทึกได้ตามปกติแต่ไม่เด้งหน้าจอ "กำลังบันทึก" */
+    async function _quietly(task) {
+      window._sbQuietWrites = (window._sbQuietWrites || 0) + 1;
+      try { return await task(); }
+      finally {
+        window._sbQuietWrites = Math.max(0, (window._sbQuietWrites || 1) - 1);
+        if (window._sbQuietWrites === 0 && typeof pendingRequestCount !== 'undefined' && pendingRequestCount === 0) hideBusyOverlay();
+      }
+    }
+
     function _runLiveViews() {
       if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
       try { _updateSidebarBadges(); } catch (e) { /* ไม่ร้ายแรง */ }   // 🔢 ตัวเลขหลังเมนูอัปเดตสด
-      _autoCloseExpiredEssays().catch(() => {});   // ⏰ ปิดกระดาษอัตนัยที่หมดเวลา
-      _purgeOldCheatData().catch(() => {});        // 🧹 ล้างภาพ/ข้อมูลทุจริตที่พ้นวันแล้ว
+      // ⛔ ปิดงานเบื้องหลังในเว็บ — ไปขวางการใช้งานของครู (เด้งหน้าจอ/หน่วง)
+      //    ให้ฐานข้อมูลทำแทนตามเวลาที่ตั้งไว้: essay_autoclose.sql และ cleanup_cheat_data.sql
+      //    ถ้าจำเป็นต้องให้เว็บช่วยทำ เปิดได้ด้วย window.KPAC_WEB_BACKGROUND = true
+      if (window.KPAC_WEB_BACKGROUND === true) {
+        _quietly(_autoCloseExpiredEssays).catch(() => {});
+        _quietly(_purgeOldCheatData).catch(() => {});
+      }
       try { _updateMenuBadges(); } catch (e) { /* ไม่กระทบส่วนอื่น */ }
       // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
       if (currentUser.user_type === 'admin') {
@@ -12700,6 +12718,9 @@ const supabaseDataSdk = {
       if (!_essaySaveTimer) _essaySaveTimer = setTimeout(() => { _essaySaveTimer = null; _flushEssayAnswers(); }, 30000);
     }
     async function _flushEssayAnswers() {
+      return _quietly(_flushEssayAnswersInner);   // 🤫 บันทึกคำตอบอัตโนมัติ ไม่ต้องเด้งหน้าจอกวนนักเรียน
+    }
+    async function _flushEssayAnswersInner() {
       const cur = window._essayCur;
       if (!cur || !cur.dirty) return true;
       const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
@@ -12855,7 +12876,9 @@ const supabaseDataSdk = {
     const _ESSAY_VIOLATION_TEXT = { tab_switch: 'ออกจากหน้าสอบ', copy: 'คัดลอกข้อความ', paste: 'วางข้อความ' };
 
     /** ⚠️ พฤติกรรมเสี่ยง: ครั้งแรกเตือน / ครั้งต่อไปถ่ายภาพหลักฐาน + บันทึก + แจ้งแอดมิน */
-    async function _essayViolation(kind) {
+    /** 🤫 งานเบื้องหลังระหว่างสอบ — บันทึกได้แต่ไม่เด้งหน้าจอ "กำลังบันทึก" รบกวนผู้สอบ */
+    async function _essayViolation(kind) { return _quietly(() => _essayViolationInner(kind)); }
+    async function _essayViolationInner(kind) {
       const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === _essayGuard.subId);
       if (!sub) return;
       const prior = parseInt(sub.cheat_warning_count) || 0;
@@ -12884,7 +12907,9 @@ const supabaseDataSdk = {
     }
 
     /** 📸 ถ่ายภาพจากกล้อง — ภาพเป็นระยะเก็บภาพล่าสุดภาพเดียว (ไม่เปลืองพื้นที่) ภาพหลักฐานเก็บทุกภาพ */
-    async function _captureEssaySnapshot(kind) {
+    /** 🤫 งานเบื้องหลังระหว่างสอบ — บันทึกได้แต่ไม่เด้งหน้าจอ "กำลังบันทึก" รบกวนผู้สอบ */
+    async function _captureEssaySnapshot(kind) { return _quietly(() => _captureEssaySnapshotInner(kind)); }
+    async function _captureEssaySnapshotInner(kind) {
       if (!_essayGuard.active || !_essayGuard.stream) return;
       const v = document.getElementById('essay-camera-preview');
       const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === _essayGuard.subId);
@@ -16117,7 +16142,9 @@ const supabaseDataSdk = {
       document.getElementById('exam-camera-preview')?.remove();
     }
     // 📸 ถ่ายภาพจากกล้อง — เรียกทั้งตามรอบเวลาปกติ และทันทีที่ระบบตรวจพบพฤติกรรมผิดปกติ (สลับแท็บ/copy/paste)
-    async function _captureExamCameraSnapshot(submissionId, reason) {
+    /** 🤫 งานเบื้องหลังระหว่างสอบ — บันทึกได้แต่ไม่เด้งหน้าจอ "กำลังบันทึก" รบกวนผู้สอบ */
+    async function _captureExamCameraSnapshot(submissionId, reason) { return _quietly(() => _captureExamCameraSnapshotInner(submissionId, reason)); }
+    async function _captureExamCameraSnapshotInner(submissionId, reason) {
       if (!_examCameraStream) return;
       try {
         const videoEl = document.getElementById('exam-camera-preview');
@@ -16185,7 +16212,9 @@ const supabaseDataSdk = {
     function _handleExamPaste() {
       if (_examAntiCheatActive) _triggerExamViolation('paste');
     }
-    async function _triggerExamViolation(violationType) {
+    /** 🤫 งานเบื้องหลังระหว่างสอบ — บันทึกได้แต่ไม่เด้งหน้าจอ "กำลังบันทึก" รบกวนผู้สอบ */
+    async function _triggerExamViolation(violationType) { return _quietly(() => _triggerExamViolationInner(violationType)); }
+    async function _triggerExamViolationInner(violationType) {
       if (!_examAntiCheatActive) return;
       const info = window._examInfoForAntiCheat || {};
       const submission = allData.find(d => d.__backendId === _examAntiCheatSubmissionId && d.type === 'exam_submission');
