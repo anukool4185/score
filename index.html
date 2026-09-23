@@ -2711,7 +2711,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.143';
+    const APP_VERSION = 'SUPABASE-2026.09.08.144';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -19546,15 +19546,15 @@ const supabaseDataSdk = {
     }
     // ----- แอดมินลงทะเบียนวิชาให้นักเรียนแทน (ไม่ติดเงื่อนไขวันที่เปิด-ปิดลงทะเบียน) -----
     function adminRegisterStudentPopup(studentBackendId, requestId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
       if (!student) return;
-      const allSubjects = allData.filter(d => d.type === 'subject');
-      const availableSubjects = allSubjects.filter(subj => allData.some(d =>
-        d.type === 'class_subject' && d.class_name === student.class_name &&
-        d.room_number === student.room_number && d.subject_name === subj.subject_name
-      ));
-      const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id));
-      const registeredSubjectNames = new Set(registrations.map(r => r.subject_name));
+      // ⚠️ บั๊กที่แก้แล้ว: เดิมดึงรายวิชาจากข้อมูลประเภท 'subject' ที่เก็บแยก ซึ่งหลังย้ายมา Supabase ไม่มีข้อมูลชุดนี้
+      //    หน้าต่างจึงขึ้น "ยังไม่มีวิชาสำหรับชั้นนี้" ทั้งที่มีวิชาเปิดสอน แอดมินลงทะเบียนให้นักเรียนไม่ได้เลย
+      //    ตอนนี้ใช้ตัวตรวจกลาง: วิชาที่เปิดสอนจริงในห้องของนักเรียน (ไม่สนช่องว่าง/เลขห้อง 01)
+      const _st = _studentRegStatus(student);
+      const availableSubjects = _st.allSubjects.map(cs => ({ ...cs, subject_name: cs.subject_name }));
+      const registrations = _st.regs;
+      const registeredSubjectNames = new Set(registrations.map(r => _rN(r.subject_name)));
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
       editDiv.innerHTML = `
@@ -19569,7 +19569,7 @@ const supabaseDataSdk = {
           ` : `
             <select id="admin-reg-subject-select" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none mb-4">
               <option value="">-- เลือกวิชา --</option>
-              ${availableSubjects.map(subj => `<option value="${subj.subject_name}">${subj.subject_name}${registeredSubjectNames.has(subj.subject_name) ? ' (ลงทะเบียนแล้ว)' : ''}</option>`).join('')}
+              ${availableSubjects.map(subj => `<option value="${subj.subject_name}">${subj.subject_name}${registeredSubjectNames.has(_rN(subj.subject_name)) ? ' (ลงทะเบียนแล้ว)' : ''}</option>`).join('')}
             </select>
             <div id="admin-reg-form-container"><p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p></div>
           `}
@@ -19581,16 +19581,16 @@ const supabaseDataSdk = {
       }
     }
     function updateAdminRegForm(studentBackendId, requestId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
       const subjectName = document.getElementById('admin-reg-subject-select').value;
       const container = document.getElementById('admin-reg-form-container');
       if (!subjectName) { container.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">เลือกวิชาก่อน</p>'; return; }
-      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && _rN(d.class_name) === _rN(student.class_name) && _rRoom(d.room_number) === _rRoom(student.room_number) && _rN(d.subject_name) === _rN(subjectName));
       const midPercent = classSubjectRecord?.mid_percent || 0;
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
       // ถ้านักเรียนกำหนด KPAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
-      const existingReg = allData.find(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id) && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName));
       const kVal = existingReg?.k_percent ?? '';
       const pVal = existingReg?.p_percent ?? '';
       const aVal = existingReg?.a_percent ?? '';
@@ -19625,7 +19625,7 @@ const supabaseDataSdk = {
       document.getElementById('admin-reg-warning').classList.toggle('hidden', total <= kpacLimit);
     }
     async function confirmAdminRegisterStudent(studentBackendId, subjectName, kpacLimit, requestId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
       if (!student) return;
       const errorEl = document.getElementById('admin-reg-error');
       const k = parseFloat(document.getElementById('admin-reg-k').value) || 0;
@@ -19638,7 +19638,7 @@ const supabaseDataSdk = {
         return;
       }
       errorEl.classList.add('hidden');
-      const existingReg = allData.find(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id) && d.class_name === student.class_name && d.room_number === student.room_number && d.subject_name === subjectName);
+      const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName));
       // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KPAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
       // ถ้ามีการลงทะเบียนวิชานี้อยู่แล้ว ให้แก้ไขค่าเดิม (อัปเดต) แทนการสร้างใหม่ซ้ำ
       const result = existingReg
@@ -19654,7 +19654,7 @@ const supabaseDataSdk = {
         showToast(existingReg ? '✅ บันทึกค่า KPAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
         // ปิดคำขอลงทะเบียนที่เปิด popup นี้มา (ถ้ามี) อัตโนมัติ เพราะแอดมินดำเนินการให้แล้ว
         if (requestId) {
-          const req = allData.find(d => d.__backendId === requestId);
+          const req = allData.find(d => d.type === 'registration_request' && String(d.__backendId) === String(requestId));
           if (req) await window.dataSdk.update({ ...req, status: 'done' });
         }
         // ดึงคะแนน pending ที่เก็บสำรองไว้มาใส่อัตโนมัติ (ถ้ามี) — ป้องกันคะแนนสำรองตกค้าง
