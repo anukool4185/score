@@ -2712,7 +2712,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.152';
+    const APP_VERSION = 'SUPABASE-2026.09.08.153';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -21773,6 +21773,53 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ไม่สามารถบันทึกได้', 'error');
       }
     }
+    /** 📊 แถบความก้าวหน้าการสอบของนักเรียนคนนี้ (ให้แอดมินเห็นในหน้าให้คะแนน)
+     *  ปุ่มเล็กๆ กดใช้งานได้จริง: ดูคะแนนสอบ · ตรวจอัตนัย · ไปหน้าคำขอสอบแก้ */
+    function _examProgressStripHtml(reg) {
+      if (!reg || reg.__virtual) return '';
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const match = d => N(d.class_name) === N(reg.class_name) && N(d.room_number) === N(reg.room_number) && N(d.subject_name) === N(reg.subject_name);
+      const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && match(d))
+        .sort((a, b) => (parseInt(a.k_round) || 1) - (parseInt(b.k_round) || 1) || String(a.score_type).localeCompare(String(b.score_type)));
+      if (sets.length === 0) return '';
+      const chip = 'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap';
+      const items = sets.map(set => {
+        const isEssay = set.type === 'essay_exam_set';
+        const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
+          && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
+          && N(d.student_id) === N(reg.student_id));
+        const tag = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
+        if (!sub) return `<span style="${chip};background:#f1f5f9;color:#94a3b8">${tag} ไม่ได้รับชุดนี้</span>`;
+        const graded = sub.grading_done === true || sub.grading_done === 'true';
+        const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '') ? sub.manual_score : sub.auto_score;
+        const pending = allData.some(d => (d.type === 'exam_retry_request' || d.type === 'essay_retry_request')
+          && String(d.submission_id) === String(sub.__backendId) && d.status === 'pending');
+        const retry = (parseInt(sub.retry_count) || 0) ? ` ·แก้${sub.retry_count}` : '';
+        if (sub.status === 'not_started' || !sub.status) return `<span style="${chip};background:#f1f5f9;color:#64748b">${tag} ยังไม่สอบ</span>`;
+        if (sub.status === 'in_progress') {
+          const frozen = sub.frozen === true || sub.frozen === 'true';
+          return `<span style="${chip};background:${frozen ? '#fee2e2' : '#dbeafe'};color:${frozen ? '#b91c1c' : '#1d4ed8'}">${tag} ${frozen ? '⏸️ รอตัดสิน' : '✏️ กำลังทำ'}</span>`;
+        }
+        // ส่งแล้ว / ถูกยุติ
+        const base = sub.status === 'terminated' ? `${tag} 🚫 ถูกยุติ` : `${tag} ✅ ส่งแล้ว`;
+        let html;
+        if (isEssay && !graded) {
+          html = `<button onclick="openEssayGrading('${set.__backendId}')" style="${chip};background:#fef3c7;color:#b45309;border:none;cursor:pointer" title="ไปตรวจอัตนัย">${base}${retry} · 📝 รอตรวจ</button>`;
+        } else if (score !== undefined && score !== null && score !== '') {
+          const onclick = isEssay ? `openEssayGrading('${set.__backendId}')` : `showExamResultDetail('${sub.__backendId}')`;
+          html = `<button onclick="${onclick}" style="${chip};background:#dcfce7;color:#15803d;border:none;cursor:pointer" title="ดูรายละเอียดคะแนน">${base}${retry} ${score}/${set.total_score}</button>`;
+        } else {
+          html = `<span style="${chip};background:#fef3c7;color:#b45309">${base}${retry} · รอตรวจ</span>`;
+        }
+        if (pending) html += ` <button onclick="showAdminTab('retryrequest')" style="${chip};background:#fee2e2;color:#b91c1c;border:none;cursor:pointer" title="ไปหน้าคำขอสอบแก้ตัว">📨 ขอสอบแก้</button>`;
+        return html;
+      }).join(' ');
+      return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ (กดดูรายละเอียดได้)</p>
+          <div class="flex flex-wrap gap-1">${items}</div>
+        </div>`;
+    }
+
     function buildGradingCardHtml(reg, scoresData, className, subjectName) {
         const student = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
         // หาแถวคะแนนแบบมีทางสำรอง (คนที่ยังไม่ลงทะเบียน แถวคะแนนยังไม่ผูกรหัส จึงต้องหาด้วยรหัสนักเรียน+วิชา)
@@ -21869,6 +21916,7 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-xs font-semibold text-red-600 hidden" id="f-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
             </div>
+            ${_examProgressStripHtml(reg)}
             ${_buildEnrollAlertBlock(student, subjectName, !reg.__virtual)}
             <div class="mt-4 flex gap-2">
               <button onclick="saveGrades('${reg.__backendId}')" class="flex-1 btn-primary text-white px-4 py-2 rounded-lg font-medium">💾 บันทึก</button>
