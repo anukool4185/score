@@ -2712,7 +2712,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.151';
+    const APP_VERSION = 'SUPABASE-2026.09.08.152';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11866,9 +11866,12 @@ const supabaseDataSdk = {
           const selectedRegIds = _getEaSelectedRegIds();
           const allRegsInRoom = allData.filter(d => d.type === 'student_registration' &&
             _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
-          const affectedRegs = selectedRegIds.length > 0
-            ? allRegsInRoom.filter(r => selectedRegIds.includes(r.__backendId))
+          // เทียบแบบข้อความ กันชนิดข้อมูลไม่ตรงจนเลือกไม่ติด
+          const _sel = new Set(selectedRegIds.map(String));
+          const affectedRegs = _sel.size > 0
+            ? allRegsInRoom.filter(r => _sel.has(String(r.__backendId)))
             : allRegsInRoom;
+          console.log(`[saveExamSet] เลือกไว้ ${_sel.size} คน · จะดำเนินการกับ ${affectedRegs.length} คน (ทั้งห้อง ${allRegsInRoom.length} คน)`);
           if (!editId) Promise.all(affectedRegs.map(reg => createStudentNotification({
             studentId: reg.student_id, message: `📝 มีการจัดสอบใหม่: ${subjectName} K ครั้งที่ ${kRound}`,
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
@@ -12178,6 +12181,43 @@ const supabaseDataSdk = {
     function editExamSet(id) {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
+      // ⚠️ บั๊กที่แก้แล้ว: เดิมวาดรายการบท/ข้อสอบ "ก่อน" ตั้งค่าชั้น-ห้อง-วิชา (ซึ่งอยู่บรรทัดถัดๆ ไป)
+      //    รายการข้อสอบจึงว่างเปล่า ติ๊กอะไรไม่ได้ พอกดบันทึกระบบแจ้งว่า "กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ"
+      //    ตอนนี้ย้ายมาทำหลังฟังก์ชันนี้จบ (ชั้น-ห้อง-วิชาถูกตั้งค่าครบแล้ว)
+      setTimeout(() => {
+        if (typeof renderEaChapterFilter === 'function') renderEaChapterFilter();
+        const savedChapters = (s.selected_chapters || '').split(',').filter(Boolean);
+        savedChapters.forEach(ch => {
+          const cb = document.querySelector(`.ea-chapter-check[value="${(window.CSS && CSS.escape) ? CSS.escape(ch) : ch}"]`);
+          if (cb) cb.checked = true;
+        });
+        renderEaQuestionPicker();
+        const selectedIds = (s.question_ids || '').split(',').filter(Boolean);
+        selectedIds.forEach(qid => {
+          const cb = document.querySelector(`.ea-question-check[value="${qid}"]`);
+          if (cb) cb.checked = true;
+        });
+        updateEaTotalScore();
+        if (typeof updateEaRandomInfo === 'function') updateEaRandomInfo();   // อัปเดตข้อมูลโหมดสุ่มให้ตรงกับค่าที่โหลดมา
+      }, 0);
+      document.getElementById('ea-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (typeof updateEaFullScoreInfo === 'function') setTimeout(updateEaFullScoreInfo, 0);   // 📊 อัปเดตคะแนนเต็มเดิม
+      // 👥 วาดรายชื่อนักเรียนใหม่ แล้วติ๊กเฉพาะคนที่อยู่ในชุดสอบนี้
+      //    (เดิมไม่ได้วาด การเลือกบางคนจึงไม่มีผล และกลายเป็นทั้งห้องเสมอ)
+      // ⏱️ ทำหลังฟังก์ชันนี้จบ เพราะชั้น/ห้อง/วิชา ถูกตั้งค่าในบรรทัดถัดๆ ไป
+      //    ถ้าวาดรายชื่อก่อน จะได้กล่องว่าง "กรุณาเลือกชั้น ห้อง และวิชาก่อน"
+      setTimeout(() => {
+        if (typeof renderEaStudentPicker !== 'function') return;
+        renderEaStudentPicker();
+        const inSet = new Set(allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id))
+          .map(d => _eaN(d.student_id)));
+        if (inSet.size === 0) return;   // ชุดสอบยังไม่มีใคร → ติ๊กทั้งห้องตามค่าเริ่มต้น
+        document.querySelectorAll('.ea-student-cb').forEach(cb => {
+          const reg = allData.find(r => r.type === 'student_registration' && String(r.__backendId) === String(cb.value));
+          cb.checked = !!reg && inSet.has(_eaN(reg.student_id));
+        });
+        if (typeof updateEaStudentCount === 'function') updateEaStudentCount();
+      }, 0);
       document.getElementById('ea-edit-id').value = id;
       // 📋 แสดงข้อมูลเดิมให้เห็นชัดเจน จะได้รู้ว่ากำลังแก้ชุดไหน และของเดิมตั้งค่าไว้อย่างไร
       const _fmtDT = (iso) => {
@@ -12227,26 +12267,6 @@ const supabaseDataSdk = {
         if (rcEl) rcEl.value = s.random_count || 5;   // 🔢 จำนวนข้อเดิมที่เคยตั้งไว้
       }
 
-      // 🏷️ ติ๊กเรื่อง/บทที่เคยกรองไว้กลับมาด้วย
-      if (typeof renderEaChapterFilter === 'function') renderEaChapterFilter();
-      const savedChapters = (s.selected_chapters || '').split(',').filter(Boolean);
-      if (savedChapters.length > 0) {
-        savedChapters.forEach(ch => {
-          const cb = document.querySelector(`.ea-chapter-check[value="${CSS.escape(ch)}"]`);
-          if (cb) cb.checked = true;
-        });
-      }
-
-      renderEaQuestionPicker();
-      const selectedIds = (s.question_ids || '').split(',').filter(Boolean);
-      selectedIds.forEach(qid => {
-        const cb = document.querySelector(`.ea-question-check[value="${qid}"]`);
-        if (cb) cb.checked = true;
-      });
-      updateEaTotalScore();
-      if (typeof updateEaRandomInfo === 'function') updateEaRandomInfo(); // อัปเดตข้อมูลโหมดสุ่มให้ตรงกับค่าที่โหลดมา
-      document.getElementById('ea-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (typeof updateEaFullScoreInfo === 'function') setTimeout(updateEaFullScoreInfo, 0);   // 📊 อัปเดตคะแนนเต็มเดิม
     }
 
     // 🔄 จัดสอบอีกครั้ง — รีเซ็ทให้นักเรียนทุกคนสอบใหม่ได้ (ล้างคะแนนเดิม แต่ไม่ลบชุดสอบทิ้ง)
@@ -12809,6 +12829,12 @@ const supabaseDataSdk = {
       tick(); _essayTimerId = setInterval(tick, 1000);
     }
     /** 📤 ส่งคำตอบอัตนัย (auto = หมดเวลา ส่งอัตโนมัติไม่ถาม) */
+    /** ปิดหน้าสรุปผลของอัตนัย แล้ววาดหน้าคะแนนใหม่ */
+    function _closeEssayResultOverlay() {
+      document.getElementById('essay-taking-overlay')?.remove();
+      if (typeof showStudentGrades === 'function' && currentStudentTab === 'grades') showStudentGrades(true);
+    }
+
     async function submitEssayExam(auto) {
       const cur = window._essayCur;
       if (!cur) return;
@@ -12833,7 +12859,22 @@ const supabaseDataSdk = {
         window._essayCur = null;
         window._justSubmittedIds = window._justSubmittedIds || new Set();
         window._justSubmittedIds.add(String(sub.__backendId));
-        document.getElementById('essay-taking-overlay')?.remove();
+        // 🎉 หน้าสรุปผลหลังส่ง — แสดงชื่อ เลขที่ ชั้น/ห้อง ชุดสอบ และจำนวนข้อที่ตอบ (คะแนนต้องรอครูตรวจ)
+        const set2 = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(cur.setId));
+        const sub2 = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === cur.subId);
+        const answered = cur.questions.filter(q => String(cur.answers[String(q.__backendId)] || '').trim()).length;
+        const ov = document.getElementById('essay-taking-overlay');
+        if (ov) {
+          ov.innerHTML = `<div style="padding:50px 20px;text-align:center">
+            <p style="font-size:48px;margin:0 0 12px">${auto ? '⏰' : '📝'}</p>
+            <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px">${auto ? 'หมดเวลา ระบบส่งคำตอบให้แล้ว' : 'ส่งคำตอบสำเร็จแล้ว!'}</p>
+            ${_examResultIdentityHtml(sub2 || { ...sub, retry_count: sub.retry_count }, set2)}
+            <p style="font-size:13px;color:#64748b;margin:0 0 4px">ตอบแล้ว ${answered} จาก ${cur.questions.length} ข้อ · คะแนนเต็ม ${set2?.total_score ?? '-'}</p>
+            <p style="font-size:13px;color:#b45309;font-weight:600;margin:6px 0 0">⏳ รอครูตรวจให้คะแนน</p>
+            <button onclick="_closeEssayResultOverlay()"
+              style="margin-top:20px;padding:10px 24px;background:#2563eb;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer">ปิด</button>
+          </div>`;
+        }
         showToast(auto ? '⏰ หมดเวลา ระบบส่งคำตอบให้อัตโนมัติแล้ว รอครูตรวจ' : '✅ ส่งคำตอบสำเร็จ รอครูตรวจให้คะแนน');
         if (currentStudentTab === 'grades' && typeof showStudentGrades === 'function') showStudentGrades(true);
       };
@@ -13660,6 +13701,24 @@ const supabaseDataSdk = {
 
     /** 📨 คำขอสอบแก้ตัวที่ "ใช้กับรอบนี้" — ต้องขอหลังส่งคำตอบครั้งล่าสุด
      *  คำขอเก่าที่ใช้สอบแก้ตัวไปแล้ว (ขอก่อนส่งครั้งล่าสุด) ถือว่าหมดอายุ ไม่นำมาแสดงซ้ำ */
+function _examResultIdentityHtml(sub, set) {
+      const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(sub?.student_id || currentUser?.student_id))
+        || (currentUser?.user_type === 'student' ? currentUser : null);
+      const full = stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : (sub?.student_name || '');
+      const no = stu?.student_number ? `เลขที่ ${stu.student_number}` : '';
+      const room = `${stu?.class_name || sub?.class_name || ''}${(stu?.room_number || sub?.room_number) ? '/' + (stu?.room_number || sub?.room_number) : ''}`;
+      const round = set ? `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
+      const kind = (set && set.type === 'essay_exam_set') ? 'อัตนัย' : 'ปรนัย';
+      const used = parseInt(sub?.retry_count) || 0;
+      const line = (a, b) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span style="color:#64748b">${a}</span><b style="color:#1e293b;text-align:right">${b}</b></div>`;
+      return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin:0 auto 14px;max-width:340px;text-align:left;font-size:13px">
+          ${line('ชื่อ-สกุล', escHtml(full || '-'))}
+          ${line('เลขที่ / ชั้น-ห้อง', `${escHtml(no || '-')} · ${escHtml(room || '-')}`)}
+          ${line('วิชา', escHtml(set?.subject_name || sub?.subject_name || '-'))}
+          ${line('ชุดสอบ', `${escHtml(round)} ${kind}${used ? ` · สอบแก้ครั้งที่ ${used}` : ''}`)}
+        </div>`;
+    }
+
     function _currentRetryRequest(examSet, submission) {
       const lastSubmit = submission?.submitted_at ? new Date(submission.submitted_at).getTime() : 0;
       return allData.filter(d => d.type === 'exam_retry_request'
@@ -15621,7 +15680,8 @@ const supabaseDataSdk = {
       if (bodyEl) {
         bodyEl.innerHTML = `<div style="padding:50px 20px;text-align:center">
           <p style="font-size:48px;margin:0 0 12px">${hasWritten ? '📝' : '🎉'}</p>
-          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 8px">ส่งคำตอบสำเร็จแล้ว!</p>
+          <p style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px">ส่งคำตอบสำเร็จแล้ว!</p>
+          ${_examResultIdentityHtml(submission, examSet)}
           ${hasWritten
             ? `<p style="font-size:13px;color:#64748b;margin:0">มีข้ออัตนัยที่ต้องรอครูตรวจ<br>คะแนนส่วนปรนัยที่ตรวจอัตโนมัติแล้ว: <b style="color:#2563eb">${autoScore}</b> คะแนน</p>`
             : `<p style="font-size:13px;color:#64748b;margin:0 0 4px">คะแนนที่ได้</p>
