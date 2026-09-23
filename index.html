@@ -1369,6 +1369,7 @@
       <div id="admin-tab-examcheat" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-2">🚨 ตรวจสอบทุจริต</h3>
+        <p class="text-xs text-gray-500 mb-2">🧹 ภาพจากกล้องและบันทึกพฤติกรรมเสี่ยงเก็บไว้เฉพาะของวันนี้ ระบบลบของวันก่อนอัตโนมัติ (ไม่มีผลต่อคะแนนหรือเกรด)</p>
         <p class="text-gray-500 text-sm mb-4">ดูรายการสงสัยทุจริตข้อสอบทั้งหมด — เปิดหน้านี้ค้างไว้ระหว่างช่วงสอบ เพื่อเห็นการแจ้งเตือนทันทีที่พบความผิดปกติ</p>
         <div class="grid md:grid-cols-3 gap-3 mb-4">
          <select id="examcheat-filter-class" onchange="renderExamCheatList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">-- ทุกชั้น --</option></select>
@@ -2711,7 +2712,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.148';
+    const APP_VERSION = 'SUPABASE-2026.09.08.149';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6301,10 +6302,34 @@ const supabaseDataSdk = {
       if (due.length) console.log(`[EssayAutoClose] ปิดกระดาษที่หมดเวลา ${due.length} ใบ`);
     }
 
+    /** 🧹 ล้างภาพ/ข้อมูลทุจริตที่พ้นวันแล้ว (ทางสำรองในเว็บ เผื่อฐานข้อมูลยังไม่ได้ตั้งเวลา)
+     *  ข้อมูลเหล่านี้ไม่มีผลต่อคะแนนหรือเกรด เก็บข้ามวันมีแต่กินพื้นที่และโควตา
+     *  ทำวันละครั้งต่อเครื่อง และทำเฉพาะแอดมิน */
+    async function _purgeOldCheatData() {
+      if (!currentUser || currentUser.user_type !== 'admin') return;
+      try {
+        const todayKey = new Date().toLocaleDateString('th-TH');
+        if (localStorage.getItem('kpac_cheat_purge') === todayKey) return;
+        const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+        const old = allData.filter(d =>
+          (d.type === 'exam_camera_snapshot' || d.type === 'essay_monitor_event' || d.type === 'exam_alert')
+          && new Date(d.captured_at || d.handled_at || d.created_at || 0).getTime() < startOfToday.getTime());
+        if (old.length > 200) { console.log('[Cleanup] ข้อมูลเฝ้าระวังเก่ามาก', old.length, 'แถว — ให้ฐานข้อมูลลบเองจะเร็วกว่า (รันไฟล์ cleanup_cheat_data.sql)'); }
+        let done = 0;
+        for (const row of old.slice(0, 200)) {   // ครั้งละไม่เกิน 200 แถว กันหน่วง
+          const r = await window.dataSdk.delete(row).catch(() => ({ isOk: false }));
+          if (r.isOk) done++;
+        }
+        localStorage.setItem('kpac_cheat_purge', todayKey);
+        if (done) console.log(`[Cleanup] ลบภาพ/ข้อมูลทุจริตที่พ้นวันแล้ว ${done} แถว`);
+      } catch (e) { console.log('[Cleanup] ล้างข้อมูลเฝ้าระวังไม่สำเร็จ:', e.message); }
+    }
+
     function _runLiveViews() {
       if (!currentUser || !Array.isArray(_LIVE_VIEWS)) return;   // ยังโหลดสคริปต์ไม่ถึงส่วนนี้
       try { _updateSidebarBadges(); } catch (e) { /* ไม่ร้ายแรง */ }   // 🔢 ตัวเลขหลังเมนูอัปเดตสด
       _autoCloseExpiredEssays().catch(() => {});   // ⏰ ปิดกระดาษอัตนัยที่หมดเวลา
+      _purgeOldCheatData().catch(() => {});        // 🧹 ล้างภาพ/ข้อมูลทุจริตที่พ้นวันแล้ว
       try { _updateMenuBadges(); } catch (e) { /* ไม่กระทบส่วนอื่น */ }
       // 🔔 แจ้งแอดมินเมื่อมีคำขอสอบแก้ตัวใหม่ (ไม่ว่าจะเปิดหน้าไหนอยู่)
       if (currentUser.user_type === 'admin') {
