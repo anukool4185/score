@@ -2711,13 +2711,14 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.147';
+    const APP_VERSION = 'SUPABASE-2026.09.08.148';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
     const POLL_INTERVAL_MS = 3000; // ความถี่ในการดึงข้อมูลใหม่ (มิลลิวินาที) เพื่อจำลอง real-time — ตั้งไว้ระดับที่ปลอดภัยจากโควต้า Google Apps Script
     // 📝 รับข้อเสนอแนะ: ช่วงทำข้อสอบ (มีคนสอบพร้อมกันได้ถึง 200 คน) ให้ยืด poll ออกไปนานขึ้น ลดภาระเซิร์ฟเวอร์ลงเกือบครึ่ง แลกกับความหน่วงเห็นข้อมูลอัปเดตช้าลงเล็กน้อย (ยอมรับได้ เพราะข้อสอบไม่ต้อง real-time ขนาดนั้น)
     const POLL_INTERVAL_EXAM_MS = 6000;
+    const POLL_INTERVAL_IDLE_MS = 10000;   // ⚡ รอบปกติ 10 วินาที (เดิม 3 วินาที — กินโควตามาก)
 
     // ============================================================
     // 🖼️ ระบบอัปโหลด/ลบรูปการบ้านใน Google Drive (เก็บแยกโฟลเดอร์ ห้อง>วิชา>วันที่)
@@ -3229,7 +3230,10 @@ const supabaseDataSdk = {
   async init(handler) {
     this._handler = handler;
     try {
-      const data = await this._fetchAll({ full: true });
+      // 💾 ประหยัดโควตา: ถ้ามีข้อมูลเก็บไว้ในเครื่องจากครั้งก่อน ใช้ต่อแล้วซิงก์เฉพาะที่เปลี่ยน
+      //    (เดิมเปิดหน้าใหม่ทีไรต้องโหลดข้อมูลทั้งระบบใหม่ทุกครั้ง — กินโควตามากที่สุด)
+      const restored = this._loadLocalCache();
+      const data = restored ? await this._fetchAll() : await this._fetchAll({ full: true });
       this._lastFullAt = Date.now();
       this._cache = data;
       handler.onDataChanged(this._cache);
@@ -3240,6 +3244,30 @@ const supabaseDataSdk = {
       try { _sbShowConnectionBanner('เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + err.message); } catch (e) {}
       return { isOk: false, error: { message: err.message } };
     }
+  },
+
+  /** 💾 เก็บข้อมูลไว้ในเครื่อง เพื่อไม่ต้องโหลดใหม่ทั้งหมดทุกครั้งที่เปิดหน้า */
+  _saveLocalCache() {
+    try {
+      if (!this._rawByTable || !this._syncAt) return;
+      const payload = JSON.stringify({ at: this._syncAt, v: 1, tables: this._rawByTable });
+      if (payload.length > 4000000) return;   // ใหญ่เกินที่เบราว์เซอร์เก็บได้ ข้ามไป
+      localStorage.setItem('kpac_sb_cache', payload);
+    } catch (e) { /* เก็บไม่ได้ก็ไม่เป็นไร แค่ต้องโหลดใหม่ทั้งหมด */ }
+  },
+  _loadLocalCache() {
+    try {
+      const raw = localStorage.getItem('kpac_sb_cache');
+      if (!raw) return false;
+      const d = JSON.parse(raw);
+      if (!d || d.v !== 1 || !d.tables || !d.at) return false;
+      const ageHr = (Date.now() - new Date(d.at).getTime()) / 3600000;
+      if (!(ageHr >= 0) || ageHr > 24) return false;   // เก่าเกิน 24 ชั่วโมง โหลดใหม่ทั้งหมดปลอดภัยกว่า
+      this._rawByTable = d.tables;
+      this._syncAt = d.at;
+      console.log(`[SDK] ใช้ข้อมูลที่เก็บไว้ในเครื่อง (เก่า ${ageHr.toFixed(1)} ชม.) แล้วซิงก์เฉพาะที่เปลี่ยน`);
+      return true;
+    } catch (e) { return false; }
   },
 
   /** 🔎 ตรวจสภาพการเชื่อมต่อ — พิมพ์ kpacDiag() ใน Console แล้วส่งผลมาให้ดูได้ */
@@ -3261,13 +3289,15 @@ const supabaseDataSdk = {
     const scheduleNext = () => {
       const isExamActive = typeof _examAntiCheatActive !== 'undefined' && _examAntiCheatActive;
       // ⚡ ลดภาระ: สลับไปแอปอื่น/ย่อหน้าต่าง = ไม่ต้องอัปเดตถี่ (ดึงรอบใหญ่ทุก 30 วินาทีพอ)
+      // ⚡ ประหยัดโควตา: ปกติ 10 วินาที / กำลังสอบ 6 วินาที / สลับไปแอปอื่น 60 วินาที
       const hidden = typeof document !== 'undefined' && document.hidden;
-      const intervalToUse = hidden ? 30000 : (isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_MS);
+      const intervalToUse = hidden ? 60000 : (isExamActive ? POLL_INTERVAL_EXAM_MS : POLL_INTERVAL_IDLE_MS);
       this._pollTimer = setTimeout(async () => {
         try {
           // 🔄 ทุก 2 นาที ดึงข้อมูลทั้งหมดหนึ่งรอบ (กันข้อมูลที่ถูกลบ/แก้จากเครื่องอื่นตกหล่น)
-          const data = await this._fetchAll({ full: true });   // ดึงทั้งหมดทุกรอบ (แบบเดิม)
-          const needFull = true;
+          // ดึงทั้งหมดหนึ่งรอบทุก 10 นาที (กันข้อมูลที่ลบ/แก้จากเครื่องอื่นตกหล่น) นอกนั้นดึงเฉพาะที่เปลี่ยน
+          const needFull = !this._lastFullAt || Date.now() - this._lastFullAt > 600000;
+          const data = await this._fetchAll(needFull ? { full: true } : undefined);
           if (needFull) this._lastFullAt = Date.now();
           this._cache = data;
           this._handler.onDataChanged(this._cache);
@@ -3309,8 +3339,10 @@ const supabaseDataSdk = {
     //    ถ้ายังไม่ได้รัน ระบบจะถอยไปดึงทั้งหมดเองอัตโนมัติ ใช้งานได้ปกติ
     // 🔙 ย้อนกลับเป็นดึงทั้งหมดทุกรอบ (แบบเดิมที่ใช้งานได้) — การซิงก์เฉพาะที่เปลี่ยนปิดไว้ก่อน
     //    เปิดใช้เมื่อพร้อมทดสอบได้ด้วยคำสั่ง window.KPAC_INCREMENTAL = true ใน Console
-    const useIncremental = (typeof window !== 'undefined' && window.KPAC_INCREMENTAL === true);
-    const full = !useIncremental || !!(opts && opts.full) || !this._cache || this._cache.length === 0 || !this._syncAt;
+    // ⚡ ประหยัดโควตา: ดึงเฉพาะแถวที่เปลี่ยน (ปิดได้ด้วย window.KPAC_INCREMENTAL = false)
+    const useIncremental = (typeof window === 'undefined') ? false : (window.KPAC_INCREMENTAL !== false);
+    const hasRaw = this._rawByTable && Object.keys(this._rawByTable).length > 0;   // มีข้อมูลเดิม (ในหน่วยความจำหรือที่เก็บไว้ในเครื่อง)
+    const full = !useIncremental || !!(opts && opts.full) || !hasRaw || !this._syncAt;
     const since = this._syncAt;
     const t0 = Date.now();
     const results = await Promise.all(
@@ -3323,7 +3355,7 @@ const supabaseDataSdk = {
             // ตารางไหนยังไม่มีคอลัมน์ updated_at → เลิกใช้โหมดนี้ กลับไปดึงทั้งหมด (ไม่ให้ข้อมูลหาย)
             if (!full && /updated_at/.test(String(e.message))) { this._incOk = false; }
             else console.log(`[SDK] ดึง ${m.table} ไม่สำเร็จ:`, e.message);
-            return { table: m.table, type: m.type, rows: null };
+            return { table: m.table, type: m.type, rows: null, err: e.message };
           });
       })
     );
@@ -3334,6 +3366,10 @@ const supabaseDataSdk = {
     const failed = results.filter(r => r.rows === null).length;
     window._sbLastFetch = { at: new Date().toLocaleTimeString('th-TH'), tables: results.length, failed,
       rows: Object.fromEntries(results.map(r => [r.table, r.rows === null ? 'ล้มเหลว' : r.rows.length])) };
+    const quotaHit = results.some(r => r.err && /exceed_egress_quota|restricted due to/.test(String(r.err)));
+    if (quotaHit) {
+      try { _sbShowConnectionBanner('🚫 ฐานข้อมูลถูกระงับชั่วคราว เพราะใช้ปริมาณข้อมูลเกินโควตาของแผนที่ใช้อยู่ — ข้อมูลยังอยู่ครบ ต้องปลดที่หน้าเว็บ Supabase'); } catch (e) {}
+    }
     if (failed > results.length / 2 && this._cache && this._cache.length > 0) {
       try { _sbShowConnectionBanner(`ดึงข้อมูลไม่สำเร็จ ${failed}/${results.length} ตาราง — แสดงข้อมูลล่าสุดที่มีอยู่ไว้ก่อน`); } catch (e) {}
       throw new Error(`ดึงข้อมูลล้มเหลว ${failed}/${results.length} ตาราง`);
@@ -3369,6 +3405,7 @@ const supabaseDataSdk = {
       if (changed) console.log(`[SDK] ซิงก์เฉพาะที่เปลี่ยน ${changed} แถว (${Date.now() - t0} ms)`);
     }
     this._syncAt = new Date(Date.now() - 5000).toISOString();   // เผื่อเวลาเครื่องต่างกัน 5 วินาที
+    this._saveLocalCache();
     if (full) console.log(`[SDK] ดึงข้อมูลทั้งหมด ${flat.length} แถว (${Date.now() - t0} ms)`);
 
     // 🔧 สร้างข้อมูลที่ระบบเดิมแยกเป็นคนละ type แต่ Supabase รวมไว้ตารางเดียว
