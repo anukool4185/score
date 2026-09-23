@@ -2712,7 +2712,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.150';
+    const APP_VERSION = 'SUPABASE-2026.09.08.151';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11859,8 +11859,9 @@ const supabaseDataSdk = {
         // ⚠️ บั๊กสำคัญที่พบ: เดิม await การสร้างแจ้งเตือนของนักเรียนทุกคนให้เสร็จก่อน ถึงจะขึ้น "สำเร็จ" — ถ้ามีนักเรียนเยอะ (200 คน)
         // การสร้าง 200 รายการพร้อมกันใช้เวลานานมาก (Google Apps Script มีข้อจำกัดจำนวนคำขอพร้อมกัน) ทำให้แอดมินเห็นเหมือน "ค้าง"
         // ทั้งที่ตัวชุดสอบจริงบันทึกเสร็จไปนานแล้ว (นักเรียนถึงเห็นปุ่มสอบขึ้นได้ทันที) — แก้โดยไม่ต้องรอแจ้งเตือนเสร็จก่อนแสดงผลสำเร็จ ปล่อยให้ทำงานเบื้องหลังแทน
-        if (!editId) {
-          const savedSetId = result.data.__backendId;
+        // 🔁 ทำทั้งตอนสร้างใหม่และตอนแก้ไขชุดเดิม — แก้ไขแล้วเลือกคนสอบเพิ่ม/เปิดสอบใหม่ได้ (เดิมทำเฉพาะตอนสร้างใหม่)
+        {
+          const savedSetId = editId || result.data.__backendId;
           // 👥 ใช้เฉพาะนักเรียนที่ติ๊กเลือกไว้ (ถ้าไม่ได้เลือกเลย = ทั้งห้อง เพื่อความเข้ากันได้กับการใช้งานแบบเดิม)
           const selectedRegIds = _getEaSelectedRegIds();
           const allRegsInRoom = allData.filter(d => d.type === 'student_registration' &&
@@ -11868,7 +11869,7 @@ const supabaseDataSdk = {
           const affectedRegs = selectedRegIds.length > 0
             ? allRegsInRoom.filter(r => selectedRegIds.includes(r.__backendId))
             : allRegsInRoom;
-          Promise.all(affectedRegs.map(reg => createStudentNotification({
+          if (!editId) Promise.all(affectedRegs.map(reg => createStudentNotification({
             studentId: reg.student_id, message: `📝 มีการจัดสอบใหม่: ${subjectName} K ครั้งที่ ${kRound}`,
             category: 'exam_assign', relatedId: savedSetId, className, roomNumber, subjectName,
           }))).catch(err => console.error('[saveExamSet] สร้างแจ้งเตือนบางรายการอาจไม่สำเร็จ (ไม่กระทบชุดสอบที่บันทึกไปแล้ว):', err));
@@ -11891,12 +11892,27 @@ const supabaseDataSdk = {
      *  สร้างเป็นรายการเปล่าสถานะ not_started ไว้ก่อน พอนักเรียนเข้าสอบจริงจะมาเขียนทับแถวนี้
      *  ทำทีละคนตามลำดับ (ไม่ใช่พร้อมกันหมด) กันสร้างภาระให้เซิร์ฟเวอร์มากเกินไปเมื่อมีนักเรียนเยอะ */
     async function _reserveWaitTestRows(examSetId, registrations, info) {
-      let created = 0;
+      let created = 0, reopened = 0;
+      // 🔁 คนที่เคยมีกระดาษของชุดสอบนี้แล้ว (เช่น สอบครบและใช้สิทธิ์สอบแก้ครบแล้ว)
+      //    ถามครูก่อนว่าจะ "เปิดให้สอบใหม่" หรือ "ข้ามไป" — เดิมข้ามเสมอ กำหนดสอบซ้ำจึงไม่เกิดอะไรขึ้นเลย
+      const used = registrations.filter(reg => allData.some(d => d.type === 'exam_submission'
+        && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(reg.student_id)));
+      let reopen = false;
+      if (used.length > 0) {
+        const names = used.slice(0, 5).map(r => r.student_name || r.student_id).join(', ');
+        reopen = confirm(`นักเรียน ${used.length} คนเคยได้รับชุดสอบนี้แล้ว (${names}${used.length > 5 ? ' และอื่นๆ' : ''})\n\n` +
+          `กด "ตกลง" = เปิดให้สอบใหม่ทั้งหมด (ล้างคำตอบและผลเดิม คืนสิทธิ์สอบแก้ให้ใหม่ คะแนนเดิมของชุดนี้จะถูกหักออกจากช่องคะแนน)\n` +
+          `กด "ยกเลิก" = ข้ามคนเหล่านี้ เก็บผลเดิมไว้`);
+      }
       for (const reg of registrations) {
         try {
-          // ข้ามถ้ามีแถวอยู่แล้ว (กันสร้างซ้ำ เผื่อกดบันทึกซ้ำหรือระบบทำงานซ้อน)
-          const existing = allData.find(d => d.type === 'exam_submission' && d.exam_set_id === examSetId && d.student_id === reg.student_id);
-          if (existing) continue;
+          const existing = allData.find(d => d.type === 'exam_submission'
+            && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(reg.student_id));
+          if (existing) {
+            if (!reopen) continue;
+            if (await _reopenExamSubmission(existing, examSetId)) reopened++;
+            continue;
+          }
           const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
           await window.dataSdk.create({
             type: 'exam_submission',
@@ -11917,7 +11933,48 @@ const supabaseDataSdk = {
           console.error('[ReserveWaitTest] จองแถวไม่สำเร็จ:', reg.student_id, e.message);
         }
       }
-      console.log(`[ReserveWaitTest] จองแถวในชีทชั่วคราวสำเร็จ ${created} คน (จากทั้งหมด ${registrations.length} คน)`);
+      console.log(`[ReserveWaitTest] จองแถวสำเร็จ ${created} คน · เปิดสอบใหม่ ${reopened} คน (จากทั้งหมด ${registrations.length} คน)`);
+      if (created || reopened) showToast(`✅ กำหนดสอบแล้ว — เพิ่มใหม่ ${created} คน${reopened ? ` · เปิดสอบใหม่ ${reopened} คน` : ''}`);
+      else if (registrations.length) showToast('ℹ️ ทุกคนที่เลือกมีกระดาษของชุดสอบนี้อยู่แล้ว (เลือกข้ามไว้)', 'info');
+    }
+
+    /** 🔁 เปิดให้สอบชุดเดิมใหม่: หักคะแนนที่ชุดนี้เคยโอนเข้าไป แล้วล้างกระดาษให้เป็นยังไม่เข้าสอบ
+     *  คะแนนส่วนอื่นในช่อง (เช่น ที่ครูกรอกมือ) ยังอยู่ครบ — กติกาเดียวกับการสอบแก้ */
+    async function _reopenExamSubmission(sub, examSetId) {
+      try {
+        const set = allData.find(d => d.type === 'exam_set' && String(d.__backendId) === String(examSetId));
+        const contributed = parseFloat(sub.k_score_contributed) || 0;
+        if (set && (sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
+          const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+          const round = parseInt(set.k_round) || 1;
+          const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id,
+            class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
+          if (g) {
+            const arr = String(g[sType + '_scores'] || '').split(',').map(x => x.trim());
+            while (arr.length < round) arr.push('');
+            const left = (parseFloat(arr[round - 1]) || 0) - contributed;
+            arr[round - 1] = left > 0 ? String(left) : '';
+            await window.dataSdk.update({ ...g, [sType + '_scores']: arr.join(',') });
+          }
+        }
+        const r = await window.dataSdk.update({ ...sub,
+          status: 'not_started', answers: '{}', started_at: '', submitted_at: '',
+          auto_score: '', manual_score: '', k_score_contributed: 0,
+          needs_manual_grading: false, manual_grading_done: false, imported_to_grade: false,
+          frozen: false, frozen_reason: '', cheat_warning_count: 0, terminated_reason: '',
+          score_reversed: false, is_retry_attempt: false, retry_count: 0,   // คืนสิทธิ์สอบแก้ให้ใหม่
+        });
+        if (r.isOk) {
+          // คำขอสอบแก้เดิมของชุดนี้ถือว่าจบไปแล้ว ไม่ให้ค้างมาโผล่ในรอบใหม่
+          allData.filter(d => d.type === 'exam_retry_request' && String(d.submission_id) === String(sub.__backendId)
+            && (d.status === 'approved' || d.status === 'pending'))
+            .forEach(d => window.dataSdk.update({ ...d, status: 'used' }).catch(() => {}));
+        }
+        return r.isOk;
+      } catch (e) {
+        console.error('[Reopen] เปิดสอบใหม่ไม่สำเร็จ:', sub.student_id, e.message);
+        return false;
+      }
     }
 
     // 🕐 ระบบช่องเลือกเวลาแบบ 24 ชั่วโมง (00-23 น.) — สร้างเองทั้งหมด ไม่ขึ้นกับการตั้งค่าเครื่องผู้ใช้
