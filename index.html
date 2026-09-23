@@ -2711,7 +2711,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.145';
+    const APP_VERSION = 'SUPABASE-2026.09.08.147';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -2914,6 +2914,21 @@
       pendingRequestCount = Math.max(0, pendingRequestCount - 1);
       if (pendingRequestCount === 0) hideBusyOverlay();
     }
+
+    /** 🚨 แถบแจ้งเตือนเมื่อเชื่อมต่อฐานข้อมูลมีปัญหา — ผู้ใช้จะได้รู้ว่าข้อมูลบนจออาจไม่ใช่ล่าสุด */
+    function _sbShowConnectionBanner(msg) {
+      let el = document.getElementById('sb-conn-banner');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'sb-conn-banner';
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#b91c1c;color:white;padding:8px 12px;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+        document.body.appendChild(el);
+      }
+      el.innerHTML = `⚠️ ${msg} <button onclick="window.dataSdk._fetchAll({full:true}).then(d=>{window.dataSdk._cache=d;window.dataSdk._handler.onDataChanged(d);}).catch(()=>{})" style="margin-left:8px;padding:2px 10px;background:white;color:#b91c1c;border:none;border-radius:6px;font-weight:700;cursor:pointer">ลองใหม่</button>
+        <button onclick="window.dataSdk.diag()" style="margin-left:6px;padding:2px 10px;background:rgba(255,255,255,.2);color:white;border:none;border-radius:6px;cursor:pointer">ตรวจสภาพ</button>`;
+    }
+    function _sbHideConnectionBanner() { document.getElementById('sb-conn-banner')?.remove(); }
+    window.kpacDiag = () => window.dataSdk?.diag?.();
 
     const sheetsDataSdk = {
       _handler: null,
@@ -3222,8 +3237,23 @@ const supabaseDataSdk = {
       return { isOk: true };
     } catch (err) {
       console.error('❌ supabaseDataSdk.init error:', err);
+      try { _sbShowConnectionBanner('เชื่อมต่อฐานข้อมูลไม่สำเร็จ: ' + err.message); } catch (e) {}
       return { isOk: false, error: { message: err.message } };
     }
+  },
+
+  /** 🔎 ตรวจสภาพการเชื่อมต่อ — พิมพ์ kpacDiag() ใน Console แล้วส่งผลมาให้ดูได้ */
+  async diag() {
+    const out = { เวลา: new Date().toLocaleString('th-TH'),
+      ดึงล่าสุด: window._sbLastFetch ? JSON.stringify(window._sbLastFetch).slice(0, 400) : 'ยังไม่เคยดึงสำเร็จ',
+      ข้อมูลในเครื่อง: (this._cache || []).length + ' แถว',
+      ซิงก์เฉพาะที่เปลี่ยน: this._incOk === false ? 'ปิด (ยังไม่ได้รัน SQL)' : 'เปิด' };
+    for (const m of SB_TABLE_MAP.slice(0, 5)) {
+      try { const r = await this._api('GET', `${m.table}?select=id&limit=1`); out['ทดสอบ ' + m.table] = 'สำเร็จ'; }
+      catch (e) { out['ทดสอบ ' + m.table] = '❌ ' + e.message; }
+    }
+    console.log('🔎 ตรวจสภาพการเชื่อมต่อ:', out);
+    return out;
   },
 
   _startPolling() {
@@ -3236,8 +3266,8 @@ const supabaseDataSdk = {
       this._pollTimer = setTimeout(async () => {
         try {
           // 🔄 ทุก 2 นาที ดึงข้อมูลทั้งหมดหนึ่งรอบ (กันข้อมูลที่ถูกลบ/แก้จากเครื่องอื่นตกหล่น)
-          const needFull = !this._lastFullAt || Date.now() - this._lastFullAt > 120000;
-          const data = await this._fetchAll(needFull ? { full: true } : undefined);
+          const data = await this._fetchAll({ full: true });   // ดึงทั้งหมดทุกรอบ (แบบเดิม)
+          const needFull = true;
           if (needFull) this._lastFullAt = Date.now();
           this._cache = data;
           this._handler.onDataChanged(this._cache);
@@ -3277,7 +3307,10 @@ const supabaseDataSdk = {
     //    เดิมดึงทุกตาราง ทุกคอลัมน์ ทุกแถว ทุก 3 วินาที — ยิ่งสอบมาก ข้อมูลยิ่งโต จนเหมือนค้าง
     //    เงื่อนไข: ต้องรันไฟล์ speed_incremental_sync.sql ก่อน (เพิ่มคอลัมน์ updated_at)
     //    ถ้ายังไม่ได้รัน ระบบจะถอยไปดึงทั้งหมดเองอัตโนมัติ ใช้งานได้ปกติ
-    const full = !!(opts && opts.full) || !this._cache || this._cache.length === 0 || !this._syncAt;
+    // 🔙 ย้อนกลับเป็นดึงทั้งหมดทุกรอบ (แบบเดิมที่ใช้งานได้) — การซิงก์เฉพาะที่เปลี่ยนปิดไว้ก่อน
+    //    เปิดใช้เมื่อพร้อมทดสอบได้ด้วยคำสั่ง window.KPAC_INCREMENTAL = true ใน Console
+    const useIncremental = (typeof window !== 'undefined' && window.KPAC_INCREMENTAL === true);
+    const full = !useIncremental || !!(opts && opts.full) || !this._cache || this._cache.length === 0 || !this._syncAt;
     const since = this._syncAt;
     const t0 = Date.now();
     const results = await Promise.all(
@@ -3296,10 +3329,21 @@ const supabaseDataSdk = {
     );
     if (!full && this._incOk === false) return this._fetchAll({ full: true });   // ถอยไปดึงทั้งหมด
 
+    // 🛡️ เกราะกันข้อมูลหาย: ถ้าดึงล้มเหลวเกินครึ่ง (เน็ตหลุด / คีย์หมดอายุ / ฐานข้อมูลปิด)
+    //    คงข้อมูลเดิมไว้ ไม่ล้างหน้าจอให้ว่างเปล่า แล้วขึ้นแถบแดงบอกผู้ใช้
+    const failed = results.filter(r => r.rows === null).length;
+    window._sbLastFetch = { at: new Date().toLocaleTimeString('th-TH'), tables: results.length, failed,
+      rows: Object.fromEntries(results.map(r => [r.table, r.rows === null ? 'ล้มเหลว' : r.rows.length])) };
+    if (failed > results.length / 2 && this._cache && this._cache.length > 0) {
+      try { _sbShowConnectionBanner(`ดึงข้อมูลไม่สำเร็จ ${failed}/${results.length} ตาราง — แสดงข้อมูลล่าสุดที่มีอยู่ไว้ก่อน`); } catch (e) {}
+      throw new Error(`ดึงข้อมูลล้มเหลว ${failed}/${results.length} ตาราง`);
+    }
+    if (failed === 0) { try { _sbHideConnectionBanner(); } catch (e) {} }
+
     let flat;
     if (full) {
       flat = results.flatMap(r => r.rows || []);
-      this._rawByTable = {};
+      this._rawByTable = this._rawByTable || {};
       results.forEach(r => { if (r.rows) this._rawByTable[r.table] = r.rows; });
     } else {
       // รวมของเดิมกับแถวที่เปลี่ยน (แถวเดิมรหัสเดียวกันถูกแทนที่)
