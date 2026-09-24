@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.160';
+    const APP_VERSION = 'SUPABASE-2026.09.08.161';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -12652,7 +12652,9 @@ const supabaseDataSdk = {
         const open = _isEssaySetOpen(set);
         if (sub.status === 'not_started' || !sub.status) {
           if (open) return `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#d97706;color:white" class="btn-3d">✍️ ${rt} เข้าสอบ</button>`;
-          if (set.start_time && new Date() < new Date(set.start_time)) return `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${rt} ยังไม่ถึงเวลาสอบ</span>`;
+          const startAt = sub.allowed_start_time || set.start_time;
+          if (startAt && new Date() < new Date(startAt))
+            return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${rt} ${_countdownHtml(startAt, 'เริ่มในอีก')}</span>`;
           return '';
         }
         if (sub.status === 'in_progress') {
@@ -12743,8 +12745,9 @@ const supabaseDataSdk = {
       document.body.appendChild(wrap);
       wrap.querySelectorAll('textarea[data-qid]').forEach(t => _updateEssayWordCount(t));
       // ⏰ สอบแก้ใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน (บทเรียนจากปรนัย: ใช้เวลาชุดหลักจะส่งกระดาษเปล่าทันทีถ้าชุดหลักปิดแล้ว)
-      const _w = _isRetry ? _essayRetryWindow(set, sub) : null;
-      _startEssayTimer(_w && _w.end ? { ...set, end_time: _w.end.toISOString() } : set);
+      const _w = (_isRetry && !sub.allowed_end_time) ? _essayRetryWindow(set, sub) : null;
+      const _endAt = sub.allowed_end_time ? new Date(sub.allowed_end_time) : (_w && _w.end ? _w.end : null);
+      _startEssayTimer(_endAt ? { ...set, end_time: _endAt.toISOString() } : set);
       if (stream) _startEssayGuard(sub, set, stream);   // 📷 เริ่มเฝ้าระวัง
       if (sub.frozen === true || sub.frozen === 'true') { _essayGuard.active = false; _showEssayFreeze(); }
     }
@@ -13115,6 +13118,8 @@ const supabaseDataSdk = {
       return { start: r.approved_start_time ? new Date(r.approved_start_time) : null, end: r.approved_end_time ? new Date(r.approved_end_time) : null, request: r };
     }
     function _essayRetryWindowOpen(set, sub) {
+      // 🕐 ถ้าแอดมินให้เวลาเฉพาะคนนี้ไว้ ให้ใช้เวลานั้นก่อนเวลาของคำขอสอบแก้
+      if (sub && (sub.allowed_start_time || sub.allowed_end_time)) return _isSubmissionOpen(sub, set);
       const w = _essayRetryWindow(set, sub); if (!w) return false;
       const now = new Date(); return (!w.start || now >= w.start) && (!w.end || now <= w.end);
     }
@@ -13127,12 +13132,12 @@ const supabaseDataSdk = {
       const req = _essayRetryReqs(sub).find(d => !lastSubmit || new Date(d.requested_at || 0).getTime() >= lastSubmit - 1000);
       const requestBtn = `<button onclick="openEssayRetryRequestForm('${sub.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${rt} ขอสอบแก้ครั้งที่ ${nextNo}</button>`;
       if (!req) return requestBtn;
-      if (req.status === 'pending') return `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${rt} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
+      if (req.status === 'pending') return `<span style="${spanBase};background:#ffedd5;color:#c2410c">⏳ ${rt} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
       if (req.status === 'denied') return '';   // ไม่อนุมัติ — ปุ่มหายไป
       if (req.status === 'approved') {
         const s = req.approved_start_time ? new Date(req.approved_start_time) : null, e = req.approved_end_time ? new Date(req.approved_end_time) : null, now = new Date();
         if ((!s || now >= s) && (!e || now <= e)) return `<button onclick="startEssayRetryAttempt('${sub.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${rt} สอบแก้ครั้งที่ ${nextNo}</button>`;
-        if (s && now < s) return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${rt} อนุมัติสอบแก้ครั้งที่ ${nextNo} เริ่ม ${s.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })}</span>`;
+        if (s && now < s) return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${rt} อนุมัติสอบแก้ครั้งที่ ${nextNo} · ${_countdownHtml(s, 'เริ่มในอีก')}</span>`;
         return requestBtn;   // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
       }
       return requestBtn;
@@ -13669,11 +13674,11 @@ const supabaseDataSdk = {
         let btnHtml = '';
         // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
         if (!submission || submission.status === 'not_started') {
-          const notYetOpen = new Date() < new Date(examSet.start_time);
+          const notYetOpen = new Date() < new Date(submission?.allowed_start_time || examSet.start_time);   // 🕐 นับเวลาเฉพาะบุคคลด้วย
           // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
             ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white" class="btn-3d">📝 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} เข้าสอบ</button>`
-            : (notYetOpen ? `<span style="${spanBase};background:#e5e7eb;color:#9ca3af">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} ยังไม่ถึงเวลาสอบ</span>` : '');
+            : (notYetOpen ? `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} ${_countdownHtml(submission?.allowed_start_time || examSet.start_time, 'เริ่มในอีก')}</span>` : '');
         } else {
           // ════════════════════════════════════════════════════════════
           // 🔘 ปุ่มเดียวต่อชุดสอบ — เปลี่ยนสถานะไปตามขั้นตอน ไม่สร้างปุ่มซ้อนเพิ่ม
@@ -13740,7 +13745,8 @@ function _examResultIdentityHtml(sub, set) {
       // ── กำลังทำค้างอยู่ ──
       if (submission.status === 'in_progress') {
         let canResume = isOpen;
-        if (isRetry) {
+        const hasPersonal = !!(submission.allowed_start_time || submission.allowed_end_time);
+        if (isRetry && !hasPersonal) {   // 🕐 เวลาที่แอดมินให้เฉพาะคนนี้ มาก่อนเวลาคำขอสอบแก้เสมอ
           const w = _approvedRetryWindow(examSet.__backendId, currentUser.student_id);
           const now = new Date();
           canResume = !!w && (!w.start || now >= w.start) && (!w.end || now <= w.end);
@@ -13788,13 +13794,13 @@ function _examResultIdentityHtml(sub, set) {
       } else {
         const req = _currentRetryRequest(examSet, submission);
         if (!req) action = requestBtn;                                            // ยังไม่ขอ
-        else if (req.status === 'pending') action = `<span style="${spanBase};background:#fef3c7;color:#b45309">⏳ ${roundText} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
+        else if (req.status === 'pending') action = `<span style="${spanBase};background:#ffedd5;color:#c2410c">⏳ ${roundText} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
         else if (req.status === 'denied') action = '';                           // ไม่อนุมัติ — ปุ่มหายไป
         else if (req.status === 'approved') {
           const s = req.approved_start_time ? new Date(req.approved_start_time) : null;
           const e = req.approved_end_time ? new Date(req.approved_end_time) : null;
           if ((!s || now >= s) && (!e || now <= e)) action = greenBtn;            // อนุมัติ + อยู่ในเวลา → ปุ่มเขียว
-          else if (s && now < s) action = `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${roundText} อนุมัติสอบแก้ครั้งที่ ${nextNo} เริ่ม ${fmt(s)}</span>`;
+          else if (s && now < s) action = `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🟢 ${roundText} อนุมัติสอบแก้ครั้งที่ ${nextNo} · ${_countdownHtml(s, 'เริ่มในอีก')}</span>`;
           else action = requestBtn;                                              // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
         } else action = requestBtn;
       }
@@ -14497,16 +14503,15 @@ function _examResultIdentityHtml(sub, set) {
         if (!label) { clearInterval(_examTimerInterval); return; }
         // ⚠️ สอบแก้ตัวใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน ไม่ใช่เวลาปิดของชุดสอบหลัก
         // (เดิมใช้เวลาชุดหลักเสมอ → สอบแก้ตัวหลังชุดหลักปิด นาฬิกาหมดทันที แล้วส่งกระดาษเปล่าอัตโนมัติ)
-        let _deadline = new Date(examSet.end_time);
-        // 🕐 ครูกำหนดเวลาเฉพาะคนนี้ไว้ → ใช้เวลานั้น
-        if (_sub0 && _sub0.allowed_end_time) _deadline = new Date(_sub0.allowed_end_time);
-        const _sub0 = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
-          ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
+        // ⚠️ ต้องหากระดาษก่อนใช้งาน (เดิมเขียนสลับลำดับ ทำให้นาฬิกาพังทุกวินาที ค้างที่ "กำลังคำนวณ...")
         const _sub = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
           ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
-        if (_sub && (_sub.is_retry_attempt === true || _sub.is_retry_attempt === 'true')) {
+        let _deadline = new Date(examSet.end_time);
+        const _hasPersonal = !!(_sub && _sub.allowed_end_time);
+        if (_hasPersonal) _deadline = new Date(_sub.allowed_end_time);   // 🕐 เวลาที่แอดมินให้เฉพาะคนนี้ มาก่อนเสมอ
+        if (!_hasPersonal && _sub && (_sub.is_retry_attempt === true || _sub.is_retry_attempt === 'true')) {
           const _w = _approvedRetryWindow(examSet.__backendId, _sub.student_id);
-          if (_w && _w.end) _deadline = _w.end;
+          if (_w && _w.end) _deadline = _w.end;   // ใช้เวลาสอบแก้เฉพาะเมื่อไม่มีเวลาที่แอดมินให้เฉพาะคน
         }
         const remainMs = _deadline - new Date();
         if (remainMs <= 0) {
@@ -21972,7 +21977,10 @@ function _examResultIdentityHtml(sub, set) {
           auto_score: '', manual_score: '', k_score_contributed: 0, imported_to_grade: false,
           needs_manual_grading: false, manual_grading_done: false, grading_done: false,
           frozen: false, frozen_reason: '', terminated_reason: '', cheat_warning_count: 0,
-          score_reversed: false, auto_closed: false };
+          score_reversed: false, auto_closed: false,
+          // ⚠️ สำคัญ: ล้างสถานะ "กำลังสอบแก้ตัว" ไม่งั้นระบบจะไปใช้เวลาของคำขอสอบแก้เดิม (ที่หมดอายุแล้ว)
+          //    แล้วนักเรียนจะเห็นว่า "หมดเวลาสอบ" ทั้งที่แอดมินเพิ่งให้เวลาใหม่
+          is_retry_attempt: false };
         let r;
         if (existing) {
           // 💯 คืนคะแนนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนไปแล้ว (คะแนนส่วนอื่นในช่องคงอยู่)
@@ -22024,6 +22032,83 @@ function _examResultIdentityHtml(sub, set) {
       });
     }
 
+    // ════════════════════════════════════════════════════════════
+    // ⏳ นาฬิกานับถอยหลังสด (ใช้ทั้งฝั่งแอดมินและฝั่งนักเรียน)
+    //    ใส่ป้ายไว้ก่อน แล้วมีตัวเดียวเดินนับให้ทุกป้ายพร้อมกัน ไม่ต้องวาดหน้าใหม่ทุกวินาที
+    // ════════════════════════════════════════════════════════════
+    function _countdownHtml(until, prefix) {
+      if (!until) return '';
+      return `<span class="kpac-countdown" data-until="${new Date(until).toISOString()}" data-prefix="${escHtml(prefix || 'เหลือ')}">${escHtml(prefix || 'เหลือ')} --:--</span>`;
+    }
+    function _tickCountdowns() {
+      const els = document.querySelectorAll('.kpac-countdown');
+      if (!els.length) return;
+      const now = Date.now();
+      els.forEach(el => {
+        const ms = new Date(el.dataset.until).getTime() - now;
+        if (!(ms > 0)) { el.textContent = 'ถึงเวลาแล้ว'; return; }
+        const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+        const pad = n => String(n).padStart(2, '0');
+        el.textContent = `${el.dataset.prefix} ${h ? h + ':' : ''}${pad(m)}:${pad(s)}`;
+      });
+    }
+    if (!window._kpacCountdownTimer) window._kpacCountdownTimer = setInterval(_tickCountdowns, 1000);
+
+    /** 🎨 สถานะการสอบของกระดาษใบหนึ่ง — ใช้ร่วมกันทั้งฝั่งแอดมินและฝั่งนักเรียน
+     *  คืนค่า { key, text, bg, fg, countdown, canView, canAssign } */
+    function _examChipState(set, sub, isEssay) {
+      const C = {
+        gray:   ['#f1f5f9', '#64748b'],   // ยังไม่สอบ / ยังไม่ขอสอบแก้
+        purple: ['#ede9fe', '#6d28d9'],   // สอบได้แล้ว (มีปุ่มให้สอบ)
+        green:  ['#dcfce7', '#15803d'],   // มีคะแนนแล้ว
+        orange: ['#ffedd5', '#c2410c'],   // ขอสอบแก้ตัวแล้ว (รออนุมัติ)
+        deep:   ['#fb923c', '#7c2d12'],   // สีแสด = หมดโควตาสอบแก้
+        blue:   ['#dbeafe', '#1d4ed8'],   // กำลังทำ / รอถึงเวลา
+        red:    ['#fee2e2', '#b91c1c'],   // ถูกยุติ / รอครูตัดสิน
+        yellow: ['#fef3c7', '#b45309'],   // รอตรวจ
+      };
+      const used = parseInt(sub?.retry_count) || 0;
+      const quotaLeft = 2 - used;
+      const open = _isSubmissionOpen(sub, set);
+      const now = new Date();
+
+      if (!sub) return { key: 'none', text: 'ไม่ได้รับชุดนี้', c: C.purple, canAssign: true };
+      if (sub.status === 'not_started' || !sub.status) {
+        return open
+          ? { key: 'ready', text: 'สอบได้แล้ว', c: C.purple, canAssign: true }
+          : { key: 'notyet', text: (set.end_time && now > new Date(set.end_time)) ? 'ยังไม่สอบ · ⏰ หมดเวลา' : 'ยังไม่สอบ', c: C.gray, canAssign: true };
+      }
+      if (sub.status === 'in_progress') {
+        const frozen = sub.frozen === true || sub.frozen === 'true';
+        return frozen ? { key: 'frozen', text: '⏸️ รอครูตัดสิน', c: C.red }
+                      : { key: 'doing', text: '✏️ กำลังทำ', c: C.blue };
+      }
+      if (sub.status === 'terminated') return { key: 'terminated', text: '🚫 ถูกยุติ', c: C.red, canView: true, canAssign: true };
+
+      // ── ส่งแล้ว ──
+      const graded = isEssay ? (sub.grading_done === true || sub.grading_done === 'true') : true;
+      const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '') ? sub.manual_score : sub.auto_score;
+      const hasScore = graded && score !== undefined && score !== null && score !== '';
+      if (!hasScore) return { key: 'grading', text: '⏳ รอตรวจ', c: C.yellow };
+
+      // คำขอสอบแก้ของรอบนี้ (ขอหลังส่งครั้งล่าสุด)
+      const lastSubmit = sub.submitted_at ? new Date(sub.submitted_at).getTime() : 0;
+      const req = allData.filter(d => d.type === (isEssay ? 'essay_retry_request' : 'exam_retry_request')
+          && String(d.submission_id) === String(sub.__backendId)
+          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000))
+        .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0))[0];
+
+      if (quotaLeft <= 0) return { key: 'noquota', text: 'หมดโควตาสอบแก้', c: C.deep, canView: true, canAssign: true, score };
+      if (req && req.status === 'pending') return { key: 'requested', text: `ขอสอบแก้ครั้งที่ ${used + 1}`, c: C.orange, canView: true, score };
+      if (req && req.status === 'approved') {
+        const s = req.approved_start_time ? new Date(req.approved_start_time) : null;
+        const e = req.approved_end_time ? new Date(req.approved_end_time) : null;
+        if ((!s || now >= s) && (!e || now <= e)) return { key: 'retryready', text: `สอบแก้ครั้งที่ ${used + 1} ได้แล้ว`, c: C.purple, canView: true, score };
+        if (s && now < s) return { key: 'waiting', text: `อนุมัติแล้ว · เริ่มในอีก`, c: C.blue, countdown: s, canView: true, score };
+      }
+      return { key: 'norequest', text: 'ยังไม่ขอสอบแก้', c: C.gray, canView: true, score };
+    }
+
     function _examProgressStripHtml(reg) {
       if (!reg || reg.__virtual) return '';
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
@@ -22031,49 +22116,37 @@ function _examResultIdentityHtml(sub, set) {
       const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && match(d))
         .sort((a, b) => (parseInt(a.k_round) || 1) - (parseInt(b.k_round) || 1) || String(a.score_type).localeCompare(String(b.score_type)));
       if (sets.length === 0) return '';
-      const chip = 'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap';
+      const chip = 'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap;border:none';
       const items = sets.map(set => {
         const isEssay = set.type === 'essay_exam_set';
         const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
           && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
           && N(d.student_id) === N(reg.student_id));
         const tag = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
-        if (!sub) return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:#ede9fe;color:#6d28d9;border:none;cursor:pointer" title="จัดสอบให้คนนี้ พร้อมกำหนดช่วงเวลาเฉพาะคน">${tag} ➕ จัดสอบให้</button>`;
-        const graded = sub.grading_done === true || sub.grading_done === 'true';
-        const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '') ? sub.manual_score : sub.auto_score;
-        const pending = allData.some(d => (d.type === 'exam_retry_request' || d.type === 'essay_retry_request')
-          && String(d.submission_id) === String(sub.__backendId) && d.status === 'pending');
-        const retry = (parseInt(sub.retry_count) || 0) ? ` ·แก้${sub.retry_count}` : '';
-        if (sub.status === 'not_started' || !sub.status) {
-          const openNow = _isSubmissionOpen(sub, set);
-          const personal = !!(sub.allowed_start_time || sub.allowed_end_time);
-          return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:${openNow ? '#f1f5f9' : '#ede9fe'};color:${openNow ? '#64748b' : '#6d28d9'};border:none;cursor:pointer" title="กำหนดช่วงเวลาสอบเฉพาะคนนี้">${tag} ยังไม่สอบ${openNow ? (personal ? ' 🕐' : '') : ' ⏰ หมดเวลา'}</button>`;
-        }
-        if (sub.status === 'in_progress') {
-          const frozen = sub.frozen === true || sub.frozen === 'true';
-          return `<span style="${chip};background:${frozen ? '#fee2e2' : '#dbeafe'};color:${frozen ? '#b91c1c' : '#1d4ed8'}">${tag} ${frozen ? '⏸️ รอตัดสิน' : '✏️ กำลังทำ'}</span>`;
-        }
-        // ส่งแล้ว / ถูกยุติ
-        const base = sub.status === 'terminated' ? `${tag} 🚫 ถูกยุติ` : `${tag} ✅ ส่งแล้ว`;
-        // 🚫 ถูกยุติ → กดเพื่อจัดสอบให้ใหม่เป็นกรณีพิเศษ (กด 1 ครั้ง = สอบได้ 1 ครั้ง ไม่จำกัดจำนวนครั้งที่ให้)
-        if (sub.status === 'terminated') {
-          const sc = (score !== undefined && score !== null && score !== '') ? ` ${score}/${set.total_score}` : '';
-          return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:#fee2e2;color:#b91c1c;border:none;cursor:pointer" title="จัดสอบให้ใหม่เป็นกรณีพิเศษ (กำหนดเวลาเฉพาะคนนี้)">${base}${retry}${sc} · ➕ ให้สอบใหม่</button>`;
-        }
-        let html;
-        if (isEssay && !graded) {
-          html = `<button onclick="openEssayGrading('${set.__backendId}')" style="${chip};background:#fef3c7;color:#b45309;border:none;cursor:pointer" title="ไปตรวจอัตนัย">${base}${retry} · 📝 รอตรวจ</button>`;
-        } else if (score !== undefined && score !== null && score !== '') {
-          const onclick = isEssay ? `openEssayGrading('${set.__backendId}')` : `showExamResultDetail('${sub.__backendId}')`;
-          html = `<button onclick="${onclick}" style="${chip};background:#dcfce7;color:#15803d;border:none;cursor:pointer" title="ดูรายละเอียดคะแนน">${base}${retry} ${score}/${set.total_score}</button>`;
-        } else {
-          html = `<span style="${chip};background:#fef3c7;color:#b45309">${base}${retry} · รอตรวจ</span>`;
-        }
-        if (pending) html += ` <button onclick="showAdminTab('retryrequest')" style="${chip};background:#fee2e2;color:#b91c1c;border:none;cursor:pointer" title="ไปหน้าคำขอสอบแก้ตัว">📨 ขอสอบแก้</button>`;
-        return html;
+        const st = _examChipState(set, sub, isEssay);
+        const kind = isEssay ? 'essay' : 'mc';
+        const assign = `openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${kind}')`;
+        const view = sub ? (isEssay ? `openEssayGrading('${set.__backendId}')` : `showExamResultDetail('${sub.__backendId}')`) : '';
+        const out = [];
+        // 🟢 ป้ายคะแนน (กดดูคะแนนเก่าได้)
+        if (st.score !== undefined && st.score !== null && st.score !== '')
+          out.push(`<button onclick="${view}" style="${chip};background:#dcfce7;color:#15803d;cursor:pointer" title="ดูคะแนน">${tag} ${st.score}/${set.total_score}</button>`);
+        // ป้ายสถานะ (สีตามเงื่อนไข)
+        const body = `${st.score !== undefined && st.score !== null && st.score !== '' ? '' : tag + ' '}${st.text}${st.countdown ? ' ' + _countdownHtml(st.countdown, '') : ''}`;
+        const click = st.canAssign ? assign : (st.canView && view ? view : '');
+        out.push(click
+          ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${st.canAssign ? 'จัดสอบ/ให้สอบใหม่ (กำหนดเวลาเฉพาะคนนี้)' : 'ดูรายละเอียด'}">${body}${st.canAssign ? ' · ➕' : ''}</button>`
+          : `<span style="${chip};background:${st.c[0]};color:${st.c[1]}">${body}</span>`);
+        // หมดโควตาสอบแก้ → ปุ่มให้สอบพิเศษแยกไว้ข้างๆ (ชัดเจนกว่า)
+        if (st.key === 'noquota')
+          out.push(`<button onclick="${assign}" style="${chip};background:#ede9fe;color:#6d28d9;cursor:pointer" title="ให้สอบเป็นกรณีพิเศษ">➕ ให้สอบ</button>`);
+        // มีคำขอรออนุมัติ → ทางลัดไปหน้าคำขอ
+        if (st.key === 'requested')
+          out.push(`<button onclick="showAdminTab('retryrequest')" style="${chip};background:#fee2e2;color:#b91c1c;cursor:pointer" title="ไปหน้าคำขอสอบแก้ตัว">📨 อนุมัติ</button>`);
+        return out.join(' ');
       }).join(' ');
       return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
-          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ (กดดูรายละเอียดได้)</p>
+          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/ยังไม่ขอแก้ · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา</p>
           <div class="flex flex-wrap gap-1">${items}</div>
         </div>`;
     }
