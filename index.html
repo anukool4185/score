@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.162';
+    const APP_VERSION = 'SUPABASE-2026.09.08.163';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6286,9 +6286,10 @@ const supabaseDataSdk = {
       const setOk = id => !id || allData.some(d => d.type === 'exam_set' && String(d.__backendId) === String(id));
       const cheat = allData.filter(d => d.type === 'exam_alert' && d.status === 'pending' && setOk(d.exam_id || d.exam_set_id)).length
         + (typeof _essayCheatItems === 'function' ? _essayCheatItems().length : 0);
-      const uniq = (arr, key) => new Set(arr.map(key)).size;   // คนเดียวชุดเดียวนับครั้งเดียว (ตรงกับรายการในหน้า)
-      const retry = uniq(allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && setOk(d.exam_set_id)), d => d.student_id + '|' + d.exam_set_id)
-        + uniq(allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending'), d => d.student_id + '|' + d.essay_exam_set_id);
+      // ใช้ตัวนับกลางตัวเดียวกับรายการ — ตัวเลขกับรายการจะได้ตรงกันเสมอ
+      const retry = (typeof _pendingRetryRequests === 'function')
+        ? _pendingRetryRequests('mc').length + _pendingRetryRequests('essay').length
+        : 0;
       return { examcheat: cheat, retryrequest: retry };
     }
     function _updateSidebarBadges() {
@@ -13184,12 +13185,7 @@ const supabaseDataSdk = {
     function _renderEssayRetryRequests() {
       const box = document.getElementById('rr-essay-list');
       if (!box) return;
-      const map = {};
-      allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending').forEach(r => {
-        const k = r.student_id + '|' + r.essay_exam_set_id;
-        if (!map[k] || new Date(r.requested_at) > new Date(map[k].requested_at)) map[k] = r;   // คนเดียวชุดเดียว เห็นคำขอเดียว
-      });
-      const reqs = Object.values(map).sort((a, b) => new Date(a.requested_at) - new Date(b.requested_at));
+      const reqs = _pendingRetryRequests('essay').map(p => p.req);   // ใช้ตัวนับกลางตัวเดียวกับตัวเลขหลังเมนู
       box.innerHTML = `<h4 class="font-bold text-gray-700 mb-2">✍️ คำขอสอบแก้อัตนัย ${reqs.length ? `(${reqs.length})` : ''}</h4>` + (reqs.length ? reqs.map(r => {
         const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(r.essay_exam_set_id));
         const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(r.submission_id));
@@ -15842,28 +15838,42 @@ function _examResultIdentityHtml(sub, set) {
       // 📨 ย้ายคำขอสอบแก้ตัวไปเป็นเมนูแยกของตัวเองแล้ว (แท็บ retryrequest) ไม่ต้องโหลดที่นี่
     }
 
+    /** 📨 คำขอสอบแก้ที่รอพิจารณา (ใช้ร่วมกันทั้งรายการและตัวเลขหลังเมนู — จะได้ไม่มีตัวเลขค้างโดยไม่มีรายการ)
+     *  คนเดียว ชุดสอบเดียว เห็นใบเดียว (ใบล่าสุด) · ใบที่ชุดสอบถูกลบไปแล้วก็ยังแสดง เพื่อให้แอดมินเคลียร์ได้ */
+    function _pendingRetryRequests(kind) {
+      const type = kind === 'essay' ? 'essay_retry_request' : 'exam_retry_request';
+      const setType = kind === 'essay' ? 'essay_exam_set' : 'exam_set';
+      const setKey = kind === 'essay' ? 'essay_exam_set_id' : 'exam_set_id';
+      const map = {};
+      allData.filter(d => d.type === type && d.status === 'pending').forEach(r => {
+        const key = String(r.student_id) + '|' + String(r[setKey] || r.submission_id || '');
+        const cur = map[key];
+        if (!cur || new Date(r.requested_at || 0) > new Date(cur.requested_at || 0)) map[key] = r;
+      });
+      return Object.values(map).map(r => ({
+        req: r,
+        set: allData.find(s => s.type === setType && String(s.__backendId) === String(r[setKey])) || null,
+      })).sort((a, b) => new Date(a.req.requested_at || 0) - new Date(b.req.requested_at || 0));
+    }
+
     function renderRetryRequestsList() {
       const listEl = document.getElementById('rr-list');
       if (!listEl) return;
       if (typeof _renderEssayRetryRequests === 'function') _renderEssayRetryRequests();   // ✍️ คำขอสอบแก้อัตนัย
       // 🔄 กรองไม่ให้แสดงซ้ำ: นักเรียน 1 คน ต่อชุดสอบ 1 ชุด เห็นได้แค่คำขอเดียวเท่านั้น
       // (ถ้ากดขอหลายรอบในชุดสอบเดียวกัน จะเก็บรายการล่าสุดไว้ เพราะมีเหตุผลใหม่สุด)
-      const allPending = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending' && allData.some(es => es.type === 'exam_set' && es.__backendId === d.exam_set_id));
-      const uniqueMap = {};
-      allPending.forEach(function(r) {
-        const key = r.student_id + '|' + r.exam_set_id;
-        const existing = uniqueMap[key];
-        if (!existing || new Date(r.requested_at) > new Date(existing.requested_at)) uniqueMap[key] = r;
-      });
-      const requests = Object.values(uniqueMap).sort((a,b) => new Date(a.requested_at) - new Date(b.requested_at));
+      const _pairs = _pendingRetryRequests('mc');
+      const requests = _pairs.map(p => p.req);
       if (requests.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ไม่มีคำขอสอบแก้ที่รอพิจารณา</p>'; return; }
       listEl.innerHTML = requests.map(req => {
         const student = allData.find(s => s.type === 'student' && s.student_id === req.student_id);
         const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : req.student_id;
-        const submission = allData.find(s => s.type === 'exam_submission' && s.__backendId === req.submission_id);
+        const submission = allData.find(s => s.type === 'exam_submission' && String(s.__backendId) === String(req.submission_id));
+        const _setGone = !allData.some(s => s.type === 'exam_set' && String(s.__backendId) === String(req.exam_set_id));
         const logHtml = renderExamActivityLogHtml(submission);
         return `
           <div class="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
+            ${_setGone ? `<p class="text-xs bg-red-50 border border-red-200 text-red-700 rounded p-2 mb-2">⚠️ ชุดสอบนี้ถูกลบไปแล้ว คำขอนี้จึงอนุมัติไม่ได้ <button onclick="denyRetryRequest('${req.__backendId}')" class="ml-1 px-2 py-0.5 bg-red-500 text-white rounded">ล้างคำขอนี้</button></p>` : ''}
             <p class="font-semibold text-gray-800">👤 ${name} (${req.student_id})</p>
             <p class="text-xs text-gray-500 mt-1">📚 ${req.subject_name} · ${req.class_name}/${req.room_number} · ขอเมื่อ ${new Date(req.requested_at).toLocaleString('th-TH', { hour12: false })}</p>
             <p class="text-sm text-gray-700 mt-2 bg-white rounded-lg p-2 border border-amber-100">💬 ${req.reason}</p>
