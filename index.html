@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.163';
+    const APP_VERSION = 'SUPABASE-2026.09.08.164';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -22168,9 +22168,9 @@ function _examResultIdentityHtml(sub, set) {
         const out = [];
         // 🟢 ป้ายคะแนน (กดดูคะแนนเก่าได้)
         if (st.score !== undefined && st.score !== null && st.score !== '')
-          out.push(`<button onclick="${view}" style="${chip};background:#dcfce7;color:#15803d;cursor:pointer" title="ดูคะแนน">${tag} ${st.score}/${set.total_score}</button>`);
+          out.push(`<button onclick="${view}" style="${chip};background:#dcfce7;color:#15803d;cursor:pointer" title="ดูคะแนน">${st.score}/${set.total_score}</button>`);
         // ป้ายสถานะ (สีตามเงื่อนไข)
-        const body = `${st.score !== undefined && st.score !== null && st.score !== '' ? '' : tag + ' '}${st.text}${st.countdown ? ' ' + _countdownHtml(st.countdown, '') : ''}`;
+        const body = `${st.text}${st.countdown ? ' ' + _countdownHtml(st.countdown, '') : ''}`;
         const click = st.canAssign ? assign : (st.canView && view ? view : '');
         out.push(click
           ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${st.canAssign ? 'จัดสอบ/ให้สอบใหม่ (กำหนดเวลาเฉพาะคนนี้)' : 'ดูรายละเอียด'}">${body}${st.canAssign ? ' · ➕' : ''}</button>`
@@ -22181,11 +22181,16 @@ function _examResultIdentityHtml(sub, set) {
         // มีคำขอรออนุมัติ → ทางลัดไปหน้าคำขอ
         if (st.key === 'requested')
           out.push(`<button onclick="showAdminTab('retryrequest')" style="${chip};background:#fee2e2;color:#b91c1c;cursor:pointer" title="ไปหน้าคำขอสอบแก้ตัว">📨 อนุมัติ</button>`);
-        return out.join(' ');
+        // 🔲 ล้อมกรอบให้รู้ว่าป้ายกลุ่มนี้เป็นของชุดสอบเดียวกัน พร้อมหัวกรอบบอกชื่อชุด
+        const edge = st.c[1];
+        return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:1.5px solid ${edge}33;border-radius:9px;padding:3px 5px 3px 4px;background:#fff">
+            <span style="font-size:9.5px;font-weight:700;color:${edge};background:${st.c[0]};border-radius:5px;padding:1px 5px">${tag}</span>
+            ${out.join(' ')}
+          </span>`;
       }).join(' ');
       return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
           <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/ยังไม่ขอแก้ · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา</p>
-          <div class="flex flex-wrap gap-1">${items}</div>
+          <div class="flex flex-wrap gap-2">${items}</div>
         </div>`;
     }
 
