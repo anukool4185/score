@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.156';
+    const APP_VERSION = 'SUPABASE-2026.09.08.158';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14301,12 +14301,19 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     async function _startExamAttemptInner(examSetId, registrationId) {
+      window._examGateMode = null;   // 🧹 ล้างโหมดด่านกล้องที่อาจค้างจากการสอบอัตนัย
       console.log('[Exam Popup Debug] startExamAttempt called:', examSetId, registrationId);
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       const reg = allData.find(d => d.__backendId === registrationId && d.type === 'student_registration');
       console.log('[Exam Popup Debug] examSet found:', !!examSet, '| reg found:', !!reg);
       if (!examSet || !reg) { showToast('ไม่พบข้อมูลชุดสอบ', 'error'); return; }
-      if (!_isSubmissionOpen(submission, examSet)) { console.log('[Exam] นอกช่วงเวลาสอบ', examSet.start_time, examSet.end_time, submission?.allowed_start_time, submission?.allowed_end_time); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      // ⚠️ บั๊กที่แก้แล้ว: เดิมอ้างถึงตัวแปร submission ก่อนประกาศ ทำให้กดปุ่มเข้าสอบแล้วเงียบ เข้าสอบไม่ได้เลย
+      const _mySub = allData.find(d => d.type === 'exam_submission'
+        && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(currentUser?.student_id));
+      if (!_isSubmissionOpen(_mySub, examSet)) {
+        console.log('[Exam] นอกช่วงเวลาสอบ', examSet.start_time, examSet.end_time, _mySub?.allowed_start_time, _mySub?.allowed_end_time);
+        showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return;
+      }
 
       // ⚡ ดึงข้อมูลชุดข้อสอบเต็มเฉพาะตอนจะเข้าสอบจริง (ตอนโหลดหน้าแรกไม่ได้ดึงมา เพื่อความเร็ว)
       if (!examSet.question_snapshot_json && window.dataSdk._fetchFullRecord) {
@@ -16616,6 +16623,10 @@ function _examResultIdentityHtml(sub, set) {
 
       const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
 
+      // 🧮 รวมรายชื่อทั้งหมดในขอบเขตที่กรอง เพื่อใช้คิดตัวเลือกและแถวสรุป
+      const _allRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||'); return computeGradeReportRows(c0, r0, s0); });
+      renderDistOptionsUi(_allRows);
+
       const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
       if (overviewEl) {
         const overallDist = computeGradeDistributionOverall(comboSet);
@@ -16642,7 +16653,14 @@ function _examResultIdentityHtml(sub, set) {
       }
 
       if (comboSet.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ไม่พบข้อมูล</p>'; return; }
-      listEl.innerHTML = comboSet.map(combo => {
+      const _sum = _distMoveSummary(_allRows);
+      const _o = window._distOpts || {};
+      const _summaryRow = (_o.cutRor || _o.cutMs) ? `
+        <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 text-sm">
+          <p class="font-semibold text-amber-800 mb-1">📋 สรุปผลของเงื่อนไขที่เลือก (เกณฑ์ ${(parseFloat(_o.threshold) || 0).toFixed(1)} ขึ้นไป)</p>
+          <p class="text-amber-800">${_o.cutRor ? '✂️ ตัด ร. ' : ''}${_o.cutMs ? '✂️ ตัด มส. ' : ''}· ย้ายจาก ร. ไปนับเป็นเกรด <b>${_sum.rorToGrade}</b> คน · ย้ายจาก มส. ไปนับเป็นเกรด <b>${_sum.msToGrade}</b> คน · ติดทั้ง ร. และ มส. <b>${_sum.bothTotal}</b> คน (ถึงเกณฑ์ ${_sum.bothHigh} · ต่ำกว่าเกณฑ์ ${_sum.bothLow}) · เปลี่ยนวิธีนับรวม <b>${_sum.changed}</b> คน</p>
+        </div>` : '';
+      listEl.innerHTML = _summaryRow + comboSet.map(combo => {
         const [c, rm, sub] = combo.split('|||');
         const dist = computeGradeDistribution(c, rm, sub);
         return `
@@ -24271,9 +24289,123 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     // 📑 สรุปเกรด (แบบสรุปรวมต่อวิชา) — จำนวน+ร้อยละของแต่ละเกรด ไม่ใช่รายบุคคล
-    function getGradeDisplayValue(row) {
-      return (row.special1==='มส.'||row.special2==='มส.') ? 'มส.' : (row.special3==='ร.' ? 'ร.' : row.gradeValue);
+    // ════════════════════════════════════════════════════════════
+    // 🥧 เงื่อนไขการนับเกรดในหน้าสรุปเกรด (ตัด ร. / ตัด มส. ตามเกณฑ์เกรด)
+    // ────────────────────────────────────────────────────────────
+    // กติกา (ตามที่ผู้ใช้กำหนด):
+    //   • ปกติ: มส. มาก่อน ร. และ ร. มาก่อนเกรด
+    //   • ตัด ร. ที่เกณฑ์ T  → คนติด ร. ที่ได้เกรด ≥ T นับเป็นเกรด · ต่ำกว่า T นับเป็น ร.
+    //   • ตัด มส. ที่เกณฑ์ T → คนติด มส. ที่ได้เกรด ≥ T นับเป็นเกรด · ต่ำกว่า T นับเป็น มส.
+    //   • คนที่ติดทั้ง ร. และ มส. → ค่าเริ่มต้นนับตัวที่ "ไม่ได้ถูกตัด" (ถ้าตัด ร. อย่างเดียวก็นับ มส.)
+    //     และมีช่องติ๊กเสริมแยก 2 กลุ่ม (เกรดถึงเกณฑ์ / ต่ำกว่าเกณฑ์) เพื่อตัดตัวที่เหลือออกอีกชั้น
+    //   • ตัดทั้งคู่ → เกรด ≥ T นับเป็นเกรด · ต่ำกว่า T นับ มส. (ติ๊กช่องเสริมเพื่อเปลี่ยนไปนับ ร. แทน)
+    // ════════════════════════════════════════════════════════════
+    window._distOpts = window._distOpts || { cutRor: false, cutMs: false, threshold: 2.5, extraHigh: false, extraLow: false };
+
+    /** ป้ายเกรดแบบปกติ (ไม่ใช้เงื่อนไข) */
+    function _normalGradeLabel(row) {
+      return (row.special1 === 'มส.' || row.special2 === 'มส.') ? 'มส.' : (row.special3 === 'ร.' ? 'ร.' : row.gradeValue);
     }
+
+    /** ป้ายเกรดที่ใช้นับจริง ตามเงื่อนไขที่เลือกไว้ */
+    function getGradeDisplayValue(row) {
+      const o = window._distOpts || {};
+      const hasMs = row.special1 === 'มส.' || row.special2 === 'มส.';
+      const hasRor = row.special3 === 'ร.';
+      if (!hasMs && !hasRor) return row.gradeValue;
+      if (!o.cutRor && !o.cutMs) return hasMs ? 'มส.' : 'ร.';
+
+      const num = parseFloat(row.gradeValue);
+      const meets = !isNaN(num) && num >= (parseFloat(o.threshold) || 0);
+
+      if (hasMs && hasRor) {
+        if (o.cutRor && o.cutMs) {
+          if (meets) return row.gradeValue;                 // ตัดทั้งคู่ + ถึงเกณฑ์ → นับเกรด
+          return o.extraLow ? 'ร.' : 'มส.';                 // ต่ำกว่าเกณฑ์ → มส. (ติ๊กเสริม = นับ ร. แทน)
+        }
+        if (o.cutRor) {                                      // ตัดเฉพาะ ร. → เหลือ มส.
+          if (meets) return o.extraHigh ? row.gradeValue : 'มส.';
+          return o.extraLow ? 'ร.' : 'มส.';
+        }
+        // ตัดเฉพาะ มส. → เหลือ ร.
+        if (meets) return o.extraHigh ? row.gradeValue : 'ร.';
+        return o.extraLow ? 'มส.' : 'ร.';
+      }
+      if (hasMs) return (o.cutMs && meets) ? row.gradeValue : 'มส.';
+      return (o.cutRor && meets) ? row.gradeValue : 'ร.';
+    }
+
+    /** สรุปว่ามีกี่คนถูกย้ายจาก ร./มส. ไปนับเป็นเกรด และมีคนติดทั้งคู่กี่คน (ใช้ทำแถวสรุปและป้ายช่องติ๊ก) */
+    function _distMoveSummary(rows) {
+      const s = { rorToGrade: 0, msToGrade: 0, bothHigh: 0, bothLow: 0, bothTotal: 0, changed: 0 };
+      const T = parseFloat((window._distOpts || {}).threshold) || 0;
+      rows.forEach(r => {
+        const hasMs = r.special1 === 'มส.' || r.special2 === 'มส.';
+        const hasRor = r.special3 === 'ร.';
+        const before = _normalGradeLabel(r), after = getGradeDisplayValue(r);
+        if (before !== after) s.changed++;
+        if (hasMs && hasRor) {
+          s.bothTotal++;
+          const num = parseFloat(r.gradeValue);
+          if (!isNaN(num) && num >= T) s.bothHigh++; else s.bothLow++;
+        }
+        if (before === 'ร.' && after !== 'ร.' && after !== 'มส.') s.rorToGrade++;
+        if (before === 'มส.' && after !== 'มส.' && after !== 'ร.') s.msToGrade++;
+      });
+      return s;
+    }
+
+    /** เก็บค่าจากหน้าจอแล้ววาดใหม่ */
+    function updateDistOptions() {
+      const g = id => document.getElementById(id);
+      window._distOpts = {
+        cutRor: !!g('dist-cut-ror')?.checked,
+        cutMs: !!g('dist-cut-ms')?.checked,
+        threshold: parseFloat(g('dist-threshold')?.value) || 0,
+        extraHigh: !!g('dist-extra-high')?.checked,
+        extraLow: !!g('dist-extra-low')?.checked,
+      };
+      updateAdminGradeDistTable();
+    }
+
+    /** แถบตัวเลือกด้านบนของหน้าสรุปเกรด */
+    function renderDistOptionsUi(rows) {
+      const box = document.getElementById('admin-gradedist-options');
+      if (!box) return;
+      const o = window._distOpts;
+      const s = _distMoveSummary(rows || []);
+      const opts = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(v =>
+        `<option value="${v}" ${parseFloat(o.threshold) === v ? 'selected' : ''}>${v.toFixed(1)}</option>`).join('');
+      const anyCut = o.cutRor || o.cutMs;
+      const extraLabel = (o.cutRor && o.cutMs)
+        ? { high: '', low: `เปลี่ยนกลุ่มที่เกรดต่ำกว่าเกณฑ์ให้นับ ร. แทน มส. (${s.bothLow} คน)` }
+        : o.cutRor
+          ? { high: `ตัด มส. ของกลุ่มที่เกรดถึงเกณฑ์ออกด้วย → นับเป็นเกรด (${s.bothHigh} คน)`,
+              low: `ตัด มส. ของกลุ่มที่เกรดต่ำกว่าเกณฑ์ออก → นับเป็น ร. (${s.bothLow} คน)` }
+          : o.cutMs
+            ? { high: `ตัด ร. ของกลุ่มที่เกรดถึงเกณฑ์ออกด้วย → นับเป็นเกรด (${s.bothHigh} คน)`,
+                low: `ตัด ร. ของกลุ่มที่เกรดต่ำกว่าเกณฑ์ออก → นับเป็น มส. (${s.bothLow} คน)` }
+            : { high: '', low: '' };
+      box.innerHTML = `
+        <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 mb-4">
+          <div class="flex items-center gap-4 flex-wrap text-sm">
+            <span class="font-semibold text-indigo-800">🧮 วิธีนับ</span>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="dist-cut-ror" ${o.cutRor ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด ร. ออก</label>
+            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="dist-cut-ms" ${o.cutMs ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด มส. ออก</label>
+            <label class="flex items-center gap-1 ${anyCut ? '' : 'opacity-40'}">เกณฑ์เกรดตั้งแต่
+              <select id="dist-threshold" onchange="updateDistOptions()" ${anyCut ? '' : 'disabled'} class="px-2 py-1 border-2 border-gray-200 rounded-lg text-sm">${opts}</select> ขึ้นไป</label>
+            ${anyCut ? '' : '<span class="text-xs text-gray-500">(ไม่ติ๊ก = สรุปปกติ: มส. มาก่อน ร. และ ร. มาก่อนเกรด)</span>'}
+          </div>
+          ${anyCut && s.bothTotal > 0 ? `
+            <div class="mt-2 pt-2 border-t border-indigo-200">
+              <p class="text-xs text-indigo-700 mb-1">⚠️ มีนักเรียนที่ติดทั้ง ร. และ มส. รวม ${s.bothTotal} คน — เลือกวิธีนับกลุ่มนี้เพิ่มได้</p>
+              ${extraLabel.high ? `<label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" id="dist-extra-high" ${o.extraHigh ? 'checked' : ''} onchange="updateDistOptions()"> ${extraLabel.high}</label>` : ''}
+              ${extraLabel.low ? `<label class="flex items-center gap-1 text-xs cursor-pointer"><input type="checkbox" id="dist-extra-low" ${o.extraLow ? 'checked' : ''} onchange="updateDistOptions()"> ${extraLabel.low}</label>` : ''}
+            </div>` : ''}
+          ${anyCut ? `<p class="text-xs text-gray-600 mt-2">📊 ผลของเงื่อนไข: ย้ายจาก ร. ไปนับเป็นเกรด <b>${s.rorToGrade}</b> คน · ย้ายจาก มส. ไปนับเป็นเกรด <b>${s.msToGrade}</b> คน · เปลี่ยนวิธีนับทั้งหมด <b>${s.changed}</b> คน</p>` : ''}
+        </div>`;
+    }
+
     function computeGradeDistribution(className, roomNumber, subjectName) {
       const rows = computeGradeReportRows(className, roomNumber, subjectName);
       const counts = {};
