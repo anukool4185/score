@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.159';
+    const APP_VERSION = 'SUPABASE-2026.09.08.160';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -21938,7 +21938,8 @@ function _examResultIdentityHtml(sub, set) {
       wrap.style.zIndex = '60';
       const tag = `${(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
       wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
-          <p class="text-lg font-bold text-gray-800 mb-1">🕐 จัดสอบเฉพาะคนนี้</p>
+          <p class="text-lg font-bold text-gray-800 mb-1">🕐 ${sub && (sub.status === 'terminated' || sub.status === 'submitted') ? 'ให้สอบใหม่เป็นกรณีพิเศษ' : 'จัดสอบเฉพาะคนนี้'}</p>
+          ${sub && (sub.status === 'terminated' || sub.status === 'submitted') ? '<p class="text-xs bg-red-50 border border-red-200 text-red-700 rounded p-2 mb-2">⚠️ ผลเดิมของชุดสอบนี้จะถูกล้าง และคะแนนที่เคยโอนเข้าช่องคะแนนจะถูกหักคืน (คะแนนส่วนอื่นยังอยู่) · ไม่ตัดสิทธิ์สอบแก้ตัวของนักเรียน</p>' : ''}
           <p class="text-xs text-gray-500 mb-2">${escHtml(reg.student_name || String(reg.student_id))} · ${escHtml(set.subject_name || '')} · ${tag}</p>
           <p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded p-2 mb-3">เวลาของชุดสอบหลัก: ${set.start_time ? new Date(set.start_time).toLocaleString('th-TH', { hour12: false }) : '-'} ถึง ${set.end_time ? new Date(set.end_time).toLocaleString('th-TH', { hour12: false }) : '-'}<br>เวลาด้านล่างใช้เฉพาะคนนี้ — ชุดสอบหลักปิดไปแล้วก็สอบได้</p>
           <p class="text-xs text-gray-600">🟢 เริ่ม</p>${row('ie-start', now)}
@@ -21966,9 +21967,32 @@ function _examResultIdentityHtml(sub, set) {
           && String(d.student_id) === String(reg.student_id));
         const stu = allData.find(x => x.type === 'student' && String(x.student_id) === String(reg.student_id));
         const payload = { allowed_start_time: s.toISOString(), allowed_end_time: e.toISOString(),
-          status: 'not_started', answers: '{}', started_at: '', submitted_at: '' };
+          status: 'not_started', answers: '{}', started_at: '', submitted_at: '',
+          // เริ่มใหม่หมด: ล้างผลเดิมของกระดาษใบนี้ แต่ไม่แตะจำนวนครั้งสอบแก้ (retry_count) ที่นักเรียนใช้ไป
+          auto_score: '', manual_score: '', k_score_contributed: 0, imported_to_grade: false,
+          needs_manual_grading: false, manual_grading_done: false, grading_done: false,
+          frozen: false, frozen_reason: '', terminated_reason: '', cheat_warning_count: 0,
+          score_reversed: false, auto_closed: false };
         let r;
         if (existing) {
+          // 💯 คืนคะแนนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนไปแล้ว (คะแนนส่วนอื่นในช่องคงอยู่)
+          const contributed = parseFloat(existing.k_score_contributed) || 0;
+          if ((existing.imported_to_grade === true || existing.imported_to_grade === 'true') && contributed > 0) {
+            const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+            const round = parseInt(set.k_round) || 1;
+            const g = _findGradeRow({ __backendId: existing.registration_id, student_id: existing.student_id,
+              class_name: existing.class_name || set.class_name, room_number: existing.room_number || set.room_number,
+              subject_name: existing.subject_name || set.subject_name });
+            if (g) {
+              const arr = String(g[sType + '_scores'] || '').split(',').map(x => x.trim());
+              while (arr.length < round) arr.push('');
+              const left = (parseFloat(arr[round - 1]) || 0) - contributed;
+              arr[round - 1] = left > 0 ? String(left) : '';
+              await window.dataSdk.update({ ...g, [sType + '_scores']: arr.join(',') }).catch(() => {});
+            }
+          }
+          // อัตนัย: ล้างคะแนนรายข้อด้วย
+          if (isEssay) payload.score_per_question_json = '';
           r = await window.dataSdk.update({ ...existing, ...payload });
         } else {
           const base = { type, registration_id: reg.__backendId, student_id: reg.student_id,
@@ -22031,6 +22055,11 @@ function _examResultIdentityHtml(sub, set) {
         }
         // ส่งแล้ว / ถูกยุติ
         const base = sub.status === 'terminated' ? `${tag} 🚫 ถูกยุติ` : `${tag} ✅ ส่งแล้ว`;
+        // 🚫 ถูกยุติ → กดเพื่อจัดสอบให้ใหม่เป็นกรณีพิเศษ (กด 1 ครั้ง = สอบได้ 1 ครั้ง ไม่จำกัดจำนวนครั้งที่ให้)
+        if (sub.status === 'terminated') {
+          const sc = (score !== undefined && score !== null && score !== '') ? ` ${score}/${set.total_score}` : '';
+          return `<button onclick="openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${isEssay ? 'essay' : 'mc'}')" style="${chip};background:#fee2e2;color:#b91c1c;border:none;cursor:pointer" title="จัดสอบให้ใหม่เป็นกรณีพิเศษ (กำหนดเวลาเฉพาะคนนี้)">${base}${retry}${sc} · ➕ ให้สอบใหม่</button>`;
+        }
         let html;
         if (isEssay && !graded) {
           html = `<button onclick="openEssayGrading('${set.__backendId}')" style="${chip};background:#fef3c7;color:#b45309;border:none;cursor:pointer" title="ไปตรวจอัตนัย">${base}${retry} · 📝 รอตรวจ</button>`;
