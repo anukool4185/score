@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.155';
+    const APP_VERSION = 'SUPABASE-2026.09.08.156';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -20349,7 +20349,7 @@ function _examResultIdentityHtml(sub, set) {
       container.innerHTML = html;
     }
     function editClassSubject(classSubjectId) {
-      const cs = allData.find(d => d.__backendId === classSubjectId);
+      const cs = allData.find(d => d.type === 'class_subject' && String(d.__backendId) === String(classSubjectId));
       if (!cs) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -20359,15 +20359,15 @@ function _examResultIdentityHtml(sub, set) {
           <div class="space-y-4 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">📚 ชั้นเรียน</label>
-              <input type="text" id="edit-cs-class" value="${cs.class_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" readonly>
+              <input type="text" id="edit-cs-class" value="${cs.class_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">🏠 ห้องเรียน</label>
-              <input type="text" id="edit-cs-room" value="${cs.room_number}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" readonly>
+              <input type="text" id="edit-cs-room" value="${cs.room_number}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">📖 วิชา</label>
-              <input type="text" id="edit-cs-subject" value="${cs.subject_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" readonly>
+              <input type="text" id="edit-cs-subject" value="${cs.subject_name}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">📌 ประเภท</label>
@@ -20383,27 +20383,47 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(editDiv);
     }
     async function confirmEditClassSubject(classSubjectId) {
-      const cs = allData.find(d => d.__backendId === classSubjectId);
+      const cs = allData.find(d => d.type === 'class_subject' && String(d.__backendId) === String(classSubjectId));
       if (!cs) return;
-      const subjectType = document.getElementById('edit-cs-type').value.trim();
-      if (!subjectType) {
-        showToast('กรุณากรอกประเภทวิชา', 'error');
-        return;
+      const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+      const subjectType = clean(document.getElementById('edit-cs-type').value);
+      const className = clean(document.getElementById('edit-cs-class').value);
+      const roomNumber = clean(document.getElementById('edit-cs-room').value);
+      const subjectName = clean(document.getElementById('edit-cs-subject').value);
+      if (!subjectType || !className || !roomNumber || !subjectName) { showToast('กรุณากรอกข้อมูลให้ครบทุกช่อง', 'error'); return; }
+
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const changed = N(className) !== N(cs.class_name) || N(roomNumber) !== N(cs.room_number) || N(subjectName) !== N(cs.subject_name);
+      if (changed) {
+        const dup = allData.some(d => d.type === 'class_subject' && String(d.__backendId) !== String(cs.__backendId)
+          && N(d.class_name) === N(className) && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName));
+        if (dup) { showToast('มีรายวิชานี้ในห้องนี้อยู่แล้ว', 'error'); return; }
+        // มีคนลงทะเบียน/มีคะแนนอยู่แล้ว การเปลี่ยนชั้น-ห้อง-วิชา จะทำให้ข้อมูลเดิมไม่ตรงกัน
+        const used = allData.filter(d => ['student_registration', 'grade', 'exam_set', 'essay_exam_set'].includes(d.type)
+          && N(d.class_name) === N(cs.class_name) && N(d.room_number) === N(cs.room_number) && N(d.subject_name) === N(cs.subject_name)).length;
+        if (used > 0 && !confirm(`⚠️ วิชานี้มีข้อมูลผูกอยู่แล้ว ${used} รายการ (การลงทะเบียน/คะแนน/ชุดสอบ)\n\nถ้าเปลี่ยนชั้น-ห้อง-วิชา ข้อมูลเดิมจะไม่ตรงกับรายวิชาใหม่\nยืนยันเปลี่ยนหรือไม่?`)) return;
       }
-      const result = await window.dataSdk.update({
-        ...cs,
-        subjectType: subjectType
-      });
+      const newId = `${className}_${roomNumber}_${subjectName}`;
+      const result = await window.dataSdk.update({ ...cs, class_name: className, room_number: roomNumber,
+        subject_name: subjectName, subjectType, class_subject_id: newId });
       if (result.isOk) {
+        // แก้แถวคะแนนเต็มของวิชานี้ให้ตรงกันด้วย
+        if (changed) {
+          const sc = allData.find(d => d.type === 'class_subject_scores'
+            && (String(d.class_subject_id) === String(cs.class_subject_id)
+              || (N(d.class_name) === N(cs.class_name) && N(d.room_number) === N(cs.room_number) && N(d.subject_name) === N(cs.subject_name))));
+          if (sc) await window.dataSdk.update({ ...sc, class_name: className, room_number: roomNumber,
+            subject_name: subjectName, class_subject_id: newId }).catch(() => {});
+        }
         _closeAllPopups();
         showToast('แก้ไขรายวิชาสำเร็จ ✅');
         updateImportedData();
       } else {
-        showToast('ไม่สามารถแก้ไขรายวิชา', 'error');
+        showToast('ไม่สามารถแก้ไขรายวิชา: ' + (result.error?.message || ''), 'error');
       }
     }
     function deleteClassSubject(classSubjectId) {
-      const cs = allData.find(d => d.__backendId === classSubjectId);
+      const cs = allData.find(d => d.type === 'class_subject' && String(d.__backendId) === String(classSubjectId));
       if (!cs) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -20420,7 +20440,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteClassSubject(classSubjectId) {
-      const cs = allData.find(d => d.__backendId === classSubjectId);
+      const cs = allData.find(d => d.type === 'class_subject' && String(d.__backendId) === String(classSubjectId));
       if (!cs) return;
       const result = await window.dataSdk.delete(cs);
       if (result.isOk) {
