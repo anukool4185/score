@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.161';
+    const APP_VERSION = 'SUPABASE-2026.09.08.162';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13129,7 +13129,10 @@ const supabaseDataSdk = {
       if (2 - used <= 0) return '';
       const nextNo = used + 1;
       const lastSubmit = sub.submitted_at ? new Date(sub.submitted_at).getTime() : 0;
-      const req = _essayRetryReqs(sub).find(d => !lastSubmit || new Date(d.requested_at || 0).getTime() >= lastSubmit - 1000);
+      const _list = _essayRetryReqs(sub).filter(d => !lastSubmit || new Date(d.requested_at || 0).getTime() >= lastSubmit - 1000);
+      const _rk = d => d.status === 'approved' ? 3 : (d.status === 'used' ? 2 : (d.status === 'pending' ? 1 : 0));
+      const req = _list.sort((a, b) => _rk(b) - _rk(a)
+        || new Date(b.reviewed_at || b.requested_at || 0) - new Date(a.reviewed_at || a.requested_at || 0))[0];
       const requestBtn = `<button onclick="openEssayRetryRequestForm('${sub.__backendId}')" style="${btnBase};background:#6b7280;color:white" class="btn-3d">🙋 ${rt} ขอสอบแก้ครั้งที่ ${nextNo}</button>`;
       if (!req) return requestBtn;
       if (req.status === 'pending') return `<span style="${spanBase};background:#ffedd5;color:#c2410c">⏳ ${rt} รออนุมัติสอบแก้ครั้งที่ ${nextNo}</span>`;
@@ -13143,6 +13146,9 @@ const supabaseDataSdk = {
       return requestBtn;
     }
     function openEssayRetryRequestForm(subId) {
+      const _pending0 = allData.find(d => d.type === 'essay_retry_request' && d.status === 'pending'
+        && String(d.submission_id) === String(subId));
+      if (_pending0) { showToast('⏳ คุณส่งคำขอไว้แล้ว กำลังรอแอดมินอนุมัติ', 'info'); return; }
       const sub = allData.find(d => d.type === 'essay_submission' && String(d.__backendId) === String(subId));
       if (!sub) return;
       document.getElementById('essay-retry-form')?.remove();
@@ -13231,8 +13237,13 @@ const supabaseDataSdk = {
         const r = await window.dataSdk.update({ ...req, status: 'approved', question_mode: mode,
           approved_start_time: s.toISOString(), approved_end_time: e.toISOString(), reviewed_at: new Date().toISOString() });
         if (!r.isOk) { showToast('อนุมัติไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+        // 🧹 ปิดคำขอซ้ำที่ยังค้างของคนเดียวกัน (กันป้ายค้างที่ "รออนุมัติ")
+        const _dups = allData.filter(d => d.type === 'essay_retry_request' && d.status === 'pending'
+          && String(d.__backendId) !== String(req.__backendId)
+          && String(d.submission_id) === String(req.submission_id));
+        for (const d of _dups) await window.dataSdk.update({ ...d, status: 'used', reviewed_at: new Date().toISOString() }).catch(() => {});
         document.getElementById('essay-retry-approve')?.remove();
-        showToast('✅ อนุมัติสอบแก้อัตนัยแล้ว');
+        showToast(`✅ อนุมัติสอบแก้อัตนัยแล้ว${_dups.length ? ` · ปิดคำขอซ้ำ ${_dups.length} ใบ` : ''}`);
         _renderEssayRetryRequests();
       });
     }
@@ -13712,11 +13723,14 @@ function _examResultIdentityHtml(sub, set) {
 
     function _currentRetryRequest(examSet, submission) {
       const lastSubmit = submission?.submitted_at ? new Date(submission.submitted_at).getTime() : 0;
-      return allData.filter(d => d.type === 'exam_retry_request'
+      const list = allData.filter(d => d.type === 'exam_retry_request'
           && String(d.exam_set_id) === String(examSet.__backendId)
           && String(d.student_id) === String(currentUser.student_id)
-          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000))
-        .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0))[0] || null;
+          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000));
+      // ใบที่อนุมัติแล้วมาก่อนใบที่ยังค้าง (กันกรณีกดขอซ้ำหลายใบ แล้วปุ่มค้างที่ "รออนุมัติ")
+      const rank = d => d.status === 'approved' ? 3 : (d.status === 'used' ? 2 : (d.status === 'pending' ? 1 : 0));
+      return list.sort((a, b) => rank(b) - rank(a)
+        || new Date(b.reviewed_at || b.requested_at || 0) - new Date(a.reviewed_at || a.requested_at || 0))[0] || null;
     }
 
     /** ⏰ ช่วงเวลาสอบแก้ตัวที่แอดมินอนุมัติ (ใช้ทั้งปุ่ม นาฬิกานับถอยหลัง และตอนเข้าสอบ) */
@@ -14034,6 +14048,10 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function openRetryRequestForm(examSetId, submissionId) {
+      // 🚫 กันกดขอซ้ำ ถ้ามีคำขอค้างอยู่แล้วให้บอกไปเลย
+      const _pending = allData.find(d => d.type === 'exam_retry_request' && d.status === 'pending'
+        && String(d.submission_id) === String(submissionId));
+      if (_pending) { showToast('⏳ คุณส่งคำขอไว้แล้ว กำลังรอแอดมินอนุมัติ', 'info'); return; }
       document.getElementById('retry-request-panel')?.remove();
       const wrap = document.createElement('div');
       wrap.id = 'retry-request-panel';
@@ -15930,7 +15948,13 @@ function _examResultIdentityHtml(sub, set) {
           approved_end_time: new Date(end).toISOString(),
           reviewed_at: new Date().toISOString(),
           question_mode: qMode });  // 📋 บันทึกไว้ให้ระบบรู้ตอนนักเรียนเข้าสอบแก้
-        showToast(`✅ อนุมัติแล้ว (${qMode === 'new' ? 'สุ่มข้อสอบชุดใหม่' : 'ใช้ข้อสอบชุดเดิม'})`);
+        // 🧹 ปิดคำขอซ้ำที่ยังค้างของคนเดียวกันในชุดสอบเดียวกัน (นักเรียนกดขอหลายครั้ง) ไม่งั้นป้ายจะค้างที่ "รออนุมัติ"
+        const _dups = allData.filter(d => d.type === 'exam_retry_request' && d.status === 'pending'
+          && String(d.__backendId) !== String(req.__backendId)
+          && String(d.student_id) === String(req.student_id)
+          && String(d.exam_set_id || '') === String(req.exam_set_id || ''));
+        for (const d of _dups) await window.dataSdk.update({ ...d, status: 'used', reviewed_at: new Date().toISOString() }).catch(() => {});
+        showToast(`✅ อนุมัติแล้ว (${qMode === 'new' ? 'สุ่มข้อสอบชุดใหม่' : 'ใช้ข้อสอบชุดเดิม'})${_dups.length ? ` · ปิดคำขอซ้ำ ${_dups.length} ใบ` : ''}`);
         document.getElementById('approve-retry-panel')?.remove();
         renderRetryRequestsList();
       });
@@ -22093,10 +22117,14 @@ function _examResultIdentityHtml(sub, set) {
 
       // คำขอสอบแก้ของรอบนี้ (ขอหลังส่งครั้งล่าสุด)
       const lastSubmit = sub.submitted_at ? new Date(sub.submitted_at).getTime() : 0;
-      const req = allData.filter(d => d.type === (isEssay ? 'essay_retry_request' : 'exam_retry_request')
+      // ⚠️ นักเรียนอาจกดขอสอบแก้ซ้ำหลายใบ แอดมินอนุมัติได้ใบเดียว ใบที่เหลือยังค้างเป็น "รออนุมัติ"
+      //    จึงต้องให้ใบที่ "อนุมัติแล้ว" มาก่อนใบที่ค้าง ไม่งั้นป้ายจะค้างที่ขอสอบแก้ตลอด
+      const _reqs = allData.filter(d => d.type === (isEssay ? 'essay_retry_request' : 'exam_retry_request')
           && String(d.submission_id) === String(sub.__backendId)
-          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000))
-        .sort((a, b) => new Date(b.requested_at || 0) - new Date(a.requested_at || 0))[0];
+          && (!lastSubmit || new Date(d.requested_at || d.reviewed_at || 0).getTime() >= lastSubmit - 1000));
+      const _rank = d => d.status === 'approved' ? 3 : (d.status === 'used' ? 2 : (d.status === 'pending' ? 1 : 0));
+      const req = _reqs.sort((a, b) => _rank(b) - _rank(a)
+        || new Date(b.reviewed_at || b.requested_at || 0) - new Date(a.reviewed_at || a.requested_at || 0))[0];
 
       if (quotaLeft <= 0) return { key: 'noquota', text: 'หมดโควตาสอบแก้', c: C.deep, canView: true, canAssign: true, score };
       if (req && req.status === 'pending') return { key: 'requested', text: `ขอสอบแก้ครั้งที่ ${used + 1}`, c: C.orange, canView: true, score };
