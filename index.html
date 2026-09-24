@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.158';
+    const APP_VERSION = 'SUPABASE-2026.09.08.159';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14384,8 +14384,8 @@ function _examResultIdentityHtml(sub, set) {
       // 🛡️ ป้องกันแถวซ้ำชั้นที่ 2: ถ้ามีแถวที่กำลังสอบอยู่แล้ว (in_progress) ให้เปิดแถวเดิมต่อ ไม่สร้างใหม่
       // กันกรณีกดปุ่มซ้ำเร็วๆ หรือระบบกันกดซ้ำชั้นแรกพลาด (เช่น เซิร์ฟเวอร์ช้าจนล็อกถูกปลดก่อนบันทึกเสร็จ)
       const alreadyInProgress = allData.find(d => d.type === 'exam_submission'
-        && d.exam_set_id === examSetId
-        && d.student_id === currentUser.student_id
+        && String(d.exam_set_id) === String(examSetId)
+        && String(d.student_id) === String(currentUser.student_id)
         && d.status === 'in_progress');
       if (alreadyInProgress) {
         console.log('[Exam Popup Debug] พบกระดาษคำตอบที่กำลังทำอยู่แล้ว เปิดอันเดิมต่อแทนการสร้างใหม่:', alreadyInProgress.__backendId);
@@ -14394,10 +14394,12 @@ function _examResultIdentityHtml(sub, set) {
       }
 
       // 🗂️ ใช้แถวที่จองไว้ล่วงหน้าตอนสร้างชุดสอบ (สถานะ not_started) แทนการสร้างแถวใหม่ — กันแถวซ้ำ 1 คนมี 1 แถวเสมอ
+      // ⚠️ ฐานข้อมูลบังคับว่า 1 คนมีกระดาษได้ใบเดียวต่อชุดสอบ
+      //    เดิมหาเฉพาะแถวสถานะ "ยังไม่เริ่ม" และเทียบแบบตรงตัว ถ้าไม่เจอจะไปสร้างใหม่แล้วชนกฎห้ามซ้ำ (error 409)
+      //    ตอนนี้: มีแถวอยู่แล้วไม่ว่าสถานะใด ให้เขียนทับแถวเดิมเสมอ
       const reservedRow = allData.find(d => d.type === 'exam_submission'
-        && d.exam_set_id === examSetId
-        && d.student_id === currentUser.student_id
-        && d.status === 'not_started');
+        && String(d.exam_set_id) === String(examSetId)
+        && String(d.student_id) === String(currentUser.student_id));
 
       const submissionPayload = {
         type: 'exam_submission',
@@ -14416,9 +14418,22 @@ function _examResultIdentityHtml(sub, set) {
         status: 'in_progress',
         started_at: new Date().toISOString(),
       };
-      const result = reservedRow
+      let result = reservedRow
         ? await window.dataSdk.update({ ...reservedRow, ...submissionPayload }) // เขียนทับแถวที่จองไว้
         : await window.dataSdk.create(submissionPayload); // ไม่เจอแถวจอง (เช่น ชุดสอบเก่าก่อนมีระบบนี้) ค่อยสร้างใหม่
+      // 🛟 กันเหนียว: ถ้าชนกฎห้ามซ้ำ แปลว่ามีแถวอยู่แล้วในฐานข้อมูลแต่ยังไม่ได้ซิงก์มาที่เครื่องนี้
+      //    ดึงแถวจริงมาแล้วเขียนทับ แทนที่จะแจ้งว่าเริ่มสอบไม่ได้
+      if (!result.isOk && /23505|duplicate key|uniq_submission/i.test(String(result.error?.message || ''))) {
+        try {
+          const rows = await window.dataSdk._api('GET',
+            `exam_submissions?select=*&exam_set_id=eq.${encodeURIComponent(examSetId)}&student_id=eq.${encodeURIComponent(currentUser.student_id)}&limit=1`);
+          const real = rows && rows[0] ? window.dataSdk._toLegacy(rows[0], 'exam_submission') : null;
+          if (real) {
+            console.log('[Exam] พบกระดาษเดิมในฐานข้อมูล เขียนทับแทนการสร้างใหม่:', real.__backendId);
+            result = await window.dataSdk.update({ ...real, ...submissionPayload });
+          }
+        } catch (e) { console.log('[Exam] ดึงกระดาษเดิมไม่สำเร็จ:', e.message); }
+      }
       if (result.isOk) {
         // ⚠️ บั๊กที่พบและแก้แล้ว: กรณีเขียนทับแถวที่จองไว้ (update) ข้อมูลที่คืนกลับมาอาจไม่มี __backendId ติดมาด้วย
         // ทำให้เปิดหน้ากระดาษคำตอบไม่ได้ (บันทึกสำเร็จแต่หน้าไม่เด้ง) — แก้โดยใช้รหัสจากแถวที่จองไว้โดยตรง ซึ่งมีอยู่แน่นอน
