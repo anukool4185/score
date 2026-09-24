@@ -14322,6 +14322,19 @@ function _examResultIdentityHtml(sub, set) {
     }
     async function _startExamAttemptInner(examSetId, registrationId) {
       window._examGateMode = null;   // 🧹 ล้างโหมดด่านกล้องที่อาจค้างจากการสอบอัตนัย
+      // ⚠️ เปิดจากแอป (LINE/Facebook/ฯลฯ) → ยังไม่แตะกระดาษคำตอบเลย
+      //    เดิมบันทึกว่า "กำลังสอบ" ตั้งแต่กดปุ่ม ทั้งที่ยังไม่ได้เข้าห้องสอบจริง
+      //    ถ้านักเรียนไปเปิดเบราว์เซอร์ไม่ทัน พอหมดเวลาจะกลายเป็น 0 คะแนนทันที
+      try {
+        const _inApp = (typeof _detectInAppBrowser === 'function') ? _detectInAppBrowser() : null;
+        if (_inApp) {
+          const _sub0 = allData.find(d => d.type === 'exam_submission'
+            && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(currentUser?.student_id));
+          const _set0 = allData.find(d => d.type === 'exam_set' && String(d.__backendId) === String(examSetId));
+          _showExamMonitoringNoticeGate(_sub0?.__backendId || '', _set0);   // ด่านจะแจ้งเตือนและเปิดเบราว์เซอร์จริงให้เอง
+          return;
+        }
+      } catch (e) { console.log('[Exam] ตรวจเบราว์เซอร์ไม่สำเร็จ (ข้ามไป):', e.message); }
       console.log('[Exam Popup Debug] startExamAttempt called:', examSetId, registrationId);
       const examSet = allData.find(d => d.__backendId === examSetId && d.type === 'exam_set');
       const reg = allData.find(d => d.__backendId === registrationId && d.type === 'student_registration');
@@ -22123,7 +22136,7 @@ function _examResultIdentityHtml(sub, set) {
       const graded = isEssay ? (sub.grading_done === true || sub.grading_done === 'true') : true;
       const score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '') ? sub.manual_score : sub.auto_score;
       const hasScore = graded && score !== undefined && score !== null && score !== '';
-      if (!hasScore) return { key: 'grading', text: '⏳ รอตรวจ', c: C.yellow };
+      if (!hasScore) return { key: 'grading', text: '⏳ รอตรวจ', c: C.yellow, canView: true };   // กดไปหน้าตรวจได้เลย
 
       // คำขอสอบแก้ของรอบนี้ (ขอหลังส่งครั้งล่าสุด)
       const lastSubmit = sub.submitted_at ? new Date(sub.submitted_at).getTime() : 0;
