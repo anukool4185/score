@@ -1078,6 +1078,37 @@
          <div class="flex gap-3"><button onclick="confirmImport()" class="flex-1 btn-primary text-white px-4 py-3 rounded-xl font-medium">✅ ยืนยันนำเข้า</button> <button onclick="cancelImport()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-xl font-medium">❌ ยกเลิก</button>
          </div>
         </div>
+        <!-- ➕ เพิ่มวิชาเองทีละรายการ (ไม่ต้องใช้ไฟล์) -->
+        <div class="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mt-4">
+         <p class="font-semibold text-emerald-800 mb-1">➕ เพิ่มวิชาเอง (ทีละรายการ)</p>
+         <p class="text-xs text-emerald-700 mb-3">พิมพ์เองได้เลย หรือเลือกจากที่มีอยู่แล้วในระบบ · ใส่หลายห้องพร้อมกันได้ เช่น 1,2,3</p>
+         <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-2">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🏫 ชั้นเรียน</label>
+           <input list="addcs-class-list" id="addcs-class" placeholder="เช่น ม.6" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 focus:outline-none">
+           <datalist id="addcs-class-list"></datalist>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🚪 ห้องเรียน</label>
+           <input list="addcs-room-list" id="addcs-room" placeholder="เช่น 1 หรือ 1,2,3" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 focus:outline-none">
+           <datalist id="addcs-room-list"></datalist>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📚 วิชา</label>
+           <input list="addcs-subject-list" id="addcs-subject" placeholder="เช่น คณิตศาสตร์" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 focus:outline-none">
+           <datalist id="addcs-subject-list"></datalist>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">🏷️ ประเภทวิชา</label>
+           <select id="addcs-type" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-emerald-500 focus:outline-none">
+            <option value="พื้นฐาน">พื้นฐาน</option><option value="เพิ่มเติม">เพิ่มเติม</option><option value="กิจกรรม">กิจกรรม</option>
+           </select>
+          </div>
+         </div>
+         <button onclick="addClassSubjectManually()" id="addcs-btn" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold btn-3d">➕ เพิ่มวิชา</button>
+         <p class="text-xs text-gray-500 mt-2">เพิ่มแล้วตั้งสัดส่วน M/F ได้ที่เมนู ⚙️ ตั้งค่า M/F และกรอกคะแนนเต็มที่เมนูบันทึกคะแนน</p>
+        </div>
+
         <div id="imported-data" class="mt-6">
          <p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลนำเข้า</p>
         </div>
@@ -2701,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.154';
+    const APP_VERSION = 'SUPABASE-2026.09.08.155';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17443,6 +17474,59 @@ function _examResultIdentityHtml(sub, set) {
       };
       reader.readAsText(file);
     }
+    /** 📋 เติมรายการชั้น/ห้อง/วิชาที่มีอยู่แล้ว ให้เลือกได้ง่าย (ยังพิมพ์ใหม่เองได้) */
+    function fillAddSubjectLists() {
+      const uniq = (arr) => [...new Set(arr.filter(Boolean).map(v => String(v).trim()))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+      const cs = allData.filter(d => d.type === 'class_subject');
+      const fill = (id, vals) => { const el = document.getElementById(id); if (el) el.innerHTML = vals.map(v => `<option value="${escHtml(v)}">`).join(''); };
+      fill('addcs-class-list', uniq(cs.map(d => d.class_name).concat(allData.filter(d => d.type === 'class').map(d => d.class_name))));
+      fill('addcs-room-list', uniq(cs.map(d => d.room_number)));
+      fill('addcs-subject-list', uniq(cs.map(d => d.subject_name).concat(allData.filter(d => d.type === 'subject').map(d => d.subject_name))));
+    }
+
+    /** ➕ เพิ่มวิชาเองจากหน้าเว็บ — สร้างข้อมูลชุดเดียวกับการนำเข้าไฟล์ (ใส่หลายห้องคั่นด้วยจุลภาคได้) */
+    async function addClassSubjectManually() {
+      const clean = v => String(v || '').replace(/\s+/g, ' ').trim();
+      const className = clean(document.getElementById('addcs-class')?.value);
+      const roomsRaw = clean(document.getElementById('addcs-room')?.value);
+      const subjectName = clean(document.getElementById('addcs-subject')?.value);
+      const subjectType = document.getElementById('addcs-type')?.value || 'พื้นฐาน';
+      if (!className || !roomsRaw || !subjectName) { showToast('กรุณากรอก ชั้นเรียน ห้องเรียน และวิชา ให้ครบ', 'error'); return; }
+      const rooms = [...new Set(roomsRaw.split(/[,\s]+/).map(clean).filter(Boolean))];
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+
+      await withButtonLock(document.getElementById('addcs-btn'), '⏳ กำลังเพิ่ม...', async () => {
+        let added = 0, dup = 0, fail = 0;
+        for (const roomNumber of rooms) {
+          const exists = allData.some(d => d.type === 'class_subject' && N(d.class_name) === N(className)
+            && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName));
+          if (exists) { dup++; continue; }
+          const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
+          const r1 = await window.dataSdk.create({ type: 'class_subject', class_subject_id: classSubjectId,
+            class_name: className, room_number: roomNumber, subject_name: subjectName, subjectType, mid_percent: 0, final_percent: 0 });
+          if (!r1.isOk) { fail++; continue; }
+          // คะแนนเต็มเริ่มต้นเป็น 0 (เหมือนตอนนำเข้าไฟล์)
+          await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId,
+            class_name: className, room_number: roomNumber, subject_name: subjectName,
+            k_full_score: 0, p_full_score: 0, a_full_score: 0, c_full_score: 0, m_full_score: 0, f_full_score: 0 }).catch(() => {});
+          added++;
+        }
+        // ทะเบียนชั้น/วิชา (ถ้ายังไม่มี) เพื่อให้เมนูอื่นที่ดึงจากตารางนี้เห็นด้วย
+        if (added && !allData.some(d => d.type === 'class' && N(d.class_name) === N(className)))
+          await window.dataSdk.create({ type: 'class', class_name: className }).catch(() => {});
+        if (added && !allData.some(d => d.type === 'subject' && N(d.subject_name) === N(subjectName)))
+          await window.dataSdk.create({ type: 'subject', subject_name: subjectName }).catch(() => {});
+
+        let msg = added ? `✅ เพิ่มวิชา ${subjectName} แล้ว ${added} ห้อง` : '⚠️ ไม่ได้เพิ่มรายการใหม่';
+        if (dup) msg += ` · มีอยู่แล้ว ${dup} ห้อง`;
+        if (fail) msg += ` · ไม่สำเร็จ ${fail} ห้อง`;
+        showToast(msg, (fail || !added) ? 'error' : undefined);
+        if (added) { document.getElementById('addcs-subject').value = ''; document.getElementById('addcs-room').value = ''; }
+        fillAddSubjectLists();
+        if (typeof updateImportedData === 'function') updateImportedData();   // รีเฟรชรายการวิชาในหน้านี้
+      });
+    }
+
     async function confirmImport() {
       if (!window.pendingImportData) return;
       const { pairs, classes, rooms, subjects } = window.pendingImportData;
@@ -20227,6 +20311,8 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function updateImportedData() {
+      if (typeof fillAddSubjectLists === 'function') fillAddSubjectLists();   // 📋 เติมรายการชั้น/ห้อง/วิชาให้เลือกง่าย
+
       updateBackupLastInfo();
       const container = document.getElementById('imported-data');
       if (!container) return;
