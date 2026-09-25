@@ -2199,7 +2199,7 @@
           <option value="">ทุกวิชา</option>
          </select>
         </div>
-        <div id="admin-gradedist-options"></div>
+        <div class="dist-options-box"></div>
         <div id="admin-gradedist-overview" class="mb-6"></div>
         <p class="font-semibold text-gray-700 mb-3">📋 แยกตามห้องเรียน</p>
         <div id="admin-gradedist-list" class="space-y-4"></div>
@@ -2733,7 +2733,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.167';
+    const APP_VERSION = 'SUPABASE-2026.09.08.168';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -24559,7 +24559,8 @@ function _examResultIdentityHtml(sub, set) {
     /** กล่องสรุป 3 ส่วน (วางด้านขวาของกราฟ/การ์ดแต่ละห้อง) */
     function _thresholdSummaryHtml(rows, compact) {
       const o = window._distOpts || {};
-      if (!o.cutRor && !o.cutMs) return '';        // ยังไม่ได้กำหนดเกณฑ์ ก็ไม่ต้องแสดง
+      const T0 = parseFloat(o.threshold) || 0;
+      if (!o.cutRor && !o.cutMs && T0 <= 0) return '';   // ไม่ได้ติ๊กตัด และไม่ได้ตั้งเกณฑ์ → ไม่ต้องแสดง
       const s = _thresholdSummary(rows);
       const row = (icon, label, n, p, cls) => `
         <div class="flex items-center justify-between gap-2 ${cls} rounded-lg px-2 py-1.5">
@@ -24603,13 +24604,18 @@ function _examResultIdentityHtml(sub, set) {
         extraHigh: !!g('dist-extra-high')?.checked,
         extraLow: !!g('dist-extra-low')?.checked,
       };
-      updateAdminGradeDistTable();
+      // รีเฟรชเฉพาะหน้าที่เปิดอยู่ (แอดมิน / กรรมการ / มือถือ)
+      if (typeof updateAdminGradeDistTable === 'function' && document.getElementById('admin-gradedist-list')) updateAdminGradeDistTable();
+      if (typeof updateDirectorGradeDistTable === 'function' && document.getElementById('director-gradedist-list')) updateDirectorGradeDistTable();
+      if (typeof mAdminRenderGradeDist === 'function' && document.getElementById('m-admin-gradedist-result')) mAdminRenderGradeDist();
+      if (typeof mDirRenderGradeSummary === 'function' && document.getElementById('m-dir-gradesum-result')) mDirRenderGradeSummary();
     }
 
     /** แถบตัวเลือกด้านบนของหน้าสรุปเกรด */
     function renderDistOptionsUi(rows) {
-      const box = document.getElementById('admin-gradedist-options');
-      if (!box) return;
+      const boxes = document.querySelectorAll('.dist-options-box');   // มีได้หลายหน้า (แอดมิน/กรรมการ)
+      if (!boxes.length) return;
+      const box = { set innerHTML(v) { boxes.forEach(b => { b.innerHTML = v; }); } };
       const o = window._distOpts;
       const s = _distMoveSummary(rows || []);
       const opts = [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4].map(v =>
@@ -24630,9 +24636,9 @@ function _examResultIdentityHtml(sub, set) {
             <span class="font-semibold text-indigo-800">🧮 วิธีนับ</span>
             <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="dist-cut-ror" ${o.cutRor ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด ร. ออก</label>
             <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="dist-cut-ms" ${o.cutMs ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด มส. ออก</label>
-            <label class="flex items-center gap-1 ${anyCut ? '' : 'opacity-40'}">เกณฑ์เกรดตั้งแต่
-              <select id="dist-threshold" onchange="updateDistOptions()" ${anyCut ? '' : 'disabled'} class="px-2 py-1 border-2 border-gray-200 rounded-lg text-sm">${opts}</select> ขึ้นไป</label>
-            ${anyCut ? '' : '<span class="text-xs text-gray-500">(ไม่ติ๊ก = สรุปปกติ: มส. มาก่อน ร. และ ร. มาก่อนเกรด)</span>'}
+            <label class="flex items-center gap-1">🎯 เกณฑ์เกรดตั้งแต่
+              <select id="dist-threshold" onchange="updateDistOptions()" class="px-2 py-1 border-2 border-indigo-300 rounded-lg text-sm font-semibold">${opts}</select> ขึ้นไป</label>
+            ${anyCut ? '' : '<span class="text-xs text-gray-500">(ไม่ติ๊กตัด = นับแบบปกติ แต่ยังสรุป 3 ส่วนตามเกณฑ์ให้)</span>'}
           </div>
           ${anyCut && s.bothTotal > 0 ? `
             <div class="mt-2 pt-2 border-t border-indigo-200">
@@ -24746,7 +24752,8 @@ function _examResultIdentityHtml(sub, set) {
               <option value="">ทุกวิชา</option>
             </select>
           </div>
-          <div id="director-gradedist-overview" class="mb-6"></div>
+          <div class="dist-options-box"></div>
+        <div id="director-gradedist-overview" class="mb-6"></div>
           <p class="font-semibold text-gray-700 mb-3">📋 แยกตามห้องเรียน</p>
           <div id="director-gradedist-list" class="space-y-4"></div>
         </div>
@@ -24780,6 +24787,11 @@ function _examResultIdentityHtml(sub, set) {
 
       const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
 
+      // 🧮 รายชื่อทั้งหมดในขอบเขต (ใช้คิดกล่องสรุป 3 ส่วนตามเกณฑ์)
+      const _dRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||');
+        return computeGradeReportRows(c0, r0, s0).map(r => ({ ...r, __subject: s0 })); });
+      if (typeof renderDistOptionsUi === 'function') renderDistOptionsUi(_dRows);
+
       // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน) — แผนภูมิวงกลมเดียว
       if (overviewEl) {
         const overallDist = computeGradeDistributionOverall(comboSet);
@@ -24790,6 +24802,7 @@ function _examResultIdentityHtml(sub, set) {
               <p class="font-bold text-gray-800 mb-2">🎓 นักเรียนทั้งหมด <span class="text-xs font-normal text-gray-400">(${overallDist.total} คน)</span></p>
               ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
             </div>
+            ${_thresholdSummaryHtml(_dRows)}
           </div>`;
 
       // 🥧 ภาพรวมทั้งวิชา (รวมทุกห้องในวิชาเดียวกัน) — แสดงเป็นแผนภูมิวงกลม
@@ -26418,7 +26431,19 @@ function _examResultIdentityHtml(sub, set) {
 
     // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)
     const overallDist = computeGradeDistributionOverall(comboSet);
-    let overviewHtml = `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
+    const _mRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||');
+      return computeGradeReportRows(c0, r0, s0).map(r => ({ ...r, __subject: s0 })); });
+    // 🧮 แถบวิธีนับ + เกณฑ์ (ใช้ค่าเดียวกับฝั่งคอม)
+    const _mo = window._distOpts || {};
+    const _mOptsHtml = `<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px">
+      <p style="font-weight:700;color:#3730a3;margin:0 0 6px">🧮 วิธีนับ</p>
+      <label style="display:block;margin-bottom:4px"><input type="checkbox" id="dist-cut-ror" ${_mo.cutRor ? 'checked' : ''} onchange="updateDistOptions();mAdminRenderGradeDist()"> ✂️ ตัด ร. ออก</label>
+      <label style="display:block;margin-bottom:4px"><input type="checkbox" id="dist-cut-ms" ${_mo.cutMs ? 'checked' : ''} onchange="updateDistOptions();mAdminRenderGradeDist()"> ✂️ ตัด มส. ออก</label>
+      <label>🎯 เกณฑ์เกรดตั้งแต่ <select id="dist-threshold" onchange="updateDistOptions();mAdminRenderGradeDist()" style="padding:4px 6px;border:2px solid #c7d2fe;border-radius:8px">
+        ${[0,0.5,1,1.5,2,2.5,3,3.5,4].map(v => `<option value="${v}" ${parseFloat(_mo.threshold) === v ? 'selected' : ''}>${v.toFixed(1)}</option>`).join('')}
+      </select> ขึ้นไป</label>
+    </div>`;
+    let overviewHtml = _mOptsHtml + `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
       <p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
       <div style="display:flex;align-items:center;gap:12px">
         ${renderGradePieChartSvg(overallDist.counts, 120)}
@@ -26427,6 +26452,7 @@ function _examResultIdentityHtml(sub, set) {
           ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
         </div>
       </div>
+      ${_thresholdSummaryHtml(_mRows, true)}
     </div>`;
 
     // 📚 แยกตามวิชา (รวมทุกห้อง)
@@ -26475,7 +26501,19 @@ function _examResultIdentityHtml(sub, set) {
 
     // 🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน) — แผนภูมิวงกลมเดียว
     const overallDist = computeGradeDistributionOverall(comboSet);
-    let overviewHtml = `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
+    const _dmRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||');
+      return computeGradeReportRows(c0, r0, s0).map(r => ({ ...r, __subject: s0 })); });
+    // 🧮 แถบวิธีนับ + เกณฑ์ (ใช้ค่าเดียวกับหน้าอื่น)
+    const _dmo = window._distOpts || {};
+    const _dmOpts = `<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px">
+      <p style="font-weight:700;color:#3730a3;margin:0 0 6px">🧮 วิธีนับ</p>
+      <label style="display:block;margin-bottom:4px"><input type="checkbox" id="dist-cut-ror" ${_dmo.cutRor ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด ร. ออก</label>
+      <label style="display:block;margin-bottom:4px"><input type="checkbox" id="dist-cut-ms" ${_dmo.cutMs ? 'checked' : ''} onchange="updateDistOptions()"> ✂️ ตัด มส. ออก</label>
+      <label>🎯 เกณฑ์เกรดตั้งแต่ <select id="dist-threshold" onchange="updateDistOptions()" style="padding:4px 6px;border:2px solid #c7d2fe;border-radius:8px">
+        ${[0,0.5,1,1.5,2,2.5,3,3.5,4].map(v => `<option value="${v}" ${parseFloat(_dmo.threshold) === v ? 'selected' : ''}>${v.toFixed(1)}</option>`).join('')}
+      </select> ขึ้นไป</label>
+    </div>`;
+    let overviewHtml = _dmOpts + `<div style="background:#eff6ff;border-radius:10px;padding:12px;margin-bottom:10px">
       <p style="font-weight:700;color:#1e293b;font-size:13px;margin:0 0 8px">🥧 ภาพรวมทั้งหมด (ทุกวิชารวมกัน)</p>
       <div style="display:flex;align-items:center;gap:12px">
         ${renderGradePieChartSvg(overallDist.counts, 120)}
@@ -26484,6 +26522,7 @@ function _examResultIdentityHtml(sub, set) {
           ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
         </div>
       </div>
+      ${_thresholdSummaryHtml(_dmRows, true)}
     </div>`;
 
     // 🥧 ภาพรวมทั้งวิชา (รวมทุกห้อง) — แผนภูมิวงกลม
