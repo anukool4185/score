@@ -2733,7 +2733,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.166';
+    const APP_VERSION = 'SUPABASE-2026.09.08.167';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -16692,7 +16692,8 @@ function _examResultIdentityHtml(sub, set) {
       const comboSet = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
 
       // 🧮 รวมรายชื่อทั้งหมดในขอบเขตที่กรอง เพื่อใช้คิดตัวเลือกและแถวสรุป
-      const _allRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||'); return computeGradeReportRows(c0, r0, s0); });
+      const _allRows = comboSet.flatMap(cb => { const [c0, r0, s0] = cb.split('|||');
+        return computeGradeReportRows(c0, r0, s0).map(r => ({ ...r, __subject: s0, __class: c0, __room: r0 })); });
       renderDistOptionsUi(_allRows);
 
       const subjectsInScope = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -16705,6 +16706,7 @@ function _examResultIdentityHtml(sub, set) {
               <p class="font-bold text-gray-800 mb-2">🎓 นักเรียนทั้งหมด <span class="text-xs font-normal text-gray-400">(${overallDist.total} คน)</span></p>
               ${renderGradeLegendHtml(overallDist.counts, overallDist.total)}
             </div>
+            ${_thresholdSummaryHtml(_allRows)}
           </div>`;
         overviewEl.innerHTML = overallHtml + (subjectsInScope.length === 0 ? '' :
           '<p class="font-semibold text-gray-700 mb-3">📚 แยกตามวิชา (รวมทุกห้อง)</p><div class="flex flex-wrap gap-6">' +
@@ -16716,6 +16718,7 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="font-bold text-gray-800 mb-2">📚 ${sub} <span class="text-xs font-normal text-gray-400">(${dist.total} คน)</span></p>
                 ${renderGradeLegendHtml(dist.counts, dist.total)}
               </div>
+              ${_thresholdSummaryHtml(_allRows.filter(r => r.__subject === sub))}
             </div>`;
           }).join('') + '</div>');
       }
@@ -16731,11 +16734,16 @@ function _examResultIdentityHtml(sub, set) {
       listEl.innerHTML = _summaryRow + comboSet.map(combo => {
         const [c, rm, sub] = combo.split('|||');
         const dist = computeGradeDistribution(c, rm, sub);
+        const rows0 = computeGradeReportRows(c, rm, sub);
+        const side = _thresholdSummaryHtml(rows0);
         return `
           <div class="bg-gray-50 rounded-xl p-4 border-2 border-gray-100">
             <p class="font-bold text-gray-800 mb-1">📚 ${sub}</p>
             <p class="text-xs text-gray-500 mb-3">${c}/${rm} · นักเรียนทั้งหมด ${dist.total} คน</p>
-            <div class="space-y-1">${renderGradeLegendHtml(dist.counts, dist.total)}</div>
+            <div class="flex flex-col md:flex-row gap-3">
+              <div class="flex-1 space-y-1">${renderGradeLegendHtml(dist.counts, dist.total)}</div>
+              ${side}
+            </div>
           </div>`;
       }).join('');
     }
@@ -24533,6 +24541,39 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     /** สรุปว่ามีกี่คนถูกย้ายจาก ร./มส. ไปนับเป็นเกรด และมีคนติดทั้งคู่กี่คน (ใช้ทำแถวสรุปและป้ายช่องติ๊ก) */
+    /** 📊 สรุป 3 ส่วนตามเกณฑ์เกรดที่กำหนด (ใช้ผลการนับหลังใช้เงื่อนไขติ๊ก ร./มส. แล้ว)
+     *  ส่วนที่ 1 ถึงเกณฑ์ · ส่วนที่ 2 ต่ำกว่าเกณฑ์ · ส่วนที่ 3 ไม่มีผลการเรียน (นับเป็น ร./มส. จริง) */
+    function _thresholdSummary(rows) {
+      const T = parseFloat((window._distOpts || {}).threshold) || 0;
+      let pass = 0, fail = 0, none = 0;
+      (rows || []).forEach(r => {
+        const v = getGradeDisplayValue(r);          // ผลการนับสุดท้ายตามเงื่อนไขที่ติ๊ก
+        const num = parseFloat(v);
+        if (v === 'ร.' || v === 'มส.' || isNaN(num)) { none++; return; }
+        if (num >= T) pass++; else fail++;
+      });
+      const total = pass + fail + none;
+      const pct = n => total ? Math.round(n * 1000 / total) / 10 : 0;
+      return { pass, fail, none, total, T, passPct: pct(pass), failPct: pct(fail), nonePct: pct(none) };
+    }
+    /** กล่องสรุป 3 ส่วน (วางด้านขวาของกราฟ/การ์ดแต่ละห้อง) */
+    function _thresholdSummaryHtml(rows, compact) {
+      const o = window._distOpts || {};
+      if (!o.cutRor && !o.cutMs) return '';        // ยังไม่ได้กำหนดเกณฑ์ ก็ไม่ต้องแสดง
+      const s = _thresholdSummary(rows);
+      const row = (icon, label, n, p, cls) => `
+        <div class="flex items-center justify-between gap-2 ${cls} rounded-lg px-2 py-1.5">
+          <span class="text-xs">${icon} ${label}</span>
+          <span class="text-xs font-bold whitespace-nowrap">${n} คน · ${p}%</span>
+        </div>`;
+      return `<div class="${compact ? '' : 'min-w-[220px]'} space-y-1">
+          <p class="text-[11px] font-semibold text-gray-600">📊 เทียบเกณฑ์ ${s.T.toFixed(1)} ขึ้นไป (จาก ${s.total} คน)</p>
+          ${row('✅', `ถึงเกณฑ์ (≥ ${s.T.toFixed(1)})`, s.pass, s.passPct, 'bg-green-50 border border-green-200 text-green-800')}
+          ${row('⚠️', `ต่ำกว่าเกณฑ์ (< ${s.T.toFixed(1)})`, s.fail, s.failPct, 'bg-amber-50 border border-amber-200 text-amber-800')}
+          ${row('🚫', 'ไม่มีผลการเรียน (ร./มส.)', s.none, s.nonePct, 'bg-red-50 border border-red-200 text-red-800')}
+        </div>`;
+    }
+
     function _distMoveSummary(rows) {
       const s = { rorToGrade: 0, msToGrade: 0, bothHigh: 0, bothLow: 0, bothTotal: 0, changed: 0 };
       const T = parseFloat((window._distOpts || {}).threshold) || 0;
