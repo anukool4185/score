@@ -2732,7 +2732,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.164';
+    const APP_VERSION = 'SUPABASE-2026.09.08.165';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -22700,6 +22700,23 @@ function _examResultIdentityHtml(sub, set) {
         detailEl.innerHTML = '<p class="text-red-600 text-sm p-4">⚠️ เกิดข้อผิดพลาดตอนแสดงตาราง: ' + escHtml(err.message) + '</p>';
       }
     }
+    /** ♻️ รีเซ็ตเวลาร่วมเรียน — ลบรายการของส่วนนั้นทิ้ง กลับเป็น "ยังไม่กรอก" (ช่องแสดงเป็น -) */
+    async function resetAttendancePart(part, regId) {
+      const type = part === 2 ? 'attendance_part2' : 'attendance_part1';
+      const rec = allData.find(a => a.type === type && String(a.registration_id) === String(regId));
+      if (!rec) { showToast('ส่วนที่ ' + part + ' ยังไม่ได้กรอกอยู่แล้ว', 'info'); return; }
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!confirm(`รีเซ็ตเวลาร่วมเรียนส่วนที่ ${part} ของ ${reg?.student_name || 'นักเรียนคนนี้'}?\n\nข้อมูลที่กรอกไว้จะถูกล้าง กลับไปเป็น "ยังไม่กรอก" (แสดงเป็น -)`)) return;
+      const r = await window.dataSdk.delete(rec);
+      if (!r.isOk) { showToast('รีเซ็ตไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+      showToast(`♻️ รีเซ็ตส่วนที่ ${part} แล้ว — กลับเป็นยังไม่กรอก`);
+      // วาดการ์ดใหม่ให้เห็นผลทันที (ทั้งหน้าแอดมินและหน้าผู้ช่วยแอดมิน)
+      if (typeof renderTimekeepingDetail === 'function' && document.getElementById('timekeeping-student-detail')) renderTimekeepingDetail(regId);
+      const el2 = document.getElementById('subadmin-timekeeping-detail');
+      if (el2 && el2.innerHTML.trim() && reg) el2.innerHTML = buildTimekeepingCardHtml(reg);
+      if (typeof refreshTimekeepingNameListOnly === 'function') refreshTimekeepingNameListOnly();
+    }
+
     function buildTimekeepingCardHtml(reg) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         // 🔧 หาข้อมูลชั่วโมงเรียน — ถ้าหาด้วย class_subject_id ไม่เจอ ให้หาด้วยชั้น/ห้อง/วิชาแทน
@@ -22713,8 +22730,8 @@ function _examResultIdentityHtml(sub, set) {
             && String(h.room_number) === String(reg.room_number)
             && h.subject_name === reg.subject_name);
         }
-        const attendancePart1 = allData.find(a => a.type === 'attendance_part1' && a.registration_id === reg.__backendId);
-        const attendancePart2 = allData.find(a => a.type === 'attendance_part2' && a.registration_id === reg.__backendId);
+        const attendancePart1 = allData.find(a => a.type === 'attendance_part1' && String(a.registration_id) === String(reg.__backendId));
+        const attendancePart2 = allData.find(a => a.type === 'attendance_part2' && String(a.registration_id) === String(reg.__backendId));
         
         const totalHoursPlanned = hoursData?.total_hours || 0;
         const maxAbsentPercent = hoursData?.max_absent_percent_setting || 0;
@@ -22765,7 +22782,10 @@ function _examResultIdentityHtml(sub, set) {
                   <input type="number" id="part1-hours-${reg.__backendId}" step="0.5" min="0" max="${totalHoursPlanned}" value="${isFilledPart1 ? attendedHours : ''}" class="w-full px-3 py-2 text-sm border-2 border-blue-300 rounded-lg focus:border-blue-600 focus:outline-none" onchange="validateAttendanceInput(this, ${totalHoursPlanned})" onfocus="this.select()" required>
                   <p class="text-[10px] text-blue-800 mt-1">* กรอกชั่วโมงที่นักเรียนร่วมเรียน (0 - ${totalHoursPlanned})</p>
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition">💾 บันทึกส่วนที่ 1</button>
+                <div class="flex gap-2">
+                  <button type="submit" class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition">💾 บันทึกส่วนที่ 1</button>
+                  <button type="button" onclick="resetAttendancePart(1, '${reg.__backendId}')" ${isFilledPart1 ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded-lg font-medium transition" title="ล้างเวลาร่วมเรียนส่วนที่ 1 กลับเป็นยังไม่กรอก">♻️ รีเซ็ต</button>
+                </div>
               </form>
             </div>
             <!-- ส่วนที่ 2: ลงเวลาเรียนจริง -->
@@ -22796,7 +22816,10 @@ function _examResultIdentityHtml(sub, set) {
                   <input type="number" id="part2-hours-${reg.__backendId}" step="0.5" min="0" max="${actualHoursTaught}" value="${isFilledPart2 ? attendedHoursReal : ''}" class="w-full px-3 py-2 text-sm border-2 border-purple-300 rounded-lg focus:border-purple-600 focus:outline-none" onchange="validateAttendanceInput(this, ${actualHoursTaught})" onfocus="this.select()" required>
                   <p class="text-[10px] text-purple-800 mt-1">* กรอกชั่วโมงที่นักเรียนร่วมเรียนจริง (0 - ${actualHoursTaught})</p>
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition">💾 บันทึกส่วนที่ 2</button>
+                <div class="flex gap-2">
+                  <button type="submit" class="flex-1 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2 text-sm rounded-lg font-medium transition">💾 บันทึกส่วนที่ 2</button>
+                  <button type="button" onclick="resetAttendancePart(2, '${reg.__backendId}')" ${isFilledPart2 ? '' : 'disabled style="opacity:.45;cursor:not-allowed"'} class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm rounded-lg font-medium transition" title="ล้างเวลาร่วมเรียนส่วนที่ 2 กลับเป็นยังไม่กรอก">♻️ รีเซ็ต</button>
+                </div>
               </form>
             </div>
           </div>
