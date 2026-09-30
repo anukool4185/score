@@ -2851,7 +2851,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.01.181';
+    const APP_VERSION = 'SUPABASE-2026.10.01.182';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17259,24 +17259,40 @@ function _examResultIdentityHtml(sub, set) {
     }
     function _expBlock(id) { return window._expBlocks.find(b => b.id === id); }
 
-    /** ตารางคะแนนของชั้น/ห้อง/วิชาหนึ่ง — คืน Map: รหัสนักเรียน → ค่าที่ใช้เติม */
+    /** ชุด ชั้น/ห้อง/วิชา ที่เข้าเงื่อนไขของบล็อค — ปล่อยว่าง = ทั้งหมด */
+    function _exportCombos(cls, room, subj) {
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const regs = allData.filter(d => d.type === 'student_registration'
+        && (!cls || N(d.class_name) === N(cls))
+        && (!room || N(d.room_number) === N(room))
+        && (!subj || N(d.subject_name) === N(subj)));
+      return [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort()
+        .map(x => x.split('|||'));
+    }
+    /** ตารางคะแนนตามขอบเขตของบล็อค — ปล่อยว่าง = ทั้งหมด · คืน Map: รหัสนักเรียน → ค่าที่ใช้เติม
+     *  ⚠️ ถ้าเลือก "ทุกวิชา" แล้วนักเรียนคนเดียวมีหลายวิชา ค่าจะชนกัน ระบบใช้ชุดแรกและนับไว้เตือน */
     function _exportScoreMap(cls, room, subj) {
       const m = new Map();
-      if (!cls || !room || !subj) return m;
+      let dup = 0;
+      const combos = _exportCombos(cls, room, subj);
       const cfg = _charReadConfig();
-      computeGradeReportRows(cls, room, subj).forEach(r => {
+      combos.forEach(([c, rm, sj]) => computeGradeReportRows(c, rm, sj).forEach(r => {
         const lvl = _charReadLevelOf(r);
         const g = r.gradeRowId ? allData.find(d => d.type === 'grade' && String(d.__backendId) === String(r.gradeRowId)) : null;
         const ovC = (g && g.char_score !== undefined && g.char_score !== null && String(g.char_score) !== '') ? parseFloat(g.char_score) : null;
         const ovR = (g && g.read_score !== undefined && g.read_score !== null && String(g.read_score) !== '') ? parseFloat(g.read_score) : null;
         const autoC = (lvl && cfg.char[lvl] !== undefined) ? cfg.char[lvl] : '';
         const autoR = (lvl && cfg.read[lvl] !== undefined) ? cfg.read[lvl] : '';
-        m.set(String(r.studentId), {
+        const key = String(r.studentId);
+        if (m.has(key)) { dup++; return; }   // ชนกัน = ใช้ชุดแรก แล้วนับไว้เตือนครู
+        m.set(key, {
           k60: r.totalKPAC, mid: r.mScore, final: r.fScore,
           char: ovC !== null ? ovC : autoC,
           read: ovR !== null ? ovR : autoR,
         });
-      });
+      }));
+      m.__combos = combos.length;
+      m.__dup = dup;
       return m;
     }
 
@@ -17319,6 +17335,16 @@ function _examResultIdentityHtml(sub, set) {
       renderExportBlocks();
     }
 
+    /** สรุปให้เห็นว่าบล็อคนี้ครอบคลุมข้อมูลแค่ไหน (ช่วยตอนเลือก "ทั้งหมด") */
+    function _expScopeText(b) {
+      const combos = _exportCombos(b.cls, b.room, b.subj);
+      if (!combos.length) return '⚠️ ไม่พบข้อมูลตามขอบเขตที่เลือก';
+      const m = _exportScoreMap(b.cls, b.room, b.subj);
+      const scope = `${b.cls || 'ทุกชั้น'}/${b.room || 'ทุกห้อง'} · ${b.subj || 'ทุกวิชา'}`;
+      return `ขอบเขต ${escHtml(scope)} → ${combos.length} ชุด · นักเรียน ${m.size} คน`
+        + (m.__dup ? ` · ⚠️ ซ้ำข้ามชุด ${m.__dup} รายการ (ใช้ชุดแรก)` : '');
+    }
+
     function renderExportBlocks() {
       const wrap = document.getElementById('export-blocks');
       if (!wrap) return;
@@ -17330,7 +17356,7 @@ function _examResultIdentityHtml(sub, set) {
         const c = EXPORT_COLORS[b.color % EXPORT_COLORS.length];
         const rooms = [...new Set(regs.filter(r => !b.cls || r.class_name === b.cls).map(r => r.room_number).filter(Boolean))].sort();
         const subjects = [...new Set(regs.filter(r => (!b.cls || r.class_name === b.cls) && (!b.room || String(r.room_number) === String(b.room))).map(r => r.subject_name).filter(Boolean))].sort();
-        const ready = !!(b.wb && b.cls && b.room && b.subj && Object.values(b.map).includes('sid'));
+        const ready = !!(b.wb && Object.values(b.map).includes('sid') && Object.values(b.map).some(v => v && v !== 'sid'));
         const mapped = Object.values(b.map).filter(v => v && v !== 'sid').length;
         const headRows = b.headers.length ? b.headers.map(h => `
             <tr class="border-b" style="border-color:${c.bd}">
@@ -17370,9 +17396,9 @@ function _examResultIdentityHtml(sub, set) {
             </div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-            <select onchange="setExportScope('${b.id}','cls',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(classes, b.cls, '— เลือกชั้น —')}</select>
-            <select onchange="setExportScope('${b.id}','room',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(rooms, b.room, '— เลือกห้อง —')}</select>
-            <select onchange="setExportScope('${b.id}','subj',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(subjects, b.subj, '— เลือกวิชา —')}</select>
+            <select onchange="setExportScope('${b.id}','cls',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(classes, b.cls, '🏫 ทุกชั้น')}</select>
+            <select onchange="setExportScope('${b.id}','room',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(rooms, b.room, '🚪 ทุกห้อง')}</select>
+            <select onchange="setExportScope('${b.id}','subj',this.value)" class="px-2 py-1.5 border rounded text-xs bg-white" style="border-color:${c.bd}">${opt(subjects, b.subj, '📚 ทุกวิชา')}</select>
           </div>
           ${b.headers.length ? `
           <div class="bg-white rounded-lg border overflow-hidden" style="border-color:${c.bd}">
@@ -17385,7 +17411,7 @@ function _examResultIdentityHtml(sub, set) {
               <tbody>${headRows}</tbody>
             </table>
           </div>
-          <p class="text-[11px] mt-2" style="color:${c.tx}">จับคู่คะแนนไว้ ${mapped} คอลัมน์ ${Object.values(b.map).includes('sid') ? '· ✅ ระบุคอลัมน์รหัสนักเรียนแล้ว' : '· ⚠️ ยังไม่ได้เลือกคอลัมน์ "รหัสนักเรียน" (ต้องเลือกก่อนจึงส่งออกได้)'}</p>
+          <p class="text-[11px] mt-2" style="color:${c.tx}">${_expScopeText(b)} · จับคู่คะแนนไว้ ${mapped} คอลัมน์ ${Object.values(b.map).includes('sid') ? '· ✅ ระบุคอลัมน์รหัสนักเรียนแล้ว' : '· ⚠️ ยังไม่ได้เลือกคอลัมน์ "รหัสนักเรียน" (ต้องเลือกก่อนจึงส่งออกได้)'}</p>
           ` : '<p class="text-xs text-gray-400 bg-white rounded-lg p-3">ยังไม่ได้นำเข้าไฟล์ — เลือกไฟล์ Excel ด้านบนเพื่อเริ่ม</p>'}
         </div>`;
       }).join('');
@@ -17420,25 +17446,24 @@ function _examResultIdentityHtml(sub, set) {
         });
         if (wrote) filled++;
       }
-      return { filled, missed };
+      return { filled, missed, dup: scores.__dup || 0 };
     }
 
     function exportOneBlock(id) {
       const b = _expBlock(id);
       if (!b) return;
       if (!b.wb) { showToast('บล็อคนี้ยังไม่ได้นำเข้าไฟล์', 'error'); return; }
-      if (!b.cls || !b.room || !b.subj) { showToast('กรุณาเลือก ชั้น / ห้อง / วิชา ของบล็อคนี้ก่อน', 'error'); return; }
       if (!Object.values(b.map).includes('sid')) { showToast('กรุณาเลือกคอลัมน์ "รหัสนักเรียน" ก่อน ระบบจะได้รู้ว่าจะเติมคะแนนให้ใคร', 'error'); return; }
       if (!Object.values(b.map).some(v => v && v !== 'sid')) { showToast('ยังไม่ได้จับคู่คะแนนสักคอลัมน์', 'error'); return; }
       const res = _fillExportBlock(b);
       XLSX.writeFile(b.wb, b.fileName || 'export.xlsx');
-      showToast(`📤 ส่งออก "${b.fileName}" แล้ว — เติมคะแนน ${res.filled} คน${res.missed ? ` · ไม่พบในระบบ ${res.missed} คน` : ''}`);
+      showToast(`📤 ส่งออก "${b.fileName}" แล้ว — เติมคะแนน ${res.filled} คน${res.missed ? ` · ไม่พบในระบบ ${res.missed} คน` : ''}${res.dup ? ` · ⚠️ มีนักเรียนซ้ำข้ามวิชา/ห้อง ${res.dup} รายการ ใช้ชุดแรก` : ''}`);
     }
 
     function exportAllBlocks() {
-      const ready = window._expBlocks.filter(b => b.wb && b.cls && b.room && b.subj
+      const ready = window._expBlocks.filter(b => b.wb
         && Object.values(b.map).includes('sid') && Object.values(b.map).some(v => v && v !== 'sid'));
-      if (!ready.length) { showToast('ยังไม่มีบล็อคที่พร้อมส่งออก (ต้องมีไฟล์ · เลือกชั้น/ห้อง/วิชา · จับคู่รหัสนักเรียนและคะแนน)', 'error'); return; }
+      if (!ready.length) { showToast('ยังไม่มีบล็อคที่พร้อมส่งออก (ต้องมีไฟล์ · จับคู่คอลัมน์รหัสนักเรียน · จับคู่คะแนนอย่างน้อย 1 คอลัมน์)', 'error'); return; }
       let filled = 0, missed = 0;
       ready.forEach((b, i) => {
         const res = _fillExportBlock(b);
