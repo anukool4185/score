@@ -2765,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.174';
+    const APP_VERSION = 'SUPABASE-2026.09.08.175';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -12852,8 +12852,8 @@ const supabaseDataSdk = {
         if (!set) return '';
         if (onlyType && (['k','p','c'].includes(set.score_type) ? set.score_type : 'k') !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
         const rt = _essayRoundText(set) + ' อัตนัย';
-        // 🕐 ถ้าครูจัดสอบเฉพาะคนนี้ไว้ (กรณีพิเศษ) ให้ใช้เวลาของคนนี้ก่อนเวลาชุดสอบเสมอ
-        const open = (sub.allowed_start_time || sub.allowed_end_time) ? _isSubmissionOpen(sub, set) : _isEssaySetOpen(set);
+        // 🕐 ใช้ตัวกลางตัวเดียว: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
+        const open = _isSubmissionOpen(sub, set, true);
         if (sub.status === 'not_started' || !sub.status) {
           if (open) return `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#d97706;color:white" class="btn-3d">✍️ ${rt} เข้าสอบ</button>`;
           const startAt = _toDate(sub.allowed_start_time || set.start_time);
@@ -12867,7 +12867,7 @@ const supabaseDataSdk = {
         }
         if (sub.status === 'in_progress') {
           const isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
-          const canGo = isRetry ? _essayRetryWindowOpen(set, sub) : open;
+          const canGo = open;   // open คำนวณจากตัวกลางแล้ว (รวมกรณีสอบแก้ไว้ด้วย)
           if (!canGo) {
             // ⏰ หมดเวลาแล้วแต่ยังค้างเป็น "กำลังทำ" = ไม่ได้สอบจริง → ต้องขอสอบแก้ตัวได้
             const lbl = `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${rt} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + (parseInt(sub.retry_count) || 0) : 'สอบ'}</span>`;
@@ -12914,10 +12914,11 @@ const supabaseDataSdk = {
       const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
       if (!set) { showToast('ไม่พบชุดสอบ', 'error'); stream?.getTracks().forEach(t => t.stop()); return; }
       const _isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
-      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) {
+      if (!_isSubmissionOpen(sub, set, true)) {
         stream?.getTracks().forEach(t => t.stop());
-        const _w = _submissionWindow(sub, set);
-        showToast(`ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ (เปิด ${_fmtWhen(_w.start)} → ปิด ${_fmtWhen(_w.end)} · ตอนนี้ ${_fmtWhen(new Date())})`, 'error');
+        const _w = _submissionWindow(sub, set, true);
+        const _src = { personal: 'เวลาเฉพาะคนนี้', retry: 'เวลาที่อนุมัติให้สอบแก้', set: 'เวลาของชุดสอบ' }[_w.source] || '';
+        showToast(`ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ (${_src}: เปิด ${_fmtWhen(_w.start)} → ปิด ${_fmtWhen(_w.end)} · ตอนนี้ ${_fmtWhen(new Date())})`, 'error');
         return;
       }
       if (sub.status === 'submitted') { stream?.getTracks().forEach(t => t.stop()); showToast('ส่งคำตอบไปแล้ว', 'info'); return; }
@@ -12963,8 +12964,7 @@ const supabaseDataSdk = {
       document.body.appendChild(wrap);
       wrap.querySelectorAll('textarea[data-qid]').forEach(t => _updateEssayWordCount(t));
       // ⏰ สอบแก้ใช้เวลาสิ้นสุดที่แอดมินอนุมัติเฉพาะคน (บทเรียนจากปรนัย: ใช้เวลาชุดหลักจะส่งกระดาษเปล่าทันทีถ้าชุดหลักปิดแล้ว)
-      const _w = (_isRetry && !sub.allowed_end_time) ? _essayRetryWindow(set, sub) : null;
-      const _endAt = sub.allowed_end_time ? new Date(sub.allowed_end_time) : (_w && _w.end ? _w.end : null);
+      const _endAt = _effectiveWindow(sub, set, true).end;
       _startEssayTimer(_endAt ? { ...set, end_time: _endAt.toISOString() } : set);
       if (stream) _startEssayGuard(sub, set, stream);   // 📷 เริ่มเฝ้าระวัง
       if (sub.frozen === true || sub.frozen === 'true') { _essayGuard.active = false; _showEssayFreeze(); }
@@ -13336,10 +13336,8 @@ const supabaseDataSdk = {
       return { start: r.approved_start_time ? new Date(r.approved_start_time) : null, end: r.approved_end_time ? new Date(r.approved_end_time) : null, request: r };
     }
     function _essayRetryWindowOpen(set, sub) {
-      // 🕐 ถ้าแอดมินให้เวลาเฉพาะคนนี้ไว้ ให้ใช้เวลานั้นก่อนเวลาของคำขอสอบแก้
-      if (sub && (sub.allowed_start_time || sub.allowed_end_time)) return _isSubmissionOpen(sub, set);
-      const w = _essayRetryWindow(set, sub); if (!w) return false;
-      const now = new Date(); return (!w.start || now >= w.start) && (!w.end || now <= w.end);
+      // 🕐 ใช้ตัวกลางตัวเดียวกับทั้งระบบ: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
+      return _isSubmissionOpen(sub, set, true);
     }
     /** ปุ่มดำเนินการหลังส่งคำตอบ: ขอสอบแก้ → รออนุมัติ → สอบแก้ (เขียว) → ... → ครบ 2 ครั้ง (ไม่มีปุ่ม) */
     function _essayRetryAction(set, sub, rt, btnBase, spanBase) {
@@ -13835,30 +13833,43 @@ const supabaseDataSdk = {
     }
 
     /** 🕐 ช่วงเวลาสอบของกระดาษใบนี้ — ถ้าครูกำหนดเวลาเฉพาะคนนี้ไว้ ให้ใช้อันนั้นก่อน */
-    function _submissionWindow(sub, set) {
+    /** ⏱️ ช่วงเวลาที่ "ใช้ตัดสินจริง" ของกระดาษใบหนึ่ง — ตัวกลางตัวเดียวของทั้งระบบ
+     *  ลำดับความสำคัญ: 1) เวลาเฉพาะบุคคลที่ครูกำหนด  2) เวลาของใบอนุมัติสอบแก้ (ถ้าเป็นการสอบแก้จริง)  3) เวลาชุดสอบ
+     *  ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมกระดาษที่ติดธง "สอบแก้" แต่ไม่มีใบอนุมัติเหลืออยู่ (เช่น ใบถูกลบ
+     *  หรือครูจัดสอบทับใบเดิม) จะถูกล็อกถาวร เข้าสอบไม่ได้ตลอดกาล ทั้งที่ชุดสอบเปิดอยู่ —
+     *  และที่หนักกว่านั้นคือ "เวลาที่แสดงบนหน้าจอ" ใช้เวลาชุดสอบ แต่ "เวลาที่ใช้ตัดสิน" ใช้เวลาใบอนุมัติ
+     *  ทำให้ขึ้นว่า เปิด 21:05–22:05 ตอนนี้ 21:32 แต่กลับบอกว่าไม่อยู่ในช่วงเวลาสอบ
+     *  แก้โดยให้ทุกจุดอ่านช่วงเวลาจากฟังก์ชันนี้ตัวเดียว และถ้าไม่มีใบอนุมัติเลยให้ใช้เวลาชุดสอบแทน */
+    function _effectiveWindow(sub, set, isEssay) {
       if (sub && (sub.allowed_start_time || sub.allowed_end_time)) {
-        return { start: _toDate(sub.allowed_start_time), end: _toDate(sub.allowed_end_time), personal: true };
+        return { start: _toDate(sub.allowed_start_time), end: _toDate(sub.allowed_end_time), source: 'personal' };
       }
-      return { start: _toDate(set?.start_time), end: _toDate(set?.end_time), personal: false };
+      const essay = (isEssay === undefined || isEssay === null)
+        ? (sub?.type === 'essay_submission' || set?.type === 'essay_exam_set') : !!isEssay;
+      const isRetry = !!sub && (sub.is_retry_attempt === true || sub.is_retry_attempt === 'true');
+      if (isRetry) {
+        let w = null;
+        try {
+          w = essay ? (typeof _essayRetryWindow === 'function' ? _essayRetryWindow(set, sub) : null)
+                    : (typeof _approvedRetryWindow === 'function' ? _approvedRetryWindow(set?.__backendId, sub.student_id) : null);
+        } catch (e) { w = null; }
+        // มีใบอนุมัติจริงจึงใช้เวลาของใบนั้น — ไม่มีใบเลยให้ตกกลับไปใช้เวลาชุดสอบ (ไม่ล็อกกระดาษทิ้ง)
+        if (w) return { start: _toDate(w.start), end: _toDate(w.end), source: 'retry' };
+      }
+      return { start: _toDate(set?.start_time), end: _toDate(set?.end_time), source: 'set' };
     }
-    function _isSubmissionOpen(sub, set) {
-      const w = _submissionWindow(sub, set), now = new Date();
+    function _submissionWindow(sub, set, isEssay) {
+      const w = _effectiveWindow(sub, set, isEssay);
+      return { start: w.start, end: w.end, personal: w.source === 'personal', source: w.source };
+    }
+    function _isSubmissionOpen(sub, set, isEssay) {
+      const w = _effectiveWindow(sub, set, isEssay), now = new Date();
       return (!w.start || now >= w.start) && (!w.end || now <= w.end);
     }
     /** ⏱️ ตอนนี้กระดาษใบนี้ยัง "ทำต่อได้" อยู่ไหม — ลำดับความสำคัญของช่วงเวลา
      *  1) เวลาเฉพาะบุคคลที่แอดมินกำหนด  2) เวลาของคำขอสอบแก้ (ถ้าใบนี้เป็นการสอบแก้)  3) เวลาของชุดสอบ */
     function _submissionActiveNow(sub, set, isEssay) {
-      if (!sub) return _isSubmissionOpen(sub, set);
-      const hasPersonal = !!(sub.allowed_start_time || sub.allowed_end_time);
-      const isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
-      if (isRetry && !hasPersonal) {
-        if (isEssay) return typeof _essayRetryWindowOpen === 'function' ? _essayRetryWindowOpen(set, sub) : _isSubmissionOpen(sub, set);
-        const w = typeof _approvedRetryWindow === 'function' ? _approvedRetryWindow(set?.__backendId, sub.student_id) : null;
-        if (!w) return false;
-        const now = new Date();
-        return (!w.start || now >= w.start) && (!w.end || now <= w.end);
-      }
-      return _isSubmissionOpen(sub, set);
+      return _isSubmissionOpen(sub, set, isEssay);
     }
 
     function generateExamButtonsForRegistration(reg, onlyType) {
@@ -13909,7 +13920,7 @@ const supabaseDataSdk = {
         const submission = allData.find(d => d.type === 'exam_submission' &&
           String(d.exam_set_id) === String(examSet.__backendId) && String(d.student_id) === String(currentUser.student_id));
         // 🕐 ถ้าครูจัดสอบเฉพาะคนนี้ไว้ (เช่น ตกหล่นเพราะหมดเวลา) ให้ใช้ช่วงเวลาของคนนี้แทนเวลาชุดสอบ
-        const isOpen = _isSubmissionOpen(submission, examSet);
+        const isOpen = _isSubmissionOpen(submission, examSet, false);
         let btnHtml = '';
         // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
         if (!submission || submission.status === 'not_started') {
@@ -13987,13 +13998,8 @@ function _examResultIdentityHtml(sub, set) {
 
       // ── กำลังทำค้างอยู่ ──
       if (submission.status === 'in_progress') {
-        let canResume = isOpen;
-        const hasPersonal = !!(submission.allowed_start_time || submission.allowed_end_time);
-        if (isRetry && !hasPersonal) {   // 🕐 เวลาที่แอดมินให้เฉพาะคนนี้ มาก่อนเวลาคำขอสอบแก้เสมอ
-          const w = _approvedRetryWindow(examSet.__backendId, currentUser.student_id);
-          const now = new Date();
-          canResume = !!w && (!w.start || now >= w.start) && (!w.end || now <= w.end);
-        }
+        // 🕐 ตัวกลางตัวเดียว: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
+        const canResume = _isSubmissionOpen(submission, examSet, false);
         if (!canResume) {
           // ⏰ หมดเวลาแล้วแต่ยังค้างเป็น "กำลังทำ" = ไม่ได้สอบจริง → ต้องขอสอบแก้ตัวได้ ไม่ใช่ตันอยู่แค่ป้าย
           const expiredLabel = `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + usedRetries : 'สอบ'}</span>`;
@@ -14589,7 +14595,7 @@ function _examResultIdentityHtml(sub, set) {
       // ⚠️ บั๊กที่แก้แล้ว: เดิมอ้างถึงตัวแปร submission ก่อนประกาศ ทำให้กดปุ่มเข้าสอบแล้วเงียบ เข้าสอบไม่ได้เลย
       const _mySub = allData.find(d => d.type === 'exam_submission'
         && String(d.exam_set_id) === String(examSetId) && String(d.student_id) === String(currentUser?.student_id));
-      if (!_isSubmissionOpen(_mySub, examSet)) {
+      if (!_isSubmissionOpen(_mySub, examSet, false)) {
         console.log('[Exam] นอกช่วงเวลาสอบ', examSet.start_time, examSet.end_time, _mySub?.allowed_start_time, _mySub?.allowed_end_time);
         showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return;
       }
@@ -14779,13 +14785,9 @@ function _examResultIdentityHtml(sub, set) {
         // ⚠️ ต้องหากระดาษก่อนใช้งาน (เดิมเขียนสลับลำดับ ทำให้นาฬิกาพังทุกวินาที ค้างที่ "กำลังคำนวณ...")
         const _sub = (_lastKnownExamSubmission && String(_lastKnownExamSubmission.__backendId) === String(submissionId))
           ? _lastKnownExamSubmission : allData.find(d => d.type === 'exam_submission' && String(d.__backendId) === String(submissionId));
-        let _deadline = new Date(examSet.end_time);
-        const _hasPersonal = !!(_sub && _sub.allowed_end_time);
-        if (_hasPersonal) _deadline = new Date(_sub.allowed_end_time);   // 🕐 เวลาที่แอดมินให้เฉพาะคนนี้ มาก่อนเสมอ
-        if (!_hasPersonal && _sub && (_sub.is_retry_attempt === true || _sub.is_retry_attempt === 'true')) {
-          const _w = _approvedRetryWindow(examSet.__backendId, _sub.student_id);
-          if (_w && _w.end) _deadline = _w.end;   // ใช้เวลาสอบแก้เฉพาะเมื่อไม่มีเวลาที่แอดมินให้เฉพาะคน
-        }
+        // 🕐 ใช้ตัวกลางตัวเดียวกับทุกหน้า: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
+        const _deadline = _effectiveWindow(_sub, examSet, false).end || _toDate(examSet.end_time);
+        if (!_deadline) { label.textContent = 'เวลาที่เหลือ: ไม่จำกัด'; return; }
         const remainMs = _deadline - new Date();
         if (remainMs <= 0) {
           label.textContent = 'เวลาที่เหลือ: หมดเวลาแล้ว — กำลังส่งคำตอบอัตโนมัติ...';
