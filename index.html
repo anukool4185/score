@@ -2305,6 +2305,7 @@
          </div>
         </div>
         <p class="text-[11px] text-gray-500 mb-4">📌 หัวตารางอ่านจาก <b>แถวที่ 2</b> ของไฟล์ (ปรับได้ในแต่ละบล็อค) · หัวตารางทุกคอลัมน์เลือกจับคู่ได้ · จับคู่ซ้ำกันได้ ระบบจะเติมให้ทุกคอลัมน์ที่เลือกไว้เหมือนกัน</p>
+        <div id="export-flag-bar" class="bg-slate-50 border-2 border-slate-200 rounded-xl p-3 mb-4"></div>
         <div id="export-blocks" class="space-y-4"></div>
        </div>
       </div>
@@ -2851,7 +2852,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.01.182';
+    const APP_VERSION = 'SUPABASE-2026.10.01.183';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17226,6 +17227,7 @@ function _examResultIdentityHtml(sub, set) {
       { key: 'k60',   label: '📊 คะแนน 60 คะแนน (K+P+A+C)' },
       { key: 'mid',   label: '📕 คะแนนกลางภาค' },
       { key: 'final', label: '📗 คะแนนปลายภาค' },
+      { key: 'total', label: '🧮 คะแนนรวม (พร้อมคิดเกรด)' },
       { key: 'char',  label: '⭐ คะแนนคุณลักษณะ' },
       { key: 'read',  label: '📖 คะแนนอ่าน คิด วิเคราะห์' },
     ];
@@ -17237,11 +17239,46 @@ function _examResultIdentityHtml(sub, set) {
       { name: 'ชมพู',  bg: '#fdf2f8', bd: '#fbcfe8', tx: '#9d174d' },
       { name: 'เทา',   bg: '#f8fafc', bd: '#e2e8f0', tx: '#334155' },
     ];
+    // 🚩 กติกาช่อง "คะแนนรวม" ตอนส่งออก — ใช้กับทุกบล็อค และไม่กระทบคะแนนในฐานข้อมูลเลย
+    window._expFlag = window._expFlag || { useR: false, useMs: false, value: -1 };
     window._expBlocks = window._expBlocks || [];
     let _expSeq = 0;
 
+    function setExpFlag(field, value) {
+      if (field === 'value') {
+        const n = parseFloat(value);
+        window._expFlag.value = isNaN(n) ? -1 : n;
+      } else {
+        window._expFlag[field] = !!value;
+      }
+      renderExportFlagBar();
+    }
+    function renderExportFlagBar() {
+      const el = document.getElementById('export-flag-bar');
+      if (!el) return;
+      const f = window._expFlag;
+      const on = f.useR || f.useMs;
+      const who = [f.useR ? 'ร.' : '', f.useMs ? 'มส.' : ''].filter(Boolean).join(' และ ');
+      el.innerHTML = `
+        <div class="flex items-center gap-4 flex-wrap">
+          <span class="text-xs font-semibold text-slate-700">🚩 ช่อง "คะแนนรวม" ตอนส่งออก:</span>
+          <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" class="w-4 h-4" ${f.useR ? 'checked' : ''} onchange="setExpFlag('useR',this.checked)"> ใช้กับคนที่ติด <b>ร.</b>
+          </label>
+          <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" class="w-4 h-4" ${f.useMs ? 'checked' : ''} onchange="setExpFlag('useMs',this.checked)"> ใช้กับคนที่ติด <b>มส.</b>
+          </label>
+          <span class="flex items-center gap-1.5 text-xs">ใส่ค่าเป็น
+            <input type="number" step="any" value="${f.value}" onchange="setExpFlag('value',this.value)" class="w-20 px-2 py-1 border-2 border-slate-200 rounded text-xs text-center">
+          </span>
+          <span class="text-[11px] ${on ? 'text-emerald-700' : 'text-slate-400'}">${on ? `✅ คนที่ติด ${who} จะได้ค่า ${f.value} ในช่องรวม` : 'ยังไม่เปิดใช้ — ช่องรวมจะใส่คะแนนรวมจริง'}</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">⚠️ ค่านี้ใช้เฉพาะตอนเขียนลงไฟล์ที่ส่งออกเท่านั้น ไม่แตะคะแนนรวมในฐานข้อมูล และไม่กระทบช่องอื่น</p>`;
+    }
+
     function loadExportDataTab() {
       if (!window._expBlocks.length) for (let i = 0; i < 5; i++) window._expBlocks.push(_newExportBlock(i));
+      renderExportFlagBar();
       renderExportBlocks();
     }
     function _newExportBlock(i) {
@@ -17286,7 +17323,7 @@ function _examResultIdentityHtml(sub, set) {
         const key = String(r.studentId);
         if (m.has(key)) { dup++; return; }   // ชนกัน = ใช้ชุดแรก แล้วนับไว้เตือนครู
         m.set(key, {
-          k60: r.totalKPAC, mid: r.mScore, final: r.fScore,
+          k60: r.totalKPAC, mid: r.mScore, final: r.fScore, total: r.totalAll, level: lvl,
           char: ovC !== null ? ovC : autoC,
           read: ovR !== null ? ovR : autoR,
         });
@@ -17439,7 +17476,12 @@ function _examResultIdentityHtml(sub, set) {
         Object.keys(b.map).forEach(k => {
           const key = b.map[k];
           if (!key || key === 'sid') return;
-          const v = rec[key];
+          let v = rec[key];
+          // 🚩 เฉพาะช่องรวม: ถ้าเปิดใช้กติกา ร./มส. ให้ใส่ค่าที่ตั้งไว้แทนคะแนนรวมจริง
+          if (key === 'total') {
+            const f = window._expFlag || {};
+            if ((rec.level === 'r' && f.useR) || (rec.level === 'ms' && f.useMs)) v = f.value;
+          }
           if (v === '' || v === null || v === undefined || isNaN(parseFloat(v))) return;
           ws[XLSX.utils.encode_cell({ r, c: Number(k) })] = { t: 'n', v: parseFloat(v) };
           wrote = true;
@@ -17449,6 +17491,46 @@ function _examResultIdentityHtml(sub, set) {
       return { filled, missed, dup: scores.__dup || 0 };
     }
 
+    /** 💾 บันทึกไฟล์ — ให้ครูเลือกที่เก็บเองได้ (ถ้าเบราว์เซอร์รองรับ) ไม่รองรับก็ดาวน์โหลดตามปกติ */
+    async function _saveWorkbook(wb, fileName) {
+      const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{ description: 'ไฟล์ Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
+          });
+          const s = await handle.createWritable();
+          await s.write(blob);
+          await s.close();
+          return 'saved';
+        } catch (e) {
+          if (e && e.name === 'AbortError') return 'cancel';   // ครูกดยกเลิกเอง
+          console.log('[ส่งออก] เลือกที่เก็บไม่สำเร็จ ใช้การดาวน์โหลดแทน:', e.message);
+        }
+      }
+      _expDownloadBlob(blob, fileName);
+      return 'download';
+    }
+    /** ดาวน์โหลดไฟล์ที่ส่งออก (แยกจาก _downloadBlob ของหน้าผลสอบ — ชื่อซ้ำจะทับกัน) */
+    function _expDownloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1500);
+    }
+    /** บันทึกลงโฟลเดอร์ที่ครูเลือกไว้ (ใช้ตอนส่งออกทั้งหมด) */
+    async function _saveWorkbookInDir(dir, wb, fileName) {
+      const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const handle = await dir.getFileHandle(fileName, { create: true });
+      const s = await handle.createWritable();
+      await s.write(blob);
+      await s.close();
+    }
+
     function exportOneBlock(id) {
       const b = _expBlock(id);
       if (!b) return;
@@ -17456,21 +17538,41 @@ function _examResultIdentityHtml(sub, set) {
       if (!Object.values(b.map).includes('sid')) { showToast('กรุณาเลือกคอลัมน์ "รหัสนักเรียน" ก่อน ระบบจะได้รู้ว่าจะเติมคะแนนให้ใคร', 'error'); return; }
       if (!Object.values(b.map).some(v => v && v !== 'sid')) { showToast('ยังไม่ได้จับคู่คะแนนสักคอลัมน์', 'error'); return; }
       const res = _fillExportBlock(b);
-      XLSX.writeFile(b.wb, b.fileName || 'export.xlsx');
-      showToast(`📤 ส่งออก "${b.fileName}" แล้ว — เติมคะแนน ${res.filled} คน${res.missed ? ` · ไม่พบในระบบ ${res.missed} คน` : ''}${res.dup ? ` · ⚠️ มีนักเรียนซ้ำข้ามวิชา/ห้อง ${res.dup} รายการ ใช้ชุดแรก` : ''}`);
+      _saveWorkbook(b.wb, b.fileName || 'export.xlsx').then(how => {
+        if (how === 'cancel') { showToast('ยกเลิกการบันทึกไฟล์', 'info'); return; }
+        showToast(`📤 ส่งออก "${b.fileName}" แล้ว — เติมคะแนน ${res.filled} คน${res.missed ? ` · ไม่พบในระบบ ${res.missed} คน` : ''}${res.dup ? ` · ⚠️ มีนักเรียนซ้ำข้ามวิชา/ห้อง ${res.dup} รายการ ใช้ชุดแรก` : ''}`);
+      });
+    }
+
+    async function _exportAllInner(ready) {
+      let filled = 0, missed = 0;
+      ready.forEach(b => { const r = _fillExportBlock(b); filled += r.filled; missed += r.missed; });
+      // 📁 ถ้าเบราว์เซอร์รองรับ ให้เลือกโฟลเดอร์ปลายทางครั้งเดียว แล้วเขียนทุกไฟล์ลงที่นั่น
+      if (typeof window.showDirectoryPicker === 'function') {
+        try {
+          const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+          for (let i = 0; i < ready.length; i++) {
+            await _saveWorkbookInDir(dir, ready[i].wb, ready[i].fileName || `export${i + 1}.xlsx`);
+          }
+          showToast(`📤 บันทึก ${ready.length} ไฟล์ลงโฟลเดอร์ที่เลือกแล้ว — เติมคะแนนรวม ${filled} คน${missed ? ` · ไม่พบในระบบ ${missed} คน` : ''}`);
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') { showToast('ยกเลิกการบันทึกไฟล์', 'info'); return; }
+          console.log('[ส่งออก] เลือกโฟลเดอร์ไม่สำเร็จ ใช้การดาวน์โหลดแทน:', e.message);
+        }
+      }
+      ready.forEach((b, i) => setTimeout(() => {
+        const data = XLSX.write(b.wb, { bookType: 'xlsx', type: 'array' });
+        _expDownloadBlob(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), b.fileName || `export${i + 1}.xlsx`);
+      }, i * 400));   // เว้นจังหวะ กันเบราว์เซอร์บล็อกการดาวน์โหลดหลายไฟล์
+      showToast(`📤 ส่งออก ${ready.length} ไฟล์ — เติมคะแนนรวม ${filled} คน${missed ? ` · ไม่พบในระบบ ${missed} คน` : ''}`);
     }
 
     function exportAllBlocks() {
       const ready = window._expBlocks.filter(b => b.wb
         && Object.values(b.map).includes('sid') && Object.values(b.map).some(v => v && v !== 'sid'));
       if (!ready.length) { showToast('ยังไม่มีบล็อคที่พร้อมส่งออก (ต้องมีไฟล์ · จับคู่คอลัมน์รหัสนักเรียน · จับคู่คะแนนอย่างน้อย 1 คอลัมน์)', 'error'); return; }
-      let filled = 0, missed = 0;
-      ready.forEach((b, i) => {
-        const res = _fillExportBlock(b);
-        filled += res.filled; missed += res.missed;
-        setTimeout(() => XLSX.writeFile(b.wb, b.fileName || `export${i + 1}.xlsx`), i * 400);   // เว้นจังหวะ กันเบราว์เซอร์บล็อกการดาวน์โหลดหลายไฟล์
-      });
-      showToast(`📤 ส่งออก ${ready.length} ไฟล์ — เติมคะแนนรวม ${filled} คน${missed ? ` · ไม่พบในระบบ ${missed} คน` : ''}`);
+      _exportAllInner(ready);
     }
 
     function loadAdminGradeDistTab() {
