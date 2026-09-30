@@ -2765,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.173';
+    const APP_VERSION = 'SUPABASE-2026.09.08.174';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10530,7 +10530,7 @@ const supabaseDataSdk = {
       const now = new Date();
       listEl.innerHTML = sets.map(s => {
         const qCount = (s.question_ids || '').split(',').filter(Boolean).length;
-        const start = new Date(s.start_time), end = new Date(s.end_time);
+        const start = _toDate(s.start_time) || new Date(0), end = _toDate(s.end_time) || new Date(0);
         const isOpen = now >= start && now <= end;
         const badge = isOpen ? '<span class="text-green-600 font-semibold">🟢 กำลังเปิดสอบ</span>'
           : (now < start ? '<span class="text-blue-600">⏳ ยังไม่ถึงเวลา</span>' : '<span class="text-gray-500">🔴 ปิดแล้ว</span>');
@@ -12794,9 +12794,33 @@ const supabaseDataSdk = {
     function _essayRoundText(set) {
       return `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ${parseInt(set.k_round) || 1}`;
     }
+    /** 🕐 แปลงค่าเวลาจากฐานข้อมูลให้เป็นวันที่ที่ใช้ได้จริงทุกเครื่อง
+     *  ⚠️ บั๊กที่กันไว้: บางเครื่อง (โดยเฉพาะ iPhone/Safari) อ่านรูปแบบของ Postgres
+     *  "2026-09-30 14:30:00+00" ไม่ออก กลายเป็นวันที่เสีย แล้วระบบเข้าใจว่า "ยังไม่ถึงเวลา" ตลอด */
+    function _toDate(v) {
+      if (!v && v !== 0) return null;
+      if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+      const raw = String(v).trim();
+      if (!raw) return null;
+      let d = new Date(raw);
+      if (!isNaN(d.getTime())) return d;
+      let s = raw.replace(' ', 'T');
+      if (/[+-]\d{2}$/.test(s)) s += ':00';        // "+00" → "+00:00"
+      d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+      d = new Date(s.replace(/\.\d+/, ''));        // ตัดเศษวินาทีทิ้ง
+      if (!isNaN(d.getTime())) return d;
+      return null;
+    }
+    /** เวลาแบบอ่านง่ายสำหรับแสดงให้ผู้ใช้เห็นว่าระบบเข้าใจเวลาเป็นอะไร */
+    function _fmtWhen(v) {
+      const d = _toDate(v);
+      return d ? d.toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false }) + ' น.' : '—';
+    }
     function _isEssaySetOpen(set) {
       const now = new Date();
-      return (!set.start_time || now >= new Date(set.start_time)) && (!set.end_time || now <= new Date(set.end_time));
+      const s = _toDate(set?.start_time), e = _toDate(set?.end_time);
+      return (!s || now >= s) && (!e || now <= e);
     }
     function _parseJsonSafe(v, fallback) {
       if (v == null || v === '') return fallback;
@@ -12832,9 +12856,13 @@ const supabaseDataSdk = {
         const open = (sub.allowed_start_time || sub.allowed_end_time) ? _isSubmissionOpen(sub, set) : _isEssaySetOpen(set);
         if (sub.status === 'not_started' || !sub.status) {
           if (open) return `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#d97706;color:white" class="btn-3d">✍️ ${rt} เข้าสอบ</button>`;
-          const startAt = sub.allowed_start_time || set.start_time;
-          if (startAt && new Date() < new Date(startAt))
-            return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${rt} ${_countdownHtml(startAt, 'เริ่มในอีก')}</span>`;
+          const startAt = _toDate(sub.allowed_start_time || set.start_time);
+          if (startAt && new Date() < startAt)
+            return `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${rt} ${_countdownHtml(startAt, 'เริ่มในอีก')} · เปิด ${_fmtWhen(startAt)}</span>`;
+          // เลยเวลาปิดแล้วโดยไม่เคยเข้าสอบ — บอกให้รู้ว่าเพราะหมดเวลา ไม่ใช่ปุ่มหายเฉยๆ
+          const endAt = _toDate(sub.allowed_end_time || set.end_time);
+          if (endAt && new Date() > endAt)
+            return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${rt} หมดเวลาสอบ (ปิด ${_fmtWhen(endAt)})</span>`;
           return '';
         }
         if (sub.status === 'in_progress') {
@@ -12886,7 +12914,12 @@ const supabaseDataSdk = {
       const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
       if (!set) { showToast('ไม่พบชุดสอบ', 'error'); stream?.getTracks().forEach(t => t.stop()); return; }
       const _isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
-      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) { stream?.getTracks().forEach(t => t.stop()); showToast('ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ', 'error'); return; }
+      if (_isRetry ? !_essayRetryWindowOpen(set, sub) : !_isEssaySetOpen(set)) {
+        stream?.getTracks().forEach(t => t.stop());
+        const _w = _submissionWindow(sub, set);
+        showToast(`ขณะนี้ไม่ได้อยู่ในช่วงเวลาสอบ (เปิด ${_fmtWhen(_w.start)} → ปิด ${_fmtWhen(_w.end)} · ตอนนี้ ${_fmtWhen(new Date())})`, 'error');
+        return;
+      }
       if (sub.status === 'submitted') { stream?.getTracks().forEach(t => t.stop()); showToast('ส่งคำตอบไปแล้ว', 'info'); return; }
       let questions = _parseJsonSafe(sub.question_snapshot_json, null);
       if (!Array.isArray(questions) || !questions.length) {
@@ -13804,11 +13837,9 @@ const supabaseDataSdk = {
     /** 🕐 ช่วงเวลาสอบของกระดาษใบนี้ — ถ้าครูกำหนดเวลาเฉพาะคนนี้ไว้ ให้ใช้อันนั้นก่อน */
     function _submissionWindow(sub, set) {
       if (sub && (sub.allowed_start_time || sub.allowed_end_time)) {
-        return { start: sub.allowed_start_time ? new Date(sub.allowed_start_time) : null,
-                 end: sub.allowed_end_time ? new Date(sub.allowed_end_time) : null, personal: true };
+        return { start: _toDate(sub.allowed_start_time), end: _toDate(sub.allowed_end_time), personal: true };
       }
-      return { start: set?.start_time ? new Date(set.start_time) : null,
-               end: set?.end_time ? new Date(set.end_time) : null, personal: false };
+      return { start: _toDate(set?.start_time), end: _toDate(set?.end_time), personal: false };
     }
     function _isSubmissionOpen(sub, set) {
       const w = _submissionWindow(sub, set), now = new Date();
@@ -13882,11 +13913,12 @@ const supabaseDataSdk = {
         let btnHtml = '';
         // 🗂️ แถวที่จองไว้ล่วงหน้า (not_started) = ยังไม่เคยเข้าสอบจริง ให้ถือเสมือนยังไม่มี submission
         if (!submission || submission.status === 'not_started') {
-          const notYetOpen = new Date() < new Date(submission?.allowed_start_time || examSet.start_time);   // 🕐 นับเวลาเฉพาะบุคคลด้วย
+          const _startAt = _toDate(submission?.allowed_start_time || examSet.start_time);
+          const notYetOpen = !!_startAt && new Date() < _startAt;   // 🕐 นับเวลาเฉพาะบุคคลด้วย
           // ⚠️ ปรับตามที่ขอ: ถ้าหมดเวลาสอบไปแล้วโดยไม่เคยเข้าสอบเลย ให้ปุ่ม/ป้ายหายไปเลย ไม่ใช่ค้างว่า "ยังไม่ถึงเวลา" (ทำให้เข้าใจผิดว่ายังทันเวลาอยู่)
           btnHtml = isOpen
             ? `<button onclick="startExamAttempt('${examSet.__backendId}','${reg.__backendId}')" style="${btnBase};background:#a855f7;color:white" class="btn-3d">📝 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} เข้าสอบ</button>`
-            : (notYetOpen ? `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} ${_countdownHtml(submission?.allowed_start_time || examSet.start_time, 'เริ่มในอีก')}</span>` : '');
+            : (notYetOpen ? `<span style="${spanBase};background:#dbeafe;color:#1d4ed8">🔒 ${String(kLabel).replace(/^([KC])\.(\d+)/, '$1 $2')} ${_countdownHtml(_startAt, 'เริ่มในอีก')} · เปิด ${_fmtWhen(_startAt)}</span>` : '');
         } else {
           // ════════════════════════════════════════════════════════════
           // 🔘 ปุ่มเดียวต่อชุดสอบ — เปลี่ยนสถานะไปตามขั้นตอน ไม่สร้างปุ่มซ้อนเพิ่ม
@@ -22306,10 +22338,11 @@ function _examResultIdentityHtml(sub, set) {
     //    ใส่ป้ายไว้ก่อน แล้วมีตัวเดียวเดินนับให้ทุกป้ายพร้อมกัน ไม่ต้องวาดหน้าใหม่ทุกวินาที
     // ════════════════════════════════════════════════════════════
     function _countdownHtml(until, prefix) {
-      if (!until) return '';
+      const d = _toDate(until);
+      if (!d) return '';
       // ส่ง '' มา = ไม่ต้องมีคำนำหน้า (ข้อความก่อนหน้าบอกอยู่แล้วว่า "เริ่มในอีก") ไม่ใส่ก็ใช้ค่าเริ่มต้น "เหลือ"
       const p = (prefix == null) ? 'เหลือ' : String(prefix);
-      return `<span class="kpac-countdown" data-until="${new Date(until).toISOString()}" data-prefix="${escHtml(p)}">${escHtml(p)} --:--</span>`;
+      return `<span class="kpac-countdown" data-until="${d.toISOString()}" data-prefix="${escHtml(p)}">${escHtml(p)} --:--</span>`;
     }
     function _tickCountdowns() {
       const els = document.querySelectorAll('.kpac-countdown');
