@@ -2733,7 +2733,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.170';
+    const APP_VERSION = 'SUPABASE-2026.09.08.171';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -12651,7 +12651,8 @@ const supabaseDataSdk = {
         if (!set) return '';
         if (onlyType && (['k','p','c'].includes(set.score_type) ? set.score_type : 'k') !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
         const rt = _essayRoundText(set) + ' อัตนัย';
-        const open = _isEssaySetOpen(set);
+        // 🕐 ถ้าครูจัดสอบเฉพาะคนนี้ไว้ (กรณีพิเศษ) ให้ใช้เวลาของคนนี้ก่อนเวลาชุดสอบเสมอ
+        const open = (sub.allowed_start_time || sub.allowed_end_time) ? _isSubmissionOpen(sub, set) : _isEssaySetOpen(set);
         if (sub.status === 'not_started' || !sub.status) {
           if (open) return `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#d97706;color:white" class="btn-3d">✍️ ${rt} เข้าสอบ</button>`;
           const startAt = sub.allowed_start_time || set.start_time;
@@ -12662,7 +12663,12 @@ const supabaseDataSdk = {
         if (sub.status === 'in_progress') {
           const isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
           const canGo = isRetry ? _essayRetryWindowOpen(set, sub) : open;
-          if (!canGo) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${rt} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + (parseInt(sub.retry_count) || 0) : 'สอบ'}</span>`;
+          if (!canGo) {
+            // ⏰ หมดเวลาแล้วแต่ยังค้างเป็น "กำลังทำ" = ไม่ได้สอบจริง → ต้องขอสอบแก้ตัวได้
+            const lbl = `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${rt} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + (parseInt(sub.retry_count) || 0) : 'สอบ'}</span>`;
+            const act = _essayRetryAction(set, sub, rt, btnBase, spanBase);
+            return [lbl, act].filter(Boolean).join(' ');
+          }
           return isRetry
             ? `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${rt} สอบแก้ครั้งที่ ${parseInt(sub.retry_count) || 0}</button>`
             : `<button onclick="openEssayExam('${sub.__backendId}')" style="${btnBase};background:#f59e0b;color:white" class="btn-3d">✏️ ทำต่อ ${rt}</button>`;
@@ -13631,6 +13637,21 @@ const supabaseDataSdk = {
       const w = _submissionWindow(sub, set), now = new Date();
       return (!w.start || now >= w.start) && (!w.end || now <= w.end);
     }
+    /** ⏱️ ตอนนี้กระดาษใบนี้ยัง "ทำต่อได้" อยู่ไหม — ลำดับความสำคัญของช่วงเวลา
+     *  1) เวลาเฉพาะบุคคลที่แอดมินกำหนด  2) เวลาของคำขอสอบแก้ (ถ้าใบนี้เป็นการสอบแก้)  3) เวลาของชุดสอบ */
+    function _submissionActiveNow(sub, set, isEssay) {
+      if (!sub) return _isSubmissionOpen(sub, set);
+      const hasPersonal = !!(sub.allowed_start_time || sub.allowed_end_time);
+      const isRetry = sub.is_retry_attempt === true || sub.is_retry_attempt === 'true';
+      if (isRetry && !hasPersonal) {
+        if (isEssay) return typeof _essayRetryWindowOpen === 'function' ? _essayRetryWindowOpen(set, sub) : _isSubmissionOpen(sub, set);
+        const w = typeof _approvedRetryWindow === 'function' ? _approvedRetryWindow(set?.__backendId, sub.student_id) : null;
+        if (!w) return false;
+        const now = new Date();
+        return (!w.start || now >= w.start) && (!w.end || now <= w.end);
+      }
+      return _isSubmissionOpen(sub, set);
+    }
 
     function generateExamButtonsForRegistration(reg, onlyType) {
       // ทำให้ทนทานต่อความต่างของข้อมูลให้มากที่สุด: ตัดช่องว่างทุกจุด (ไม่ใช่แค่หัวท้าย) + ไม่สนตัวพิมพ์เล็กใหญ่
@@ -13762,7 +13783,12 @@ function _examResultIdentityHtml(sub, set) {
           const now = new Date();
           canResume = !!w && (!w.start || now >= w.start) && (!w.end || now <= w.end);
         }
-        if (!canResume) return `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + usedRetries : 'สอบ'}</span>`;
+        if (!canResume) {
+          // ⏰ หมดเวลาแล้วแต่ยังค้างเป็น "กำลังทำ" = ไม่ได้สอบจริง → ต้องขอสอบแก้ตัวได้ ไม่ใช่ตันอยู่แค่ป้าย
+          const expiredLabel = `<span style="${spanBase};background:#e5e7eb;color:#6b7280">⏰ ${roundText} หมดเวลา${isRetry ? 'สอบแก้ครั้งที่ ' + usedRetries : 'สอบ'}</span>`;
+          const act = _mcRetryActionHtml(examSet, submission, reg, roundText, btnBase, spanBase);
+          return [expiredLabel, act].filter(Boolean).join(' ');
+        }
         return isRetry
           ? `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">✏️ ทำต่อ ${roundText} สอบแก้ครั้งที่ ${usedRetries}</button>`
           : `<button onclick="resumeExamAttempt('${submission.__backendId}')" style="${btnBase};background:#f59e0b;color:white" class="btn-3d">✏️ ทำต่อ ${kLabel}</button>`;
@@ -13785,8 +13811,16 @@ function _examResultIdentityHtml(sub, set) {
       //    (คะแนนถูกรวมเข้าช่อง K/C แล้ว ดูได้จากช่องคะแนนของวิชา) — ป้าย "ถูกยุติ" แสดงเสมอ เพราะเป็นข้อมูลสำคัญ
       const justSubmitted = !!(window._justSubmittedIds && window._justSubmittedIds.has(String(submission.__backendId)));
       const infoHtml = (terminated || justSubmitted) ? (scoreLabel + (justSubmitted ? viewBtn : '')) : '';
+      const action = _mcRetryActionHtml(examSet, submission, reg, roundText, btnBase, spanBase);
+      return [infoHtml, action].filter(Boolean).join(' ');
+    }
+
+    /** 🔄 ปุ่มสอบแก้ตัวของปรนัย (ขอสอบแก้ → รออนุมัติ → ปุ่มเขียว → ครบโควตาก็หายไป)
+     *  ใช้ร่วมกันทั้งกรณี "ส่งแล้ว/ถูกยุติ" และกรณี "หมดเวลาโดยยังค้างเป็นกำลังทำ" */
+    function _mcRetryActionHtml(examSet, submission, reg, roundText, btnBase, spanBase) {
+      const usedRetries = parseInt(submission.retry_count) || 0;
       const retriesLeft = 2 - usedRetries;
-      if (retriesLeft <= 0) return infoHtml;       // ครบโควต้า — ไม่มีปุ่มสอบ/ขอสอบแก้ตัวอีก
+      if (retriesLeft <= 0) return '';       // ครบโควต้า — ไม่มีปุ่มสอบ/ขอสอบแก้ตัวอีก
       const nextNo = usedRetries + 1;
       const now = new Date();
       const greenBtn = `<button onclick="startRetryExamAttempt('${examSet.__backendId}','${submission.registration_id || reg.__backendId}')" style="${btnBase};background:#16a34a;color:white" class="btn-3d">🔄 ${roundText} สอบแก้ครั้งที่ ${nextNo}</button>`;
@@ -13815,7 +13849,7 @@ function _examResultIdentityHtml(sub, set) {
           else action = requestBtn;                                              // เลยเวลาที่อนุมัติ (ยังไม่ได้ใช้สิทธิ์) → ขอใหม่ได้
         } else action = requestBtn;
       }
-      return [infoHtml, action].filter(Boolean).join(' ');
+      return action || '';
     }
 
     // ปุ่มขออนุญาต/สถานะคำขอสอบแก้ — ครอบคลุมทั้ง exam_retry_request (นักเรียนขอเอง) และ exam_retry_permission (แอดมินอนุมัติจาก popup แจ้งเตือน)
@@ -21999,8 +22033,8 @@ function _examResultIdentityHtml(sub, set) {
       wrap.style.zIndex = '60';
       const tag = `${(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
       wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
-          <p class="text-lg font-bold text-gray-800 mb-1">🕐 ${sub && (sub.status === 'terminated' || sub.status === 'submitted') ? 'ให้สอบใหม่เป็นกรณีพิเศษ' : 'จัดสอบเฉพาะคนนี้'}</p>
-          ${sub && (sub.status === 'terminated' || sub.status === 'submitted') ? '<p class="text-xs bg-red-50 border border-red-200 text-red-700 rounded p-2 mb-2">⚠️ ผลเดิมของชุดสอบนี้จะถูกล้าง และคะแนนที่เคยโอนเข้าช่องคะแนนจะถูกหักคืน (คะแนนส่วนอื่นยังอยู่) · ไม่ตัดสิทธิ์สอบแก้ตัวของนักเรียน</p>' : ''}
+          <p class="text-lg font-bold text-gray-800 mb-1">🕐 ${sub && sub.status && sub.status !== 'not_started' ? 'ให้สอบใหม่เป็นกรณีพิเศษ' : 'จัดสอบเฉพาะคนนี้'}</p>
+          ${sub && sub.status && sub.status !== 'not_started' ? '<p class="text-xs bg-red-50 border border-red-200 text-red-700 rounded p-2 mb-2">⚠️ ผลเดิมของชุดสอบนี้จะถูกล้าง และคะแนนที่เคยโอนเข้าช่องคะแนนจะถูกหักคืน (คะแนนส่วนอื่นยังอยู่) · ไม่ตัดสิทธิ์สอบแก้ตัวของนักเรียน</p>' : ''}
           <p class="text-xs text-gray-500 mb-2">${escHtml(reg.student_name || String(reg.student_id))} · ${escHtml(set.subject_name || '')} · ${tag}</p>
           <p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded p-2 mb-3">เวลาของชุดสอบหลัก: ${set.start_time ? new Date(set.start_time).toLocaleString('th-TH', { hour12: false }) : '-'} ถึง ${set.end_time ? new Date(set.end_time).toLocaleString('th-TH', { hour12: false }) : '-'}<br>เวลาด้านล่างใช้เฉพาะคนนี้ — ชุดสอบหลักปิดไปแล้วก็สอบได้</p>
           <p class="text-xs text-gray-600">🟢 เริ่ม</p>${row('ie-start', now)}
@@ -22125,7 +22159,7 @@ function _examResultIdentityHtml(sub, set) {
       };
       const used = parseInt(sub?.retry_count) || 0;
       const quotaLeft = 2 - used;
-      const open = _isSubmissionOpen(sub, set);
+      const open = _submissionActiveNow(sub, set, isEssay);
       const now = new Date();
 
       if (!sub) return { key: 'none', text: 'ไม่ได้รับชุดนี้', c: C.purple, canAssign: true };
@@ -22137,8 +22171,11 @@ function _examResultIdentityHtml(sub, set) {
       if (sub.status === 'in_progress') {
         const frozen = sub.frozen === true || sub.frozen === 'true';
         // ⏸️ ถูกหยุดจอรอครูตัดสิน → กดที่ป้ายเพื่อขอดูรายละเอียดอีกรอบ แล้วกด "ให้สอบต่อ" ได้
-        return frozen ? { key: 'frozen', text: '⏸️ รอครูตัดสิน', c: C.red, canDecide: true }
-                      : { key: 'doing', text: '✏️ กำลังทำ', c: C.blue };
+        if (frozen) return { key: 'frozen', text: open ? '⏸️ รอครูตัดสิน' : '⏸️ รอครูตัดสิน · ⏰ หมดเวลา', c: C.red, canDecide: true, canAssign: true };
+        // ⏰ หมดเวลาแล้วแต่สถานะยังค้างที่ "กำลังทำ" = ไม่ได้สอบจริง (เช่น หลุดออกไป/ถูกปลดล็อกหลังหมดเวลา)
+        //    ต้องไม่ค้างว่า "กำลังทำ" และต้องจัดสอบให้ใหม่ได้ทั้งสอบแก้ตัวและกรณีพิเศษ
+        if (!open) return { key: 'expired', text: '⏰ หมดเวลา · ยังไม่ได้สอบ', c: C.gray, canAssign: true };
+        return { key: 'doing', text: '✏️ กำลังทำ', c: C.blue };
       }
       if (sub.status === 'terminated') return { key: 'terminated', text: '🚫 ถูกยุติ', c: C.red, canView: true, canAssign: true };
 
@@ -22184,7 +22221,7 @@ function _examResultIdentityHtml(sub, set) {
 
     /** ⏸️ หน้าให้คะแนน: กดป้าย "รอครูตัดสิน" → ขอดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ / ยุติการสอบได้
      *  ใช้ได้ทั้งปรนัย (kind='mc') และอัตนัย (kind='essay') */
-    function openFrozenDecisionPopup(subId, kind) {
+    function openFrozenDecisionPopup(subId, kind, regId, setId) {
       const isEssay = kind === 'essay';
       const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission') && String(d.__backendId) === String(subId));
       if (!sub) { showToast('ไม่พบกระดาษคำตอบใบนี้แล้ว', 'error'); return; }
@@ -22192,6 +22229,11 @@ function _examResultIdentityHtml(sub, set) {
         && String(d.__backendId) === String(isEssay ? sub.essay_exam_set_id : sub.exam_set_id));
       const w = _cheatStudentName(sub.student_id, sub.__backendId, isEssay ? 'essay_submission' : 'exam_submission', sub.student_name);
       const frozen = (sub.frozen === true || sub.frozen === 'true') && sub.status === 'in_progress';
+      // ⏰ หมดเวลาแล้วหรือยัง — ถ้าหมดแล้ว "ให้สอบต่อ" อย่างเดียวไม่พอ ต้องจัดสอบกรณีพิเศษให้เวลาใหม่
+      const timeUp = !_submissionActiveNow(sub, set, isEssay);
+      const indivBtn = (regId && setId)
+        ? `<button onclick="document.getElementById('frozen-decision-panel')?.remove();openIndividualExamPopup('${setId}','${regId}','${kind}')" style="background:#7c3aed;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">➕ จัดสอบกรณีพิเศษ (กำหนดเวลาใหม่เฉพาะคนนี้)</button>`
+        : '';
 
       // ── สรุปพฤติกรรมเสี่ยง + ภาพจากกล้อง ──
       let riskHtml = '', imgHtml = '', extraBtn = '';
@@ -22235,9 +22277,11 @@ function _examResultIdentityHtml(sub, set) {
           </div>
           ${imgHtml}
           ${frozen ? '' : '<p style="font-size:12px;color:#c2410c;background:#ffedd5;border-radius:8px;padding:8px;margin:0 0 12px">ℹ️ ขณะนี้หน้าจอนักเรียนไม่ได้ถูกหยุดไว้แล้ว (อาจตัดสินไปก่อนหน้านี้)</p>'}
+          ${timeUp ? '<p style="font-size:12px;color:#7c2d12;background:#ffedd5;border-radius:8px;padding:8px;margin:0 0 12px">⏰ <b>หมดเวลาสอบแล้ว</b> — กด "ให้สอบต่อ" นักเรียนจะยังเข้าไม่ได้ ถ้าต้องการให้สอบจริง ให้กด "จัดสอบกรณีพิเศษ" เพื่อกำหนดเวลาใหม่เฉพาะคนนี้</p>' : ''}
           <div style="display:flex;flex-direction:column;gap:8px">
             <button onclick="decideFrozenFromChip('${subId}','${kind}','continue')" style="background:#16a34a;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">✅ ให้สอบต่อ (ปลดล็อก ทำต่อจากจุดเดิม)</button>
             <button onclick="decideFrozenFromChip('${subId}','${kind}','terminate')" style="background:#dc2626;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">⛔ ยุติการสอบ (ส่งคำตอบปัจจุบันให้ตรวจ)</button>
+            ${indivBtn}
             ${extraBtn}
             <button onclick="document.getElementById('frozen-decision-panel')?.remove()" style="background:transparent;color:#94a3b8;border:none;padding:8px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้</button>
           </div>
@@ -22300,15 +22344,15 @@ function _examResultIdentityHtml(sub, set) {
         // ป้ายสถานะ (สีตามเงื่อนไข)
         const body = `${st.text}${st.countdown ? ' ' + _countdownHtml(st.countdown, '') : ''}`;
         // ⏸️ รอครูตัดสิน → เปิดหน้าต่างตัดสินซ้ำได้เสมอ (ดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ/ยุติ)
-        const decide = sub ? `openFrozenDecisionPopup('${sub.__backendId}','${kind}')` : '';
+        const decide = sub ? `openFrozenDecisionPopup('${sub.__backendId}','${kind}','${reg.__backendId}','${set.__backendId}')` : '';
         const click = st.canDecide && decide ? decide : (st.canAssign ? assign : (st.canView && view ? view : ''));
         const tip = st.canDecide ? 'ดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ / ยุติการสอบ'
           : (st.canAssign ? 'จัดสอบ/ให้สอบใหม่ (กำหนดเวลาเฉพาะคนนี้)' : 'ดูรายละเอียด');
         out.push(click
           ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${tip}">${body}${st.canDecide ? ' · 👁️' : (st.canAssign ? ' · ➕' : '')}</button>`
           : `<span style="${chip};background:${st.c[0]};color:${st.c[1]}">${body}</span>`);
-        // หมดโควตาสอบแก้ → ปุ่มให้สอบพิเศษแยกไว้ข้างๆ (ชัดเจนกว่า)
-        if (st.key === 'noquota')
+        // หมดโควตาสอบแก้ / รอครูตัดสิน → ปุ่มให้สอบพิเศษแยกไว้ข้างๆ (ป้ายหลักถูกใช้ไปทำอย่างอื่นแล้ว)
+        if (st.key === 'noquota' || st.key === 'frozen')
           out.push(`<button onclick="${assign}" style="${chip};background:#ede9fe;color:#6d28d9;cursor:pointer" title="ให้สอบเป็นกรณีพิเศษ">➕ ให้สอบ</button>`);
         // มีคำขอรออนุมัติ → ทางลัดไปหน้าคำขอ
         if (st.key === 'requested')
@@ -22321,7 +22365,7 @@ function _examResultIdentityHtml(sub, set) {
           </span>`;
       }).join(' ');
       return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
-          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/ยังไม่ขอแก้ · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา</p>
+          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/หมดเวลา/ยังไม่ขอแก้ · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา · 🔴 รอครูตัดสิน/ถูกยุติ (กดที่ป้ายเพื่อจัดการ)</p>
           <div class="flex flex-wrap gap-2">${items}</div>
         </div>`;
     }
