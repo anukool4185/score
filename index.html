@@ -2765,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.177';
+    const APP_VERSION = 'SUPABASE-2026.09.08.178';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10594,10 +10594,28 @@ const supabaseDataSdk = {
         arr[_round - 1] = left > 0 ? String(left) : '';
         await window.dataSdk.update({ ...g, [_sType + '_scores']: arr.join(',') });
       }
+      // 🧹 ลบกระดาษคำตอบ + ร่องรอยที่ผูกกับกระดาษทั้งหมด (เดิมไม่ได้ลบ ทำให้ข้อมูลค้างเป็นขยะ
+      //    และตัวเลขคำขอสอบแก้หลังเมนูค้างทั้งที่ไม่มีรายการจริง — หลักเดียวกับฝั่งปรนัย)
+      for (const sub of subs) {
+        const sid = sub.__backendId;
+        const junk = [
+          ...allData.filter(d => d.type === 'essay_retry_request' && String(d.submission_id) === String(sid)),
+          ...allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(sid)),
+        ];
+        for (const j of junk) { try { await window.dataSdk.delete(j); } catch (e) { console.log('[ลบชุดอัตนัย] ลบข้อมูลพ่วงไม่สำเร็จ:', e.message); } }
+        try { await window.dataSdk.delete(sub); } catch (e) { console.error('[ลบชุดอัตนัย] ลบกระดาษไม่สำเร็จ:', sub.student_id, e.message); }
+      }
+      // คำขอสอบแก้ที่ผูกกับชุดสอบโดยตรง (ไม่ผ่านกระดาษ)
+      const _reqs = allData.filter(d => d.type === 'essay_retry_request' && String(d.essay_exam_set_id) === String(id));
+      for (const r of _reqs) { try { await window.dataSdk.delete(r); } catch (e) { /* ข้ามได้ */ } }
+
       const result = await window.dataSdk.delete(s);
       if (result.isOk) {
-        allData = allData.filter(d => d.__backendId !== id);
-        showToast('🗑️ ลบชุดสอบอัตนัยสำเร็จ');
+        const _goneSubs = new Set(subs.map(x => String(x.__backendId)));
+        allData = allData.filter(d => !(String(d.__backendId) === String(id) && d.type === 'essay_exam_set')
+          && !(d.type === 'essay_submission' && _goneSubs.has(String(d.__backendId)))
+          && !((d.type === 'essay_retry_request' || d.type === 'essay_monitor_event') && _goneSubs.has(String(d.submission_id))));
+        showToast(`🗑️ ลบชุดสอบอัตนัยสำเร็จ (ลบกระดาษ ${subs.length} ใบ และคืนคะแนนเต็ม/คะแนนที่โอนไว้แล้ว)`);
         renderEssayExamSetList();
       } else {
         showToast('ลบไม่สำเร็จ', 'error');
@@ -12494,7 +12512,7 @@ const supabaseDataSdk = {
     function resetExamSet(id) {
       const s = allData.find(d => d.__backendId === id && d.type === 'exam_set');
       if (!s) return;
-      const subs = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      const subs = allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id));
       const doneCount = subs.filter(d => d.status === 'submitted' || d.status === 'terminated').length;
       const notDoneCount = subs.filter(d => d.status === 'not_started' || d.status === 'in_progress').length;
       const stLabel = s.score_type === 'c' ? 'C' : 'K';
@@ -12602,7 +12620,7 @@ const supabaseDataSdk = {
           if (d.imported_to_grade === true || d.imported_to_grade === 'true') { console.warn('[ResetPending] ข้ามนักเรียนที่นำคะแนนเข้าระบบแล้ว:', d.student_id); return false; }
           return true;
         });
-        const protectedCount = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id).length - targets.length;
+        const protectedCount = allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id)).length - targets.length;
         if (targets.length === 0) { showToast('ไม่มีนักเรียนที่ยังไม่ได้สอบ (ทุกคนมีคะแนนแล้ว จึงไม่แตะต้อง)', 'info'); return; }
         if (!confirm('ยืนยันเปิดให้สอบใหม่เฉพาะ ' + targets.length + ' คนที่ยังไม่ได้สอบ?\n\n🛡️ ระบบจะปกป้องคะแนนของ ' + protectedCount + ' คนที่สอบไปแล้ว ไม่แตะต้องเด็ดขาด\n(ตรวจสอบ 3 ชั้น: สถานะ + คะแนนที่มีอยู่ + การนำเข้าระบบ)')) return;
         let count = 0;
@@ -12638,39 +12656,18 @@ const supabaseDataSdk = {
       // (เช่น มีการ "ขอแก้ไขคำตอบ"/สอบแก้ ทำให้มี submission เดิม + submission ใหม่ ผูกกับ exam_set เดียวกัน)
       // การประมวลผลพร้อมกันทำให้ทั้ง 2 รายการอ่านค่า grade เดิมพร้อมกัน แล้วเขียนทับกัน คะแนนที่ควรถูกหักออกจริง 2 รอบ กลับถูกหักแค่รอบเดียว
       // แก้โดยเปลี่ยนเป็นทำทีละคนตามลำดับ (sequential) แทน — ช้าลงเล็กน้อยแต่ถูกต้องแน่นอน เพราะ dataSdk.update() รีเฟรชข้อมูลให้สดใหม่ทุกครั้งอยู่แล้ว
-      const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      const submissions = allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id));
       for (const sub of submissions) {
         if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; } // คะแนนถูกลบไปแล้วตอนสอบแก้ครั้งก่อน ลบกระดาษคำตอบทิ้งได้เลย ไม่ต้องแก้คะแนนซ้ำ
-        const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
-          : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
-        if (scoreGiven !== null) {
-          // ⚠️ บั๊กที่อาจเกิดขึ้น: ถ้าหา grade ไม่เจอจาก registration_id (เช่น ข้อมูลไม่ตรงกันด้วยเหตุผลใดก็ตาม) จะข้ามการคืนคะแนนไปเงียบๆ ทำให้คะแนนค้างอยู่ถาวร
-          // แก้โดยเพิ่มการค้นหาสำรอง (fallback) ด้วยชั้น/ห้อง/วิชา ถ้าหาจาก registration_id ตรงๆ ไม่เจอ
-          let grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
-          if (!grade) {
-            grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
-          }
-          if (grade) {
-            // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
-            const delField = ((s.score_type === 'c') ? 'c' : 'k') + '_scores';
-            let scoresArr = (grade[delField] || '').split(',').map(x => x.trim());
-            while (scoresArr.length < round) scoresArr.push('');
-            const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
-            await window.dataSdk.update({ ...grade, [delField]: scoresArr.join(',') });
-          } else {
-            // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
-            console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
-            showToast(`⚠️ ไม่พบข้อมูลคะแนนของนักเรียน ${sub.student_id} — คะแนน K ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจสอบและแก้ไขด้วยตนเองที่หน้า "ให้คะแนน"`, 'error');
-          }
-        }
+        // ↩️ หักคืนเฉพาะส่วนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนจริง (คะแนนที่ครูกรอกมือไว้ไม่หาย)
+        await _reverseSubmissionScore(sub, s);
         // 3) ลบการทำข้อสอบเดิมทิ้ง + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้อง ให้นักเรียนเริ่มสอบใหม่ได้ตั้งแต่ต้น
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
       }
       // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนานได้ปลอดภัย เพราะแต่ละรายการเป็นคนละ record ไม่ชนกัน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && String(d.exam_set_id) === String(id));
-      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
+      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && (String(d.exam_id) === String(id) || String(d.exam_set_id) === String(id)));
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       // 4) ป้อนคะแนนเต็มกลับเข้าไปใหม่ เหมือนตอนมอบหมายครั้งแรก
@@ -12683,6 +12680,44 @@ const supabaseDataSdk = {
     }
 
     // 🧹 ลบการแจ้งเตือนทุจริต + คำขอสอบแก้ ที่ผูกกับกระดาษคำตอบนี้ทั้งหมด กันแจ้งเตือนค้างหลังลบ/รีเซ็ทชุดสอบ
+    /** ↩️ คืนคะแนนที่กระดาษใบหนึ่ง "เคยโอนเข้าช่องคะแนนจริง" ออกจากยอดปัจจุบัน (ใช้ทั้งลบและจัดสอบใหม่)
+     *  ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมหักด้วยคะแนนที่นักเรียนสอบได้ (manual/auto) ตรงๆ
+     *  ทั้งที่คะแนนนั้นอาจยังไม่เคยถูกโอนเข้าช่องเลย (ยังไม่ได้กด "นำเข้าคะแนน" / รอตรวจอัตนัย / โอนไม่สำเร็จ)
+     *  ผลคือลบชุดสอบแล้วไป "กินคะแนนที่ครูกรอกมือ" ในช่องเดียวกันหายไปด้วย
+     *  ตอนนี้หักเฉพาะส่วนที่บันทึกไว้ว่าโอนจริง (k_score_contributed / imported_to_grade) เหมือนฝั่งอัตนัย */
+    async function _reverseSubmissionScore(sub, set) {
+      if (!sub || !set) return false;
+      if (sub.score_reversed === true || sub.score_reversed === 'true') return false;
+      const _c = parseFloat(sub.k_score_contributed);
+      const _imported = sub.imported_to_grade === true || sub.imported_to_grade === 'true';
+      // มีตัวเลขที่บันทึกไว้ → ใช้ตัวนั้น / ไม่มีแต่ระบุว่าโอนแล้ว → ถอยไปใช้คะแนนที่ได้ / ไม่เคยโอน → ไม่ต้องหัก
+      const _score = (sub.manual_score !== undefined && sub.manual_score !== null && sub.manual_score !== '')
+        ? parseFloat(sub.manual_score)
+        : ((sub.auto_score !== undefined && sub.auto_score !== null && sub.auto_score !== '') ? parseFloat(sub.auto_score) : NaN);
+      const amount = (!isNaN(_c) && sub.k_score_contributed !== '' && sub.k_score_contributed !== null)
+        ? _c : (_imported && !isNaN(_score) ? _score : 0);
+      if (!(amount > 0)) return false;
+      const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+      const round = parseInt(set.k_round) || 1;
+      const field = sType + '_scores';
+      const g = (typeof _findGradeRow === 'function')
+        ? _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id,
+            class_name: sub.class_name || set.class_name, room_number: sub.room_number || set.room_number,
+            subject_name: sub.subject_name || set.subject_name })
+        : null;
+      if (!g) {
+        console.error('[คืนคะแนน] หาแถวคะแนนไม่เจอ นักเรียน:', sub.student_id, 'ที่ต้องหักคืน:', amount, sType.toUpperCase(), 'ครั้งที่', round);
+        showToast(`⚠️ ไม่พบแถวคะแนนของนักเรียน ${sub.student_id} — คะแนน ${sType.toUpperCase()} ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจที่หน้า "ให้คะแนน"`, 'error');
+        return false;
+      }
+      const arr = String(g[field] || '').split(',').map(x => x.trim());
+      while (arr.length < round) arr.push('');
+      const left = (parseFloat(arr[round - 1]) || 0) - amount;
+      arr[round - 1] = left > 0 ? String(left) : '';   // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าสอบได้ 0
+      await window.dataSdk.update({ ...g, [field]: arr.join(',') });
+      return true;
+    }
+
     async function cleanupExamSubmissionRelatedRecords(submissionId) {
       const relatedAlerts = allData.filter(d => d.type === 'exam_alert' && String(d.submission_id) === String(submissionId));
       // ⚠️ ลบตัวข้อมูลอย่างเดียวไม่พอ ถ้า banner แจ้งเตือนกำลังลอยอยู่บนจอแอดมินอยู่แล้ว ต้องลบตัว element ออกจากหน้าจอด้วย (ลบ DOM ทันทีแบบ sync ก่อน แล้วค่อยลบข้อมูลแบบขนาน)
@@ -12698,8 +12733,8 @@ const supabaseDataSdk = {
         if (!confirm(`⚠️ คำเตือน: ยังมีคะแนนสอบของนักเรียน ${pendingCount} คน ที่ยังไม่ได้กด "นำเข้าคะแนน" เข้าสู่ระบบหลัก\n\nถ้าลบชุดสอบตอนนี้ คะแนนเหล่านั้นจะหายไปถาวร กู้คืนไม่ได้\n\nแนะนำให้กดปุ่ม "📥 นำเข้าคะแนน" ก่อน แล้วค่อยลบ\n\nยืนยันลบทั้งที่ยังไม่ได้นำเข้าคะแนน?`)) return;
       }
       if (!confirm('ยืนยันลบการมอบหมายชุดสอบนี้?\\n\\nระบบจะดึงคะแนนเต็มที่เคยเพิ่มไว้ตอนมอบหมายออกอัตโนมัติ\\nถ้ามีนักเรียนสอบไปแล้ว จะลบเฉพาะคะแนนที่ข้อสอบนี้ทำให้ได้เพิ่มมาออกเท่านั้น (คะแนนเดิมที่มีอยู่ก่อนจะไม่หายไปด้วย)')) return;
-      const s = allData.find(d => d.__backendId === id);
-      if (!s) return;
+      const s = allData.find(d => String(d.__backendId) === String(id) && d.type === 'exam_set');
+      if (!s) { showToast('ไม่พบชุดสอบนี้แล้ว (อาจถูกลบไปก่อนหน้านี้)', 'error'); renderExamSetList(); return; }
       const round = parseInt(s.k_round) || 1;
       // ⚠️ ใช้ส่วนที่สมทบจริง (applied_full_score_delta) แทนการเดาว่า total_score ถูกใส่เข้าไปจริง (เหมือนที่แก้ใน resetExamSet)
       const currentlyAppliedForDelete = s.applied_full_score_delta !== undefined ? parseFloat(s.applied_full_score_delta) || 0 : (parseFloat(s.total_score) || 0);
@@ -12712,39 +12747,18 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กร้ายแรงที่พบและแก้แล้ว: เดิมทำแบบขนาน (Promise.all) ทำให้นักเรียนที่มี submission มากกว่า 1 รายการสำหรับชุดสอบเดียวกัน
       // (เช่น มีการขอแก้ไขคำตอบ/สอบแก้) เขียนทับคะแนนกันเอง คะแนนที่ควรถูกหักออก 2 รอบ กลับถูกหักแค่รอบเดียว
       // แก้โดยเปลี่ยนเป็นทำทีละคนตามลำดับ (sequential) แทน ให้ผลลัพธ์ถูกต้องแน่นอนเสมอ
-      const submissions = allData.filter(d => d.type === 'exam_submission' && d.exam_set_id === id);
+      const submissions = allData.filter(d => d.type === 'exam_submission' && String(d.exam_set_id) === String(id));
       for (const sub of submissions) {
         if (sub.score_reversed) { await cleanupExamSubmissionRelatedRecords(sub.__backendId); await window.dataSdk.delete(sub); continue; }
-        const scoreGiven = sub.manual_score !== undefined && sub.manual_score !== null ? sub.manual_score
-          : (sub.auto_score !== undefined && sub.auto_score !== null ? sub.auto_score : null);
-        if (scoreGiven !== null) {
-          // ⚠️ บั๊กที่อาจเกิดขึ้น: ถ้าหา grade ไม่เจอจาก registration_id (เช่น ข้อมูลไม่ตรงกันด้วยเหตุผลใดก็ตาม) จะข้ามการคืนคะแนนไปเงียบๆ ทำให้คะแนนค้างอยู่ถาวร
-          // แก้โดยเพิ่มการค้นหาสำรอง (fallback) ด้วยชั้น/ห้อง/วิชา ถ้าหาจาก registration_id ตรงๆ ไม่เจอ
-          let grade = allData.find(d => d.type === 'grade' && d.registration_id === sub.registration_id);
-          if (!grade) {
-            grade = allData.find(d => d.type === 'grade' && d.student_id === sub.student_id && d.class_name === s.class_name && d.room_number === s.room_number && d.subject_name === s.subject_name);
-          }
-          if (grade) {
-            // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
-            const delField = ((s.score_type === 'c') ? 'c' : 'k') + '_scores';
-            let scoresArr = (grade[delField] || '').split(',').map(x => x.trim());
-            while (scoresArr.length < round) scoresArr.push('');
-            const currentValue = parseFloat(scoresArr[round - 1]) || 0;
-            scoresArr[round - 1] = (currentValue - scoreGiven) > 0 ? String(currentValue - scoreGiven) : ''; // ว่างเปล่า ไม่ใช่ "0" กันเข้าใจผิดว่าได้ 0 คะแนน
-            await window.dataSdk.update({ ...grade, [delField]: scoresArr.join(',') });
-          } else {
-            // ⚠️ หาไม่เจอแม้ใช้ fallback แล้ว — แจ้งเตือนแอดมินทันที กันคะแนนค้างแบบไม่มีร่องรอย (ปัญหาที่เคยเจอมาก่อน)
-            console.error('[deleteExamSet/resetExamSet Debug] หา grade ไม่เจอเลย (ทั้ง registration_id และ fallback) นักเรียน:', sub.student_id, 'คะแนนที่ควรถูกลบ:', scoreGiven, 'K ครั้งที่', round);
-            showToast(`⚠️ ไม่พบข้อมูลคะแนนของนักเรียน ${sub.student_id} — คะแนน K ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจสอบและแก้ไขด้วยตนเองที่หน้า "ให้คะแนน"`, 'error');
-          }
-        }
+        // ↩️ หักคืนเฉพาะส่วนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนจริง (คะแนนที่ครูกรอกมือไว้ไม่หาย)
+        await _reverseSubmissionScore(sub, s);
         // ⚠️ สำคัญ: ลบกระดาษคำตอบ + การแจ้งเตือน/คำขอสอบแก้ที่เกี่ยวข้องทั้งหมด กันค้างแจ้งเตือนไปตลอด
         await cleanupExamSubmissionRelatedRecords(sub.__backendId);
         await window.dataSdk.delete(sub);
       }
       // ลบคำขอสอบแก้ที่ผูกกับชุดสอบนี้โดยตรง (ไม่ผ่านกระดาษคำตอบ) — ทำแบบขนาน
       const relatedRetryRequests = allData.filter(d => d.type === 'exam_retry_request' && String(d.exam_set_id) === String(id));
-      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && d.exam_id === id);
+      const relatedRetryPermissions = allData.filter(d => d.type === 'exam_retry_permission' && (String(d.exam_id) === String(id) || String(d.exam_set_id) === String(id)));
       await Promise.all([...relatedRetryRequests.map(rr => window.dataSdk.delete(rr)), ...relatedRetryPermissions.map(rp => window.dataSdk.delete(rp))]);
 
       const result = await window.dataSdk.delete(s);
@@ -12753,7 +12767,7 @@ const supabaseDataSdk = {
         // ทำให้เกิดข้อผิดพลาดกลางคัน หน้าจอไม่อัปเดต รายการที่ลบแล้วจึงยังค้างอยู่
         // Supabase ไม่ต้องลบตารางแยก เพราะข้อมูลถูกลบไปพร้อมชุดสอบแล้ว (ระบบเชื่อมโยงอัตโนมัติ)
         // 🔄 เอาข้อมูลที่ลบแล้วออกจากหน้าจอทันที ไม่ต้องรอโหลดใหม่
-        allData = allData.filter(d => d.__backendId !== id);
+        allData = allData.filter(d => !(String(d.__backendId) === String(id) && d.type === 'exam_set'));
         showToast('🗑️ ลบชุดสอบสำเร็จ (ปรับคะแนนเต็มและคะแนนที่ได้ของนักเรียนที่สอบไปแล้วให้ถูกต้องแล้ว)');
         renderExamSetList();
       } else {
