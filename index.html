@@ -2765,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.176';
+    const APP_VERSION = 'SUPABASE-2026.09.08.177';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -16045,7 +16045,8 @@ function _examResultIdentityHtml(sub, set) {
       //    - กระดาษเดิม (สอบแก้ตัว/ครูตรวจใหม่): หักส่วนที่กระดาษนี้เคยโอนไว้ แล้วใส่คะแนนใหม่
       //    - โหมดชุดเดิม: หักส่วนที่ "ชุดสอบอื่นในครั้งเดียวกัน" เคยโอนไว้ด้วย เพราะชุดใหม่มาแทนชุดเก่า
       let _replacedOthers = [];
-      if (examSet.full_score_mode === 'same') {
+      // 🔁 โหมด "แทนการสอบนอกระบบ" — มาจากชุดสอบ (ตั้งตอนสร้าง) หรือจากกระดาษใบนี้ (ตั้งตอนจัดสอบกรณีพิเศษ)
+      if (examSet.full_score_mode === 'same' || submission.score_mode === 'same') {
         const _n = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
         // ชุดสอบอื่นในครั้งเดียวกัน — ทั้งปรนัยและอัตนัย (ใช้ช่องคะแนนเดียวกัน จึงแทนที่กันได้)
         const _sameRoundSetIds = new Set(allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(examSet.__backendId)
@@ -22246,6 +22247,11 @@ function _examResultIdentityHtml(sub, set) {
       wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
       wrap.style.zIndex = '60';
       const tag = `${(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
+      // 📊 คะแนนเต็มของครั้งนี้ที่มีอยู่แล้ว (ไว้ให้ครูเห็นก่อนตัดสินใจ) + ชุดสอบนี้เป็นโหมดแทนการสอบนอกระบบอยู่แล้วหรือยัง
+      const _setSame = set.full_score_mode === 'same';
+      const _fsInfo = (typeof _getExistingRoundFullScore === 'function')
+        ? _getExistingRoundFullScore(set.class_name, set.room_number, set.subject_name, set.k_round, set.score_type, null)
+        : { full: set.total_score || 0 };
       wrap.innerHTML = `<div class="bg-white rounded-2xl p-5 max-w-md w-full">
           <p class="text-lg font-bold text-gray-800 mb-1">🕐 ${sub && sub.status && sub.status !== 'not_started' ? 'ให้สอบใหม่เป็นกรณีพิเศษ' : 'จัดสอบเฉพาะคนนี้'}</p>
           ${sub && sub.status && sub.status !== 'not_started' ? '<p class="text-xs bg-red-50 border border-red-200 text-red-700 rounded p-2 mb-2">⚠️ ผลเดิมของชุดสอบนี้จะถูกล้าง และคะแนนที่เคยโอนเข้าช่องคะแนนจะถูกหักคืน (คะแนนส่วนอื่นยังอยู่) · ไม่ตัดสิทธิ์สอบแก้ตัวของนักเรียน</p>' : ''}
@@ -22253,6 +22259,12 @@ function _examResultIdentityHtml(sub, set) {
           <p class="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded p-2 mb-3">เวลาของชุดสอบหลัก: ${set.start_time ? new Date(set.start_time).toLocaleString('th-TH', { hour12: false }) : '-'} ถึง ${set.end_time ? new Date(set.end_time).toLocaleString('th-TH', { hour12: false }) : '-'}<br>เวลาด้านล่างใช้เฉพาะคนนี้ — ชุดสอบหลักปิดไปแล้วก็สอบได้</p>
           <p class="text-xs text-gray-600">🟢 เริ่ม</p>${row('ie-start', now)}
           <p class="text-xs text-gray-600">🔴 สิ้นสุด</p>${row('ie-end', later)}
+          <!-- 🔁 แทนการสอบนอกระบบ: ไม่เพิ่มคะแนนเต็ม ใช้คะแนนเต็มเดิมที่กรอกมือ -->
+          <label class="flex items-start gap-2 text-xs cursor-pointer bg-amber-50 border border-amber-200 rounded p-2 mt-2">
+            <input type="checkbox" id="ie-offline-replace" class="w-4 h-4 mt-0.5" ${_setSame ? 'checked disabled' : ''}>
+            <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> — ไม่เพิ่มคะแนนเต็ม ใช้คะแนนเต็มเดิมที่กรอกมือไว้
+              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
+          </label>
           <div class="flex gap-2 mt-2">
             <button onclick="confirmIndividualExam('${setId}','${regId}','${kind}')" id="ie-ok" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold btn-3d">${sub ? '🕐 กำหนดเวลาให้' : '➕ จัดสอบให้'}</button>
             <button onclick="document.getElementById('indiv-exam-popup')?.remove()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">ยกเลิก</button>
@@ -22284,7 +22296,9 @@ function _examResultIdentityHtml(sub, set) {
           score_reversed: false, auto_closed: false,
           // ⚠️ สำคัญ: ล้างสถานะ "กำลังสอบแก้ตัว" ไม่งั้นระบบจะไปใช้เวลาของคำขอสอบแก้เดิม (ที่หมดอายุแล้ว)
           //    แล้วนักเรียนจะเห็นว่า "หมดเวลาสอบ" ทั้งที่แอดมินเพิ่งให้เวลาใหม่
-          is_retry_attempt: false };
+          is_retry_attempt: false,
+          // 🔁 แทนการสอบนอกระบบ: ไม่เพิ่มคะแนนเต็ม · คะแนนสอบบวกเข้าช่องเดิม (คะแนนกรอกมือยังอยู่)
+          score_mode: (document.getElementById('ie-offline-replace')?.checked || set.full_score_mode === 'same') ? 'same' : 'add' };
         let r;
         if (existing) {
           // 💯 คืนคะแนนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนไปแล้ว (คะแนนส่วนอื่นในช่องคงอยู่)
@@ -22553,7 +22567,8 @@ function _examResultIdentityHtml(sub, set) {
       const match = d => N(d.class_name) === N(reg.class_name) && N(d.room_number) === N(reg.room_number) && N(d.subject_name) === N(reg.subject_name);
       const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && match(d) && _setTargetsStudent(d, reg))
         .sort((a, b) => (parseInt(a.k_round) || 1) - (parseInt(b.k_round) || 1) || String(a.score_type).localeCompare(String(b.score_type)));
-      if (sets.length === 0) return '';
+      // ไม่มีชุดสอบเลย (ครั้งนี้กรอกคะแนนมือทั้งหมด) → ยังต้องมีทางจัดสอบออนไลน์ให้คนที่ยังไม่ได้สอบ
+      if (sets.length === 0) return _offlineSetupBarHtml(reg, true);
       const chip = 'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap;border:none';
       const items = sets.map(set => {
         const isEssay = set.type === 'essay_exam_set';
@@ -22596,7 +22611,64 @@ function _examResultIdentityHtml(sub, set) {
       return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
           <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/หมดเวลา/ยังไม่ขอแก้ · 🔵 นัดไว้แล้ว รอถึงเวลา (นับถอยหลัง) · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา · 🔴 รอครูตัดสิน/ถูกยุติ (กดที่ป้ายเพื่อจัดการ)</p>
           <div class="flex flex-wrap gap-2">${items}</div>
+          ${_offlineSetupBarHtml(reg, false)}
         </div>`;
+    }
+
+    /** ➕ ทางลัด "จัดสอบแทนการสอบนอกระบบ" สำหรับคนนี้คนเดียว
+     *  ใช้กับกรณีที่ครั้งนั้นไม่เคยจัดสอบในเว็บเลย มีแต่คะแนน/คะแนนเต็มที่กรอกมือ
+     *  แต่มีนักเรียนบางคนยังไม่ได้สอบ และต้องการให้สอบออนไลน์แทน */
+    function _offlineSetupBarHtml(reg, standalone) {
+      if (!reg || reg.__virtual) return '';
+      const btn = 'display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap;border:none;cursor:pointer;background:#fef3c7;color:#92400e;font-weight:600';
+      const bar = `<div class="flex flex-wrap gap-2 items-center">
+          <span class="text-[10px] text-slate-500">🔁 ครั้งที่กรอกคะแนนมือไว้ แล้วมีคนยังไม่ได้สอบ:</span>
+          <button onclick="startOfflineReplaceSetup('${reg.__backendId}','mc')" style="${btn}" title="ไปหน้าจัดสอบ ตั้งค่าให้อัตโนมัติ: เฉพาะคนนี้ + ไม่เพิ่มคะแนนเต็ม">➕ จัดสอบปรนัยแทนการสอบนอกระบบ</button>
+          <button onclick="startOfflineReplaceSetup('${reg.__backendId}','essay')" style="${btn}" title="ไปหน้าจัดสอบอัตนัย ตั้งค่าให้อัตโนมัติ: เฉพาะคนนี้ + ไม่เพิ่มคะแนนเต็ม">➕ จัดสอบอัตนัยแทนการสอบนอกระบบ</button>
+        </div>`;
+      return standalone
+        ? `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+             <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · วิชานี้ยังไม่เคยจัดสอบผ่านเว็บ</p>${bar}
+           </div>`
+        : `<div class="mt-2 pt-2 border-t border-slate-200">${bar}</div>`;
+    }
+
+    /** ไปหน้าจัดสอบ แล้วตั้งค่าให้พร้อม: ชั้น/ห้อง/วิชาของคนนี้ + ติ๊กแทนการสอบนอกระบบ + เลือกเฉพาะคนนี้ */
+    function startOfflineReplaceSetup(regId, kind) {
+      const reg = allData.find(d => d.type === 'student_registration' && String(d.__backendId) === String(regId));
+      if (!reg) { showToast('ไม่พบข้อมูลการลงทะเบียนของนักเรียนคนนี้', 'error'); return; }
+      const isEssay = kind === 'essay';
+      const p = isEssay ? 'esa' : 'ea';
+      const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
+      const name = stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : String(reg.student_id);
+      if (typeof showAdminTab === 'function') showAdminTab(isEssay ? 'essayassign' : 'examassign');
+      const pick = (id, v) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const val = String(v == null ? '' : v);
+        // เผื่อรายการตัวเลือกยังไม่มีค่านี้ (เช่น ยังไม่ได้เลือกชั้นมาก่อน) ให้เติมเข้าไปก่อน
+        if (val && el.options && !Array.from(el.options).some(o => String(o.value) === val)) el.add(new Option(val, val));
+        el.value = val;
+        try { el.dispatchEvent(new Event('change')); } catch (e) { /* เบราว์เซอร์เก่า */ }
+      };
+      setTimeout(() => {
+        pick(p + '-class', reg.class_name);
+        pick(p + '-room', reg.room_number);
+        pick(p + '-subject', reg.subject_name);
+        const cb = document.getElementById(p + '-offline-replace');
+        if (cb) { cb.checked = true; if (typeof toggleOfflineReplace === 'function') toggleOfflineReplace(p); }
+        setTimeout(() => {
+          const sel = isEssay ? '.esa-student-cb' : '.ea-offline-cb';
+          let found = 0;
+          document.querySelectorAll(sel).forEach(x => { const on = String(x.value) === String(regId); x.checked = on; if (on) found++; });
+          if (isEssay) { if (typeof _esaUpdateStudentCount === 'function') _esaUpdateStudentCount(); }
+          else if (typeof _offlineUpdateCount === 'function') _offlineUpdateCount('ea');
+          document.getElementById(p + '-offline-replace')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          showToast(found
+            ? `📝 ตั้งค่าให้แล้ว: จัดสอบเฉพาะ ${name} · ไม่เพิ่มคะแนนเต็ม — เหลือเลือก "ครั้งที่" ข้อสอบ และเวลาสอบ แล้วกดบันทึก`
+            : `📝 เปิดหน้าจัดสอบให้แล้ว — กรุณาเลือกชั้น/ห้อง/วิชา แล้วติ๊กเลือก ${name} เอง`, found ? 'success' : 'info');
+        }, 150);
+      }, 80);
     }
 
     function buildGradingCardHtml(reg, scoresData, className, subjectName) {
