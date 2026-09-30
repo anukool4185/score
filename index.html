@@ -2733,7 +2733,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.169';
+    const APP_VERSION = 'SUPABASE-2026.09.08.170';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -22136,7 +22136,8 @@ function _examResultIdentityHtml(sub, set) {
       }
       if (sub.status === 'in_progress') {
         const frozen = sub.frozen === true || sub.frozen === 'true';
-        return frozen ? { key: 'frozen', text: '⏸️ รอครูตัดสิน', c: C.red }
+        // ⏸️ ถูกหยุดจอรอครูตัดสิน → กดที่ป้ายเพื่อขอดูรายละเอียดอีกรอบ แล้วกด "ให้สอบต่อ" ได้
+        return frozen ? { key: 'frozen', text: '⏸️ รอครูตัดสิน', c: C.red, canDecide: true }
                       : { key: 'doing', text: '✏️ กำลังทำ', c: C.blue };
       }
       if (sub.status === 'terminated') return { key: 'terminated', text: '🚫 ถูกยุติ', c: C.red, canView: true, canAssign: true };
@@ -22169,6 +22170,111 @@ function _examResultIdentityHtml(sub, set) {
       return { key: 'norequest', text: 'ยังไม่ขอสอบแก้', c: C.gray, canView: true, score };
     }
 
+    /** 🔄 วาดการ์ดหน้าให้คะแนนใหม่ (หลังตัดสินเสร็จ ป้ายจะเปลี่ยนสีทันที) */
+    function _refreshGradingCard() {
+      try {
+        if (typeof refreshGradingNameListOnly === 'function') refreshGradingNameListOnly();
+        if (typeof selectedGradingRegId !== 'undefined' && selectedGradingRegId) {
+          const el = document.getElementById('grading-detail');
+          const reg = typeof _getRegById === 'function' ? _getRegById(selectedGradingRegId) : null;
+          if (el && reg) el.innerHTML = buildGradingCardHtml(reg, null, reg.class_name, reg.subject_name);
+        }
+      } catch (e) { console.warn('[Grading] refresh:', e.message); }
+    }
+
+    /** ⏸️ หน้าให้คะแนน: กดป้าย "รอครูตัดสิน" → ขอดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ / ยุติการสอบได้
+     *  ใช้ได้ทั้งปรนัย (kind='mc') และอัตนัย (kind='essay') */
+    function openFrozenDecisionPopup(subId, kind) {
+      const isEssay = kind === 'essay';
+      const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission') && String(d.__backendId) === String(subId));
+      if (!sub) { showToast('ไม่พบกระดาษคำตอบใบนี้แล้ว', 'error'); return; }
+      const set = allData.find(d => d.type === (isEssay ? 'essay_exam_set' : 'exam_set')
+        && String(d.__backendId) === String(isEssay ? sub.essay_exam_set_id : sub.exam_set_id));
+      const w = _cheatStudentName(sub.student_id, sub.__backendId, isEssay ? 'essay_submission' : 'exam_submission', sub.student_name);
+      const frozen = (sub.frozen === true || sub.frozen === 'true') && sub.status === 'in_progress';
+
+      // ── สรุปพฤติกรรมเสี่ยง + ภาพจากกล้อง ──
+      let riskHtml = '', imgHtml = '', extraBtn = '';
+      if (isEssay) {
+        const ev = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(subId) && d.event_type !== 'periodic');
+        const cnt = k => ev.filter(e => e.event_type === k).length;
+        const imgs = allData.filter(d => d.type === 'essay_monitor_event' && String(d.submission_id) === String(subId) && (d.has_image === true || d.has_image === 'true')).length;
+        const last = ev.map(e => e.captured_at).sort().pop();
+        riskHtml = `<p style="margin:2px 0"><b>พฤติกรรมเสี่ยง:</b> ${parseInt(sub.cheat_warning_count) || 0} ครั้ง (ครั้งแรกเป็นคำเตือน)</p>
+          <p style="margin:2px 0">🚪 ออกจากหน้า ${cnt('tab_switch')} · 📋 คัดลอก ${cnt('copy')} · 📥 วาง ${cnt('paste')}</p>
+          <p style="margin:2px 0"><b>ล่าสุด:</b> ${last ? new Date(last).toLocaleString('th-TH', { hour12: false }) : '-'}</p>`;
+        if (imgs) extraBtn = `<button onclick="showEssayMonitorImages('${subId}')" style="background:#475569;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">📷 ดูภาพจากกล้อง (${imgs})</button>`;
+      } else {
+        const alerts = allData.filter(d => d.type === 'exam_alert' && String(d.submission_id) === String(subId))
+          .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        const typeLabel = { tab_switch: '🚪 สลับแท็บ/ออกจากหน้าจอ', copy: '📋 คัดลอกข้อความ', paste: '📥 วางข้อความ' };
+        const cnt = k => alerts.filter(a => a.violation_type === k).length;
+        const a0 = alerts[0];
+        riskHtml = `<p style="margin:2px 0"><b>พฤติกรรมเสี่ยง:</b> ${alerts.length} ครั้ง</p>
+          <p style="margin:2px 0">🚪 ออกจากหน้า ${cnt('tab_switch')} · 📋 คัดลอก ${cnt('copy')} · 📥 วาง ${cnt('paste')}</p>
+          <p style="margin:2px 0"><b>ล่าสุด:</b> ${a0 ? (typeLabel[a0.violation_type] || a0.violation_type) + ' · ' + new Date(a0.created_at).toLocaleString('th-TH', { hour12: false }) : '-'}</p>`;
+        const snaps = allData.filter(d => d.type === 'exam_camera_snapshot' && String(d.submission_id) === String(subId))
+          .sort((x, y) => new Date(y.captured_at || 0) - new Date(x.captured_at || 0));
+        if (snaps[0]) imgHtml = `<div style="margin-bottom:12px"><p style="font-size:11px;color:#64748b;margin:0 0 6px">📸 ภาพจากกล้องล่าสุด</p><img src="${snaps[0].image_data}" style="width:100%;border-radius:8px;border:1px solid #e2e8f0"></div>`;
+        if (a0) extraBtn = `<button onclick="document.getElementById('frozen-decision-panel')?.remove();openExamAlertControlPanel('${a0.__backendId}')" style="background:#475569;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer">🔍 ดูรายละเอียดเต็ม (บันทึกกิจกรรม/กำหนดคะแนน)</button>`;
+      }
+
+      document.getElementById('frozen-decision-panel')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'frozen-decision-panel';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      wrap.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:420px;width:100%;padding:20px;max-height:90vh;overflow-y:auto">
+          <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px">⏸️ รอครูตัดสิน — ${isEssay ? 'อัตนัย' : 'ปรนัย'}</h3>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#7f1d1d">
+            <p style="margin:2px 0"><b>นักเรียน:</b> ${w.number ? 'เลขที่ ' + escHtml(String(w.number)) + ' ' : ''}${escHtml(w.name)} (${escHtml(String(w.sid))})</p>
+            <p style="margin:2px 0"><b>วิชา:</b> ${escHtml(sub.subject_name || set?.subject_name || '-')} · ${escHtml(sub.class_name || set?.class_name || '-')}/${escHtml(String(sub.room_number || set?.room_number || '-'))}</p>
+            <p style="margin:2px 0"><b>ชุดสอบ:</b> ${set ? escHtml(String((set.score_type || 'k').toUpperCase()) + (parseInt(set.k_round) || 1)) : '-'} ${isEssay ? 'อัตนัย' : 'ปรนัย'}</p>
+            ${riskHtml}
+            <p style="margin:6px 0 0;font-size:11px">⚠️ ระบบตรวจจับได้แค่พฤติกรรมนี้เท่านั้น ไม่ยืนยันการทุจริตจริง 100% — โปรดใช้ดุลยพินิจ</p>
+          </div>
+          ${imgHtml}
+          ${frozen ? '' : '<p style="font-size:12px;color:#c2410c;background:#ffedd5;border-radius:8px;padding:8px;margin:0 0 12px">ℹ️ ขณะนี้หน้าจอนักเรียนไม่ได้ถูกหยุดไว้แล้ว (อาจตัดสินไปก่อนหน้านี้)</p>'}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button onclick="decideFrozenFromChip('${subId}','${kind}','continue')" style="background:#16a34a;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">✅ ให้สอบต่อ (ปลดล็อก ทำต่อจากจุดเดิม)</button>
+            <button onclick="decideFrozenFromChip('${subId}','${kind}','terminate')" style="background:#dc2626;color:white;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer">⛔ ยุติการสอบ (ส่งคำตอบปัจจุบันให้ตรวจ)</button>
+            ${extraBtn}
+            <button onclick="document.getElementById('frozen-decision-panel')?.remove()" style="background:transparent;color:#94a3b8;border:none;padding:8px;font-size:13px;cursor:pointer">ปิดหน้าต่างนี้</button>
+          </div>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
+    /** ตัดสินจากป้ายในหน้าให้คะแนน แล้ววาดการ์ดใหม่ */
+    async function decideFrozenFromChip(subId, kind, decision) {
+      const type = kind === 'essay' ? 'essay_submission' : 'exam_submission';
+      const panel = document.getElementById('frozen-decision-panel');
+      const enable = () => panel?.querySelectorAll('button').forEach(b => { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+      // ⛔ ยุติการสอบ = ตัดสินขั้นเด็ดขาด ต้องยืนยันก่อนเสมอ (ฝั่งอัตนัยยืนยันในฟังก์ชันของตัวเองอยู่แล้ว)
+      if (decision === 'terminate' && kind !== 'essay'
+        && !confirm('ยืนยันยุติการสอบของนักเรียนคนนี้? คำตอบที่ทำไว้จะถูกส่งให้ตรวจ')) return;
+      panel?.querySelectorAll('button').forEach(b => { b.disabled = true; b.style.opacity = '0.5'; b.style.cursor = 'not-allowed'; });
+      try {
+        if (kind === 'essay') {
+          await decideEssayFrozen(subId, decision);
+        } else if (decision === 'continue') {
+          await resumeExamSubmission(subId, '');
+        } else {
+          await terminateExamSubmission(subId, '');
+        }
+      } catch (e) {
+        showToast('บันทึกคำตัดสินไม่สำเร็จ: ' + (e?.message || ''), 'error');
+        enable();
+        return;
+      }
+      // ถ้าครูกดยกเลิกในกล่องยืนยัน สถานะจะไม่เปลี่ยน → เปิดหน้าต่างค้างไว้ให้ตัดสินใหม่
+      const after = allData.find(d => d.type === type && String(d.__backendId) === String(subId));
+      const stillFrozen = after && (after.frozen === true || after.frozen === 'true') && after.status === 'in_progress';
+      if (stillFrozen) { enable(); return; }
+      document.getElementById('frozen-decision-panel')?.remove();
+      _refreshGradingCard();
+    }
+
     function _examProgressStripHtml(reg) {
       if (!reg || reg.__virtual) return '';
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
@@ -22193,9 +22299,13 @@ function _examResultIdentityHtml(sub, set) {
           out.push(`<button onclick="${view}" style="${chip};background:#dcfce7;color:#15803d;cursor:pointer" title="ดูคะแนน">${st.score}/${set.total_score}</button>`);
         // ป้ายสถานะ (สีตามเงื่อนไข)
         const body = `${st.text}${st.countdown ? ' ' + _countdownHtml(st.countdown, '') : ''}`;
-        const click = st.canAssign ? assign : (st.canView && view ? view : '');
+        // ⏸️ รอครูตัดสิน → เปิดหน้าต่างตัดสินซ้ำได้เสมอ (ดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ/ยุติ)
+        const decide = sub ? `openFrozenDecisionPopup('${sub.__backendId}','${kind}')` : '';
+        const click = st.canDecide && decide ? decide : (st.canAssign ? assign : (st.canView && view ? view : ''));
+        const tip = st.canDecide ? 'ดูรายละเอียดอีกรอบ แล้วกดให้สอบต่อ / ยุติการสอบ'
+          : (st.canAssign ? 'จัดสอบ/ให้สอบใหม่ (กำหนดเวลาเฉพาะคนนี้)' : 'ดูรายละเอียด');
         out.push(click
-          ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${st.canAssign ? 'จัดสอบ/ให้สอบใหม่ (กำหนดเวลาเฉพาะคนนี้)' : 'ดูรายละเอียด'}">${body}${st.canAssign ? ' · ➕' : ''}</button>`
+          ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${tip}">${body}${st.canDecide ? ' · 👁️' : (st.canAssign ? ' · ➕' : '')}</button>`
           : `<span style="${chip};background:${st.c[0]};color:${st.c[1]}">${body}</span>`);
         // หมดโควตาสอบแก้ → ปุ่มให้สอบพิเศษแยกไว้ข้างๆ (ชัดเจนกว่า)
         if (st.key === 'noquota')
