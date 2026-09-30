@@ -2765,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.175';
+    const APP_VERSION = 'SUPABASE-2026.09.08.176';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13009,10 +13009,11 @@ const supabaseDataSdk = {
       const tick = () => {
         const el = document.getElementById('essay-timer');
         if (!el) { clearInterval(_essayTimerId); return; }
-        if (!set.end_time) { el.textContent = ''; return; }
+        const _end = _toDate(set.end_time);
+        if (!_end) { el.textContent = ''; return; }
         if (typeof _essayCheckDecision === 'function') _essayCheckDecision();   // ⏸️ รอ/รับคำตัดสินของครู
         if (!window._essayCur) return;
-        const ms = new Date(set.end_time) - new Date();
+        const ms = _end - new Date();
         if (ms <= 0) { clearInterval(_essayTimerId); el.textContent = '00:00'; _hideEssayFreeze(); submitEssayExam(true); return; }
         const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
         el.textContent = (h ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
@@ -22578,8 +22579,9 @@ function _examResultIdentityHtml(sub, set) {
         out.push(click
           ? `<button onclick="${click}" style="${chip};background:${st.c[0]};color:${st.c[1]};cursor:pointer" title="${tip}">${body}${st.canDecide ? ' · 👁️' : (st.canAssign ? ' · ➕' : '')}</button>`
           : `<span style="${chip};background:${st.c[0]};color:${st.c[1]}">${body}</span>`);
-        // หมดโควตาสอบแก้ / รอครูตัดสิน → ปุ่มให้สอบพิเศษแยกไว้ข้างๆ (ป้ายหลักถูกใช้ไปทำอย่างอื่นแล้ว)
-        if (st.key === 'noquota' || st.key === 'frozen')
+        // หมดโควตา / รอครูตัดสิน / มีคะแนนแล้ว → ปุ่มให้สอบกรณีพิเศษแยกไว้ข้างๆ
+        // (ใช้ได้ทั้ง K ปรนัย และ C อัตนัย — กำหนดเวลาเฉพาะคนนี้ ไม่ติดเวลาของชุดสอบ)
+        if (st.key === 'noquota' || st.key === 'frozen' || st.key === 'norequest' || st.key === 'grading')
           out.push(`<button onclick="${assign}" style="${chip};background:#ede9fe;color:#6d28d9;cursor:pointer" title="ให้สอบเป็นกรณีพิเศษ">➕ ให้สอบ</button>`);
         // มีคำขอรออนุมัติ → ทางลัดไปหน้าคำขอ
         if (st.key === 'requested')
