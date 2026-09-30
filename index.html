@@ -2495,6 +2495,16 @@
          </div>
          <input type="hidden" id="esa-picker-mode" value="manual">
 
+         <!-- 🔁 จัดสอบแทนการสอบนอกระบบ (อัตนัย): ไม่เพิ่มคะแนนเต็ม -->
+         <div class="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <label class="flex items-start gap-2 text-sm cursor-pointer">
+           <input type="checkbox" id="esa-offline-replace" class="w-4 h-4 mt-0.5" onchange="toggleOfflineReplace('esa')">
+           <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> (ครั้งนี้เคยสอบนอกเว็บและกรอกคะแนนเต็ม/คะแนนด้วยมือไปแล้ว)
+            <span class="block text-[11px] text-amber-700 mt-0.5">ติ๊กแล้ว: <b>ไม่บวกคะแนนเต็มเพิ่ม</b> ใช้คะแนนเต็มเดิม · ระบบจะติ๊กให้เฉพาะคนที่ยังไม่มีคะแนนในครั้งนี้ในรายชื่อด้านล่าง (ปรับเองได้)</span></span>
+          </label>
+          <p id="esa-offline-hint" class="hidden text-[11px] text-amber-800 bg-white border border-amber-200 rounded px-2 py-1 mt-2"></p>
+         </div>
+
          <!-- เลือกนักเรียน -->
          <div class="mb-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -2652,6 +2662,28 @@
          <!-- 👥 ระบบจัดสอบให้ทุกคนที่ลงทะเบียนวิชานี้ในชั้น/ห้องที่เลือกเสมอ (ไม่ต้องเลือกรายคน) -->
          <p id="ea-student-summary" class="text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-3 py-2 mb-3"></p>
 
+         <!-- 🔁 จัดสอบแทนการสอบนอกระบบ: ไม่เพิ่มคะแนนเต็ม + เลือกเฉพาะคนที่ยังไม่ได้สอบ -->
+         <div class="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <label class="flex items-start gap-2 text-sm cursor-pointer">
+           <input type="checkbox" id="ea-offline-replace" class="w-4 h-4 mt-0.5" onchange="toggleOfflineReplace('ea')">
+           <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> (ครั้งนี้เคยสอบนอกเว็บและกรอกคะแนนเต็ม/คะแนนด้วยมือไปแล้ว)
+            <span class="block text-[11px] text-amber-700 mt-0.5">ติ๊กแล้ว: <b>ไม่บวกคะแนนเต็มเพิ่ม</b> ใช้คะแนนเต็มเดิม และเลือกให้สอบเฉพาะคนที่ต้องการ · ไม่ติ๊ก: จัดสอบทั้งห้องและบวกคะแนนเต็มตามปกติ</span></span>
+          </label>
+          <div id="ea-offline-box" class="hidden mt-3">
+           <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <p class="text-xs font-semibold text-amber-800">👥 เลือกคนที่จะให้สอบชุดนี้ <span id="ea-offline-count" class="text-amber-600"></span></p>
+            <div class="flex gap-1">
+             <button type="button" onclick="offlineToggleAll('ea', true)" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs">✅ ทั้งห้อง</button>
+             <button type="button" onclick="offlineToggleAll('ea', false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✖️ ล้าง</button>
+             <button type="button" onclick="offlinePickNoScore('ea')" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs">🎯 เฉพาะคนยังไม่มีคะแนน</button>
+            </div>
+           </div>
+           <div id="ea-offline-list" class="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-44 overflow-y-auto bg-white rounded p-2 border border-amber-100">
+            <p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง วิชา และครั้งที่ก่อน</p>
+           </div>
+          </div>
+         </div>
+
          <!-- 🏷️ กรองเรื่อง/บทที่จะนำมาใช้ ก่อนเลือกข้อสอบเอง/สุ่มข้อสอบ ให้เจาะจงได้มากขึ้น (ติ๊กว่างหมด = ใช้ทุกเรื่อง) -->
          <div id="ea-chapter-filter-section" class="mb-3 bg-indigo-50 border border-indigo-200 rounded-lg p-3">
           <p class="text-xs font-semibold text-indigo-800 mb-2">🏷️ กรองเฉพาะเรื่อง/บท (ไม่ติ๊กเลย = ใช้ข้อสอบทุกเรื่องในคลัง)</p>
@@ -2733,7 +2765,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.09.08.171';
+    const APP_VERSION = 'SUPABASE-2026.09.08.173';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10193,6 +10225,8 @@ const supabaseDataSdk = {
     }
     /** 📊 แจ้งคะแนนเต็มเดิมในฟอร์มจัดสอบปรนัย (เหมือนอัตนัย) */
     function updateEaFullScoreInfo() {
+      // 🔁 ครั้งที่/ประเภทคะแนนเปลี่ยน → รายชื่อ "ใครมีคะแนนแล้ว" ก็เปลี่ยนตาม
+      if (document.getElementById('ea-offline-replace')?.checked) fillOfflineStudentList('ea');
       const el = document.getElementById('ea-fullscore-info');
       if (!el) return;
       const cls = document.getElementById('ea-class')?.value, room = document.getElementById('ea-room')?.value;
@@ -10340,8 +10374,19 @@ const supabaseDataSdk = {
       // ❓ ครั้งนี้มีคะแนนเต็มอยู่แล้ว (จากชุดสอบเดิม/กรอกมือ) → ถามเหมือนปรนัย: เพิ่มเป็นชุดใหม่ หรือชุดเดิม
       const _editingSet = editId ? allData.find(d => String(d.__backendId) === String(editId) && d.type === 'essay_exam_set') : null;
       let fullScoreMode = 'add';
+      // 🔁 จัดสอบแทนการสอบนอกระบบ (อัตนัย): ไม่บวกคะแนนเต็ม + จัดให้เฉพาะคนที่ติ๊กไว้
+      const _offlineMode = !_editingSet && document.getElementById('esa-offline-replace')?.checked === true;
+      let _targetRegIds = _editingSet ? String(_editingSet.target_reg_ids || '') : '';
+      if (_offlineMode) {
+        _targetRegIds = Array.from(document.querySelectorAll('.esa-student-cb:checked')).map(cb => cb.value).join(',');
+        if (!_targetRegIds) { showToast('กรุณาเลือกนักเรียนที่จะให้สอบอย่างน้อย 1 คน', 'error'); return; }
+      }
       if (_editingSet) {
         fullScoreMode = _editingSet.full_score_mode === 'same' ? 'same' : 'add';   // แก้ไขชุดเดิม: คงโหมดเดิม
+      } else if (_offlineMode) {
+        fullScoreMode = 'same';
+        const _n = _targetRegIds.split(',').filter(Boolean).length;
+        if (!confirm(`ยืนยันจัดสอบอัตนัยแทนการสอบนอกระบบ?\n\n• ให้สอบเฉพาะ ${_n} คนที่ติ๊กไว้\n• คะแนนเต็มของครั้งนี้ "ไม่เพิ่ม" (ใช้ค่าเดิมที่กรอกมือไว้)\n• คะแนนที่สอบได้จะบวกเข้าช่องคะแนนของครั้งนี้ตามปกติ`)) return;
       } else {
         const _info = _getExistingRoundFullScore(cls, room, subj, kRound, scoreType, null);
         if (_info.full > 0 || _info.sets.length > 0) {
@@ -10358,6 +10403,7 @@ const supabaseDataSdk = {
         const payload = {
           type: 'essay_exam_set',
           full_score_mode: fullScoreMode,   // 'add' บวกคะแนนเต็ม / 'same' ใช้คะแนนเต็มเดิม (เหมือนปรนัย)
+          target_reg_ids: _targetRegIds,    // 👥 ว่าง = ทุกคน / มีค่า = เฉพาะคนที่เลือก
           class_name: cls, room_number: room, subject_name: subj,
           k_round: parseInt(kRound), score_type: scoreType,
           question_ids: qIds.join(','),
@@ -10464,6 +10510,9 @@ const supabaseDataSdk = {
       document.getElementById('esa-form-title').textContent = '➕ มอบหมายข้อสอบอัตนัยใหม่';
       document.getElementById('esa-save-btn').textContent = '💾 มอบหมายข้อสอบ';
       document.querySelectorAll('.esa-q-check').forEach(cb => { cb.checked = false; });
+      // 🔁 ล้างโหมดแทนการสอบนอกระบบ ไม่ให้ค้างจากครั้งก่อน
+      const _orEl2 = document.getElementById('esa-offline-replace');
+      if (_orEl2) { _orEl2.checked = false; const _h = document.getElementById('esa-offline-hint'); if (_h) _h.classList.add('hidden'); }
       updateEsaTotalScore();
       if (typeof updateEsaFullScoreInfo === 'function') setTimeout(updateEsaFullScoreInfo, 0);
     }
@@ -10497,7 +10546,7 @@ const supabaseDataSdk = {
                 <p class="text-xs mt-1">
                   <span class="bg-white border rounded px-1.5 py-0.5">${(s.is_random_mode === true || s.is_random_mode === 'true') ? '🎲 สุ่มข้อสอบ' : '🎯 เลือกเอง'}</span>
                   ${(s.shuffle_enabled === true || s.shuffle_enabled === 'true') ? '<span class="bg-white border rounded px-1.5 py-0.5">🔀 สลับข้อ</span>' : ''}
-                  <span class="bg-white border rounded px-1.5 py-0.5">${s.full_score_mode === 'same' ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม'}</span>
+                  <span class="bg-white border rounded px-1.5 py-0.5">${s.full_score_mode === 'same' ? '🔁 แทนการสอบนอกระบบ (ไม่เพิ่มคะแนนเต็ม)' : '➕ เพิ่มคะแนนเต็ม'}${_targetCountText(s)}</span>
                 </p>
                 ${_chapterBadgeHtml(s)}
                 <p class="text-xs text-gray-600 mt-1">📤 ส่งแล้ว ${submitted}/${subs.length} คน · ✍️ ตรวจแล้ว ${graded} คน</p>
@@ -11702,6 +11751,116 @@ const supabaseDataSdk = {
       return `<ul class="list-none space-y-0.5 mt-1">${lines.join('') || '<li>—</li>'}</ul>`;
     }
 
+    // ═══ 🔁 จัดสอบแทนการสอบนอกระบบ (ครั้งนี้กรอกคะแนน/คะแนนเต็มด้วยมือไปแล้ว) ═══
+    /** คะแนนของครั้งนี้ที่แต่ละคนมีอยู่แล้ว — คืน Map: รหัสการลงทะเบียน → คะแนน (และ 'sid:<รหัสนักเรียน>' เป็นทางสำรอง) */
+    function _roundScoreByReg(cls, room, subj, round, sType) {
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const r = parseInt(round) || 1;
+      const field = (['k', 'p', 'c'].includes(sType) ? sType : 'k') + '_scores';
+      const map = new Map();
+      allData.filter(d => d.type === 'grade' && N(d.class_name) === N(cls) && N(d.room_number) === N(room) && N(d.subject_name) === N(subj))
+        .forEach(g => {
+          const v = String(g[field] || '').split(',').map(x => x.trim())[r - 1];
+          if (v === undefined || v === '') return;
+          if (g.registration_id) map.set(String(g.registration_id), v);
+          if (g.student_id) map.set('sid:' + String(g.student_id), v);
+        });
+      return map;
+    }
+    /** รายชื่อนักเรียนของชั้น/ห้อง/วิชาที่เลือกอยู่ในฟอร์ม (เรียงตามเลขที่) */
+    function _offlineFormRows(p) {
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const cls = document.getElementById(p + '-class')?.value;
+      const room = document.getElementById(p + '-room')?.value;
+      const subj = document.getElementById(p + '-subject')?.value;
+      const round = document.getElementById(p + '-kround')?.value;
+      const sType = document.getElementById(p + '-scoretype')?.value || 'k';
+      if (!cls || !room || !subj) return { ok: false, cls, room, subj, round, sType, rows: [] };
+      const scored = _roundScoreByReg(cls, room, subj, round, sType);
+      const rows = allData.filter(d => d.type === 'student_registration'
+          && N(d.class_name) === N(cls) && N(d.room_number) === N(room) && N(d.subject_name) === N(subj))
+        .map(reg => {
+          const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
+          const score = scored.get(String(reg.__backendId)) ?? scored.get('sid:' + String(reg.student_id));
+          return { reg, num: parseInt(stu?.student_number) || 9999,
+            name: stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : String(reg.student_id),
+            score: (score === undefined || score === '') ? null : score };
+        }).sort((a, b) => a.num - b.num);
+      return { ok: true, cls, room, subj, round, sType, rows };
+    }
+    /** ติ๊ก/ยกเลิกช่อง "จัดสอบแทนการสอบนอกระบบ" */
+    function toggleOfflineReplace(p) {
+      const on = document.getElementById(p + '-offline-replace')?.checked === true;
+      if (p === 'esa') {
+        // อัตนัยใช้รายชื่อเดิมที่มีอยู่แล้ว — แค่ติ๊กให้เฉพาะคนที่ยังไม่มีคะแนน แล้วบอกให้รู้
+        const hint = document.getElementById('esa-offline-hint');
+        if (hint) hint.classList.toggle('hidden', !on);
+        if (on) {
+          const info = _offlineFormRows('esa');
+          const has = info.rows.filter(r => r.score !== null);
+          document.querySelectorAll('.esa-student-cb').forEach(cb => {
+            const row = info.rows.find(r => String(r.reg.__backendId) === String(cb.value));
+            cb.checked = !row || row.score === null;
+          });
+          if (typeof _esaUpdateStudentCount === 'function') _esaUpdateStudentCount();
+          if (hint) hint.textContent = has.length
+            ? `🎯 ติ๊กให้แล้วเฉพาะคนที่ยังไม่มีคะแนนในครั้งนี้ — มี ${has.length} คนที่มีคะแนนอยู่แล้ว (ถูกเอาออกจากรายชื่อให้สอบ) ปรับเองได้`
+            : 'ครั้งนี้ยังไม่มีใครมีคะแนน จึงติ๊กไว้ทั้งห้อง — ปรับเองได้';
+        }
+        return;
+      }
+      const box = document.getElementById(p + '-offline-box');
+      if (box) box.classList.toggle('hidden', !on);
+      if (on) fillOfflineStudentList(p);
+    }
+    /** วาดรายชื่อให้เลือก (ปรนัย) — ติ๊กเริ่มต้นเฉพาะคนที่ยังไม่มีคะแนนในครั้งนี้ */
+    function fillOfflineStudentList(p) {
+      const box = document.getElementById(p + '-offline-list');
+      if (!box) return;
+      const info = _offlineFormRows(p);
+      if (!info.ok) { box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกชั้น ห้อง วิชา และครั้งที่ก่อน</p>'; _offlineUpdateCount(p); return; }
+      if (!info.rows.length) { box.innerHTML = '<p class="text-amber-600 text-xs">⚠️ ไม่พบนักเรียนที่ลงทะเบียนวิชานี้</p>'; _offlineUpdateCount(p); return; }
+      box.innerHTML = info.rows.map(r => `
+        <label class="flex items-center gap-2 text-xs hover:bg-amber-50 rounded px-1 py-0.5 cursor-pointer">
+          <input type="checkbox" class="${p}-offline-cb" value="${r.reg.__backendId}" ${r.score === null ? 'checked' : ''} onchange="_offlineUpdateCount('${p}')">
+          <span class="text-gray-400 w-6 text-right">${r.num !== 9999 ? r.num : '-'}</span>
+          <span class="text-gray-700 flex-1">${escHtml(r.name)}</span>
+          ${r.score === null
+            ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 rounded px-1">ยังไม่มีคะแนน</span>'
+            : `<span class="text-[10px] bg-slate-100 text-slate-600 rounded px-1">มีแล้ว ${escHtml(String(r.score))}</span>`}
+        </label>`).join('');
+      _offlineUpdateCount(p);
+    }
+    function offlineToggleAll(p, checked) {
+      document.querySelectorAll('.' + p + '-offline-cb').forEach(cb => { cb.checked = checked; });
+      _offlineUpdateCount(p);
+    }
+    function offlinePickNoScore(p) {
+      const info = _offlineFormRows(p);
+      document.querySelectorAll('.' + p + '-offline-cb').forEach(cb => {
+        const row = info.rows.find(r => String(r.reg.__backendId) === String(cb.value));
+        cb.checked = !row || row.score === null;
+      });
+      _offlineUpdateCount(p);
+    }
+    function _offlineUpdateCount(p) {
+      const all = document.querySelectorAll('.' + p + '-offline-cb');
+      const on = document.querySelectorAll('.' + p + '-offline-cb:checked');
+      const el = document.getElementById(p + '-offline-count');
+      if (el) el.textContent = all.length ? `(เลือก ${on.length} จาก ${all.length} คน)` : '';
+    }
+    /** ป้ายบอกว่าชุดสอบนี้จัดให้เฉพาะกี่คน (ว่าง = ทุกคน จึงไม่ต้องแสดง) */
+    function _targetCountText(set) {
+      const n = String(set?.target_reg_ids || '').split(',').map(x => x.trim()).filter(Boolean).length;
+      return n ? ` · 👥 เฉพาะ ${n} คน` : '';
+    }
+    /** ชุดสอบนี้จัดให้นักเรียนคนนี้หรือไม่ — ว่าง = จัดให้ทุกคนตามปกติ */
+    function _setTargetsStudent(set, reg) {
+      const t = String(set?.target_reg_ids || '').split(',').map(x => x.trim()).filter(Boolean);
+      if (!t.length) return true;
+      return t.includes(String(reg?.__backendId));
+    }
+
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
@@ -11831,8 +11990,19 @@ const supabaseDataSdk = {
           return;
         }
       }
+      // 🔁 จัดสอบแทนการสอบนอกระบบ: ไม่บวกคะแนนเต็ม + จัดให้เฉพาะคนที่เลือก
+      const _offlineMode = !_editingSet && document.getElementById('ea-offline-replace')?.checked === true;
+      let _targetRegIds = _editingSet ? String(_editingSet.target_reg_ids || '') : '';
+      if (_offlineMode) {
+        _targetRegIds = Array.from(document.querySelectorAll('.ea-offline-cb:checked')).map(cb => cb.value).join(',');
+        if (!_targetRegIds) { showToast('กรุณาเลือกนักเรียนที่จะให้สอบอย่างน้อย 1 คน', 'error'); return; }
+      }
       if (_editingSet) {
         fullScoreMode = _editingSet.full_score_mode === 'same' ? 'same' : 'add';   // แก้ไขชุดเดิม: คงโหมดเดิมไว้
+      } else if (_offlineMode) {
+        fullScoreMode = 'same';   // ใช้คะแนนเต็มเดิมที่กรอกมือไว้ ไม่บวกเพิ่ม
+        const _n = _targetRegIds.split(',').filter(Boolean).length;
+        if (!confirm(`ยืนยันจัดสอบแทนการสอบนอกระบบ?\n\n• ให้สอบเฉพาะ ${_n} คนที่เลือกไว้\n• คะแนนเต็มของครั้งนี้ "ไม่เพิ่ม" (ใช้ค่าเดิมที่กรอกมือไว้)\n• คะแนนที่สอบได้จะบวกเข้าช่องคะแนนของครั้งนี้ตามปกติ`)) return;
       } else {
         const _info = _getExistingRoundFullScore(className, roomNumber, subjectName, kRound, scoreType, null);
         if (_info.full > 0 || _info.sets.length > 0) {
@@ -11849,6 +12019,8 @@ const supabaseDataSdk = {
         subject_name: subjectName,
         k_round: kRound,
         full_score_mode: fullScoreMode,   // 'add' = บวกคะแนนเต็มเพิ่ม, 'same' = ใช้คะแนนเต็มเดิม (คะแนนสอบแทนที่ของเดิม)
+        // 👥 ว่าง = จัดให้ทุกคนตามปกติ / มีค่า = จัดเฉพาะคนที่เลือก (ใช้กับโหมดแทนการสอบนอกระบบ)
+        target_reg_ids: _targetRegIds,
         score_type: scoreType, // 📊 บอกว่าคะแนนสอบชุดนี้จะไปเก็บที่ช่อง K หรือ C
         is_random_mode: pickerMode === 'random',
         random_count: randomCount,
@@ -12064,6 +12236,8 @@ const supabaseDataSdk = {
         && _eaN(d.room_number) === _eaN(room) && _eaN(d.subject_name) === _eaN(subj)).length;
       el.innerHTML = n ? `👥 จัดสอบให้ <b>ทุกคนที่ลงทะเบียนวิชานี้ ${n} คน</b> (ชั้น ${escHtml(cls)}/${escHtml(String(room))})`
                        : '⚠️ ยังไม่มีนักเรียนลงทะเบียนวิชานี้ในห้องนี้';
+      // 🔁 ถ้าเปิดโหมดแทนการสอบนอกระบบไว้ ให้วาดรายชื่อใหม่ตามชั้น/ห้อง/วิชา/ครั้งที่ล่าสุด
+      if (document.getElementById('ea-offline-replace')?.checked) fillOfflineStudentList('ea');
     }
     function _eaToggleAllStudents() { /* ไม่ใช้แล้ว — ระบบจัดสอบให้ทุกคนเสมอ */ }
     function updateEaStudentCount() { renderEaStudentPicker(); }
@@ -12107,6 +12281,9 @@ const supabaseDataSdk = {
       ['ea-start-hour', 'ea-end-hour'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '00'; });
       ['ea-start-min', 'ea-end-min'].forEach(id => { const el = document.getElementById(id); if (el) el.value = '00'; });
       document.getElementById('ea-shuffle').checked = true;
+      // 🔁 ล้างโหมดแทนการสอบนอกระบบ ไม่ให้ค้างจากครั้งก่อน
+      const _orEl = document.getElementById('ea-offline-replace');
+      if (_orEl) { _orEl.checked = false; toggleOfflineReplace('ea'); }
       renderEaQuestionPicker();
     }
 
@@ -12144,7 +12321,7 @@ const supabaseDataSdk = {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <p class="font-semibold text-gray-800">🏫 ${s.class_name}/${s.room_number} · 📚 ${s.subject_name} · ${(s.score_type==='c'?'C':'K')} ครั้งที่ ${s.k_round}</p>
-                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${_isRandomSet ? '🎲 สุ่มข้อสอบ' : '📋 เลือกข้อเอง'} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'} · ${s.full_score_mode === 'same' ? '🔁 ทับคะแนนเดิม' : '➕ เพิ่มคะแนนเต็ม'}</p>
+                <p class="text-xs text-gray-500 mt-1">📝 ${questionCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · ${_isRandomSet ? '🎲 สุ่มข้อสอบ' : '📋 เลือกข้อเอง'} · ${s.shuffle_enabled ? '🔀 สลับข้อ' : '📌 ลำดับคงที่'} · ${s.full_score_mode === 'same' ? '🔁 แทนการสอบนอกระบบ (ไม่เพิ่มคะแนนเต็ม)' : '➕ เพิ่มคะแนนเต็ม'}${_targetCountText(s)}</p>
                 ${_chapterBadgeHtml(s)}
                 <p class="text-xs text-gray-500 mt-1">🟢 เปิด: ${start.toLocaleString('th-TH', { hour12: false })} → 🔴 ปิด: ${end.toLocaleString('th-TH', { hour12: false })}</p>
                 <p class="text-xs mt-1">${statusBadge}</p>
@@ -13661,6 +13838,8 @@ const supabaseDataSdk = {
         if (d.type !== 'exam_set') return false;
         // 📍 วางปุ่มในบล็อกของตัวเอง: K ในบล็อก K, C ในบล็อก C
         if (onlyType && (d.score_type === 'c' ? 'c' : 'k') !== onlyType) return false;
+        // 👥 ชุดสอบที่จัดเฉพาะบางคน (โหมดแทนการสอบนอกระบบ) — คนที่ไม่ได้ถูกเลือกจะไม่เห็นชุดนี้
+        if (!_setTargetsStudent(d, reg)) return false;
         const examKey = norm(d.class_name) + '|' + norm(d.room_number) + '|' + norm(d.subject_name);
         if (examKey === regKey) return true;
         // เผื่อกรณี class_subject_id ตรงกันแต่ข้อความดิบต่างกันเล็กน้อย (เช่น เว้นวรรคภายในต่างกัน) — เช็คผ่าน canonical key ด้วย
@@ -22128,7 +22307,9 @@ function _examResultIdentityHtml(sub, set) {
     // ════════════════════════════════════════════════════════════
     function _countdownHtml(until, prefix) {
       if (!until) return '';
-      return `<span class="kpac-countdown" data-until="${new Date(until).toISOString()}" data-prefix="${escHtml(prefix || 'เหลือ')}">${escHtml(prefix || 'เหลือ')} --:--</span>`;
+      // ส่ง '' มา = ไม่ต้องมีคำนำหน้า (ข้อความก่อนหน้าบอกอยู่แล้วว่า "เริ่มในอีก") ไม่ใส่ก็ใช้ค่าเริ่มต้น "เหลือ"
+      const p = (prefix == null) ? 'เหลือ' : String(prefix);
+      return `<span class="kpac-countdown" data-until="${new Date(until).toISOString()}" data-prefix="${escHtml(p)}">${escHtml(p)} --:--</span>`;
     }
     function _tickCountdowns() {
       const els = document.querySelectorAll('.kpac-countdown');
@@ -22137,9 +22318,11 @@ function _examResultIdentityHtml(sub, set) {
       els.forEach(el => {
         const ms = new Date(el.dataset.until).getTime() - now;
         if (!(ms > 0)) { el.textContent = 'ถึงเวลาแล้ว'; return; }
-        const h = Math.floor(ms / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
+        // นัดไว้ล่วงหน้าหลายวันก็อ่านง่าย: เกิน 24 ชม. แสดงเป็น "2 วัน 03:15:07"
+        const d = Math.floor(ms / 86400000);
+        const h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000), s = Math.floor(ms % 60000 / 1000);
         const pad = n => String(n).padStart(2, '0');
-        el.textContent = `${el.dataset.prefix} ${h ? h + ':' : ''}${pad(m)}:${pad(s)}`;
+        el.textContent = `${el.dataset.prefix} ${d ? d + ' วัน ' : ''}${(d || h) ? (d ? pad(h) : h) + ':' : ''}${pad(m)}:${pad(s)}`;
       });
     }
     if (!window._kpacCountdownTimer) window._kpacCountdownTimer = setInterval(_tickCountdowns, 1000);
@@ -22162,11 +22345,20 @@ function _examResultIdentityHtml(sub, set) {
       const open = _submissionActiveNow(sub, set, isEssay);
       const now = new Date();
 
-      if (!sub) return { key: 'none', text: 'ไม่ได้รับชุดนี้', c: C.purple, canAssign: true };
+      if (!sub) {
+        // 🕐 ชุดสอบยังไม่ถึงเวลาเริ่ม = มอบหมายไว้แล้ว รอเวลา → นับถอยหลังสดให้เห็นที่ปุ่ม
+        const s0 = set?.start_time ? new Date(set.start_time) : null;
+        if (s0 && now < s0) return { key: 'scheduled', text: '🕐 มอบหมายแล้ว · เริ่มในอีก', c: C.blue, countdown: s0, canAssign: true };
+        return { key: 'none', text: 'ไม่ได้รับชุดนี้', c: C.purple, canAssign: true };
+      }
       if (sub.status === 'not_started' || !sub.status) {
-        return open
-          ? { key: 'ready', text: 'สอบได้แล้ว', c: C.purple, canAssign: true }
-          : { key: 'notyet', text: (set.end_time && now > new Date(set.end_time)) ? 'ยังไม่สอบ · ⏰ หมดเวลา' : 'ยังไม่สอบ', c: C.gray, canAssign: true };
+        if (open) return { key: 'ready', text: 'สอบได้แล้ว', c: C.purple, canAssign: true };
+        const win = _submissionWindow(sub, set);
+        // 🕐 จัดสอบให้แล้ว (ทั้งแบบทั้งห้องและแบบเฉพาะบุคคล) แต่ยังไม่ถึงเวลาเริ่ม → นับถอยหลังสด
+        if (win.start && now < win.start)
+          return { key: 'scheduled', text: `${win.personal ? '🕐 นัดสอบเฉพาะคนนี้' : '🕐 มอบหมายแล้ว'} · เริ่มในอีก`,
+                   c: C.blue, countdown: win.start, canAssign: true };
+        return { key: 'notyet', text: (win.end && now > win.end) ? 'ยังไม่สอบ · ⏰ หมดเวลา' : 'ยังไม่สอบ', c: C.gray, canAssign: true };
       }
       if (sub.status === 'in_progress') {
         const frozen = sub.frozen === true || sub.frozen === 'true';
@@ -22323,7 +22515,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg || reg.__virtual) return '';
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const match = d => N(d.class_name) === N(reg.class_name) && N(d.room_number) === N(reg.room_number) && N(d.subject_name) === N(reg.subject_name);
-      const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && match(d))
+      const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && match(d) && _setTargetsStudent(d, reg))
         .sort((a, b) => (parseInt(a.k_round) || 1) - (parseInt(b.k_round) || 1) || String(a.score_type).localeCompare(String(b.score_type)));
       if (sets.length === 0) return '';
       const chip = 'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;font-size:10px;line-height:1.5;white-space:nowrap;border:none';
@@ -22365,7 +22557,7 @@ function _examResultIdentityHtml(sub, set) {
           </span>`;
       }).join(' ');
       return `<div class="mt-3 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
-          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/หมดเวลา/ยังไม่ขอแก้ · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา · 🔴 รอครูตัดสิน/ถูกยุติ (กดที่ป้ายเพื่อจัดการ)</p>
+          <p class="text-[10px] text-slate-500 mb-1">📊 ความก้าวหน้าการสอบ · ⚪ ยังไม่สอบ/หมดเวลา/ยังไม่ขอแก้ · 🔵 นัดไว้แล้ว รอถึงเวลา (นับถอยหลัง) · 🟣 สอบได้แล้ว · 🟢 มีคะแนน · 🟠 ขอสอบแก้ · 🟧 หมดโควตา · 🔴 รอครูตัดสิน/ถูกยุติ (กดที่ป้ายเพื่อจัดการ)</p>
           <div class="flex flex-wrap gap-2">${items}</div>
         </div>`;
     }
