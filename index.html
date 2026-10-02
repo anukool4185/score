@@ -2140,16 +2140,33 @@
         </div>
         <div class="flex items-center gap-3 flex-wrap mb-4">
          <select id="gradereport-filter-class" onchange="updateGradeReportClassSubjects(); updateGradeReportTable();" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-          <option value="">-- เลือกชั้นเรียน --</option>
+          <option value="">🏫 ทุกชั้น</option>
          </select>
          <select id="gradereport-filter-room" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-          <option value="">-- เลือกห้องเรียน --</option>
+          <option value="">🚪 ทุกห้อง</option>
          </select>
          <select id="gradereport-filter-subject" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-          <option value="">-- เลือกวิชา --</option>
+          <option value="">📚 ทุกวิชา</option>
+         </select>
+         <select id="gradereport-filter-grade" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-indigo-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" title="คัดกรองเฉพาะนักเรียนที่ได้เกรดที่เลือก">
+          <option value="">🎯 ทุกเกรด</option>
+          <option value="4">เกรด 4</option>
+          <option value="3.5">เกรด 3.5</option>
+          <option value="3">เกรด 3</option>
+          <option value="2.5">เกรด 2.5</option>
+          <option value="2">เกรด 2</option>
+          <option value="1.5">เกรด 1.5</option>
+          <option value="1">เกรด 1</option>
+          <option value="0">เกรด 0</option>
+          <option value="ร.">ติด ร.</option>
+          <option value="มส.">ติด มส.</option>
+          <option value="__rms">ติด ร. หรือ มส.</option>
+          <option value="__pass">ตั้งแต่ 2.5 ขึ้นไป</option>
+          <option value="__low">ต่ำกว่า 2.5 (ไม่รวม ร./มส.)</option>
          </select>
          <button onclick="exportGradeReportExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">📥 Export Excel</button>
          <button onclick="printGradeReport()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">🖨️ พิมพ์</button>
+         <span id="gradereport-count" class="text-xs text-gray-500"></span>
         </div>
         <div id="gradereport-print-area">
          <div id="gradereport-print-header" class="hidden mb-4 text-center">
@@ -2162,6 +2179,8 @@
             <tr>
              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เลขที่</th>
              <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
+             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
+             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
@@ -2852,7 +2871,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.02.186';
+    const APP_VERSION = 'SUPABASE-2026.10.02.188';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17670,7 +17689,7 @@ function _examResultIdentityHtml(sub, set) {
     function loadGradeReportTab() {
       const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('gradereport-filter-class');
-      if (classSelect) classSelect.innerHTML = '<option value="">-- เลือกชั้นเรียน --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (classSelect) classSelect.innerHTML = '<option value="">🏫 ทุกชั้น</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
       // ตั้งค่า radio ให้ตรงกับการตั้งค่าที่บันทึกไว้
       const currentMethod = adminSettings.grade_rounding_method || 'standard';
       const radio = document.querySelector(`input[name="grade-rounding-method"][value="${currentMethod}"]`);
@@ -17687,8 +17706,8 @@ function _examResultIdentityHtml(sub, set) {
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
-      roomSelect.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
-      subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      roomSelect.innerHTML = '<option value="">🚪 ทุกห้อง</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjectSelect.innerHTML = '<option value="">📚 ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
     }
     // คำนวณรายงานเกรดของนักเรียนทุกคนตามชั้น/ห้อง/วิชาที่เลือก เรียงตามเลขที่
     /** 🔍 หาแถวคะแนนของนักเรียน — หาด้วยรหัสอ้างอิงก่อน ถ้าไม่เจอหาด้วยชั้น/ห้อง/วิชา
@@ -17843,19 +17862,46 @@ function _examResultIdentityHtml(sub, set) {
       return `<button onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')" class="text-red-600 font-bold underline decoration-dotted hover:text-red-800" title="ยังไม่ลงทะเบียน — กดเพื่อจัดการ">ร. 🔔</button>`;
     }
 
+    /** 📑 แถวของหน้าสัดส่วนเกรดตามตัวกรองปัจจุบัน — ปล่อยว่าง = ทั้งหมด · พร้อมคัดกรองเกรด */
+    function _gradeReportRows() {
+      const g = id => document.getElementById(id)?.value || '';
+      const className = g('gradereport-filter-class'), roomNumber = g('gradereport-filter-room');
+      const subjectName = g('gradereport-filter-subject'), gradePick = g('gradereport-filter-grade');
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const regs = allData.filter(d => d.type === 'student_registration'
+        && (!className || N(d.class_name) === N(className))
+        && (!roomNumber || N(d.room_number) === N(roomNumber))
+        && (!subjectName || N(d.subject_name) === N(subjectName)));
+      const combos = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
+      let rows = combos.flatMap(cb => { const [c, rm, sj] = cb.split('|||');
+        return computeGradeReportRows(c, rm, sj).map(r => ({ ...r, className: r.className || c, roomNumber: r.roomNumber || rm, subjectName: r.subjectName || sj })); });
+      // 🎯 คัดกรองเกรด — ใช้ผลการเรียนจริงของนักเรียน (ติด ร./มส. มาก่อนเกรดตัวเลข)
+      if (gradePick) {
+        rows = rows.filter(r => {
+          const label = _normalGradeLabel(r);
+          const num = parseFloat(label);
+          if (gradePick === '__rms') return label === 'ร.' || label === 'มส.';
+          if (gradePick === '__pass') return !isNaN(num) && num >= 2.5;
+          if (gradePick === '__low') return !isNaN(num) && num < 2.5;
+          if (gradePick === 'ร.' || gradePick === 'มส.') return label === gradePick;
+          return !isNaN(num) && num === parseFloat(gradePick);
+        });
+      }
+      return { rows, className, roomNumber, subjectName, gradePick, combos: combos.length };
+    }
+    function _gradeReportScopeText(x) {
+      return `${x.className || 'ทุกชั้น'}/${x.roomNumber || 'ทุกห้อง'} · ${x.subjectName || 'ทุกวิชา'}`;
+    }
+
     function updateGradeReportTable() {
-      const className = document.getElementById('gradereport-filter-class')?.value || '';
-      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
-      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
       const tbody = document.getElementById('gradereport-table-body');
       if (!tbody) return;
-      if (!className || !roomNumber || !subjectName) {
-        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงผล</td></tr>';
-        return;
-      }
-      const rows = computeGradeReportRows(className, roomNumber, subjectName);
+      const x = _gradeReportRows();
+      const rows = x.rows;
+      const countEl = document.getElementById('gradereport-count');
+      if (countEl) countEl.textContent = `${_gradeReportScopeText(x)} · ${x.combos} ชุด · ${rows.length} คน${x.gradePick ? ' (คัดกรองเกรดแล้ว)' : ''}`;
       if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="15" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้ หรือห้องนี้ไม่ได้เปิดสอนวิชานี้</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="17" class="text-center text-gray-400 py-8">${x.gradePick ? 'ไม่มีนักเรียนที่ตรงกับเกรดที่คัดกรอง' : 'ไม่พบข้อมูลตามตัวกรองที่เลือก'}</td></tr>`;
         return;
       }
       const fmt = (n) => String(n);
@@ -17863,6 +17909,8 @@ function _examResultIdentityHtml(sub, set) {
         <tr class="hover:bg-gray-50">
           <td class="px-2 py-2 text-center whitespace-nowrap">${r.studentNumber || (idx + 1)}</td>
           <td class="px-2 py-2 whitespace-nowrap">${r.studentName}</td>
+          <td class="px-2 py-2 text-center whitespace-nowrap text-gray-500">${escHtml(String(r.className || ''))}/${escHtml(String(r.roomNumber || ''))}</td>
+          <td class="px-2 py-2 whitespace-nowrap text-gray-500">${escHtml(String(r.subjectName || ''))}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.kScore)}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.pScore)}</td>
           <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.aScore)}</td>
@@ -17880,22 +17928,18 @@ function _examResultIdentityHtml(sub, set) {
       `).join('');
     }
     function exportGradeReportExcel() {
-      const className = document.getElementById('gradereport-filter-class')?.value || '';
-      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
-      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
-      if (!className || !roomNumber || !subjectName) {
-        showToast('กรุณาเลือกชั้นเรียน ห้องเรียน และวิชาก่อน', 'error');
-        return;
-      }
-      const rows = computeGradeReportRows(className, roomNumber, subjectName);
+      const x = _gradeReportRows();
+      const rows = x.rows;
+      const className = x.className, roomNumber = x.roomNumber, subjectName = x.subjectName;
       if (rows.length === 0) {
-        showToast('ไม่มีข้อมูลให้ export', 'error');
+        showToast('ไม่มีข้อมูลให้ export ตามตัวกรองที่เลือก', 'error');
         return;
       }
       const fmt = (n) => n;
       const data = rows.map(r => ({
         'เลขที่': r.studentNumber,
         'ชื่อ-นามสกุล': r.studentName,
+        'ชั้น': r.className || '', 'ห้อง': r.roomNumber || '', 'วิชา': r.subjectName || '',
         'K': fmt(r.kScore), 'P': fmt(r.pScore), 'A': fmt(r.aScore), 'C': fmt(r.cScore),
         'รวม KPAC': fmt(r.totalKPAC),
         'M': fmt(r.mScore), 'F': fmt(r.fScore),
@@ -17906,24 +17950,19 @@ function _examResultIdentityHtml(sub, set) {
         'เกรดพิเศษ(3)': r.special3,
         'ขาดอีกถึง 2.5': r.pointsNeededFor25 !== null ? fmt(r.pointsNeededFor25) : '-'
       }));
-      const header = [[`รายงานสรุปผลการเรียน`], [`ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName}`], []];
+      const header = [[`รายงานสรุปผลการเรียน`], [`${_gradeReportScopeText(x)}${x.gradePick ? ' · คัดกรองเกรด' : ''} · ${rows.length} คน`], []];
       const ws = XLSX.utils.aoa_to_sheet(header);
       XLSX.utils.sheet_add_json(ws, data, { origin: 'A4' });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'สรุปเกรด');
-      XLSX.writeFile(wb, `สรุปเกรด_${className}_${roomNumber}_${subjectName}.xlsx`);
+      XLSX.writeFile(wb, `สรุปเกรด_${className || 'ทุกชั้น'}_${roomNumber || 'ทุกห้อง'}_${subjectName || 'ทุกวิชา'}.xlsx`);
     }
     function printGradeReport() {
-      const className = document.getElementById('gradereport-filter-class')?.value || '';
-      const roomNumber = document.getElementById('gradereport-filter-room')?.value || '';
-      const subjectName = document.getElementById('gradereport-filter-subject')?.value || '';
-      if (!className || !roomNumber || !subjectName) {
-        showToast('กรุณาเลือกชั้นเรียน ห้องเรียน และวิชาก่อน', 'error');
-        return;
-      }
+      const x = _gradeReportRows();
+      if (x.rows.length === 0) { showToast('ไม่มีข้อมูลให้พิมพ์ตามตัวกรองที่เลือก', 'error'); return; }
       const headerEl = document.getElementById('gradereport-print-header');
       const subtitleEl = document.getElementById('gradereport-print-subtitle');
-      if (subtitleEl) subtitleEl.textContent = `ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName} (เรียงตามเลขที่)`;
+      if (subtitleEl) subtitleEl.textContent = `${_gradeReportScopeText(x)}${x.gradePick ? ' · คัดกรองเกรด' : ''} · ${x.rows.length} คน (เรียงตามเลขที่)`;
       if (headerEl) headerEl.classList.remove('hidden');
       document.body.classList.add('printing-gradereport');
       window.print();
@@ -20423,8 +20462,8 @@ function _examResultIdentityHtml(sub, set) {
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
-      roomSelect.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
-      subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      roomSelect.innerHTML = '<option value="">🚪 ทุกห้อง</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
+      subjectSelect.innerHTML = '<option value="">📚 ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
     }
     function getFilteredRegistrationRows() {
       const className = document.getElementById('reg-table-filter-class')?.value || '';
