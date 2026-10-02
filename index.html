@@ -2148,21 +2148,19 @@
          <select id="gradereport-filter-subject" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           <option value="">📚 ทุกวิชา</option>
          </select>
-         <select id="gradereport-filter-grade" onchange="updateGradeReportTable()" class="px-3 py-2 border-2 border-indigo-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" title="คัดกรองเฉพาะนักเรียนที่ได้เกรดที่เลือก">
+         <select id="gradereport-grade-value" onchange="renderGradeReportGradeFilter(); updateGradeReportTable();" class="px-2 py-2 border-2 border-indigo-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" title="เกณฑ์เกรดของปีการศึกษานี้ — ตั้งก่อน จึงจะมีตัวเลือก &quot;สูงกว่า/ต่ำกว่าเกณฑ์&quot; และคอลัมน์ &quot;ขาดอีก&quot;">
+          <option value="">🎚️ ไม่กำหนดเกณฑ์</option>
+          <option value="4">เกณฑ์ 4.0</option>
+          <option value="3.5">เกณฑ์ 3.5</option>
+          <option value="3">เกณฑ์ 3.0</option>
+          <option value="2.5" selected>เกณฑ์ 2.5</option>
+          <option value="2">เกณฑ์ 2.0</option>
+          <option value="1.5">เกณฑ์ 1.5</option>
+          <option value="1">เกณฑ์ 1.0</option>
+          <option value="0">เกณฑ์ 0.0</option>
+         </select>
+         <select id="gradereport-filter-grade" onchange="updateGradeReportTable()" class="px-2 py-2 border-2 border-indigo-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" title="คัดกรองจาก &quot;เกรดที่คำนวณได้&quot; — คนที่ติด ร./มส. ก็ยังแสดงให้เห็นเพื่อเทียบข้อมูล">
           <option value="">🎯 ทุกเกรด</option>
-          <option value="4">เกรด 4</option>
-          <option value="3.5">เกรด 3.5</option>
-          <option value="3">เกรด 3</option>
-          <option value="2.5">เกรด 2.5</option>
-          <option value="2">เกรด 2</option>
-          <option value="1.5">เกรด 1.5</option>
-          <option value="1">เกรด 1</option>
-          <option value="0">เกรด 0</option>
-          <option value="ร.">ติด ร.</option>
-          <option value="มส.">ติด มส.</option>
-          <option value="__rms">ติด ร. หรือ มส.</option>
-          <option value="__pass">ตั้งแต่ 2.5 ขึ้นไป</option>
-          <option value="__low">ต่ำกว่า 2.5 (ไม่รวม ร./มส.)</option>
          </select>
          <button onclick="exportGradeReportExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">📥 Export Excel</button>
          <button onclick="printGradeReport()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">🖨️ พิมพ์</button>
@@ -2174,26 +2172,26 @@
           <p id="gradereport-print-subtitle" class="text-sm"></p>
          </div>
          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
-          <table class="w-full text-sm" id="gradereport-table">
+          <table class="w-full text-xs" id="gradereport-table">
            <thead class="bg-gray-100">
             <tr>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เลขที่</th>
-             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
-             <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 bg-amber-50 whitespace-nowrap">รวม KPAC</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">F</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 bg-amber-50 whitespace-nowrap">รวม KPACMF</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรด</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(1)</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(2)</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">เกรดพิเศษ(3)</th>
-             <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">ขาดอีกถึง 2.5</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">ที่</th>
+             <th class="px-1 py-2 text-left font-semibold text-gray-700">ชื่อ-นามสกุล</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">ห้อง</th>
+             <th class="px-1 py-2 text-left font-semibold text-gray-700">วิชา</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">K</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">P</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">A</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">C</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 bg-amber-50 leading-tight">รวม<br>KPAC</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">M</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">F</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 bg-amber-50 leading-tight">รวม<br>ทั้งหมด</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">เกรด</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 leading-tight" title="มส. จากเวลาเรียนส่วนที่ 1">พิเศษ<br>(1)</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 leading-tight" title="มส. จากเวลาเรียนส่วนที่ 2">พิเศษ<br>(2)</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 leading-tight" title="ร. จากคะแนน A ไม่ครบ">พิเศษ<br>(3)</th>
+             <th id="gradereport-th-need" class="px-1 py-2 text-center font-semibold text-gray-700 leading-tight" title="คะแนนที่ยังขาดอีกเพื่อให้ถึงเกณฑ์ที่ตั้งไว้">ขาดอีก<br>ถึงเกณฑ์</th>
             </tr>
            </thead>
            <tbody id="gradereport-table-body" class="divide-y divide-gray-200"></tbody>
@@ -2871,7 +2869,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.02.188';
+    const APP_VERSION = 'SUPABASE-2026.10.02.190';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17695,6 +17693,7 @@ function _examResultIdentityHtml(sub, set) {
       const radio = document.querySelector(`input[name="grade-rounding-method"][value="${currentMethod}"]`);
       if (radio) radio.checked = true;
       updateGradeReportClassSubjects();
+      renderGradeReportGradeFilter();
       updateGradeReportTable();
     }
     function updateGradeReportClassSubjects() {
@@ -17862,11 +17861,54 @@ function _examResultIdentityHtml(sub, set) {
       return `<button onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')" class="text-red-600 font-bold underline decoration-dotted hover:text-red-800" title="ยังไม่ลงทะเบียน — กดเพื่อจัดการ">ร. 🔔</button>`;
     }
 
+    /** คะแนนต่ำสุดที่จะได้เกรดนั้น — อ่านจาก GRADE_CUTOFFS จริง ไม่ฮาร์ดโค้ด 65 อีก */
+    function _minScoreForGrade(g) {
+      const c = GRADE_CUTOFFS.find(x => Math.abs(x.grade - parseFloat(g)) < 0.001);
+      return c ? c.min : null;
+    }
+
+    /** 🎯 เกณฑ์เกรดที่ตั้งไว้บนหน้าสรุปเกรด — null = ยังไม่กำหนด */
+    function _gradeReportTarget() {
+      const v = document.getElementById('gradereport-grade-value')?.value;
+      if (v === undefined || v === null || v === '') return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+    /** สร้างตัวเลือก "คัดกรองเกรด" ใหม่ — ตัวเลือกเทียบเกณฑ์จะโผล่เฉพาะเมื่อกำหนดเกณฑ์แล้ว */
+    function renderGradeReportGradeFilter() {
+      const sel = document.getElementById('gradereport-filter-grade');
+      if (!sel) return;
+      const keep = sel.value;
+      const t = _gradeReportTarget();
+      let html = '<option value="">🎯 ทุกเกรด</option>';
+      if (t !== null) {
+        const ts = t.toFixed(1);
+        html += `<optgroup label="เทียบเกณฑ์ ${ts}">`
+             +  `<option value="gt">สูงกว่าเกณฑ์ (&gt; ${ts})</option>`
+             +  `<option value="gte">สูงกว่าหรือเท่ากับเกณฑ์ (≥ ${ts})</option>`
+             +  `<option value="lte">ต่ำกว่าหรือเท่ากับเกณฑ์ (≤ ${ts})</option>`
+             +  `<option value="lt">ต่ำกว่าเกณฑ์ (&lt; ${ts})</option>`
+             +  `</optgroup>`;
+      }
+      html += '<optgroup label="เกรดเจาะจง">'
+           +  GRADE_CUTOFFS.map(c => `<option value="grade:${c.grade}">เกรด ${c.grade.toFixed(1)}</option>`).join('')
+           +  '</optgroup>';
+      html += '<optgroup label="ติด ร./มส.">'
+           +  '<option value="ร.">ติด ร.</option>'
+           +  '<option value="มส.">ติด มส.</option>'
+           +  '<option value="__rms">ติด ร. หรือ มส.</option>'
+           +  '</optgroup>';
+      sel.innerHTML = html;
+      // คงตัวเลือกเดิมไว้ถ้ายังมีอยู่ (เช่นเปลี่ยนเกณฑ์) ถ้าหายไปแล้วให้กลับเป็น "ทุกเกรด"
+      sel.value = Array.prototype.some.call(sel.options, o => o.value === keep) ? keep : '';
+    }
+
     /** 📑 แถวของหน้าสัดส่วนเกรดตามตัวกรองปัจจุบัน — ปล่อยว่าง = ทั้งหมด · พร้อมคัดกรองเกรด */
     function _gradeReportRows() {
       const g = id => document.getElementById(id)?.value || '';
       const className = g('gradereport-filter-class'), roomNumber = g('gradereport-filter-room');
       const subjectName = g('gradereport-filter-subject'), gradePick = g('gradereport-filter-grade');
+      const targetG = _gradeReportTarget();   // null = ยังไม่กำหนดเกณฑ์
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const regs = allData.filter(d => d.type === 'student_registration'
         && (!className || N(d.class_name) === N(className))
@@ -17875,19 +17917,43 @@ function _examResultIdentityHtml(sub, set) {
       const combos = [...new Set(regs.map(r => `${r.class_name}|||${r.room_number}|||${r.subject_name}`))].sort();
       let rows = combos.flatMap(cb => { const [c, rm, sj] = cb.split('|||');
         return computeGradeReportRows(c, rm, sj).map(r => ({ ...r, className: r.className || c, roomNumber: r.roomNumber || rm, subjectName: r.subjectName || sj })); });
-      // 🎯 คัดกรองเกรด — ใช้ผลการเรียนจริงของนักเรียน (ติด ร./มส. มาก่อนเกรดตัวเลข)
+      // 📉 คะแนนที่ยังขาดอีกถึง "เกณฑ์" ของปีการศึกษานี้ (ไม่ตรึงไว้ที่ 2.5 แล้ว · ไม่ตั้งเกณฑ์ = ไม่คำนวณ)
+      const minScore = targetG === null ? null : _minScoreForGrade(targetG);
+      rows = rows.map(r => ({ ...r,
+        pointsNeededForTarget: (minScore !== null && r.totalAll < minScore) ? Math.round((minScore - r.totalAll) * 100) / 100 : null }));
+      // 🎯 คัดกรองเกรด — เทียบจาก "เกรดที่คำนวณได้" เสมอ
+      //    คนที่ติด ร./มส. จึงยังปรากฏในผลการคัดกรอง (ครูต้องเห็นไว้เทียบก่อนขยับผลการเรียน)
       if (gradePick) {
         rows = rows.filter(r => {
           const label = _normalGradeLabel(r);
-          const num = parseFloat(label);
+          const num = parseFloat(r.gradeValue);
           if (gradePick === '__rms') return label === 'ร.' || label === 'มส.';
-          if (gradePick === '__pass') return !isNaN(num) && num >= 2.5;
-          if (gradePick === '__low') return !isNaN(num) && num < 2.5;
-          if (gradePick === 'ร.' || gradePick === 'มส.') return label === gradePick;
-          return !isNaN(num) && num === parseFloat(gradePick);
+          if (gradePick === 'ร.') return r.special3 === 'ร.' || label === 'ร.';
+          if (gradePick === 'มส.') return r.special1 === 'มส.' || r.special2 === 'มส.' || label === 'มส.';
+          if (isNaN(num)) return false;
+          if (gradePick.indexOf('grade:') === 0) return num === parseFloat(gradePick.slice(6));
+          if (targetG === null) return true;    // ยังไม่กำหนดเกณฑ์ → ไม่คัดกรองด้วยการเทียบเกณฑ์
+          if (gradePick === 'gt') return num > targetG;
+          if (gradePick === 'gte') return num >= targetG;
+          if (gradePick === 'lte') return num <= targetG;
+          if (gradePick === 'lt') return num < targetG;
+          return true;
         });
       }
-      return { rows, className, roomNumber, subjectName, gradePick, combos: combos.length };
+      return { rows, className, roomNumber, subjectName, gradePick, targetG, combos: combos.length };
+    }
+    /** ข้อความอธิบายเงื่อนไขคัดกรองเกรดที่เลือกอยู่ */
+    function _gradePickText(x) {
+      if (!x.gradePick) return '';
+      const p = x.gradePick;
+      if (p.indexOf('grade:') === 0) return ` · คัดกรอง: เกรด ${parseFloat(p.slice(6)).toFixed(1)}`;
+      const named = { 'ร.': 'ติด ร.', 'มส.': 'ติด มส.', '__rms': 'ติด ร. หรือ มส.' }[p];
+      if (named) return ` · คัดกรอง: ${named}`;
+      if (x.targetG === null || x.targetG === undefined) return '';
+      const t = Number(x.targetG).toFixed(1);
+      const m = { gt: `สูงกว่าเกณฑ์ (> ${t})`, gte: `สูงกว่าหรือเท่ากับเกณฑ์ (≥ ${t})`,
+                  lte: `ต่ำกว่าหรือเท่ากับเกณฑ์ (≤ ${t})`, lt: `ต่ำกว่าเกณฑ์ (< ${t})` }[p] || '';
+      return m ? ` · คัดกรอง: ${m}` : '';
     }
     function _gradeReportScopeText(x) {
       return `${x.className || 'ทุกชั้น'}/${x.roomNumber || 'ทุกห้อง'} · ${x.subjectName || 'ทุกวิชา'}`;
@@ -17899,7 +17965,18 @@ function _examResultIdentityHtml(sub, set) {
       const x = _gradeReportRows();
       const rows = x.rows;
       const countEl = document.getElementById('gradereport-count');
-      if (countEl) countEl.textContent = `${_gradeReportScopeText(x)} · ${x.combos} ชุด · ${rows.length} คน${x.gradePick ? ' (คัดกรองเกรดแล้ว)' : ''}`;
+      if (countEl) countEl.textContent = `${_gradeReportScopeText(x)} · ${x.combos} ชุด · ${rows.length} คน${_gradePickText(x)}`;
+      const thNeed = document.getElementById('gradereport-th-need');
+      if (thNeed) {
+        if (x.targetG === null) {
+          thNeed.innerHTML = 'ขาดอีก<br>ถึงเกณฑ์';
+          thNeed.title = 'เลือก "เกณฑ์" ด้านบนก่อน ระบบจึงคำนวณคะแนนที่ยังขาดให้';
+        } else {
+          const ts = Number(x.targetG).toFixed(1);
+          thNeed.innerHTML = `ขาดอีก<br>ถึง ${ts}`;
+          thNeed.title = `คะแนนที่ยังขาดอีกเพื่อให้ถึงเกรด ${ts} (${_minScoreForGrade(x.targetG)} คะแนน)`;
+        }
+      }
       if (rows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="17" class="text-center text-gray-400 py-8">${x.gradePick ? 'ไม่มีนักเรียนที่ตรงกับเกรดที่คัดกรอง' : 'ไม่พบข้อมูลตามตัวกรองที่เลือก'}</td></tr>`;
         return;
@@ -17907,23 +17984,23 @@ function _examResultIdentityHtml(sub, set) {
       const fmt = (n) => String(n);
       tbody.innerHTML = rows.map((r, idx) => `
         <tr class="hover:bg-gray-50">
-          <td class="px-2 py-2 text-center whitespace-nowrap">${r.studentNumber || (idx + 1)}</td>
-          <td class="px-2 py-2 whitespace-nowrap">${r.studentName}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap text-gray-500">${escHtml(String(r.className || ''))}/${escHtml(String(r.roomNumber || ''))}</td>
-          <td class="px-2 py-2 whitespace-nowrap text-gray-500">${escHtml(String(r.subjectName || ''))}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.kScore)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.pScore)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.aScore)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.cScore)}</td>
-          <td class="px-2 py-2 text-center font-semibold bg-amber-50 whitespace-nowrap">${fmt(r.totalKPAC)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.mScore)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap">${fmt(r.fScore)}</td>
-          <td class="px-2 py-2 text-center font-bold bg-amber-50 whitespace-nowrap">${fmt(r.totalAll)}</td>
-          <td class="px-2 py-2 text-center font-bold whitespace-nowrap">${_gradeCellHtml(r, r.gradeValue)}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special1 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special1}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special2 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special2}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap ${r.special3 !== '-' ? 'text-red-600 font-semibold' : ''}">${r.special3}</td>
-          <td class="px-2 py-2 text-center whitespace-nowrap ${r.pointsNeededFor25 !== null ? 'text-orange-600 font-semibold' : ''}">${r.pointsNeededFor25 !== null ? fmt(r.pointsNeededFor25) : '-'}</td>
+          <td class="px-1 py-1 text-center">${r.studentNumber || (idx + 1)}</td>
+          <td class="px-1 py-1 leading-tight">${r.studentName}</td>
+          <td class="px-1 py-1 text-center text-gray-500 whitespace-nowrap">${escHtml(String(r.className || ''))}/${escHtml(String(r.roomNumber || ''))}</td>
+          <td class="px-1 py-1 text-gray-500 leading-tight">${escHtml(String(r.subjectName || ''))}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.kScore)}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.pScore)}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.aScore)}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.cScore)}</td>
+          <td class="px-1 py-1 text-center font-semibold bg-amber-50">${fmt(r.totalKPAC)}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.mScore)}</td>
+          <td class="px-1 py-1 text-center">${fmt(r.fScore)}</td>
+          <td class="px-1 py-1 text-center font-bold bg-amber-50">${fmt(r.totalAll)}</td>
+          <td class="px-1 py-1 text-center font-bold">${_gradeCellHtml(r, r.gradeValue)}</td>
+          <td class="px-1 py-1 text-center ${r.special1 !== '-' ? 'text-red-600 font-semibold' : 'text-gray-300'}">${r.special1}</td>
+          <td class="px-1 py-1 text-center ${r.special2 !== '-' ? 'text-red-600 font-semibold' : 'text-gray-300'}">${r.special2}</td>
+          <td class="px-1 py-1 text-center ${r.special3 !== '-' ? 'text-red-600 font-semibold' : 'text-gray-300'}">${r.special3}</td>
+          <td class="px-1 py-1 text-center ${r.pointsNeededForTarget !== null && r.pointsNeededForTarget !== undefined ? 'text-orange-600 font-semibold' : 'text-gray-300'}">${r.pointsNeededForTarget !== null && r.pointsNeededForTarget !== undefined ? fmt(r.pointsNeededForTarget) : '-'}</td>
         </tr>
       `).join('');
     }
@@ -17948,9 +18025,10 @@ function _examResultIdentityHtml(sub, set) {
         'เกรดพิเศษ(1)': r.special1,
         'เกรดพิเศษ(2)': r.special2,
         'เกรดพิเศษ(3)': r.special3,
-        'ขาดอีกถึง 2.5': r.pointsNeededFor25 !== null ? fmt(r.pointsNeededFor25) : '-'
+        [x.targetG === null ? 'ขาดอีกถึงเกณฑ์' : `ขาดอีกถึงเกรด ${Number(x.targetG).toFixed(1)}`]:
+          (r.pointsNeededForTarget !== null && r.pointsNeededForTarget !== undefined) ? fmt(r.pointsNeededForTarget) : '-'
       }));
-      const header = [[`รายงานสรุปผลการเรียน`], [`${_gradeReportScopeText(x)}${x.gradePick ? ' · คัดกรองเกรด' : ''} · ${rows.length} คน`], []];
+      const header = [[`รายงานสรุปผลการเรียน`], [`${_gradeReportScopeText(x)}${_gradePickText(x)} · ${rows.length} คน`], []];
       const ws = XLSX.utils.aoa_to_sheet(header);
       XLSX.utils.sheet_add_json(ws, data, { origin: 'A4' });
       const wb = XLSX.utils.book_new();
@@ -17962,7 +18040,7 @@ function _examResultIdentityHtml(sub, set) {
       if (x.rows.length === 0) { showToast('ไม่มีข้อมูลให้พิมพ์ตามตัวกรองที่เลือก', 'error'); return; }
       const headerEl = document.getElementById('gradereport-print-header');
       const subtitleEl = document.getElementById('gradereport-print-subtitle');
-      if (subtitleEl) subtitleEl.textContent = `${_gradeReportScopeText(x)}${x.gradePick ? ' · คัดกรองเกรด' : ''} · ${x.rows.length} คน (เรียงตามเลขที่)`;
+      if (subtitleEl) subtitleEl.textContent = `${_gradeReportScopeText(x)}${_gradePickText(x)} · ${x.rows.length} คน (เรียงตามเลขที่)`;
       if (headerEl) headerEl.classList.remove('hidden');
       document.body.classList.add('printing-gradereport');
       window.print();
