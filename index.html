@@ -2896,7 +2896,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.02.191';
+    const APP_VERSION = 'SUPABASE-2026.10.02.192';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11537,7 +11537,7 @@ const supabaseDataSdk = {
               <div style="background:${a.kind === 'scoregap' ? '#fff1f2' : '#fffbeb'};border:1px solid ${a.kind === 'scoregap' ? '#fecdd3' : '#fde68a'};border-radius:10px;padding:14px;margin-bottom:10px">
                 <p style="font-size:13px;font-weight:700;color:#1e293b;margin:0 0 4px"><span class="kpac-bell">${a.icon}</span> ${escHtml(String(a.title || ''))}</p>
                 <p style="font-size:14px;color:${a.kind === 'scoregap' ? '#be123c' : '#92400e'};font-weight:700;margin:0 0 4px">${escHtml(String(a.message || ''))}</p>
-                <p style="font-size:11px;color:#94a3b8;margin:0">${escHtml(String(a.hint || ''))}</p>
+                ${a.hint ? `<p style="font-size:11px;color:#94a3b8;margin:0">${escHtml(String(a.hint))}</p>` : ''}
                 ${a.kind === 'scoregap' ? `<button onclick="showScoreGapPopup('${effectiveStudentId}')" style="margin-top:8px;padding:6px 12px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">ดูรายละเอียด / ช่องทางติดต่อ</button>` : ''}
                 <p style="font-size:10px;color:#cbd5e1;margin:8px 0 0">รายการนี้จะหายเองเมื่อทำเสร็จ</p>
               </div>`).join('');
@@ -18048,7 +18048,7 @@ function _examResultIdentityHtml(sub, set) {
         kind: 'scoregap', icon: '🔴',
         title: `วิชา ${g.subjectName}`,
         message: `ขาดอีก ${g.need} คะแนน แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น`,
-        hint: `คะแนนรวมตอนนี้ ${g.totalAll} · เกณฑ์เกรด ${g.targetG.toFixed(1)} ต้องได้ ${g.minScore} คะแนน`
+        hint: ''  
       }));
       // 2) ข้อสอบที่เปิดให้ทำอยู่ แต่ยังไม่ได้ทำ/ยังทำไม่เสร็จ → หายเองเมื่อสอบเสร็จ
       const seen = new Set();
@@ -24975,8 +24975,7 @@ function _examResultIdentityHtml(sub, set) {
         && String(x.className) === String(reg.class_name)
         && String(x.roomNumber) === String(reg.room_number));
       if (!g) return '';
-      return `<span class="text-red-600 font-bold" style="margin-left:6px;white-space:normal"
-                    title="เกณฑ์ของระบบคือเกรด ${g.targetG.toFixed(1)} (ต้องได้ ${g.minScore} คะแนน)">`
+      return `<span class="text-red-600 font-bold" style="margin-left:6px;white-space:normal">`
            + `<span class="kpac-bell">🔔</span> ขาดอีก ${g.need} คะแนน แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น</span>`;
     }
 
@@ -24996,7 +24995,6 @@ function _examResultIdentityHtml(sub, set) {
           <p style="font-size:56px;line-height:1.05;font-weight:900;color:#dc2626;margin:0">${g.need}</p>
           <p style="font-size:13px;color:#be123c;margin:0 0 4px">คะแนน</p>
           <p style="font-size:13px;color:#7f1d1d;margin:0;line-height:1.6">แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น</p>
-          <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">คะแนนรวมตอนนี้ ${g.totalAll} · เกณฑ์เกรด ${g.targetG.toFixed(1)} ต้องได้ ${g.minScore} คะแนน</p>
         </div>`).join('');
       const contact = (c.lineId || c.phone)
         ? `<p style="font-size:13px;color:#1e293b;margin:0 0 6px;line-height:1.7">หากต้องการเพิ่มคะแนนของท่านให้ติดต่อผู้สอน ${escHtml(c.name)}</p>
@@ -25008,7 +25006,7 @@ function _examResultIdentityHtml(sub, set) {
       wrap.innerHTML = `
         <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:20px;text-align:center;max-height:88vh;overflow-y:auto">
           <p style="font-size:34px;margin:0 0 4px">🔴</p>
-          <p style="font-size:14px;font-weight:700;color:#b91c1c;margin:0 0 12px">คะแนนของท่านยังไม่ถึงเกณฑ์</p>
+          <p style="font-size:14px;font-weight:700;color:#b91c1c;margin:0 0 12px">คะแนนของท่านยังขาดอยู่</p>
           ${blocks}
           ${contact}
           <button onclick="dismissScoreGapPopup('${studentId}')" style="width:100%;margin-top:14px;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">ปิด</button>
