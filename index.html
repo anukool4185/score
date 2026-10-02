@@ -150,11 +150,17 @@
       body.is-mobile #admin-tab-buttons { overflow-x: auto !important; -webkit-overflow-scrolling: touch; flex-wrap: nowrap !important; scrollbar-width: none; max-width: 100vw; }
       body.is-mobile #admin-tab-buttons::-webkit-scrollbar { display: none; }
       body.is-mobile #admin-tab-buttons > button { white-space: nowrap !important; flex-shrink: 0; }
-      /* ── เว้นล่างสุด ── */
-      #page-home.has-nav, #page-student-management.has-nav, #page-subadmin.has-nav,
-      body.is-mobile #page-admin.has-nav,
-          body.is-mobile #page-register.has-nav,
-          body.is-mobile #page-login.has-nav { padding-bottom: 68px !important; }
+      /* ── เว้นล่างสุดให้พ้นแถบไอคอนด้านล่าง ──
+         หมายเหตุ: เดิมผูกกับคลาส .has-nav ซึ่งไม่มีที่ไหนใส่ให้เลย กฎจึงไม่เคยทำงาน
+         ทำให้ข้อมูลแถวล่างสุดเลื่อนขึ้นมาไม่พ้นแถบไอคอน · และ #app-main เป็นตัวเลื่อนจริง
+         (height:100vh; overflow-y:scroll) จึงต้องเว้นที่หน้าด้านในไม่ใช่ที่ #desktop-root
+         เผื่อพื้นที่ปลอดภัยของเครื่องที่มีแถบล่าง (safe-area) ไว้ด้วย */
+      body.is-mobile #page-home, body.is-mobile #page-student-management,
+      body.is-mobile #page-subadmin, body.is-mobile #page-admin,
+      body.is-mobile #page-director-management,
+      body.is-mobile #page-register, body.is-mobile #page-login {
+        padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+      }
     
     
       /* ── ป้องกันหน้ากว้างเกิน ── */
@@ -241,12 +247,16 @@
         flex-shrink: 0;
       }
 
-      /* ── เว้นล่างสุดให้ bottom nav — เฉพาะเมื่อ nav แสดงอยู่ ── */
-      #page-home.has-nav, #page-student-management.has-nav, #page-subadmin.has-nav,
-      body.is-mobile #page-admin.has-nav,
-          body.is-mobile #page-register.has-nav,
-          body.is-mobile #page-login.has-nav {
-        padding-bottom: 68px !important;
+      /* ── เว้นล่างสุดให้พ้นแถบไอคอนด้านล่าง ──
+         หมายเหตุ: เดิมผูกกับคลาส .has-nav ซึ่งไม่มีที่ไหนใส่ให้เลย กฎจึงไม่เคยทำงาน
+         ทำให้ข้อมูลแถวล่างสุดเลื่อนขึ้นมาไม่พ้นแถบไอคอน · และ #app-main เป็นตัวเลื่อนจริง
+         (height:100vh; overflow-y:scroll) จึงต้องเว้นที่หน้าด้านในไม่ใช่ที่ #desktop-root
+         เผื่อพื้นที่ปลอดภัยของเครื่องที่มีแถบล่าง (safe-area) ไว้ด้วย */
+      body.is-mobile #page-home, body.is-mobile #page-student-management,
+      body.is-mobile #page-subadmin, body.is-mobile #page-admin,
+      body.is-mobile #page-director-management,
+      body.is-mobile #page-register, body.is-mobile #page-login {
+        padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important;
       }
     
 
@@ -256,6 +266,7 @@
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: 62px;
+      padding-bottom: env(safe-area-inset-bottom);
       background: #ffffff !important;
       border-top: 1px solid #e5e7eb;
       z-index: 9999;
@@ -440,6 +451,20 @@
 
     .card-shadow { box-shadow: 0 4px 20px rgba(60,100,140,0.10) !important; }
 
+    /* 🔔 กระดิ่งสั่น — กำกับข้อความเตือนคะแนนที่ยังไม่ถึงเกณฑ์ */
+    @keyframes kpac-bell-shake {
+      0%, 62%, 100% { transform: rotate(0deg); }
+      66% { transform: rotate(-16deg); }
+      70% { transform: rotate(14deg); }
+      74% { transform: rotate(-12deg); }
+      78% { transform: rotate(10deg); }
+      82% { transform: rotate(-7deg); }
+      86% { transform: rotate(5deg); }
+      90% { transform: rotate(-3deg); }
+    }
+    .kpac-bell { display: inline-block; transform-origin: 50% 10%; animation: kpac-bell-shake 2.2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .kpac-bell { animation: none; } }
+
     #mobile-bottom-nav {
       background: #ffffff !important;
     }
@@ -579,7 +604,7 @@
     /* ปุ่มกลับซ้ำซ้อนของเดสก์ท็อป (ใช้ไม่ได้ถูกต้องบนมือถือ) — ซ่อนเพราะมีปุ่ม "← กลับ" ของมือถือแล้ว */
     body.is-mobile #exit-subadmin-mode-btn { display: none !important; }
     /* เว้นพื้นที่ด้านล่างให้เนื้อหาไม่ถูกเมนูไอคอนบัง เมื่อยืมหน้าเดสก์ท็อปมาแสดง */
-    body.is-mobile #desktop-root { padding-bottom: 64px !important; box-sizing: border-box; }
+    body.is-mobile #desktop-root { padding-bottom: calc(84px + env(safe-area-inset-bottom)) !important; box-sizing: border-box; }
     /* หมายเหตุ: เลิกซ่อนแถวปุ่มแท็บแล้ว (ดูคอมเมนต์ด้านบน) */
     body.is-mobile .bell-top-bar-left { 
       position: fixed; top: 8px; right: 8px; z-index: 9990; 
@@ -2162,9 +2187,11 @@
          <select id="gradereport-filter-grade" onchange="updateGradeReportTable()" class="px-2 py-2 border-2 border-indigo-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" title="คัดกรองจาก &quot;เกรดที่คำนวณได้&quot; — คนที่ติด ร./มส. ก็ยังแสดงให้เห็นเพื่อเทียบข้อมูล">
           <option value="">🎯 ทุกเกรด</option>
          </select>
+         <button onclick="saveGradeTargetSetting()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium whitespace-nowrap" title="บันทึกเกณฑ์นี้เป็นค่าของทั้งระบบ — ใช้เตือนนักเรียนที่คะแนนยังไม่ถึงเกณฑ์">💾 บันทึกเกณฑ์</button>
          <button onclick="exportGradeReportExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">📥 Export Excel</button>
          <button onclick="printGradeReport()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium whitespace-nowrap">🖨️ พิมพ์</button>
          <span id="gradereport-count" class="text-xs text-gray-500"></span>
+         <p id="gradereport-target-saved" class="text-xs w-full"></p>
         </div>
         <div id="gradereport-print-area">
          <div id="gradereport-print-header" class="hidden mb-4 text-center">
@@ -2869,7 +2896,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.02.190';
+    const APP_VERSION = 'SUPABASE-2026.10.02.191';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11504,11 +11531,22 @@ const supabaseDataSdk = {
       const effectiveStudentId = _getEffectiveStudentIdForNotifications();
       const myNotifs = allData.filter(d => d.type === 'student_notification' && String(d.student_id) === String(effectiveStudentId))
         .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      // 🤖 แจ้งเตือนอัตโนมัติ — มีอยู่เฉพาะตอนที่ยังไม่ได้ทำ ทำเสร็จแล้วหายเอง ไม่ต้องกดรับทราบ
+      const autoNotifs = autoStudentNotifications(effectiveStudentId);
+      const autoHtml = autoNotifs.map(a => `
+              <div style="background:${a.kind === 'scoregap' ? '#fff1f2' : '#fffbeb'};border:1px solid ${a.kind === 'scoregap' ? '#fecdd3' : '#fde68a'};border-radius:10px;padding:14px;margin-bottom:10px">
+                <p style="font-size:13px;font-weight:700;color:#1e293b;margin:0 0 4px"><span class="kpac-bell">${a.icon}</span> ${escHtml(String(a.title || ''))}</p>
+                <p style="font-size:14px;color:${a.kind === 'scoregap' ? '#be123c' : '#92400e'};font-weight:700;margin:0 0 4px">${escHtml(String(a.message || ''))}</p>
+                <p style="font-size:11px;color:#94a3b8;margin:0">${escHtml(String(a.hint || ''))}</p>
+                ${a.kind === 'scoregap' ? `<button onclick="showScoreGapPopup('${effectiveStudentId}')" style="margin-top:8px;padding:6px 12px;background:#dc2626;color:white;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">ดูรายละเอียด / ช่องทางติดต่อ</button>` : ''}
+                <p style="font-size:10px;color:#cbd5e1;margin:8px 0 0">รายการนี้จะหายเองเมื่อทำเสร็จ</p>
+              </div>`).join('');
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6">
           <h3 class="text-xl font-bold text-gray-800 mb-4">🔔 การแจ้งเตือน</h3>
+          ${autoHtml}
           ${myNotifs.length === 0
-            ? `<p style="text-align:center;color:#94a3b8;font-size:14px;padding:40px 0">📭 ไม่มีการแจ้งเตือนใหม่</p>`
+            ? (autoNotifs.length === 0 ? `<p style="text-align:center;color:#94a3b8;font-size:14px;padding:40px 0">📭 ไม่มีการแจ้งเตือนใหม่</p>` : '')
             : myNotifs.map(n => `
               <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:10px">
                 <p style="font-size:14px;color:#1e293b;margin:0 0 4px">${n.message}</p>
@@ -11535,7 +11573,10 @@ const supabaseDataSdk = {
     function getMyNotificationCount() {
       const sid = _getEffectiveStudentIdForNotifications();
       if (!sid) return 0;
-      return allData.filter(d => d.type === 'student_notification' && String(d.student_id) === String(sid)).length;
+      // นับทั้งแจ้งเตือนที่ครูส่ง (ต้องกดรับทราบ) และแจ้งเตือนอัตโนมัติที่ยังไม่ได้ทำ (ทำเสร็จแล้วหายเอง)
+      let auto = 0;
+      try { auto = autoStudentNotifications(sid).length; } catch (e) { auto = 0; }
+      return allData.filter(d => d.type === 'student_notification' && String(d.student_id) === String(sid)).length + auto;
     }
     // 🔔 อัปเดตตัวเลขที่กระดิ่งแจ้งเตือน — เรียกทุกครั้งที่ข้อมูลเปลี่ยน (onDataChanged) ให้ตัวเลขสดใหม่เสมอ
     function updateStudentNotificationBadge() {
@@ -17693,7 +17734,16 @@ function _examResultIdentityHtml(sub, set) {
       const radio = document.querySelector(`input[name="grade-rounding-method"][value="${currentMethod}"]`);
       if (radio) radio.checked = true;
       updateGradeReportClassSubjects();
+      // 🎯 ช่องเกณฑ์: เริ่มจากค่าที่บันทึกเป็นค่าของระบบไว้ (ถ้ามี)
+      const tSel = document.getElementById('gradereport-grade-value');
+      const savedT = savedGradeTarget();
+      if (tSel && savedT !== null) {
+        const want = String(savedT);
+        const hit = Array.prototype.some.call(tSel.options, o => parseFloat(o.value) === savedT);
+        tSel.value = hit ? (Array.prototype.find.call(tSel.options, o => parseFloat(o.value) === savedT).value) : want;
+      }
       renderGradeReportGradeFilter();
+      renderGradeTargetSavedHint();
       updateGradeReportTable();
     }
     function updateGradeReportClassSubjects() {
@@ -17901,6 +17951,127 @@ function _examResultIdentityHtml(sub, set) {
       sel.innerHTML = html;
       // คงตัวเลือกเดิมไว้ถ้ายังมีอยู่ (เช่นเปลี่ยนเกณฑ์) ถ้าหายไปแล้วให้กลับเป็น "ทุกเกรด"
       sel.value = Array.prototype.some.call(sel.options, o => o.value === keep) ? keep : '';
+    }
+
+
+    // ══════════════════════════════════════════════════════════════
+    // 🎯 เกณฑ์เกรดของทั้งระบบ (ชุดเดียว) — ครูบันทึกจากหน้า "สัดส่วนเกรด"
+    //    ใช้ร่วมกันทั้งคำเตือนฝั่งนักเรียน · หน้าผลการเรียน · ไอคอนแจ้งเตือน
+    // ══════════════════════════════════════════════════════════════
+    /** เกณฑ์ที่บันทึกไว้เป็นค่าของระบบ — null = ยังไม่ได้ตั้ง (ฝั่งนักเรียนจะไม่เห็นคำเตือนเลย) */
+    function savedGradeTarget() {
+      const rec = allData.find(d => d.type === 'settings');
+      const v = rec ? rec.grade_target_value : null;
+      if (v === null || v === undefined || v === '') return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+    /** บันทึกเกณฑ์ในช่องบนหน้าสัดส่วนเกรด ให้เป็นค่าของทั้งระบบ */
+    async function saveGradeTargetSetting() {
+      const raw = document.getElementById('gradereport-grade-value')?.value || '';
+      const value = raw === '' ? null : parseFloat(raw);
+      const existing = allData.find(d => d.type === 'settings');
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, grade_target_value: value })
+        : await window.dataSdk.create({ type: 'settings', grade_target_value: value });
+      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      showToast(value === null
+        ? '✅ ยกเลิกเกณฑ์ของระบบแล้ว — ฝั่งนักเรียนจะไม่เห็นคำเตือนคะแนน'
+        : `✅ บันทึกเกณฑ์ ${value.toFixed(1)} เป็นค่าของทั้งระบบแล้ว`);
+      renderGradeTargetSavedHint();
+      // 🔎 กันเงียบ: ถ้าฐานข้อมูลยังไม่มีคอลัมน์ settings.grade_target_value ค่าจะถูกตัดทิ้งไปเฉยๆ
+      setTimeout(() => {
+        const after = savedGradeTarget();
+        if ((value === null && after !== null) || (value !== null && after !== value)) {
+          showToast('⚠️ บันทึกไม่ติด — ฐานข้อมูลยังไม่มีคอลัมน์ settings.grade_target_value กรุณารันไฟล์ add_grade_target.sql', 'error');
+        }
+        renderGradeTargetSavedHint();
+      }, 1200);
+    }
+    /** บอกครูว่าเกณฑ์ของระบบตอนนี้คือเท่าไร (ต่างจากช่องกรองที่เป็นแค่มุมมองหน้าจอ) */
+    function renderGradeTargetSavedHint() {
+      const el = document.getElementById('gradereport-target-saved');
+      if (!el) return;
+      const t = savedGradeTarget();
+      el.innerHTML = t === null
+        ? '<span style="color:#b45309">⚠️ ยังไม่ได้บันทึกเกณฑ์ของระบบ — ฝั่งนักเรียนยังไม่เห็นคำเตือนคะแนน (เลือกเกณฑ์แล้วกด "💾 บันทึกเกณฑ์")</span>'
+        : `<span style="color:#15803d">✅ เกณฑ์ของระบบตอนนี้: <b>${t.toFixed(1)}</b> (ต้องได้ ${_minScoreForGrade(t)} คะแนน) — ใช้เตือนนักเรียนทุกคน</span>`;
+    }
+
+    /** 📉 วิชาที่คะแนนรวมของนักเรียนคนนี้ยังไม่ถึงเกณฑ์ของระบบ
+     *  คืนรายการ { subjectName, className, roomNumber, totalAll, minScore, need, targetG } */
+    function studentBelowTargetSubjects(studentId) {
+      const target = savedGradeTarget();
+      if (target === null || !studentId) return [];
+      const minScore = _minScoreForGrade(target);
+      if (minScore === null) return [];
+      const seen = new Set();
+      const out = [];
+      allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(studentId))
+        .forEach(reg => {
+          const key = `${reg.class_name}|||${reg.room_number}|||${reg.subject_name}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          let rows = [];
+          try { rows = computeGradeReportRows(reg.class_name, reg.room_number, reg.subject_name) || []; } catch (e) { rows = []; }
+          const me = rows.find(r => String(r.studentId) === String(studentId));
+          if (!me) return;
+          const total = parseFloat(me.totalAll);
+          if (isNaN(total) || total >= minScore) return;
+          out.push({ subjectName: reg.subject_name, className: reg.class_name, roomNumber: reg.room_number,
+                     totalAll: total, minScore, targetG: target,
+                     need: Math.round((minScore - total) * 100) / 100 });
+        });
+      return out.sort((a, b) => a.need - b.need);
+    }
+
+    /** ☎️ ข้อมูลติดต่อผู้สอน — ใช้ชุดเดียวกับที่ตั้งไว้ในหน้า "ข้อมูลติดต่อผู้ดูแลระบบ" */
+    function teacherContactInfo() {
+      const contactAdmin = allData.find(d => (d.type === 'admin' || d.type === 'subadmin')
+        && (d.is_contact === true || d.is_contact === 'true') && (d.line_id || d.phone_number));
+      const contactSetting = allData.find(d => d.type === 'admin_contact');
+      return {
+        name: contactAdmin?.display_name || contactSetting?.display_name || 'ผู้สอน',
+        lineId: contactAdmin?.line_id || contactSetting?.line_id || '',
+        phone: contactAdmin?.phone_number || contactSetting?.phone_number || ''
+      };
+    }
+
+    /** 🔔 แจ้งเตือนอัตโนมัติของนักเรียน — "มีอยู่เฉพาะตอนที่ยังไม่ได้ทำ" ทำเสร็จแล้วหายเอง
+     *  (ต่างจากแจ้งเตือนที่ครูส่ง ซึ่งต้องกด "รับทราบ" เพื่อลบ) */
+    function autoStudentNotifications(studentId) {
+      if (!studentId) return [];
+      const items = [];
+      // 1) คะแนนยังไม่ถึงเกณฑ์ → หายเองเมื่อคะแนนถึงเกณฑ์
+      studentBelowTargetSubjects(studentId).forEach(g => items.push({
+        key: 'gap|' + g.className + '|' + g.roomNumber + '|' + g.subjectName,
+        kind: 'scoregap', icon: '🔴',
+        title: `วิชา ${g.subjectName}`,
+        message: `ขาดอีก ${g.need} คะแนน แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น`,
+        hint: `คะแนนรวมตอนนี้ ${g.totalAll} · เกณฑ์เกรด ${g.targetG.toFixed(1)} ต้องได้ ${g.minScore} คะแนน`
+      }));
+      // 2) ข้อสอบที่เปิดให้ทำอยู่ แต่ยังไม่ได้ทำ/ยังทำไม่เสร็จ → หายเองเมื่อสอบเสร็จ
+      const seen = new Set();
+      allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(studentId))
+        .forEach(reg => {
+          const key = `${reg.class_name}|||${reg.room_number}|||${reg.subject_name}`;
+          if (seen.has(key)) return;
+          seen.add(key);
+          let html = '';
+          try {
+            html = (typeof generateExamButtonsForRegistration === 'function' ? generateExamButtonsForRegistration(reg) : '')
+                 + (typeof generateEssayButtonsForRegistration === 'function' ? generateEssayButtonsForRegistration(reg) : '');
+          } catch (e) { html = ''; }
+          const plain = String(html).replace(/<[^>]+>/g, ' ');
+          if (!/เข้าสอบ|ทำต่อ/.test(plain)) return;
+          items.push({
+            key: 'exam|' + key, kind: 'exam', icon: '📝',
+            title: `วิชา ${reg.subject_name}`,
+            message: 'มีข้อสอบที่เปิดให้ทำอยู่ และท่านยังทำไม่เสร็จ',
+            hint: 'ไปที่หน้า "ผลการเรียน" แล้วกดปุ่มเข้าสอบในบล็อกคะแนนของวิชานี้'
+          });
+        });
+      return items;
     }
 
     /** 📑 แถวของหน้าสัดส่วนเกรดตามตัวกรองปัจจุบัน — ปล่อยว่าง = ทั้งหมด · พร้อมคัดกรองเกรด */
@@ -24786,6 +24957,85 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(wrap);
     }
 
+
+    // ══════════════════════════════════════════════════════════════
+    // 🔴 คำเตือนคะแนนยังไม่ถึงเกณฑ์ (ฝั่งนักเรียน)
+    // ══════════════════════════════════════════════════════════════
+    /** ลายเซ็นของสถานะคะแนนปัจจุบัน — ใช้จำว่า "กดปิดไปแล้ว" จนกว่าคะแนนจะเปลี่ยน */
+    function _scoreGapSignature(gaps) {
+      return JSON.stringify(gaps.map(g => `${g.className}/${g.roomNumber}/${g.subjectName}:${g.need}@${g.targetG}`));
+    }
+    function _scoreGapKey(studentId) { return 'kpac_scoregap_dismissed_' + studentId; }
+
+    /** ข้อความแดง + กระดิ่งสั่น ต่อหลังคำว่า "สรุปคะแนนรวม" ของวิชานั้น */
+    function _scoreGapInlineHtml(reg) {
+      if (!reg || reg.__virtual) return '';
+      const g = studentBelowTargetSubjects(reg.student_id).find(x =>
+        String(x.subjectName) === String(reg.subject_name)
+        && String(x.className) === String(reg.class_name)
+        && String(x.roomNumber) === String(reg.room_number));
+      if (!g) return '';
+      return `<span class="text-red-600 font-bold" style="margin-left:6px;white-space:normal"
+                    title="เกณฑ์ของระบบคือเกรด ${g.targetG.toFixed(1)} (ต้องได้ ${g.minScore} คะแนน)">`
+           + `<span class="kpac-bell">🔔</span> ขาดอีก ${g.need} คะแนน แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น</span>`;
+    }
+
+    /** หน้าต่างเตือนคะแนน — เลขตัวใหญ่กว่าข้อความ พร้อมช่องทางติดต่อผู้สอน */
+    function showScoreGapPopup(studentId, gaps) {
+      gaps = gaps || studentBelowTargetSubjects(studentId);
+      if (!gaps.length) return;
+      const c = teacherContactInfo();
+      document.getElementById('score-gap-popup')?.remove();
+      const wrap = document.createElement('div');
+      wrap.id = 'score-gap-popup';
+      wrap.style.cssText = 'position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px';
+      const blocks = gaps.map(g => `
+        <div style="background:#fff1f2;border:2px solid #fecdd3;border-radius:12px;padding:14px;margin-bottom:10px">
+          <p style="font-size:13px;color:#9f1239;font-weight:700;margin:0 0 2px">${escHtml(String(g.subjectName || ''))}</p>
+          <p style="font-size:13px;color:#be123c;margin:0">ขาดอีก</p>
+          <p style="font-size:56px;line-height:1.05;font-weight:900;color:#dc2626;margin:0">${g.need}</p>
+          <p style="font-size:13px;color:#be123c;margin:0 0 4px">คะแนน</p>
+          <p style="font-size:13px;color:#7f1d1d;margin:0;line-height:1.6">แล้วท่านจะได้ผลการเรียนที่เพิ่มขึ้น</p>
+          <p style="font-size:11px;color:#9ca3af;margin:4px 0 0">คะแนนรวมตอนนี้ ${g.totalAll} · เกณฑ์เกรด ${g.targetG.toFixed(1)} ต้องได้ ${g.minScore} คะแนน</p>
+        </div>`).join('');
+      const contact = (c.lineId || c.phone)
+        ? `<p style="font-size:13px;color:#1e293b;margin:0 0 6px;line-height:1.7">หากต้องการเพิ่มคะแนนของท่านให้ติดต่อผู้สอน ${escHtml(c.name)}</p>
+           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+             ${c.lineId ? `<span style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:13px;color:#15803d;font-weight:700">💬 @${escHtml(c.lineId)}</span>` : ''}
+             ${c.phone ? `<a href="tel:${escHtml(c.phone)}" style="background:#eff6ff;border:2px solid #bfdbfe;border-radius:10px;padding:8px 12px;font-size:13px;color:#1d4ed8;font-weight:700;text-decoration:none">📞 ${escHtml(c.phone)}</a>` : ''}
+           </div>`
+        : `<p style="font-size:13px;color:#1e293b;margin:0;line-height:1.7">หากต้องการเพิ่มคะแนนของท่านให้ติดต่อผู้สอนโดยตรง</p>`;
+      wrap.innerHTML = `
+        <div style="background:white;border-radius:16px;max-width:380px;width:100%;padding:20px;text-align:center;max-height:88vh;overflow-y:auto">
+          <p style="font-size:34px;margin:0 0 4px">🔴</p>
+          <p style="font-size:14px;font-weight:700;color:#b91c1c;margin:0 0 12px">คะแนนของท่านยังไม่ถึงเกณฑ์</p>
+          ${blocks}
+          ${contact}
+          <button onclick="dismissScoreGapPopup('${studentId}')" style="width:100%;margin-top:14px;padding:12px;background:#dc2626;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">ปิด</button>
+        </div>`;
+      document.body.appendChild(wrap);
+    }
+
+    /** กดปิด → จำไว้ว่าปิดแล้ว จะไม่เด้งอีกจนกว่าคะแนน (หรือเกณฑ์) จะเปลี่ยน */
+    function dismissScoreGapPopup(studentId) {
+      document.getElementById('score-gap-popup')?.remove();
+      try {
+        localStorage.setItem(_scoreGapKey(studentId), _scoreGapSignature(studentBelowTargetSubjects(studentId)));
+      } catch (e) { /* บางเบราว์เซอร์ปิด localStorage ไว้ — ไม่เป็นไร แค่จะเด้งอีกครั้งหน้า */ }
+    }
+
+    /** เรียกเมื่อนักเรียนกดไอคอนคะแนน/เปิดหน้าผลการเรียน */
+    function maybeShowScoreGapPopup(studentId) {
+      if (!studentId) return;
+      if (document.getElementById('unreg-scores-popup')) return;   // มีหน้าต่างคะแนนชั่วคราวค้างอยู่ ไม่ซ้อนกัน
+      const gaps = studentBelowTargetSubjects(studentId);
+      if (!gaps.length) return;
+      let seen = '';
+      try { seen = localStorage.getItem(_scoreGapKey(studentId)) || ''; } catch (e) { seen = ''; }
+      if (seen === _scoreGapSignature(gaps)) return;               // ปิดไปแล้วและคะแนนยังไม่เปลี่ยน
+      showScoreGapPopup(studentId, gaps);
+    }
+
     function showStudentGrades(silent) {
       const content = document.getElementById('student-content');
       const student = allData.find(d => d.type === 'student' && d.__backendId === currentUser.__backendId);
@@ -24798,6 +25048,8 @@ function _examResultIdentityHtml(sub, set) {
       const registrations = allData.filter(d => d.type === 'student_registration' && String(d.student_id) === String(student.student_id))
         .concat(_tempRegs);
       if (_tempRegs.length > 0 && !silent) setTimeout(showUnregisteredScoresPopup, 300);   // วาดใหม่อัตโนมัติไม่เด้งซ้ำ
+      // 🔴 เตือนคะแนนที่ยังไม่ถึงเกณฑ์ของระบบ — กดปิดแล้วไม่เด้งอีกจนคะแนนเปลี่ยน
+      if (!silent) setTimeout(() => maybeShowScoreGapPopup(student.student_id), 700);
       if (registrations.length === 0) {
         content.innerHTML = `
           <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
@@ -24907,7 +25159,7 @@ function _examResultIdentityHtml(sub, set) {
             </div>
 
             <!-- ส่วนล่าง: สรุปคะแนนรวม (ของเดิม) -->
-            <p class="text-sm font-semibold text-gray-600 mb-2">📊 สรุปคะแนนรวม</p>
+            <p class="text-sm font-semibold text-gray-600 mb-2">📊 สรุปคะแนนรวม${_scoreGapInlineHtml(reg)}</p>
             <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
               ${scoreBox('K (เก็บคะแนน)', kSum, kFull)}
               ${scoreBox('P (ทักษะ)', pSum, pFull)}
@@ -27082,7 +27334,7 @@ function _examResultIdentityHtml(sub, set) {
       </div>
 
       <!-- Scrollable content area -->
-      <div id="m-content" style="flex:1;overflow-y:auto;padding:12px;padding-bottom:72px"></div>
+      <div id="m-content" style="flex:1;overflow-y:auto;padding:12px;padding-bottom:calc(84px + env(safe-area-inset-bottom))"></div>
     </div>
   </div>
   <!-- /mobile-root -->
