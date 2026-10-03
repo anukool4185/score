@@ -463,6 +463,11 @@
       90% { transform: rotate(-3deg); }
     }
     .kpac-bell { display: inline-block; transform-origin: 50% 10%; animation: kpac-bell-shake 2.2s ease-in-out infinite; }
+
+    /* 🎓 เลขเกรดที่ต่ำกว่าเกณฑ์ — จางเข้าออกอย่างนุ่มนวล ไม่กะพริบจนแสบตา */
+    @keyframes kpac-grade-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .kpac-grade-blink { animation: kpac-grade-pulse 1.8s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .kpac-grade-blink { animation: none; } }
     @media (prefers-reduced-motion: reduce) { .kpac-bell { animation: none; } }
 
     #mobile-bottom-nav {
@@ -2896,7 +2901,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.02.192';
+    const APP_VERSION = 'SUPABASE-2026.10.03.193';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -23733,6 +23738,11 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-xs font-semibold mt-2" id="f-total-${reg.__backendId}">รวม: 0/${fFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="f-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
+              <!-- 🎓 บล็อคสุดท้าย: ผลการเรียน — อัปเดตทันทีที่ปรับคะแนนในช่องใดก็ตาม (ยังไม่ต้องกดบันทึก) -->
+              <div class="bg-gradient-to-br from-slate-50 to-slate-200 rounded-lg p-4 border-2 border-slate-300">
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎓 ผลการเรียน</p>
+                <div id="grading-result-${reg.__backendId}">${_gradingResultBlockHtml(reg.__backendId, reg)}</div>
+              </div>
             </div>
             ${_examProgressStripHtml(reg)}
             ${_buildEnrollAlertBlock(student, subjectName, !reg.__virtual)}
@@ -23813,8 +23823,75 @@ function _examResultIdentityHtml(sub, set) {
         }
       }
     }
+
+    // ══════════════════════════════════════════════════════════════
+    // 🎓 บล็อค "ผลการเรียน" ในหน้าให้คะแนน (ฝั่งครู) — คิดจากค่าที่อยู่ในช่องกรอกตอนนี้
+    //    จึงเห็นผลทันทีที่ปรับคะแนน โดยยังไม่ต้องกดบันทึก
+    // ══════════════════════════════════════════════════════════════
+    /** รวมคะแนนของหมวดหนึ่งจากช่องกรอกบนหน้าจอ — ถ้ายังไม่มีช่องกรอก ใช้ค่าที่บันทึกไว้แทน */
+    function _liveCategorySum(regId, reg, type, times) {
+      let found = false, sum = 0;
+      for (let i = 1; i <= times; i++) {
+        const el = document.getElementById(`${type}-${regId}-${i}`);
+        if (!el) continue;
+        found = true;
+        sum += parseFloat(el.value) || 0;
+      }
+      if (found) return sum;
+      const g = _findGradeRow(reg);
+      const str = g ? (g[type + '_scores'] || '') : '';
+      return String(str).split(',').filter(x => x.trim()).reduce((a, b) => a + (parseFloat(b) || 0), 0);
+    }
+    /** ผลการเรียนสดของนักเรียนคนนี้ — ใช้สูตรเดียวกับหน้าสัดส่วนเกรด (น้ำหนัก% รวม 100) */
+    function liveGradingResult(regId, reg) {
+      reg = reg || (typeof _getRegById === 'function' ? _getRegById(regId) : null);
+      if (!reg) return null;
+      const cs = allData.find(d => d.type === 'class_subject'
+        && _eaN(d.class_name) === _eaN(reg.class_name)
+        && _eaN(d.room_number) === _eaN(reg.room_number)
+        && _eaN(d.subject_name) === _eaN(reg.subject_name));
+      const sc = _findScoresConfig(reg);
+      const wt = (sum, full, weight) => (!full || full <= 0) ? 0 : (sum / full) * (weight || 0);
+      const k = roundGradeValue(wt(_liveCategorySum(regId, reg, 'k', 10), sc?.k_full_score, reg.k_percent));
+      const p = roundGradeValue(wt(_liveCategorySum(regId, reg, 'p', 3), sc?.p_full_score, reg.p_percent));
+      const a = roundGradeValue(wt(_liveCategorySum(regId, reg, 'a', 3), sc?.a_full_score, reg.a_percent));
+      const c = roundGradeValue(wt(_liveCategorySum(regId, reg, 'c', 3), sc?.c_full_score, reg.c_percent));
+      const m = roundGradeValue(wt(_liveCategorySum(regId, reg, 'm', 2), sc?.m_full_score, cs?.mid_percent));
+      const f = roundGradeValue(wt(_liveCategorySum(regId, reg, 'f', 2), sc?.f_full_score, cs?.final_percent));
+      const totalAll = Math.round((k + p + a + c + m + f) * 100) / 100;
+      const gradeValue = scoreToGrade(totalAll);
+      const target = savedGradeTarget();
+      const minScore = target === null ? null : _minScoreForGrade(target);
+      const need = (minScore !== null && totalAll < minScore) ? Math.round((minScore - totalAll) * 100) / 100 : null;
+      return { totalAll, gradeValue, target, minScore, need,
+               pass: target === null ? null : (parseFloat(gradeValue) >= target) };
+    }
+    /** HTML ของบล็อคผลการเรียน — เขียวเมื่อถึงเกณฑ์ (ไม่กระพริบ) · แดงกระพริบนุ่มๆ เมื่อยังไม่ถึง */
+    function _gradingResultBlockHtml(regId, reg) {
+      const r = liveGradingResult(regId, reg);
+      if (!r) return '<p class="text-xs text-gray-400">ไม่พบข้อมูล</p>';
+      const noTarget = r.target === null;
+      const color = noTarget ? '#475569' : (r.pass ? '#15803d' : '#dc2626');
+      const blink = (!noTarget && !r.pass) ? ' kpac-grade-blink' : '';
+      return `
+        <p class="text-center font-black${blink}" style="font-size:44px;line-height:1.1;color:${color};margin:2px 0 4px">${Number(r.gradeValue).toFixed(1)}</p>
+        <p class="text-xs text-gray-600 text-center" style="margin:0 0 6px">คะแนนรวมที่ใช้ตัดเกรด: <b style="color:${color}">${r.totalAll}</b></p>
+        ${noTarget
+          ? '<p class="text-xs text-amber-700 text-center" style="margin:0">⚠️ ยังไม่ได้ตั้งเกณฑ์ของระบบ<br>(ตั้งที่หน้า 📑 สัดส่วนเกรด)</p>'
+          : (r.need !== null
+              ? `<p class="text-xs text-center font-semibold" style="margin:0;color:#dc2626">ขาดอีก <span style="font-size:20px;font-weight:900">${r.need}</span> คะแนน<br><span class="font-normal text-gray-500">จึงจะถึงเกณฑ์ ${Number(r.target).toFixed(1)}</span></p>`
+              : `<p class="text-xs text-center font-semibold" style="margin:0;color:#15803d">✅ ถึงเกณฑ์ ${Number(r.target).toFixed(1)} แล้ว<br><span class="font-normal text-gray-500">ไม่ขาดคะแนน</span></p>`)}`;
+    }
+    /** วาดบล็อคผลการเรียนใหม่ — เรียกทุกครั้งที่คะแนนในช่องเปลี่ยน */
+    function updateGradingResultBlock(regId) {
+      const el = document.getElementById('grading-result-' + regId);
+      if (!el) return;
+      try { el.innerHTML = _gradingResultBlockHtml(regId); } catch (e) { /* ข้อมูลยังไม่พร้อม ไม่ต้องทำอะไร */ }
+    }
+
     function validateScores(inputElement) {
       const regId = inputElement.id.match(/-(.+)-\d+$/)[1];
+      updateGradingResultBlock(regId);   // 🎓 ผลการเรียนในบล็อคสุดท้ายขยับตามทันที
       const typeMatch = inputElement.id.match(/^([a-z]+)-/);
       if (!typeMatch) return;
       
