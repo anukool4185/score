@@ -1973,6 +1973,37 @@
           <button onclick="enrollNoEnrollSelected()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก (<span id="noenroll-selected-count">0</span> คน)</button>
          </div>
         </div>
+        <!-- ⚠️ ลงทะเบียนแล้ว แต่ KPAC ไม่ครบ — คนกลุ่มนี้เดิมไม่โผล่ที่ไหนเลย เพราะมีแถวลงทะเบียนอยู่แล้ว -->
+        <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
+         <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+           <h4 class="text-lg font-bold text-gray-800">⚠️ ลงทะเบียนแล้ว แต่ KPAC ไม่ครบ <span id="badkpac-count" class="text-sm font-semibold text-red-600"></span></h4>
+           <p class="text-xs text-gray-500 mt-0.5">กรอกไม่ครบทั้ง 4 ช่อง (K/P/A/C) หรือรวมไม่เท่ากับที่วิชานั้นกำหนดไว้ (100 − M% − F%)</p>
+          </div>
+          <button onclick="exportBadKpacExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
+         </div>
+         <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+          <table class="w-full text-xs">
+           <thead class="bg-gray-100">
+            <tr>
+             <th class="px-1 py-2 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+             <th class="px-1 py-2 text-left whitespace-nowrap">รหัส</th>
+             <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง</th>
+             <th class="px-1 py-2 text-left">วิชา</th>
+             <th class="px-1 py-2 text-center">K</th>
+             <th class="px-1 py-2 text-center">P</th>
+             <th class="px-1 py-2 text-center">A</th>
+             <th class="px-1 py-2 text-center">C</th>
+             <th class="px-1 py-2 text-center whitespace-nowrap">รวม</th>
+             <th class="px-1 py-2 text-center whitespace-nowrap">ต้องได้</th>
+             <th class="px-1 py-2 text-left">ปัญหา</th>
+             <th class="px-1 py-2 text-center">แก้ไข</th>
+            </tr>
+           </thead>
+           <tbody id="badkpac-tbody"></tbody>
+          </table>
+         </div>
+        </div>
         </div>
         <div id="students-subtab-applicants" class="hidden">
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -2901,7 +2932,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.03.193';
+    const APP_VERSION = 'SUPABASE-2026.10.04.194';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -19871,6 +19902,97 @@ function _examResultIdentityHtml(sub, set) {
       ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
     }
 
+
+    // ══════════════════════════════════════════════════════════════
+    // ⚠️ นักเรียนที่ลงทะเบียนแล้ว แต่กำหนด KPAC ไม่ครบ
+    //    เดิมคนกลุ่มนี้ไม่โผล่ในแท็บ "ยังไม่ลงทะเบียน" เพราะมีแถวลงทะเบียนอยู่แล้ว
+    //    นับว่าไม่ครบเมื่อ: กรอกไม่ครบทั้ง 4 ช่อง หรือ รวม ≠ ขีดจำกัดของวิชานั้น (100 − M% − F%)
+    // ══════════════════════════════════════════════════════════════
+    /** ขีดจำกัด K+P+A+C ของวิชาหนึ่ง (ตามชั้น/ห้องของแถวลงทะเบียนนั้น) */
+    function _kpacLimitForReg(reg) {
+      const cs = allData.find(d => d.type === 'class_subject'
+        && _rN(d.class_name) === _rN(reg.class_name)
+        && _rRoom(d.room_number) === _rRoom(reg.room_number)
+        && _rN(d.subject_name) === _rN(reg.subject_name));
+      if (!cs) return null;   // ไม่พบวิชาที่เปิดสอน — ไม่รู้ขีดจำกัด จึงไม่ตัดสิน
+      return Math.round((100 - (Number(cs.mid_percent) || 0) - (Number(cs.final_percent) || 0)) * 100) / 100;
+    }
+    /** รายการลงทะเบียนที่ KPAC ไม่ครบ พร้อมเหตุผล */
+    function incompleteKpacRegs() {
+      const out = [];
+      allData.filter(d => d.type === 'student_registration').forEach(reg => {
+        const limit = _kpacLimitForReg(reg);
+        if (limit === null) return;
+        const raw = { K: reg.k_percent, P: reg.p_percent, A: reg.a_percent, C: reg.c_percent };
+        const blanks = [];
+        let sum = 0;
+        Object.keys(raw).forEach(key => {
+          const v = raw[key];
+          const n = parseFloat(v);
+          if (v === '' || v === null || v === undefined || isNaN(n) || n <= 0) blanks.push(key);
+          else sum += n;
+        });
+        sum = Math.round(sum * 100) / 100;
+        const sumWrong = Math.abs(sum - limit) > 0.001;
+        if (blanks.length === 0 && !sumWrong) return;
+        const reasons = [];
+        if (blanks.length) reasons.push(`ยังไม่ได้กรอก ${blanks.join('/')}`);
+        if (sumWrong) reasons.push(`รวมได้ ${sum} ไม่เท่ากับ ${limit}`);
+        const student = allData.find(x => x.type === 'student' && _rN(x.student_id) === _rN(reg.student_id));
+        out.push({ reg, student, limit, sum, blanks, reasons,
+          studentName: student ? `${student.prefix || ''}${student.first_name || ''} ${student.last_name || ''}`.trim() : String(reg.student_id),
+          k: reg.k_percent, p: reg.p_percent, a: reg.a_percent, c: reg.c_percent });
+      });
+      return out.sort((x, y) =>
+        String(x.reg.class_name || '').localeCompare(String(y.reg.class_name || ''))
+        || String(x.reg.room_number || '').localeCompare(String(y.reg.room_number || ''))
+        || (parseInt(x.student?.student_number) || 0) - (parseInt(y.student?.student_number) || 0)
+        || String(x.reg.subject_name || '').localeCompare(String(y.reg.subject_name || '')));
+    }
+    function renderBadKpacTable() {
+      const tbody = document.getElementById('badkpac-tbody');
+      if (!tbody) return;
+      const list = incompleteKpacRegs();
+      const countEl = document.getElementById('badkpac-count');
+      if (countEl) countEl.textContent = list.length ? `(${list.length} รายการ)` : '';
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-gray-400 py-6">✅ ทุกคนที่ลงทะเบียนแล้ว กำหนด KPAC ครบถ้วน</td></tr>';
+        return;
+      }
+      const cell = (v, bad) => `<td class="px-1 py-1 text-center ${bad ? 'bg-red-50 text-red-600 font-bold' : ''}">${(v === '' || v === null || v === undefined) ? '-' : v}</td>`;
+      tbody.innerHTML = list.map(x => `
+        <tr class="border-t border-gray-100 hover:bg-gray-50">
+         <td class="px-1 py-1 whitespace-nowrap">${escHtml(x.studentName)}</td>
+         <td class="px-1 py-1 font-mono whitespace-nowrap">${escHtml(String(x.reg.student_id || ''))}</td>
+         <td class="px-1 py-1 text-center whitespace-nowrap">${escHtml(String(x.reg.class_name || '-'))}/${escHtml(String(x.reg.room_number || '-'))}</td>
+         <td class="px-1 py-1 leading-tight">${escHtml(String(x.reg.subject_name || ''))}</td>
+         ${cell(x.k, x.blanks.includes('K'))}
+         ${cell(x.p, x.blanks.includes('P'))}
+         ${cell(x.a, x.blanks.includes('A'))}
+         ${cell(x.c, x.blanks.includes('C'))}
+         <td class="px-1 py-1 text-center font-bold ${Math.abs(x.sum - x.limit) > 0.001 ? 'text-red-600' : 'text-gray-700'}">${x.sum}</td>
+         <td class="px-1 py-1 text-center text-gray-500">${x.limit}</td>
+         <td class="px-1 py-1 text-red-600 leading-tight">${escHtml(x.reasons.join(' · '))}</td>
+         <td class="px-1 py-1 text-center">
+           ${x.student ? `<button onclick="adminRegisterStudentPopup('${x.student.__backendId}', null, ${JSON.stringify(String(x.reg.subject_name || '')).replace(/"/g, '&quot;')})" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded whitespace-nowrap">✏️ แก้ไข</button>` : '<span class="text-gray-400">ไม่พบนักเรียน</span>'}
+         </td>
+        </tr>`).join('');
+    }
+    function exportBadKpacExcel() {
+      const list = incompleteKpacRegs();
+      if (list.length === 0) { showToast('ไม่มีรายการที่ KPAC ไม่ครบ', 'info'); return; }
+      const data = list.map(x => ({
+        'ชื่อ-นามสกุล': x.studentName, 'รหัสนักเรียน': x.reg.student_id,
+        'ชั้น': x.reg.class_name || '', 'ห้อง': x.reg.room_number || '', 'วิชา': x.reg.subject_name || '',
+        'K%': x.k ?? '', 'P%': x.p ?? '', 'A%': x.a ?? '', 'C%': x.c ?? '',
+        'รวม': x.sum, 'ต้องได้': x.limit, 'ปัญหา': x.reasons.join(' · ')
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'KPACไม่ครบ');
+      XLSX.writeFile(wb, 'ลงทะเบียนแล้วแต่KPACไม่ครบ.xlsx');
+    }
+
     function renderNoEnrollTable() {
       const tbody = document.getElementById('noenroll-tbody');
       if (!tbody) return;
@@ -19909,9 +20031,11 @@ function _examResultIdentityHtml(sub, set) {
         (a.room_number||'').localeCompare(b.room_number||'') ||
         (parseInt(a.student_number)||0) - (parseInt(b.student_number)||0));
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ นักเรียนทุกคนลงทะเบียนครบแล้ว</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ ไม่มีนักเรียนที่ยังไม่ได้ลงทะเบียนวิชาเลย</td></tr>';
+        renderBadKpacTable();   // ยังต้องวาดตารางด้านล่าง เพราะคนที่ KPAC ไม่ครบคนละกลุ่มกัน
         return;
       }
+      renderBadKpacTable();
       tbody.innerHTML = list.map(s => `
         <tr class="border-t border-gray-100 hover:bg-gray-50">
          <td class="px-2 py-2 text-center"><input type="checkbox" class="noenroll-cb w-4 h-4" data-sid="${s.student_id}" data-class="${s.class_name||''}" data-room="${s.room_number||''}" onchange="updateNoEnrollCount()"></td>
@@ -21228,7 +21352,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     // ----- แอดมินลงทะเบียนวิชาให้นักเรียนแทน (ไม่ติดเงื่อนไขวันที่เปิด-ปิดลงทะเบียน) -----
-    function adminRegisterStudentPopup(studentBackendId, requestId) {
+    function adminRegisterStudentPopup(studentBackendId, requestId, preselectSubject) {
       const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
       if (!student) return;
       // ⚠️ บั๊กที่แก้แล้ว: เดิมดึงรายวิชาจากข้อมูลประเภท 'subject' ที่เก็บแยก ซึ่งหลังย้ายมา Supabase ไม่มีข้อมูลชุดนี้
@@ -21260,7 +21384,13 @@ function _examResultIdentityHtml(sub, set) {
       `;
       document.body.appendChild(editDiv);
       if (availableSubjects.length > 0) {
-        document.getElementById('admin-reg-subject-select').onchange = () => updateAdminRegForm(studentBackendId, requestId);
+        const sel = document.getElementById('admin-reg-subject-select');
+        sel.onchange = () => updateAdminRegForm(studentBackendId, requestId);
+        // ✏️ มาจากปุ่มแก้ไขของตาราง "KPAC ไม่ครบ" — เลือกวิชานั้นไว้ให้เลย ไม่ต้องหาเอง
+        if (preselectSubject && Array.prototype.some.call(sel.options, o => o.value === preselectSubject)) {
+          sel.value = preselectSubject;
+          updateAdminRegForm(studentBackendId, requestId);
+        }
       }
     }
     function updateAdminRegForm(studentBackendId, requestId) {
