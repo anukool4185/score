@@ -1236,6 +1236,7 @@
 
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)</h3>
+        <p id="mf-filter-term-note" class="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mb-3"></p>
         <div class="grid md:grid-cols-2 gap-6 mb-6">
          <div>
           <h4 class="text-lg font-semibold text-gray-800 mb-4">🔽 ตัวกรอง</h4>
@@ -1276,6 +1277,7 @@
       <div id="admin-tab-hours" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">⏰ จัดการหน่วยกิตและเวลา</h3>
+        <p id="hours-filter-term-note" class="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mb-3"></p>
         <div class="grid md:grid-cols-2 gap-6 mb-6">
          <div>
           <h4 class="text-lg font-semibold text-gray-800 mb-4">🔽 ตัวกรอง</h4>
@@ -1316,6 +1318,7 @@
       <div id="admin-tab-scores" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">📊 ตั้งค่าคะแนนเต็ม</h3>
+        <p id="scores-filter-term-note" class="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mb-3"></p>
         <div class="grid md:grid-cols-3 gap-4 mb-6"><select id="filter-class-scores" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกชั้นเรียน --</option> </select> <select id="filter-room-scores" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกห้องเรียน --</option> </select> <select id="filter-subject-scores" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"> <option value="">-- เลือกวิชา --</option> </select>
         </div>
         <div id="scores-settings-container" class="mb-6">
@@ -3062,7 +3065,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.213';
+    const APP_VERSION = 'SUPABASE-2026.10.05.214';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -9078,7 +9081,30 @@ const supabaseDataSdk = {
     // ============================================================
     function getAllClassRoomSubjectCombos() {
       // ดึงชุดชั้น/ห้อง/วิชา ที่มีอยู่จริงในระบบ (จาก class_subject) มาให้เลือกกรอง/เพิ่มการบ้าน
+      // 📅 allData ของชนิดนี้ถูกคัดตามปี/ภาคที่กำลังทำงานอยู่แล้ว (ดู _scopeConfigRows)
       return allData.filter(d => d.type === 'class_subject');
+    }
+    /** 📅 รายชื่อ ชั้น / ห้อง / วิชา ของปี/ภาคที่กำลังทำงานอยู่
+     *  ⚠️ ต้องใช้ตัวนี้แทนการอ่านทะเบียน class/room/subject ตรงๆ
+     *     เพราะทะเบียนนั้นเป็นชุดเดียวทั้งระบบ ไม่มีปี/ภาคกำกับ
+     *     ถ้าอ่านจากทะเบียน ดรอปดาวน์จะโชว์ชั้น/ห้อง/วิชาของทุกปีทุกภาครวมกัน */
+    function _termCRS() {
+      const cs = allData.filter(d => d.type === 'class_subject');
+      const uniq = arr => [...new Set(arr.map(v => String(v == null ? '' : v).trim()).filter(Boolean))];
+      const thSort = (a, b) => String(a).localeCompare(String(b), 'th', { numeric: true });
+      return {
+        combos: cs,
+        classes: uniq(cs.map(d => d.class_name)).sort(thSort),
+        rooms: uniq(cs.map(d => d.room_number)).sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0) || thSort(a, b)),
+        subjects: uniq(cs.map(d => d.subject_name)).sort(thSort)
+      };
+    }
+    /** ป้ายบอกว่ารายการในดรอปดาวน์เป็นของปี/ภาคไหน (ใช้ซ้ำได้ทุกหน้า) */
+    function _termFilterNote(count) {
+      const label = (typeof workingTermLabel === 'function') ? workingTermLabel() : '';
+      return count
+        ? `📅 รายการด้านล่างเป็นของ ${label} (${count} รายวิชา)`
+        : `⚠️ ${label} ยังไม่มีรายวิชา — ไปที่เมนู "📥 นำเข้าข้อมูลวิชา" เพื่อเพิ่มก่อน`;
     }
     function populateNewAdminClassOptions() {
       const classSelect = document.getElementById('new-admin-class');
@@ -22842,27 +22868,15 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     function loadMFFilters() {
-      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมดึงจากข้อมูลประเภท class/room/subject ที่เก็บแยกต่างหาก
-      // แต่หลังย้ายมา Supabase ข้อมูลเหล่านี้อาจไม่มี ทำให้หน้าตั้งค่า M/F ว่างเปล่า บันทึกไม่ได้
-      // แก้โดยดึงจาก "รายวิชาที่เปิดสอนจริง" เป็นหลัก ซึ่งมีข้อมูลครบเสมอ
-      let classRecords = allData.filter(d => d.type === 'class');
-      let roomRecords = allData.filter(d => d.type === 'room');
-      let subjectRecords = allData.filter(d => d.type === 'subject');
-
-      const csList = allData.filter(d => d.type === 'class_subject');
-      if (classRecords.length === 0) {
-        classRecords = [...new Set(csList.map(d => d.class_name).filter(Boolean))].sort()
-          .map(v => ({ class_name: v }));
-      }
-      if (roomRecords.length === 0) {
-        roomRecords = [...new Set(csList.map(d => String(d.room_number)).filter(Boolean))]
-          .sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0))
-          .map(v => ({ room_number: v }));
-      }
-      if (subjectRecords.length === 0) {
-        subjectRecords = [...new Set(csList.map(d => d.subject_name).filter(Boolean))].sort()
-          .map(v => ({ subject_name: v }));
-      }
+      // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมดึงจากทะเบียน class/room/subject ที่เก็บแยกต่างหาก
+      // ซึ่งเป็นชุดเดียวทั้งระบบ ไม่มีปี/ภาคกำกับ ทำให้ดรอปดาวน์โชว์ชั้น/ห้อง/วิชาของทุกปีทุกภาครวมกัน
+      // 📅 แก้โดยดึงจาก "รายวิชาที่เปิดสอนจริงในปี/ภาคที่กำลังทำงานอยู่" เท่านั้น
+      const _crs = _termCRS();
+      const classRecords = _crs.classes.map(v => ({ class_name: v }));
+      const roomRecords = _crs.rooms.map(v => ({ room_number: v }));
+      const subjectRecords = _crs.subjects.map(v => ({ subject_name: v }));
+      const _note = document.getElementById('mf-filter-term-note');
+      if (_note) _note.textContent = _termFilterNote(_crs.combos.length);
       const classCheckboxes = document.getElementById('mf-class-checkboxes');
       const roomCheckboxes = document.getElementById('mf-room-checkboxes');
       const subjectCheckboxes = document.getElementById('mf-subject-checkboxes');
@@ -23128,14 +23142,13 @@ function _examResultIdentityHtml(sub, set) {
     }
     // ======= HOURS MANAGEMENT FUNCTIONS =======
     function loadHoursFilters() {
-      // ⚠️ ใช้วิธีเดียวกับหน้าตั้งค่า M/F: ถ้าไม่มีข้อมูลแยก ให้ดึงจากรายวิชาที่เปิดสอนจริง
-      let classRecords = allData.filter(d => d.type === 'class');
-      let roomRecords = allData.filter(d => d.type === 'room');
-      let subjectRecords = allData.filter(d => d.type === 'subject');
-      const _csAll = allData.filter(d => d.type === 'class_subject');
-      if (classRecords.length === 0) classRecords = [...new Set(_csAll.map(d => d.class_name).filter(Boolean))].sort().map(v => ({ class_name: v }));
-      if (roomRecords.length === 0) roomRecords = [...new Set(_csAll.map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0)).map(v => ({ room_number: v }));
-      if (subjectRecords.length === 0) subjectRecords = [...new Set(_csAll.map(d => d.subject_name).filter(Boolean))].sort().map(v => ({ subject_name: v }));
+      // 📅 เหมือนหน้าตั้งค่า M/F: ใช้เฉพาะรายวิชาของปี/ภาคที่กำลังทำงานอยู่
+      const _crs = _termCRS();
+      const classRecords = _crs.classes.map(v => ({ class_name: v }));
+      const roomRecords = _crs.rooms.map(v => ({ room_number: v }));
+      const subjectRecords = _crs.subjects.map(v => ({ subject_name: v }));
+      const _note = document.getElementById('hours-filter-term-note');
+      if (_note) _note.textContent = _termFilterNote(_crs.combos.length);
       const classCheckboxes = document.getElementById('hours-class-checkboxes');
       const roomCheckboxes = document.getElementById('hours-room-checkboxes');
       const subjectCheckboxes = document.getElementById('hours-subject-checkboxes');
@@ -23501,24 +23514,28 @@ function _examResultIdentityHtml(sub, set) {
       return arr.reduce((sum, v) => sum + (v === '' || v === undefined ? 0 : (parseFloat(v) || 0)), 0);
     }
     function loadScoresFilters() {
-      // ⚠️ ใช้วิธีเดียวกับหน้าตั้งค่า M/F: ถ้าไม่มีข้อมูลแยก ให้ดึงจากรายวิชาที่เปิดสอนจริง
-      let classRecords = allData.filter(d => d.type === 'class');
-      let roomRecords = allData.filter(d => d.type === 'room');
-      let subjectRecords = allData.filter(d => d.type === 'subject');
-      const _csAll = allData.filter(d => d.type === 'class_subject');
-      if (classRecords.length === 0) classRecords = [...new Set(_csAll.map(d => d.class_name).filter(Boolean))].sort().map(v => ({ class_name: v }));
-      if (roomRecords.length === 0) roomRecords = [...new Set(_csAll.map(d => String(d.room_number)).filter(Boolean))].sort((a,b) => (parseInt(a)||0)-(parseInt(b)||0)).map(v => ({ room_number: v }));
-      if (subjectRecords.length === 0) subjectRecords = [...new Set(_csAll.map(d => d.subject_name).filter(Boolean))].sort().map(v => ({ subject_name: v }));
+      // 📅 เหมือนหน้าตั้งค่า M/F: ใช้เฉพาะรายวิชาของปี/ภาคที่กำลังทำงานอยู่
+      const _crs = _termCRS();
+      const classRecords = _crs.classes.map(v => ({ class_name: v }));
+      const roomRecords = _crs.rooms.map(v => ({ room_number: v }));
+      const subjectRecords = _crs.subjects.map(v => ({ subject_name: v }));
       const classSelect = document.getElementById('filter-class-scores');
       const roomSelect = document.getElementById('filter-room-scores');
       const subjectSelect = document.getElementById('filter-subject-scores');
       if (!classSelect || !roomSelect || !subjectSelect) return;
+      const _note = document.getElementById('scores-filter-term-note');
+      if (_note) _note.textContent = _termFilterNote(_crs.combos.length);
+      // คงค่าที่ครูเลือกไว้ถ้ายังมีอยู่ในเทอมใหม่
+      const keep = { c: classSelect.value, r: roomSelect.value, s: subjectSelect.value };
       classSelect.innerHTML = '<option value="">-- เลือกชั้นเรียน --</option>' + 
         classRecords.map(c => `<option value="${c.class_name}">${c.class_name}</option>`).join('');
       roomSelect.innerHTML = '<option value="">-- เลือกห้องเรียน --</option>' + 
         roomRecords.map(r => `<option value="${r.room_number}">${r.room_number}</option>`).join('');
       subjectSelect.innerHTML = '<option value="">-- เลือกวิชา --</option>' + 
         subjectRecords.map(s => `<option value="${s.subject_name}">${s.subject_name}</option>`).join('');
+      if (_crs.classes.includes(keep.c)) classSelect.value = keep.c;
+      if (_crs.rooms.includes(keep.r)) roomSelect.value = keep.r;
+      if (_crs.subjects.includes(keep.s)) subjectSelect.value = keep.s;
       classSelect.onchange = updateScoresSettings;
       roomSelect.onchange = updateScoresSettings;
       subjectSelect.onchange = updateScoresSettings;
@@ -25178,7 +25195,9 @@ function _examResultIdentityHtml(sub, set) {
     // ======= TIMEKEEPING MANAGEMENT FUNCTIONS (ลงเวลาเรียน) =======
     function loadTimekeepingFilters() {
       // ดึงชั้นเรียน/ห้องเรียน/วิชา จาก student_registration เท่านั้น
-      const registrations = allData.filter(d => d.type === 'student_registration');
+      // 📅 เฉพาะปี/ภาคที่กำลังดูอยู่ ไม่งั้นจะเห็นห้อง/วิชาของทุกเทอมรวมกัน
+      const registrations = allData.filter(d => d.type === 'student_registration')
+        .filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       const uniqueClasses = new Set();
       const uniqueRooms = new Set();
       const uniqueSubjects = new Set();
@@ -25214,11 +25233,11 @@ function _examResultIdentityHtml(sub, set) {
         updateTimekeepingStudents();
         return;
       }
-      // ดึงห้องจาก student_registration ที่ตรงกับชั้นเรียนนี้
+      // ดึงห้องจาก student_registration ที่ตรงกับชั้นเรียนนี้ (📅 เฉพาะปี/ภาคที่กำลังดู)
       const registrations = allData.filter(d => 
         d.type === 'student_registration' && 
         d.class_name === selectedClass
-      );
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       const uniqueRooms = new Set();
       registrations.forEach(reg => {
         if (reg.room_number) uniqueRooms.add(reg.room_number);
@@ -25466,8 +25485,9 @@ function _examResultIdentityHtml(sub, set) {
     }
     // ======= ATTENDANCE MANAGEMENT FUNCTIONS =======
     function loadAttendanceFilters() {
-      // ดึงชั้นเรียนจากการลงทะเบียนนักเรียน
-      const registrations = allData.filter(d => d.type === 'student_registration');
+      // ดึงชั้นเรียนจากการลงทะเบียนนักเรียน (📅 เฉพาะปี/ภาคที่กำลังดูอยู่)
+      const registrations = allData.filter(d => d.type === 'student_registration')
+        .filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       const uniqueClasses = new Set();
       const uniqueRooms = new Set();
       const uniqueSubjects = new Set();
@@ -25505,7 +25525,7 @@ function _examResultIdentityHtml(sub, set) {
       const registrations = allData.filter(d => 
         d.type === 'student_registration' && 
         d.class_name === selectedClass
-      );
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);   // 📅 เฉพาะปี/ภาคที่กำลังดู
       const uniqueRooms = new Set();
       registrations.forEach(reg => {
         if (reg.room_number) uniqueRooms.add(reg.room_number);
