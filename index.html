@@ -1307,7 +1307,8 @@
       </div><!-- 📅 ตารางลงทะเบียน -->
       <div id="admin-tab-schedule" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">📅 ตั้งค่าช่วงเวลาลงทะเบียน</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📅 ตั้งค่าช่วงเวลาลงทะเบียน</h3>
+        <p id="schedule-term-note" class="text-sm mb-4"></p>
         <div class="grid md:grid-cols-2 gap-4 mb-6">
          <div><label class="block text-sm font-medium text-gray-700 mb-2">📍 วันเริ่มต้น</label> <input type="date" id="registration-start-date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
          </div>
@@ -2053,7 +2054,14 @@
            <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
             <p class="text-sm font-semibold text-gray-700 mb-2">1️⃣ ต้นทาง</p>
             <label class="block text-xs text-gray-600 mb-1">ปี/ภาค ต้นทาง</label>
-            <select id="transfer-src" onchange="renderTransferPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3"></select>
+            <select id="transfer-src" onchange="renderTransferPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2"></select>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+             <div><label class="block text-xs text-gray-600 mb-1">เฉพาะชั้น</label>
+              <select id="transfer-f-class" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select></div>
+             <div><label class="block text-xs text-gray-600 mb-1">เฉพาะห้อง</label>
+              <select id="transfer-f-room" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
+            </div>
+            <p class="text-[11px] text-gray-500 mb-2">ไม่ต้องโอนทั้งหมดก็ได้ — เลือกเฉพาะห้องที่สอนต่อ แล้วโอนทีละรอบ (ห้องใหม่ที่ไม่เคยมี ใช้เพิ่มรายชื่อตามปกติ)</p>
             <div class="flex gap-2 flex-wrap">
              <button onclick="toggleTransferAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ เลือกทั้งหมด</button>
              <button onclick="toggleTransferAll(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ ยกเลิกทั้งหมด</button>
@@ -3020,7 +3028,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.197';
+    const APP_VERSION = 'SUPABASE-2026.10.05.198';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -20170,11 +20178,15 @@ function _examResultIdentityHtml(sub, set) {
       renderBackfillBox();
       renderTransferPicker();
     }
-    /** นักเรียนของปี/ภาคต้นทางที่เลือกไว้ */
+    /** นักเรียนของปี/ภาคต้นทางที่เลือกไว้ (กรองเฉพาะชั้น/ห้องได้ เพื่อโอนทีละห้อง) */
     function _transferSourceStudents() {
       const v = document.getElementById('transfer-src')?.value || '';
       if (!v) return [];
-      return allData.filter(d => d.type === 'student' && (v === '__blank' ? _termKey(d) === '|' : _termKey(d) === v))
+      const fc = String(document.getElementById('transfer-f-class')?.value || '').trim();
+      const fr = String(document.getElementById('transfer-f-room')?.value || '').trim();
+      return allData.filter(d => d.type === 'student' && (v === '__blank' ? _termKey(d) === '|' : _termKey(d) === v)
+          && (!fc || _rN(d.class_name) === _rN(fc))
+          && (!fr || _rRoom(d.room_number) === _rRoom(fr)))
         .sort((a, b) => String(a.class_name || '').localeCompare(String(b.class_name || ''))
           || String(a.room_number || '').localeCompare(String(b.room_number || ''))
           || (parseInt(a.student_number) || 0) - (parseInt(b.student_number) || 0));
@@ -20182,6 +20194,21 @@ function _examResultIdentityHtml(sub, set) {
     function renderTransferPicker() {
       const tbody = document.getElementById('transfer-tbody');
       if (!tbody) return;
+      // เติมตัวเลือกชั้น/ห้องจากคนในปี/ภาคต้นทางที่เลือกไว้
+      const v = document.getElementById('transfer-src')?.value || '';
+      const pool = allData.filter(d => d.type === 'student' && (v === '__blank' ? _termKey(d) === '|' : _termKey(d) === v));
+      const cSel = document.getElementById('transfer-f-class');
+      const rSel = document.getElementById('transfer-f-room');
+      if (cSel && rSel) {
+        const keepC = cSel.value, keepR = rSel.value;
+        const classes = [...new Set(pool.map(d => d.class_name).filter(Boolean))].sort();
+        cSel.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+        cSel.value = classes.includes(keepC) ? keepC : '';
+        const rooms = [...new Set(pool.filter(d => !cSel.value || _rN(d.class_name) === _rN(cSel.value))
+          .map(d => d.room_number).filter(Boolean))].sort();
+        rSel.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option value="${escHtml(String(r))}">${escHtml(String(r))}</option>`).join('');
+        rSel.value = rooms.map(String).includes(String(keepR)) ? keepR : '';
+      }
       const list = _transferSourceStudents();
       if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-6">ไม่มีรายชื่อในปี/ภาคที่เลือก</td></tr>';
@@ -25216,8 +25243,28 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
+    /** 📅 ช่วงเวลาลงทะเบียนของปี/ภาคหนึ่ง — ถ้าไม่มีของภาคนั้น ใช้ของเดิมที่ยังไม่ระบุปี/ภาคเป็นทางสำรอง */
+    function _scheduleOfTerm(termKey) {
+      const all = allData.filter(d => d.type === 'registration_schedule');
+      return all.find(d => _termKey(d) === termKey) || all.find(d => _termKey(d) === '|') || null;
+    }
+    /** ช่วงเวลาของ "ภาคที่กำลังทำงานอยู่" (ฝั่งนักเรียน = ภาคที่เปิดใช้งาน) */
+    function currentSchedule() { return _scheduleOfTerm(workingTermKey()); }
+
     function loadScheduleData() {
-      const scheduleRecord = allData.find(d => d.type === 'registration_schedule');
+      const scheduleRecord = allData.find(d => d.type === 'registration_schedule' && _termKey(d) === workingTermKey()) || null;
+      const note = document.getElementById('schedule-term-note');
+      if (note) {
+        const inherited = !scheduleRecord && _scheduleOfTerm(workingTermKey());
+        note.innerHTML = `กำลังตั้งค่าของ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
+          + (scheduleRecord ? '' : inherited
+              ? ' · <span style="color:#b45309">ยังไม่มีช่วงเวลาของภาคนี้ ระบบใช้ค่าเดิมที่ยังไม่ระบุปี/ภาคไปก่อน — กดบันทึกเพื่อตั้งของภาคนี้โดยเฉพาะ</span>'
+              : ' · <span style="color:#b45309">ยังไม่เคยตั้งช่วงเวลา (นักเรียนลงทะเบียนได้ตลอด)</span>');
+      }
+      if (!scheduleRecord) {
+        ['registration-start-date','registration-end-date','registration-start-time','registration-end-time']
+          .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      }
       
       if (scheduleRecord) {
         document.getElementById('registration-start-date').value = scheduleRecord.start_date || '';
@@ -25241,7 +25288,9 @@ function _examResultIdentityHtml(sub, set) {
         showToast('กรุณากรอกข้อมูลให้ครบ', 'error');
         return;
       }
-      const existing = allData.find(d => d.type === 'registration_schedule');
+      // 📅 หนึ่งช่วงเวลาต่อหนึ่งปี/ภาค — ของภาคอื่นไม่ถูกแตะ
+      const existing = allData.find(d => d.type === 'registration_schedule' && _termKey(d) === workingTermKey());
+      const [_wy, _ws] = workingTermKey().split('|');
       const result = existing
         ? await window.dataSdk.update({
             ...existing,
@@ -25255,7 +25304,9 @@ function _examResultIdentityHtml(sub, set) {
             start_date: startDate,
             end_date: endDate,
             start_time: startTime,
-            end_time: endTime
+            end_time: endTime,
+            academic_year: _wy,
+            semester: _ws
           });
       if (result.isOk) {
         // แสดงข้อความสำเร็จสั้นๆ
@@ -25305,7 +25356,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function updateScheduleDisplay() {
-      const scheduleRecord = allData.find(d => d.type === 'registration_schedule');
+      const scheduleRecord = currentSchedule();
       const scheduleInfo = document.getElementById('schedule-info');
       if (!scheduleRecord) {
         scheduleInfo.innerHTML = '<p class="text-center text-gray-400">ยังไม่มีการตั้งค่า</p>';
@@ -25557,7 +25608,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!student || temps.length === 0) return;
 
       // ช่วงเวลาลงทะเบียนที่แอดมินกำหนด
-      const sch = allData.find(d => d.type === 'registration_schedule');
+      const sch = currentSchedule();
       const fmtD = (s) => s ? new Date(s).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
       const schText = sch
         ? `${fmtD(sch.start_date)} เวลา ${sch.start_time || '00:00'} น. ถึง ${fmtD(sch.end_date)} เวลา ${sch.end_time || '23:59'} น.`
@@ -27174,7 +27225,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     function isRegistrationOpen() {
-      const scheduleRecord = allData.find(d => d.type === 'registration_schedule');
+      const scheduleRecord = currentSchedule();   // 📅 ช่วงเวลาของภาคที่เปิดใช้งาน
       if (!scheduleRecord) return true; // ถ้าไม่มีการตั้งค่า ให้เปิดได้เสมอ
       const now = new Date();
       const startDate = new Date(scheduleRecord.start_date);
@@ -27189,7 +27240,7 @@ function _examResultIdentityHtml(sub, set) {
       return now >= startDate && now <= endDate;
     }
     function getRegistrationStatusMessage() {
-      const scheduleRecord = allData.find(d => d.type === 'registration_schedule');
+      const scheduleRecord = currentSchedule();   // 📅 ช่วงเวลาของภาคที่เปิดใช้งาน
       if (!scheduleRecord) return null;
       const now = new Date();
       const startDate = new Date(scheduleRecord.start_date);
@@ -27579,10 +27630,25 @@ function _examResultIdentityHtml(sub, set) {
       });
       existingItems.forEach(el => el.remove());
     }
+    /** 🔒 นักเรียนแก้การลงทะเบียนแถวนี้ได้ไหม — ได้เฉพาะของภาคที่เปิดใช้งาน และยังอยู่ในช่วงเวลา
+     *  ภาคที่ผ่านไปแล้วนักเรียนแตะไม่ได้เลย (แอดมินยังแก้ได้ตามปกติ ไม่ติดเงื่อนไขวันที่) */
+    function studentCanEditRegistration(reg) {
+      if (!reg) return { ok: false, why: 'ไม่พบรายการลงทะเบียน' };
+      const t = activeTerm();
+      const activeKey = t.year + '|' + t.semester;
+      if (_termKey(reg) !== activeKey) {
+        return { ok: false, why: `⛔ รายการนี้เป็นของ${termLabel(reg.academic_year, reg.semester)} ซึ่งปิดไปแล้ว นักเรียนแก้ไขเองไม่ได้ กรุณาติดต่อครูผู้สอน` };
+      }
+      if (!isRegistrationOpen()) {
+        return { ok: false, why: '⛔ ปิดช่วงเวลาลงทะเบียนของภาคนี้แล้ว ไม่สามารถแก้ไขได้ กรุณาติดต่อครูผู้สอน' };
+      }
+      return { ok: true, why: '' };
+    }
     function studentEditRegistration(regId) {
-      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถแก้ไขได้', 'error'); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
+      const gate = studentCanEditRegistration(reg);
+      if (!gate.ok) { showToast(gate.why, 'error'); return; }
       const mfData = allData.find(d => d.type === 'class_subject' && d.class_subject_id === reg.class_subject_id);
       
       if (!mfData) {
@@ -27669,9 +27735,10 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     function studentDeleteRegistration(regId) {
-      if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถลบได้', 'error'); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
+      const gate = studentCanEditRegistration(reg);
+      if (!gate.ok) { showToast(gate.why.replace('แก้ไข', 'ลบ'), 'error'); return; }
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       confirmDiv.innerHTML = `
