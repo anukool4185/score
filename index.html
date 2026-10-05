@@ -1119,7 +1119,8 @@
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-4">📥 นำเข้าข้อมูลวิชา</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📥 นำเข้าข้อมูลวิชา</h3>
+        <p id="import-term-note" class="text-sm mb-3"></p>
         <p class="text-gray-600 text-sm mb-4">📝 รูปแบบไฟล์ .txt (แต่ละบรรทัด: ชั้นเรียน,ห้องเรียน,วิชา,ประเภท)</p><input type="file" id="text-file" accept=".txt" onchange="handleTextFileUpload(event)" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl mb-4">
         <div id="import-preview" class="hidden mb-4">
          <div id="preview-table" class="border-2 border-gray-200 rounded-lg overflow-x-auto mb-4"></div>
@@ -2044,8 +2045,12 @@
             <div><label class="block text-xs text-gray-600 mb-1">เฉพาะห้อง</label>
              <select id="backfill-room" onchange="renderBackfillBox()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
            </div>
+           <label class="flex items-center gap-2 text-xs text-gray-700 mb-1 cursor-pointer">
+            <input type="checkbox" id="backfill-include-regs" checked onchange="renderBackfillBox()" class="w-4 h-4"> ใส่ให้การลงทะเบียนและแถวคะแนนของคนเหล่านี้ด้วย
+           </label>
            <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
-            <input type="checkbox" id="backfill-include-regs" checked onchange="renderBackfillBox()" class="w-4 h-4"> ใส่ให้การลงทะเบียนของคนเหล่านี้ด้วย
+            <input type="checkbox" id="backfill-include-config" onchange="renderBackfillBox()" class="w-4 h-4"> ใส่ให้ <b>รายวิชา · คะแนนเต็ม · หน่วยกิต</b> ที่ยังไม่ระบุปี/ภาค ด้วย
+            <span class="text-gray-400">(ทำแล้วเทอมอื่นจะไม่เห็นวิชาชุดนี้อีก)</span>
            </label>
            <button onclick="runBackfillTerm()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold btn-3d">📅 ใส่ปี/ภาคให้ข้อมูลที่ยังไม่ระบุ</button>
            <p id="backfill-info" class="text-xs mt-2"></p>
@@ -3034,7 +3039,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.203';
+    const APP_VERSION = 'SUPABASE-2026.10.05.204';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -19028,6 +19033,7 @@ function _examResultIdentityHtml(sub, set) {
         if (!window.__fullScoreSyncRepaired) { window.__fullScoreSyncRepaired = true; repairSingularFullScoreSync(true); }
       } else if (tabName === 'import') {
         updateImportedData();
+        renderImportTermNote();   // 📅 บอกว่ากำลังนำเข้าเข้าเทอมไหน
       } else if (tabName === 'evaltopics') {
         loadEvalTopicsTab();
       } else if (tabName === 'studentdata') {
@@ -19180,8 +19186,10 @@ function _examResultIdentityHtml(sub, set) {
       await withButtonLock(document.getElementById('addcs-btn'), '⏳ กำลังเพิ่ม...', async () => {
         let added = 0, dup = 0, fail = 0;
         for (const roomNumber of rooms) {
+          // 📅 ซ้ำเฉพาะเมื่ออยู่ปี/ภาคเดียวกัน — เทอมใหม่ต้องเพิ่มวิชาเดิมซ้ำได้
           const exists = allData.some(d => d.type === 'class_subject' && N(d.class_name) === N(className)
-            && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName));
+            && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName)
+            && (typeof sameWorkingTerm === 'function' ? sameWorkingTerm(d) : true));
           if (exists) { dup++; continue; }
           const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
           const r1 = await window.dataSdk.create({ type: 'class_subject', class_subject_id: classSubjectId,
@@ -19238,9 +19246,11 @@ function _examResultIdentityHtml(sub, set) {
       try {
         // ลบข้อมูลเก่าทั้งหมด (M/F, หน่วยกิต, คะแนน)
         document.getElementById('import-step-1').textContent = '🔄 กำลังดำเนินการ...';
-        const oldMFRecords = allData.filter(d => d.type === 'class_subject');
-        const oldHoursRecords = allData.filter(d => d.type === 'class_subject_hours');
-        const oldScoresRecords = allData.filter(d => d.type === 'class_subject_scores');
+        // 📅 ลบเฉพาะชุดของปี/ภาคที่กำลังทำงานอยู่ — ชุดของเทอมอื่นต้องอยู่ครบ ไม่งั้นเกรดเก่าพัง
+        const _inTerm = d => (typeof sameWorkingTerm === 'function') ? sameWorkingTerm(d) : true;
+        const oldMFRecords = allData.filter(d => d.type === 'class_subject' && _inTerm(d));
+        const oldHoursRecords = allData.filter(d => d.type === 'class_subject_hours' && _inTerm(d));
+        const oldScoresRecords = allData.filter(d => d.type === 'class_subject_scores' && _inTerm(d));
         for (const record of oldMFRecords) {
           await window.dataSdk.delete(record);
         }
@@ -20202,7 +20212,11 @@ function _examResultIdentityHtml(sub, set) {
       // 📅 แถวคะแนนของคนเหล่านี้ต้องใส่ปี/ภาคไปด้วย ไม่งั้นพอการลงทะเบียนมีปี/ภาคแล้ว
       //    ระบบจะหาคะแนนเดิมไม่เจอ (เพราะคนละปี/ภาค) แล้วขึ้นเป็นคะแนนว่าง
       const grades = withRegs ? allData.filter(d => d.type === 'grade' && match(d)) : [];
-      return { students, regs, grades, cls, room };
+      // 🧩 ค่าตั้งต้นของรายวิชา (รายวิชา/คะแนนเต็ม — หน่วยกิตอยู่แถวเดียวกับรายวิชา)
+      const withCfg = !!document.getElementById('backfill-include-config')?.checked;
+      const cfgs = withCfg ? (window.__allRaw || allData).filter(d =>
+        (d.type === 'class_subject' || d.type === 'class_subject_scores') && match(d)) : [];
+      return { students, regs, grades, cfgs, cls, room };
     }
     function renderBackfillBox() {
       const clsSel = document.getElementById('backfill-class');
@@ -20225,11 +20239,14 @@ function _examResultIdentityHtml(sub, set) {
       const tg = _blankTermTargets();
       const info = document.getElementById('backfill-info');
       if (info) {
-        info.innerHTML = (tg.students.length === 0 && tg.regs.length === 0 && tg.grades.length === 0)
+        const totalAll = tg.students.length + tg.regs.length + tg.grades.length + tg.cfgs.length;
+        info.innerHTML = (totalAll === 0)
           ? '<span style="color:#15803d">✅ ไม่มีข้อมูลที่ยังไม่ระบุปี/ภาคตามตัวกรองนี้</span>'
           : `<span style="color:#92400e">จะใส่ให้ <b>นักเรียน ${tg.students.length} คน</b>`
             + (document.getElementById('backfill-include-regs')?.checked
                 ? ` · <b>การลงทะเบียน ${tg.regs.length} รายการ</b> · <b>แถวคะแนน ${tg.grades.length} แถว</b>` : '')
+            + (document.getElementById('backfill-include-config')?.checked
+                ? ` · <b>รายวิชา/คะแนนเต็ม/หน่วยกิต ${tg.cfgs.length} แถว</b>` : '')
             + '</span>';
       }
     }
@@ -20238,11 +20255,11 @@ function _examResultIdentityHtml(sub, set) {
       const sem = String(document.getElementById('backfill-sem')?.value || '').trim();
       if (!year || !sem) { showToast('กรุณากรอกปีการศึกษาและภาคเรียนที่จะใส่', 'error'); return; }
       const tg = _blankTermTargets();
-      const total = tg.students.length + tg.regs.length + tg.grades.length;
+      const total = tg.students.length + tg.regs.length + tg.grades.length + tg.cfgs.length;
       if (total === 0) { showToast('ไม่มีข้อมูลที่ยังไม่ระบุปี/ภาคตามตัวกรองนี้', 'info'); return; }
-      if (!confirm(`ใส่ ${termLabel(year, sem)} ให้นักเรียน ${tg.students.length} คน · การลงทะเบียน ${tg.regs.length} รายการ · แถวคะแนน ${tg.grades.length} แถว?`)) return;
+      if (!confirm(`ใส่ ${termLabel(year, sem)} ให้นักเรียน ${tg.students.length} คน · การลงทะเบียน ${tg.regs.length} รายการ · แถวคะแนน ${tg.grades.length} แถว · รายวิชา/คะแนนเต็ม ${tg.cfgs.length} แถว?`)) return;
       let done = 0, failed = 0;
-      for (const row of [...tg.students, ...tg.regs, ...tg.grades]) {
+      for (const row of [...tg.students, ...tg.regs, ...tg.grades, ...tg.cfgs]) {
         const res = await window.dataSdk.update({ ...row, academic_year: year, semester: sem });
         if (res.isOk) done++; else failed++;
       }
@@ -20482,6 +20499,25 @@ function _examResultIdentityHtml(sub, set) {
       { key: 'student_number', label: 'เลขที่', required: false },
       { key: 'phone_number', label: 'เบอร์โทร', required: false },
     ];
+
+    /** บอกว่ากำลังนำเข้าวิชาเข้าสู่ปี/ภาคไหน และในเทอมนั้นมีวิชาอยู่แล้วกี่รายการ */
+    function renderImportTermNote() {
+      const el = document.getElementById('import-term-note');
+      if (!el) return;
+      const key = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const mine = allData.filter(d => d.type === 'class_subject' && _termKey(d) === key).length;
+      const legacy = allData.filter(d => d.type === 'class_subject' && _termKey(d) === '|').length;
+      if (key === '|') {
+        el.innerHTML = '<span style="color:#b45309">⚠️ ยังไม่ได้ตั้ง "ปี/ภาคที่เปิดใช้งาน" — วิชาที่นำเข้าจะยังไม่ระบุปี/ภาค</span>';
+        return;
+      }
+      el.innerHTML = `นำเข้าเข้าสู่ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
+        + ` · ตอนนี้เทอมนี้มีรายวิชา <b>${mine}</b> รายการ`
+        + ` · <span style="color:#dc2626">การนำเข้าจะล้างรายวิชา/คะแนนเต็ม/หน่วยกิต <b>เฉพาะของเทอมนี้</b> แล้วสร้างใหม่ (เทอมอื่นไม่ถูกแตะ)</span>`
+        + (mine === 0 && legacy
+            ? `<br><span style="color:#b45309">ℹ️ รายวิชา ${legacy} รายการที่เห็นอยู่ตอนนี้ยังไม่ระบุปี/ภาค จึงแสดงในทุกเทอม — นำเข้าของเทอมนี้แล้วจะถูกแทนที่ หรือไปใส่ปี/ภาคให้ที่แท็บนักเรียน → โอนรายชื่อ → กล่อง 0️⃣</span>`
+            : '');
+    }
 
     function loadImportStudentTab() {
       const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
