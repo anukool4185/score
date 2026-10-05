@@ -1097,6 +1097,24 @@
     <div id="page-admin" class="page p-4 md:p-8 flex flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
+      <!-- 📅 ปีการศึกษา / ภาคเรียน — ใช้ร่วมกันทุกหน้าของแอดมิน -->
+      <div id="term-bar" class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 mb-4 flex items-end gap-4 flex-wrap">
+       <div>
+        <label class="block text-[11px] font-semibold text-indigo-900 mb-1">📅 ปี/ภาค ที่เปิดใช้งาน <span class="font-normal text-gray-500">(ประทับให้ข้อมูลใหม่ทุกครั้ง)</span></label>
+        <div class="flex gap-2">
+         <input type="text" id="term-active-year" placeholder="ปีการศึกษา เช่น 2569" class="w-40 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+         <input type="text" id="term-active-sem" placeholder="ภาคเรียน เช่น 1" class="w-32 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+         <button onclick="saveActiveTerm()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold whitespace-nowrap">💾 บันทึก</button>
+        </div>
+       </div>
+       <div>
+        <label class="block text-[11px] font-semibold text-indigo-900 mb-1">🔎 มุมมองข้อมูล <span class="font-normal text-gray-500">(เฉพาะการแสดงผล ไม่กระทบข้อมูล)</span></label>
+        <select id="term-view" onchange="changeTermView()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
+         <option value="">ทุกปี/ภาค</option>
+        </select>
+       </div>
+       <p id="term-bar-note" class="text-[11px] w-full"></p>
+      </div>
       <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สัดส่วนเกรด</button> <button onclick="showAdminTab('gradedist')" id="tab-gradedist" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🥧 สรุปเกรด</button> <button onclick="showAdminTab('charread')" id="tab-charread" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⭐ คุณลักษณะ/อ่านคิดวิเคราะห์</button> <button onclick="showAdminTab('exportdata')" id="tab-exportdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 ส่งออกข้อมูล</button> <button onclick="showAdminTab('examquestions')" id="tab-examquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗂️ คลังข้อสอบ</button> <button onclick="showAdminTab('essayquestions')" id="tab-essayquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ คลังข้อสอบอัตนัย</button> <button onclick="showAdminTab('examassign')" id="tab-examassign" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดสอบ</button> <button onclick="showAdminTab('examgrading')" id="tab-examgrading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ ตรวจข้ออัตนัย</button> <button onclick="showAdminTab('retryrequest')" id="tab-retryrequest" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📨 คำขอสอบแก้ตัว</button> <button onclick="showAdminTab('menumanager')" id="tab-menumanager" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎨 จัดการเมนู</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
@@ -1803,6 +1821,7 @@
          <button onclick="showStudentsSubTab('applicants')" id="students-subtab-btn-applicants" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📋 นักเรียนที่สมัคร</button>
          <button onclick="showStudentsSubTab('noenroll')" id="students-subtab-btn-noenroll" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📋 ยังไม่ลงทะเบียน</button>
          <button onclick="showStudentsSubTab('registrations')" id="students-subtab-btn-registrations" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 นักเรียนที่ลงทะเบียนแล้ว</button>
+         <button onclick="showStudentsSubTab('transfer')" id="students-subtab-btn-transfer" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">🔁 โอนรายชื่อข้ามปี/ภาค</button>
         </div>
 
         <!-- โหมด 0: นำเข้ารายชื่อนักเรียนจาก Excel -->
@@ -2004,6 +2023,55 @@
           </table>
          </div>
         </div>
+        </div>
+        <!-- 🔁 โอนรายชื่อข้ามปี/ภาค -->
+        <div id="students-subtab-transfer" class="hidden">
+         <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
+          <h4 class="text-lg font-bold text-gray-800">🔁 โอนรายชื่อนักเรียนข้ามภาคเรียน/ปีการศึกษา</h4>
+          <p class="text-xs text-gray-500 mt-0.5 mb-4">คัดลอกรายชื่อเดิมไปเป็นปี/ภาคใหม่ ไม่ต้องเพิ่มใหม่ทั้งหมด · <b>ไม่โอนการลงทะเบียนและคะแนน</b> (ต้องลงทะเบียนวิชาในปี/ภาคใหม่อีกครั้ง) · รายวิชาใช้ชื่อเดิมได้เลย ไม่ต้องโอน</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+           <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+            <p class="text-sm font-semibold text-gray-700 mb-2">1️⃣ ต้นทาง</p>
+            <label class="block text-xs text-gray-600 mb-1">ปี/ภาค ต้นทาง</label>
+            <select id="transfer-src" onchange="renderTransferPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3"></select>
+            <div class="flex gap-2 flex-wrap">
+             <button onclick="toggleTransferAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ เลือกทั้งหมด</button>
+             <button onclick="toggleTransferAll(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ ยกเลิกทั้งหมด</button>
+            </div>
+           </div>
+           <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+            <p class="text-sm font-semibold text-purple-800 mb-2">2️⃣ ปลายทาง</p>
+            <div class="grid grid-cols-2 gap-2 mb-2">
+             <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
+              <input type="text" id="transfer-dst-year" placeholder="เช่น 2570" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+             <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียน</label>
+              <input type="text" id="transfer-dst-sem" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+            </div>
+            <label class="block text-xs text-gray-600 mb-1">ชั้นเรียนใหม่ <span class="text-gray-400">(เว้นว่าง = ใช้ชั้นเดิม)</span></label>
+            <input type="text" id="transfer-dst-class" placeholder="เช่น ม.2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
+            <label class="block text-xs text-gray-600 mb-1">ห้องใหม่ <span class="text-gray-400">(เว้นว่าง = ใช้ห้องเดิม)</span></label>
+            <input type="text" id="transfer-dst-room" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+            <p class="text-[11px] text-gray-500 mt-2">ชื่อ-นามสกุล · รหัสนักเรียน · username/password · เบอร์โทร คงเดิมทุกอย่าง</p>
+           </div>
+          </div>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-3">
+           <table class="w-full text-xs">
+            <thead class="bg-gray-100">
+             <tr>
+              <th class="px-1 py-2 text-center"><input type="checkbox" onchange="toggleTransferAll(this.checked)" class="w-4 h-4"></th>
+              <th class="px-1 py-2 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+              <th class="px-1 py-2 text-left whitespace-nowrap">รหัส</th>
+              <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง</th>
+              <th class="px-1 py-2 text-center whitespace-nowrap">เลขที่</th>
+              <th class="px-1 py-2 text-left whitespace-nowrap">สถานะปลายทาง</th>
+             </tr>
+            </thead>
+            <tbody id="transfer-tbody"></tbody>
+           </table>
+          </div>
+          <button onclick="runTransferStudents()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold btn-3d">🔁 โอนรายชื่อที่เลือก (<span id="transfer-count">0</span> คน)</button>
+          <p id="transfer-result" class="text-xs mt-2"></p>
+         </div>
         </div>
         <div id="students-subtab-applicants" class="hidden">
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -2932,7 +3000,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.04.194';
+    const APP_VERSION = 'SUPABASE-2026.10.05.195';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3879,6 +3947,22 @@ const supabaseDataSdk = {
 
     // 🔌 ใช้ Supabase แทน Google Sheets
     window.dataSdk = supabaseDataSdk;
+    // 📅 ประทับปีการศึกษา/ภาคเรียนให้ทุกแถวนักเรียนและการลงทะเบียนที่สร้างใหม่
+    //    ครอบที่ชั้น SDK จุดเดียว จึงครบทุกเส้นทาง (นักเรียนลงเอง · แอดมิน · ผู้ช่วยแอดมิน · ลงหมู่ · มือถือ)
+    (function () {
+      const _origCreate = supabaseDataSdk.create.bind(supabaseDataSdk);
+      supabaseDataSdk.create = function (record) {
+        try { if (typeof _stampTermOnNew === 'function') _stampTermOnNew(record); } catch (e) {}
+        // 🚧 การลงทะเบียนต้องระบุปี/ภาคเสมอ — ถ้ายังไม่ได้ตั้งค่าที่เปิดใช้งาน ให้หยุดและบอกให้ชัด
+        if (record && record.type === 'student_registration'
+            && String(record.academic_year || '').trim() === '' && String(record.semester || '').trim() === '') {
+          const msg = 'ยังไม่ได้ตั้ง "ปี/ภาคที่เปิดใช้งาน" — ลงทะเบียนไม่ได้ (แอดมินตั้งที่แถบด้านบนของหน้าแอดมิน)';
+          try { showToast('⚠️ ' + msg, 'error'); } catch (e) {}
+          return Promise.resolve({ isOk: false, error: { message: msg } });
+        }
+        return _origCreate(record);
+      };
+    })();
     // ============================================================
     // 🔌 จบส่วน custom dataSdk
     // ============================================================
@@ -4077,6 +4161,7 @@ const supabaseDataSdk = {
         if (evaluatorsListPage && !evaluatorsListPage.classList.contains('hidden')) {
           renderEvaluatorsListContent();
         }
+        try { if (typeof renderTermBar === 'function' && document.getElementById('term-bar')) renderTermBar(); } catch (e) {}
         const settingsRecord = data.find(d => d.type === 'settings');
         if (settingsRecord) {
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
@@ -5422,8 +5507,116 @@ const supabaseDataSdk = {
     function _rN(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
     function _rRoom(v) { const s = _rN(v); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s; }
     /** สถานะการลงทะเบียนของนักเรียน: วิชาที่เปิดในห้อง / ลงแล้ว / ยังขาด */
+
+    // ══════════════════════════════════════════════════════════════
+    // 📅 ปีการศึกษา / ภาคเรียน
+    //    · รายชื่อนักเรียนเก็บแยกแถวต่อปี/ภาค (โอนรายชื่อ = คัดลอกแถว)
+    //    · "ปี/ภาคที่เปิดใช้งาน" ใช้ประทับข้อมูลใหม่ — เก็บใน settings ใช้ร่วมกันทั้งระบบ
+    //    · "มุมมองข้อมูล" เป็นตัวกรองของเครื่องนี้เท่านั้น ค่าเริ่มต้น = ทุกปี/ภาค
+    //      (ข้อมูลเดิมที่ยังไม่ระบุปี/ภาคจึงไม่หายไปไหน)
+    // ══════════════════════════════════════════════════════════════
+    const TERM_VIEW_KEY = 'kpac_term_view';
+    /** ปี/ภาคที่เปิดใช้งาน — ค่าว่าง = ยังไม่ได้ตั้ง */
+    function activeTerm() {
+      const rec = allData.find(d => d.type === 'settings');
+      return {
+        year: String(rec?.active_year ?? '').trim(),
+        semester: String(rec?.active_semester ?? '').trim()
+      };
+    }
+    function termLabel(year, semester) {
+      const y = String(year ?? '').trim(), sm = String(semester ?? '').trim();
+      if (!y && !sm) return 'ยังไม่ระบุปี/ภาค';
+      return `ปี ${y || '-'} ภาค ${sm || '-'}`;
+    }
+    function _termKey(row) {
+      return String(row?.academic_year ?? '').trim() + '|' + String(row?.semester ?? '').trim();
+    }
+    /** มุมมองที่เลือกไว้: '' = ทุกปี/ภาค · '__blank' = เฉพาะที่ยังไม่ระบุ · 'ปี|ภาค' = เจาะจง */
+    function termView() {
+      try { return localStorage.getItem(TERM_VIEW_KEY) || ''; } catch (e) { return ''; }
+    }
+    /** แถวนี้อยู่ในมุมมองที่เลือกไว้ไหม */
+    function inTermView(row) {
+      const v = termView();
+      if (!v) return true;
+      if (v === '__blank') return _termKey(row) === '|';
+      return _termKey(row) === v;
+    }
+    function filterByTermView(rows) { return (rows || []).filter(inTermView); }
+    /** คู่ปี/ภาคทั้งหมดที่มีข้อมูลอยู่จริง */
+    function allTermKeys() {
+      const set = new Set();
+      allData.forEach(d => {
+        if (d.type !== 'student' && d.type !== 'student_registration') return;
+        const k = _termKey(d);
+        if (k !== '|') set.add(k);
+      });
+      return [...set].sort().reverse();
+    }
+    function renderTermBar() {
+      const yEl = document.getElementById('term-active-year');
+      const sEl = document.getElementById('term-active-sem');
+      const vEl = document.getElementById('term-view');
+      const note = document.getElementById('term-bar-note');
+      const t = activeTerm();
+      if (yEl && document.activeElement !== yEl) yEl.value = t.year;
+      if (sEl && document.activeElement !== sEl) sEl.value = t.semester;
+      if (vEl) {
+        const keep = termView();
+        const blanks = allData.filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
+        vEl.innerHTML = '<option value="">ทุกปี/ภาค</option>'
+          + `<option value="__blank">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks} แถว)` : ''}</option>`
+          + allTermKeys().map(k => { const [y, sm] = k.split('|');
+              return `<option value="${escHtml(k)}">${escHtml(termLabel(y, sm))}</option>`; }).join('');
+        vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
+        if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
+      }
+      if (note) {
+        note.innerHTML = (!t.year && !t.semester)
+          ? '<span style="color:#b45309">⚠️ ยังไม่ได้ตั้งปี/ภาคที่เปิดใช้งาน — ยังลงทะเบียนให้นักเรียนไม่ได้ (กรอกปีและภาคเรียนแล้วกด 💾 บันทึก)</span>'
+          : `<span style="color:#3730a3">ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเป็น <b>${escHtml(termLabel(t.year, t.semester))}</b></span>`;
+      }
+    }
+    async function saveActiveTerm() {
+      const year = String(document.getElementById('term-active-year')?.value || '').trim();
+      const semester = String(document.getElementById('term-active-sem')?.value || '').trim();
+      if (!year || !semester) { showToast('กรุณากรอกทั้งปีการศึกษาและภาคเรียน', 'error'); return; }
+      const existing = allData.find(d => d.type === 'settings');
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, active_year: year, active_semester: semester })
+        : await window.dataSdk.create({ type: 'settings', active_year: year, active_semester: semester });
+      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      showToast(`✅ เปิดใช้งาน ${termLabel(year, semester)} แล้ว`);
+      renderTermBar();
+      setTimeout(() => {
+        const t = activeTerm();
+        if (t.year !== year || t.semester !== semester) {
+          showToast('⚠️ บันทึกไม่ติด — ฐานข้อมูลยังไม่มีคอลัมน์ settings.active_year/active_semester กรุณารันไฟล์ add_academic_term.sql', 'error');
+        }
+        renderTermBar();
+      }, 1200);
+    }
+    function changeTermView() {
+      const v = document.getElementById('term-view')?.value || '';
+      try { localStorage.setItem(TERM_VIEW_KEY, v); } catch (e) {}
+      showToast(v === '' ? '🔎 มุมมอง: ทุกปี/ภาค' : v === '__blank' ? '🔎 มุมมอง: ยังไม่ระบุปี/ภาค' : `🔎 มุมมอง: ${termLabel(...v.split('|'))}`);
+      if (typeof refreshCurrentView === 'function') refreshCurrentView();
+      renderTermBar();
+    }
+    /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
+    function _stampTermOnNew(record) {
+      if (!record || (record.type !== 'student' && record.type !== 'student_registration')) return record;
+      const t = activeTerm();
+      if (record.academic_year === undefined || String(record.academic_year).trim() === '') record.academic_year = t.year;
+      if (record.semester === undefined || String(record.semester).trim() === '') record.semester = t.semester;
+      return record;
+    }
+
     function _studentRegStatus(s) {
-      const regs = allData.filter(r => r.type === 'student_registration' && s && _rN(r.student_id) === _rN(s.student_id));
+      // 📅 เฉพาะการลงทะเบียนในมุมมองปี/ภาคที่เลือกไว้ (ทุกปี/ภาค = ไม่กรอง)
+      const regs = allData.filter(r => r.type === 'student_registration' && s && _rN(r.student_id) === _rN(s.student_id))
+        .filter(r => typeof inTermView === 'function' ? inTermView(r) : true);
       const regSet = new Set(regs.map(r => _rN(r.subject_name)));
       const seen = new Set();
       const allSubjects = allData.filter(cs => cs.type === 'class_subject' && s
@@ -17837,7 +18030,7 @@ function _examResultIdentityHtml(sub, set) {
       const registrations = allData.filter(d =>
         d.type === 'student_registration' &&
         d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName
-      );
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);   // 📅 ตามมุมมองปี/ภาค
       const classSubjectRecord = allData.find(d => d.type === 'class_subject' && _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
       const midPercentWeight = classSubjectRecord?.mid_percent || 0;
       const finalPercentWeight = classSubjectRecord?.final_percent || 0;
@@ -18638,6 +18831,7 @@ function _examResultIdentityHtml(sub, set) {
     }
     function showAdminTab(tabName) {
       _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
+      try { if (typeof renderTermBar === 'function') renderTermBar(); } catch (e) {}
       setTimeout(_syncPageMinHeight, 80); // 📏 ปรับความสูงให้เลื่อนเห็นเมนูครบหลังเปลี่ยนหน้า
       _currentAdminTab = tabName;
       if (document.body.classList.contains('is-mobile') && typeof mBuildNav === 'function') {
@@ -19690,7 +19884,9 @@ function _examResultIdentityHtml(sub, set) {
     function updateStudentsList() {
       const container = document.getElementById('students-list');
       if (!container) return;
-      const allStudents = allData.filter(d => d.type === 'student');
+      // 📅 รายชื่อตามมุมมองปี/ภาคที่เลือกไว้ (ทุกปี/ภาค = เห็นทั้งหมด)
+      const allStudents = allData.filter(d => d.type === 'student')
+        .filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       populateStudentsFilterOptions(allStudents);
       let students = allStudents;
       if (studentsListFilter.className) {
@@ -19727,7 +19923,9 @@ function _examResultIdentityHtml(sub, set) {
           <td class="px-2 py-2 text-center whitespace-nowrap">${s.student_number || '-'}</td>
           <td class="px-2 py-2 whitespace-nowrap">${escHtml(s.prefix)} ${escHtml(s.first_name)} ${escHtml(s.last_name)}</td>
           <td class="px-2 py-2 whitespace-nowrap">${s.student_id}</td>
-          <td class="px-2 py-2 whitespace-nowrap">${s.class_name}/${s.room_number}</td>
+          <td class="px-2 py-2 whitespace-nowrap">${s.class_name}/${s.room_number}
+            <span class="block text-[10px] ${_termKey(s) === '|' ? 'text-amber-600' : 'text-indigo-600'}">📅 ${escHtml(termLabel(s.academic_year, s.semester))}</span>
+          </td>
           <td class="px-2 py-2 whitespace-nowrap">${s.phone_number}</td>
           <td class="px-2 py-2 whitespace-nowrap font-mono text-xs">${s.username || '-'}</td>
           <td class="px-2 py-2 whitespace-nowrap font-mono text-xs text-blue-700">${s.password || '-'}</td>
@@ -19843,8 +20041,120 @@ function _examResultIdentityHtml(sub, set) {
     // ============================================================
     // 📚 โหมด 2: นักเรียนที่ลงทะเบียนแล้ว (ตาราง)
     // ============================================================
+
+    // ══════════════════════════════════════════════════════════════
+    // 🔁 โอนรายชื่อนักเรียนข้ามภาคเรียน/ปีการศึกษา
+    //    คัดลอก "แถวนักเรียน" ไปเป็นปี/ภาคใหม่ (รหัสเดิม) โดยไม่โอนการลงทะเบียนและคะแนน
+    // ══════════════════════════════════════════════════════════════
+    function loadTransferTab() {
+      const srcSel = document.getElementById('transfer-src');
+      if (srcSel) {
+        const keep = srcSel.value;
+        const keys = allTermKeys();
+        const blanks = allData.filter(d => d.type === 'student' && _termKey(d) === '|').length;
+        srcSel.innerHTML = (blanks ? `<option value="__blank">ยังไม่ระบุปี/ภาค (${blanks} คน)</option>` : '')
+          + keys.map(k => { const [y, sm] = k.split('|');
+              const n = allData.filter(d => d.type === 'student' && _termKey(d) === k).length;
+              return `<option value="${escHtml(k)}">${escHtml(termLabel(y, sm))} (${n} คน)</option>`; }).join('');
+        if (!srcSel.options.length) srcSel.innerHTML = '<option value="">-- ยังไม่มีรายชื่อนักเรียน --</option>';
+        srcSel.value = Array.prototype.some.call(srcSel.options, o => o.value === keep) ? keep : srcSel.options[0].value;
+      }
+      // ปลายทางตั้งต้นจากปี/ภาคที่เปิดใช้งาน เพื่อให้กดต่อได้เลย
+      const t = activeTerm();
+      const yEl = document.getElementById('transfer-dst-year');
+      const sEl = document.getElementById('transfer-dst-sem');
+      if (yEl && !yEl.value) yEl.value = t.year;
+      if (sEl && !sEl.value) sEl.value = t.semester;
+      renderTransferPicker();
+    }
+    /** นักเรียนของปี/ภาคต้นทางที่เลือกไว้ */
+    function _transferSourceStudents() {
+      const v = document.getElementById('transfer-src')?.value || '';
+      if (!v) return [];
+      return allData.filter(d => d.type === 'student' && (v === '__blank' ? _termKey(d) === '|' : _termKey(d) === v))
+        .sort((a, b) => String(a.class_name || '').localeCompare(String(b.class_name || ''))
+          || String(a.room_number || '').localeCompare(String(b.room_number || ''))
+          || (parseInt(a.student_number) || 0) - (parseInt(b.student_number) || 0));
+    }
+    function renderTransferPicker() {
+      const tbody = document.getElementById('transfer-tbody');
+      if (!tbody) return;
+      const list = _transferSourceStudents();
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-6">ไม่มีรายชื่อในปี/ภาคที่เลือก</td></tr>';
+        updateTransferCount();
+        return;
+      }
+      const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
+      const dstSem = String(document.getElementById('transfer-dst-sem')?.value || '').trim();
+      const dstKey = dstYear + '|' + dstSem;
+      tbody.innerHTML = list.map(st => {
+        const already = (dstYear || dstSem) && allData.some(d => d.type === 'student'
+          && _rN(d.student_id) === _rN(st.student_id) && _termKey(d) === dstKey);
+        return `<tr class="border-t border-gray-100 hover:bg-gray-50">
+         <td class="px-1 py-1 text-center"><input type="checkbox" class="transfer-cb w-4 h-4" value="${st.__backendId}" ${already ? 'disabled' : 'checked'} onchange="updateTransferCount()"></td>
+         <td class="px-1 py-1 whitespace-nowrap">${escHtml((st.prefix || '') + (st.first_name || '') + ' ' + (st.last_name || ''))}</td>
+         <td class="px-1 py-1 font-mono whitespace-nowrap">${escHtml(String(st.student_id || ''))}</td>
+         <td class="px-1 py-1 text-center whitespace-nowrap">${escHtml(String(st.class_name || '-'))}/${escHtml(String(st.room_number || '-'))}</td>
+         <td class="px-1 py-1 text-center">${escHtml(String(st.student_number || '-'))}</td>
+         <td class="px-1 py-1 ${already ? 'text-gray-400' : 'text-green-700'}">${already ? 'มีอยู่แล้วในปลายทาง' : 'พร้อมโอน'}</td>
+        </tr>`;
+      }).join('');
+      updateTransferCount();
+    }
+    function updateTransferCount() {
+      const n = document.querySelectorAll('.transfer-cb:checked').length;
+      const el = document.getElementById('transfer-count');
+      if (el) el.textContent = n;
+    }
+    function toggleTransferAll(checked) {
+      document.querySelectorAll('.transfer-cb').forEach(cb => { if (!cb.disabled) cb.checked = checked; });
+      updateTransferCount();
+    }
+    async function runTransferStudents() {
+      const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
+      const dstSem = String(document.getElementById('transfer-dst-sem')?.value || '').trim();
+      if (!dstYear || !dstSem) { showToast('กรุณากรอกปีการศึกษาและภาคเรียนปลายทาง', 'error'); return; }
+      const srcVal = document.getElementById('transfer-src')?.value || '';
+      if ((srcVal !== '__blank') && srcVal === dstYear + '|' + dstSem) {
+        showToast('ปลายทางซ้ำกับต้นทาง — กรุณาเปลี่ยนปี/ภาคปลายทาง', 'error'); return;
+      }
+      const ids = Array.from(document.querySelectorAll('.transfer-cb:checked')).map(cb => cb.value);
+      if (ids.length === 0) { showToast('กรุณาเลือกนักเรียนที่ต้องการโอนอย่างน้อย 1 คน', 'error'); return; }
+      const newClass = String(document.getElementById('transfer-dst-class')?.value || '').trim();
+      const newRoom = String(document.getElementById('transfer-dst-room')?.value || '').trim();
+      if (!confirm(`โอน ${ids.length} คน ไปเป็น ${termLabel(dstYear, dstSem)}?\n(คัดลอกรายชื่อใหม่ ของเดิมยังอยู่ครบ ไม่โอนการลงทะเบียนและคะแนน)`)) return;
+      const resultEl = document.getElementById('transfer-result');
+      let done = 0, skipped = 0, failed = 0;
+      for (const id of ids) {
+        const st = allData.find(d => d.type === 'student' && String(d.__backendId) === String(id));
+        if (!st) { failed++; continue; }
+        // กันโอนซ้ำ แม้กดรัวหรือข้อมูลเพิ่งเปลี่ยน
+        if (allData.some(d => d.type === 'student' && _rN(d.student_id) === _rN(st.student_id)
+            && _termKey(d) === dstYear + '|' + dstSem)) { skipped++; continue; }
+        const copy = { ...st };
+        delete copy.__backendId;
+        delete copy.id;
+        copy.academic_year = dstYear;
+        copy.semester = dstSem;
+        if (newClass) copy.class_name = newClass;
+        if (newRoom) copy.room_number = newRoom;
+        copy.created_at = new Date().toISOString();
+        const res = await window.dataSdk.create(copy);
+        if (res.isOk) done++; else failed++;
+      }
+      if (resultEl) {
+        resultEl.innerHTML = `<span style="color:#15803d">✅ โอนแล้ว ${done} คน</span>`
+          + (skipped ? ` · <span style="color:#b45309">ข้าม ${skipped} คน (มีอยู่แล้วในปลายทาง)</span>` : '')
+          + (failed ? ` · <span style="color:#dc2626">ไม่สำเร็จ ${failed} คน</span>` : '');
+      }
+      showToast(done ? `✅ โอนรายชื่อ ${done} คน ไปเป็น ${termLabel(dstYear, dstSem)} แล้ว` : 'ไม่มีรายชื่อที่โอนได้', done ? 'success' : 'error');
+      renderTermBar();
+      loadTransferTab();
+    }
+
     function showStudentsSubTab(mode) {
-      const tabs = ['import','applicants','noenroll','registrations'];
+      const tabs = ['import','applicants','noenroll','registrations','transfer'];
       tabs.forEach(t => {
         const btn = document.getElementById(`students-subtab-btn-${t}`);
         const panel = document.getElementById(`students-subtab-${t}`);
@@ -19866,6 +20176,7 @@ function _examResultIdentityHtml(sub, set) {
         if (d) d.textContent = approvedMarqueePauseDelaySec;
       }
       else if (mode === 'noenroll') renderNoEnrollTable();
+      else if (mode === 'transfer') loadTransferTab();
       else if (mode === 'registrations') loadRegistrationsTab();
     }
     // ============================================================
@@ -19920,7 +20231,9 @@ function _examResultIdentityHtml(sub, set) {
     /** รายการลงทะเบียนที่ KPAC ไม่ครบ พร้อมเหตุผล */
     function incompleteKpacRegs() {
       const out = [];
-      allData.filter(d => d.type === 'student_registration').forEach(reg => {
+      allData.filter(d => d.type === 'student_registration')
+        .filter(d => typeof inTermView === 'function' ? inTermView(d) : true)   // 📅 ตามมุมมองปี/ภาค
+        .forEach(reg => {
         const limit = _kpacLimitForReg(reg);
         if (limit === null) return;
         const raw = { K: reg.k_percent, P: reg.p_percent, A: reg.a_percent, C: reg.c_percent };
