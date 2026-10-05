@@ -3062,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.207';
+    const APP_VERSION = 'SUPABASE-2026.10.05.208';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4018,6 +4018,8 @@ const supabaseDataSdk = {
     (function () {
       // 🧩 แก้ค่าตั้งต้นของรายวิชา (M/F · คะแนนเต็ม · หน่วยกิต) ที่ยังเป็นของเดิมใช้ร่วมกันอยู่
       //    ขณะกำลังทำงานในปี/ภาคหนึ่ง → สร้างเป็น "ชุดของเทอมนี้" ให้เอง ไม่ไปทับของเทอมเก่า
+      // 🛠️ ทางแก้ตรงแถวเดิม — ใช้เมื่อผู้ใช้กรอกปี/ภาคมาเองแล้ว ไม่ต้องแยกชุดให้อีก
+      supabaseDataSdk.updateRaw = supabaseDataSdk.update.bind(supabaseDataSdk);
       const _origUpdate = supabaseDataSdk.update.bind(supabaseDataSdk);
       supabaseDataSdk.update = function (record) {
         try {
@@ -22593,6 +22595,7 @@ function _examResultIdentityHtml(sub, set) {
       html += '<th class="px-4 py-2 text-left font-semibold">ห้องเรียน</th>';
       html += '<th class="px-4 py-2 text-left font-semibold">วิชา</th>';
       html += '<th class="px-4 py-2 text-left font-semibold">ประเภท</th>';
+      html += '<th class="px-4 py-2 text-center font-semibold">ปี/ภาค</th>';
       html += '<th class="px-4 py-2 text-center font-semibold">จัดการ</th>';
       html += '</tr></thead><tbody>';
       
@@ -22602,6 +22605,7 @@ function _examResultIdentityHtml(sub, set) {
         html += `<td class="px-4 py-3 font-medium">🏠 ${cs.room_number}</td>`;
         html += `<td class="px-4 py-3 font-bold text-green-700">📖 ${cs.subject_name}</td>`;
         html += `<td class="px-4 py-3 font-medium">📌 ${cs.subjectType || 'พฐ'}</td>`;
+        html += `<td class="px-4 py-3 text-center whitespace-nowrap text-xs ${_termKey(cs) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(cs.academic_year, cs.semester))}</td>`;
         html += `<td class="px-4 py-3 text-center">
           <div class="flex gap-2 justify-center">
             <button onclick="editClassSubject('${cs.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium">✏️ แก้ไข</button>
@@ -22638,6 +22642,15 @@ function _examResultIdentityHtml(sub, set) {
               <label class="block text-sm font-medium text-gray-700 mb-2">📌 ประเภท</label>
               <input type="text" id="edit-cs-type" value="${cs.subjectType || 'พฐ'}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" placeholder="เช่น พฐ">
             </div>
+            <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3">
+              <label class="block text-sm font-medium text-indigo-900 mb-2">📅 ปีการศึกษา / ภาคเรียน ของรายวิชานี้</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input type="text" id="edit-cs-year" value="${escHtml(String(cs.academic_year ?? ''))}" placeholder="ปีการศึกษา" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none">
+                <input type="text" id="edit-cs-sem" value="${escHtml(String(cs.semester ?? ''))}" placeholder="ภาคเรียน" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:outline-none">
+              </div>
+              <button type="button" onclick="document.getElementById('edit-cs-year').value=activeTerm().year;document.getElementById('edit-cs-sem').value=activeTerm().semester;" class="mt-2 px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs">📌 ใช้ปี/ภาคที่เปิดใช้งาน</button>
+              <p class="text-[11px] text-gray-500 mt-1">เว้นว่าง = ยังไม่ระบุปี/ภาค (จะแสดงในทุกเทอมเป็นทางสำรอง) · คะแนนเต็ม/หน่วยกิตของวิชานี้จะถูกย้ายตามไปด้วย</p>
+            </div>
           </div>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
@@ -22655,36 +22668,48 @@ function _examResultIdentityHtml(sub, set) {
       const className = clean(document.getElementById('edit-cs-class').value);
       const roomNumber = clean(document.getElementById('edit-cs-room').value);
       const subjectName = clean(document.getElementById('edit-cs-subject').value);
+      const csYear = String(document.getElementById('edit-cs-year')?.value ?? '').trim();
+      const csSem = String(document.getElementById('edit-cs-sem')?.value ?? '').trim();
       if (!subjectType || !className || !roomNumber || !subjectName) { showToast('กรุณากรอกข้อมูลให้ครบทุกช่อง', 'error'); return; }
 
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const changed = N(className) !== N(cs.class_name) || N(roomNumber) !== N(cs.room_number) || N(subjectName) !== N(cs.subject_name);
       if (changed) {
+        // 📅 ซ้ำเฉพาะเมื่ออยู่ปี/ภาคเดียวกัน — วิชาชื่อเดิมคนละเทอมถือเป็นคนละชุด
         const dup = allData.some(d => d.type === 'class_subject' && String(d.__backendId) !== String(cs.__backendId)
-          && N(d.class_name) === N(className) && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName));
-        if (dup) { showToast('มีรายวิชานี้ในห้องนี้อยู่แล้ว', 'error'); return; }
+          && N(d.class_name) === N(className) && N(d.room_number) === N(roomNumber) && N(d.subject_name) === N(subjectName)
+          && _termKey(d) === (csYear + '|' + csSem));
+        if (dup) { showToast(`มีรายวิชานี้ใน${termLabel(csYear, csSem)} อยู่แล้ว`, 'error'); return; }
         // มีคนลงทะเบียน/มีคะแนนอยู่แล้ว การเปลี่ยนชั้น-ห้อง-วิชา จะทำให้ข้อมูลเดิมไม่ตรงกัน
         const used = allData.filter(d => ['student_registration', 'grade', 'exam_set', 'essay_exam_set'].includes(d.type)
           && N(d.class_name) === N(cs.class_name) && N(d.room_number) === N(cs.room_number) && N(d.subject_name) === N(cs.subject_name)).length;
         if (used > 0 && !confirm(`⚠️ วิชานี้มีข้อมูลผูกอยู่แล้ว ${used} รายการ (การลงทะเบียน/คะแนน/ชุดสอบ)\n\nถ้าเปลี่ยนชั้น-ห้อง-วิชา ข้อมูลเดิมจะไม่ตรงกับรายวิชาใหม่\nยืนยันเปลี่ยนหรือไม่?`)) return;
       }
       const newId = `${className}_${roomNumber}_${subjectName}`;
-      const result = await window.dataSdk.update({ ...cs, class_name: className, room_number: roomNumber,
-        subject_name: subjectName, subjectType, class_subject_id: newId });
+      // 🛠️ แก้ตรงแถวเดิมเสมอ (ไม่แยกชุดอัตโนมัติที่นี่ เพราะครูกรอกปี/ภาคมาเองแล้ว)
+      const result = await window.dataSdk.updateRaw({ ...cs, class_name: className, room_number: roomNumber,
+        subject_name: subjectName, subjectType, class_subject_id: newId,
+        academic_year: csYear, semester: csSem });
       if (result.isOk) {
-        // แก้แถวคะแนนเต็มของวิชานี้ให้ตรงกันด้วย
-        if (changed) {
-          const sc = allData.find(d => d.type === 'class_subject_scores'
-            && (String(d.class_subject_id) === String(cs.class_subject_id)
-              || (N(d.class_name) === N(cs.class_name) && N(d.room_number) === N(cs.room_number) && N(d.subject_name) === N(cs.subject_name))));
-          if (sc) await window.dataSdk.update({ ...sc, class_name: className, room_number: roomNumber,
-            subject_name: subjectName, class_subject_id: newId }).catch(() => {});
+        // แก้แถวคะแนนเต็มของวิชานี้ให้ตรงกัน และย้ายปี/ภาคตามไปด้วย
+        const scList = allData.filter(d => d.type === 'class_subject_scores'
+          && (String(d.class_subject_id) === String(cs.class_subject_id)
+            || (N(d.class_name) === N(cs.class_name) && N(d.room_number) === N(cs.room_number) && N(d.subject_name) === N(cs.subject_name)))
+          && _termKey(d) === _termKey(cs));
+        for (const sc of scList) {
+          await window.dataSdk.updateRaw({ ...sc, class_name: className, room_number: roomNumber,
+            subject_name: subjectName, class_subject_id: newId,
+            academic_year: csYear, semester: csSem }).catch(() => {});
         }
         _closeAllPopups();
-        showToast('แก้ไขรายวิชาสำเร็จ ✅');
+        showToast(`แก้ไขรายวิชาสำเร็จ ✅ (${termLabel(csYear, csSem)})`);
         updateImportedData();
+        if (typeof renderTermViewSelect === 'function') renderTermViewSelect();
       } else {
-        showToast('ไม่สามารถแก้ไขรายวิชา: ' + (result.error?.message || ''), 'error');
+        const msg = String(result.error?.message || '');
+        showToast(/duplicate key|23505/.test(msg)
+          ? '❌ รายวิชานี้ซ้ำกับที่มีอยู่ — ฐานข้อมูลยังบังคับว่า "ชั้น_ห้อง_วิชา" ต้องไม่ซ้ำกันเลย กรุณารันไฟล์ add_academic_term.sql รอบล่าสุด (ปลดล็อกให้ซ้ำได้คนละปี/ภาค)'
+          : 'ไม่สามารถแก้ไขรายวิชา: ' + msg, 'error');
       }
     }
     function deleteClassSubject(classSubjectId) {
