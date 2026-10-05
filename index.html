@@ -3039,7 +3039,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.205';
+    const APP_VERSION = 'SUPABASE-2026.10.05.206';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -18146,12 +18146,14 @@ function _examResultIdentityHtml(sub, set) {
      *  ⚠️ สำคัญมาก: ถ้าหาไม่เจอ คะแนนเต็มจะเป็น 0 ทำให้คิดเกรดผิดทั้งห้อง */
     function _findScoresConfig(reg) {
       if (!reg) return null;
-      // 🧩 ชุดของปี/ภาคเดียวกันมาก่อนเสมอ (เปิดเทอมใหม่ = คะแนนเต็มชุดใหม่ ของเก่าไม่เปลี่ยน)
-      let sc = allData.find(d => d.type === 'class_subject_scores'
-        && _rN(d.class_name) === _rN(reg.class_name)
+      // 🧩 ลำดับการเลือก: ชุดของปี/ภาคเดียวกัน → ของเดิมที่ยังไม่ระบุปี/ภาค → ทางสำรองเดิม
+      //    สำคัญ: class_subject_id เป็น "ชั้น_ห้อง_วิชา" ซึ่งซ้ำกันทุกเทอม ถ้าไม่เรียงลำดับแบบนี้
+      //    เทอมเก่าจะไปหยิบคะแนนเต็มของเทอมใหม่มาใช้ แล้วเกรดเก่าเปลี่ยนย้อนหลัง
+      const _scSame = d => _rN(d.class_name) === _rN(reg.class_name)
         && _rRoom(d.room_number) === _rRoom(reg.room_number)
-        && _rN(d.subject_name) === _rN(reg.subject_name)
-        && _termKey(d) === _termKey(reg));
+        && _rN(d.subject_name) === _rN(reg.subject_name);
+      let sc = allData.find(d => d.type === 'class_subject_scores' && _scSame(d) && _termKey(d) === _termKey(reg));
+      if (!sc) sc = allData.find(d => d.type === 'class_subject_scores' && _scSame(d) && _termKey(d) === '|');
       if (!sc) sc = reg.class_subject_id
         ? allData.find(d => d.type === 'class_subject_scores' && String(d.class_subject_id) === String(reg.class_subject_id))
         : null;
@@ -24969,12 +24971,12 @@ function _examResultIdentityHtml(sub, set) {
      *  จำเป็นหลังย้ายมา Supabase เพราะรหัสอ้างอิงอาจไม่ตรงกับของเดิม ทำให้หาข้อมูลไม่เจอ */
     function _findHoursData(reg) {
       if (!reg) return null;
-      // 🧩 ชุดหน่วยกิต/เวลาเรียนของปี/ภาคเดียวกันมาก่อน (การตัด มส. ของเทอมเก่าจึงไม่เปลี่ยน)
-      let h = allData.find(x => x.type === 'class_subject_hours'
-        && _rN(x.class_name) === _rN(reg.class_name)
+      // 🧩 ลำดับเดียวกัน: ปี/ภาคเดียวกัน → ของเดิมที่ยังไม่ระบุ → ทางสำรองเดิม
+      const _hSame = x => _rN(x.class_name) === _rN(reg.class_name)
         && _rRoom(x.room_number) === _rRoom(reg.room_number)
-        && _rN(x.subject_name) === _rN(reg.subject_name)
-        && _termKey(x) === _termKey(reg));
+        && _rN(x.subject_name) === _rN(reg.subject_name);
+      let h = allData.find(x => x.type === 'class_subject_hours' && _hSame(x) && _termKey(x) === _termKey(reg));
+      if (!h) h = allData.find(x => x.type === 'class_subject_hours' && _hSame(x) && _termKey(x) === '|');
       if (!h) h = reg.class_subject_id
         ? allData.find(x => x.type === 'class_subject_hours' && x.class_subject_id === reg.class_subject_id)
         : null;
