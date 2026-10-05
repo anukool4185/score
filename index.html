@@ -1336,6 +1336,8 @@
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-1">📅 ตั้งค่าช่วงเวลาลงทะเบียน</h3>
         <p id="schedule-term-note" class="text-sm mb-4"></p>
+        <div id="schedule-legacy-box" class="hidden bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4"></div>
+        <div id="schedule-all-terms" class="mb-6"></div>
         <div class="grid md:grid-cols-2 gap-4 mb-6">
          <div><label class="block text-sm font-medium text-gray-700 mb-2">📍 วันเริ่มต้น</label> <input type="date" id="registration-start-date" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none">
          </div>
@@ -3065,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.214';
+    const APP_VERSION = 'SUPABASE-2026.10.05.215';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -25788,23 +25790,32 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
-    /** 📅 ช่วงเวลาลงทะเบียนของปี/ภาคหนึ่ง — ถ้าไม่มีของภาคนั้น ใช้ของเดิมที่ยังไม่ระบุปี/ภาคเป็นทางสำรอง */
+    /** 📅 ช่วงเวลาลงทะเบียนของปี/ภาคหนึ่ง — หนึ่งเทอมหนึ่งชุด "ไม่สืบทอดข้ามเทอม"
+     *  ⚠️ บั๊กที่พบและแก้แล้ว: เดิมถ้าภาคนั้นยังไม่มีช่วงเวลาของตัวเอง ระบบจะหยิบ
+     *     ชุดเดิมที่ยังไม่ระบุปี/ภาคมาใช้แทน ผลคือพอสร้างภาคเรียนใหม่ ภาคใหม่จะ
+     *     "เปิดลงทะเบียนเอง" ตามวันที่ของภาคเก่าทันที ทั้งที่ครูยังไม่ได้เปิดให้
+     *  ของเดิมที่ยังไม่ระบุปี/ภาค ใช้ได้เฉพาะตอนที่ระบบยังไม่ได้ตั้งปี/ภาคเลย */
     function _scheduleOfTerm(termKey) {
       const all = allData.filter(d => d.type === 'registration_schedule');
-      return all.find(d => _termKey(d) === termKey) || all.find(d => _termKey(d) === '|') || null;
+      const own = all.find(d => _termKey(d) === termKey);
+      if (own) return own;
+      if (termKey === '|') return all.find(d => _termKey(d) === '|') || null;
+      return null;
     }
     /** ช่วงเวลาของ "ภาคที่กำลังทำงานอยู่" (ฝั่งนักเรียน = ภาคที่เปิดใช้งาน) */
     function currentSchedule() { return _scheduleOfTerm(workingTermKey()); }
+    /** ช่วงเวลาเดิมที่ยังไม่ระบุปี/ภาค (มีได้ชุดเดียว) — ใช้เสนอให้ครูย้ายมาเป็นของเทอมนี้ */
+    function _legacySchedule() {
+      return allData.find(d => d.type === 'registration_schedule' && _termKey(d) === '|') || null;
+    }
 
     function loadScheduleData() {
       const scheduleRecord = allData.find(d => d.type === 'registration_schedule' && _termKey(d) === workingTermKey()) || null;
       const note = document.getElementById('schedule-term-note');
       if (note) {
-        const inherited = !scheduleRecord && _scheduleOfTerm(workingTermKey());
         note.innerHTML = `กำลังตั้งค่าของ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
-          + (scheduleRecord ? '' : inherited
-              ? ' · <span style="color:#b45309">ยังไม่มีช่วงเวลาของภาคนี้ ระบบใช้ค่าเดิมที่ยังไม่ระบุปี/ภาคไปก่อน — กดบันทึกเพื่อตั้งของภาคนี้โดยเฉพาะ</span>'
-              : ' · <span style="color:#b45309">ยังไม่เคยตั้งช่วงเวลา (นักเรียนลงทะเบียนได้ตลอด)</span>');
+          + (scheduleRecord ? ''
+              : ' · <span style="color:#b45309">ยังไม่ได้ตั้งช่วงเวลาของภาคนี้ → <b>นักเรียนลงทะเบียนเองไม่ได้</b> (ครูยังลงทะเบียนแทนได้)</span>');
       }
       if (!scheduleRecord) {
         ['registration-start-date','registration-end-date','registration-start-time','registration-end-time']
@@ -25900,7 +25911,79 @@ function _examResultIdentityHtml(sub, set) {
       _syncRegTime(which);
     }
 
+    /** 📅 ตารางสรุป: แต่ละปี/ภาค เปิดลงทะเบียนอยู่หรือไม่ (ตอบคำถาม "ภาค 2 เปิดอยู่ไหม" ได้ในที่เดียว) */
+    function renderScheduleAllTerms() {
+      const box = document.getElementById('schedule-all-terms');
+      if (!box) return;
+      const now = new Date();
+      const fmt = d => d ? new Date(d).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
+      const statusOf = sch => {
+        if (!sch) return { txt: '⛔ ยังไม่เปิด (ไม่ได้ตั้งช่วงเวลา)', cls: 'text-gray-500' };
+        const sd = new Date(sch.start_date), ed = new Date(sch.end_date);
+        const [sh, sm] = String(sch.start_time || '00:00').split(':').map(Number);
+        const [eh, em] = String(sch.end_time || '23:59').split(':').map(Number);
+        sd.setHours(sh || 0, sm || 0, 0, 0);
+        ed.setHours(eh || 23, em || 59, 59, 999);
+        if (now < sd) return { txt: '⏳ ยังไม่ถึงวันเปิด', cls: 'text-amber-600 font-semibold' };
+        if (now > ed) return { txt: '❌ ปิดแล้ว', cls: 'text-gray-500' };
+        return { txt: '✅ เปิดให้ลงทะเบียนอยู่', cls: 'text-green-700 font-bold' };
+      };
+      const keys = (typeof allTermKeys === 'function' ? allTermKeys() : []);
+      const working = (typeof workingTermKey === 'function') ? workingTermKey() : '';
+      if (!keys.length) { box.innerHTML = ''; return; }
+      let html = '<p class="text-sm font-semibold text-gray-700 mb-2">🗂️ สถานะการลงทะเบียนของทุกปี/ภาค</p>'
+        + '<div class="border-2 border-gray-200 rounded-xl overflow-x-auto"><table class="w-full text-sm">'
+        + '<thead class="bg-gray-100"><tr>'
+        + '<th class="px-3 py-2 text-left font-semibold">ปี/ภาค</th>'
+        + '<th class="px-3 py-2 text-left font-semibold">ช่วงเวลา</th>'
+        + '<th class="px-3 py-2 text-left font-semibold">สถานะ</th>'
+        + '<th class="px-3 py-2 text-center font-semibold">จำนวนที่ลงทะเบียน</th>'
+        + '</tr></thead><tbody>';
+      keys.forEach(k => {
+        const [y, sm] = k.split('|');
+        const sch = (allData.filter(d => d.type === 'registration_schedule').find(d => _termKey(d) === k)) || null;
+        const st = statusOf(sch);
+        const n = (window.__allRaw || allData).filter(d => d.type === 'student_registration' && _termKey(d) === k).length;
+        html += `<tr class="border-t ${k === working ? 'bg-indigo-50' : ''}">`
+          + `<td class="px-3 py-2 font-medium whitespace-nowrap">${k === working ? '📅 ' : ''}${escHtml(termLabel(y, sm))}</td>`
+          + `<td class="px-3 py-2 whitespace-nowrap text-xs text-gray-600">${sch ? `${fmt(sch.start_date)} ${escHtml(sch.start_time || '00:00')} น. → ${fmt(sch.end_date)} ${escHtml(sch.end_time || '23:59')} น.` : '—'}</td>`
+          + `<td class="px-3 py-2 ${st.cls} whitespace-nowrap">${st.txt}</td>`
+          + `<td class="px-3 py-2 text-center">${n}</td>`
+          + '</tr>';
+      });
+      html += '</tbody></table></div>'
+        + '<p class="text-xs text-gray-500 mt-2">เทอมที่ยังไม่ได้ตั้งช่วงเวลา = นักเรียนลงทะเบียนเองไม่ได้ (ครูยังลงทะเบียนแทนได้ตามปกติ)</p>';
+      box.innerHTML = html;
+
+      // 📌 กล่องเสนอย้ายช่วงเวลาเดิมที่ยังไม่ระบุปี/ภาค มาเป็นของเทอมที่กำลังทำงานอยู่
+      const legacyBox = document.getElementById('schedule-legacy-box');
+      if (legacyBox) {
+        const legacy = _legacySchedule();
+        const ownNow = allData.find(d => d.type === 'registration_schedule' && _termKey(d) === working);
+        const show = !!legacy && !ownNow && working !== '|';
+        legacyBox.classList.toggle('hidden', !show);
+        if (show) {
+          legacyBox.innerHTML = `<p class="font-semibold text-amber-900 mb-1">📌 มีช่วงเวลาเดิมที่ยังไม่ระบุปี/ภาค</p>`
+            + `<p class="text-sm text-amber-800 mb-2">${fmt(legacy.start_date)} ${escHtml(legacy.start_time || '00:00')} น. → ${fmt(legacy.end_date)} ${escHtml(legacy.end_time || '23:59')} น.`
+            + ` — ตอนนี้ระบบ<b>ไม่ได้</b>นำมาใช้กับ ${escHtml(workingTermLabel())} แล้ว (กันภาคใหม่เปิดเองโดยไม่ตั้งใจ)</p>`
+            + `<button onclick="claimLegacySchedule()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold">📌 ย้ายช่วงเวลานี้มาเป็นของ ${escHtml(workingTermLabel())}</button>`;
+        }
+      }
+    }
+    /** ย้ายช่วงเวลาเดิมที่ยังไม่ระบุปี/ภาค มาเป็นของเทอมที่กำลังทำงานอยู่ */
+    async function claimLegacySchedule() {
+      const legacy = _legacySchedule();
+      if (!legacy) { showToast('ไม่พบช่วงเวลาเดิม', 'error'); return; }
+      const [y, sm] = workingTermKey().split('|');
+      if (!y && !sm) { showToast('กรุณาเลือกปี/ภาคก่อน', 'error'); return; }
+      const r = await window.dataSdk.updateRaw({ ...legacy, academic_year: y, semester: sm });
+      if (!r.isOk) { showToast('ย้ายไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
+      showToast(`✅ ช่วงเวลานี้เป็นของ${termLabel(y, sm)} แล้ว`);
+      loadScheduleData();
+    }
+
     function updateScheduleDisplay() {
+      renderScheduleAllTerms();
       const scheduleRecord = currentSchedule();
       const scheduleInfo = document.getElementById('schedule-info');
       if (!scheduleRecord) {
@@ -27771,7 +27854,13 @@ function _examResultIdentityHtml(sub, set) {
     }
     function isRegistrationOpen() {
       const scheduleRecord = currentSchedule();   // 📅 ช่วงเวลาของภาคที่เปิดใช้งาน
-      if (!scheduleRecord) return true; // ถ้าไม่มีการตั้งค่า ให้เปิดได้เสมอ
+      if (!scheduleRecord) {
+        // 📅 ถ้าระบบตั้งปี/ภาคไว้แล้ว แต่ภาคนั้นยังไม่มีช่วงเวลาของตัวเอง → ถือว่า "ยังไม่เปิด"
+        //    ไม่งั้นพอสร้างภาคเรียนใหม่ นักเรียนจะลงทะเบียนได้ทันทีโดยที่ครูยังไม่ได้เปิดให้
+        const t = activeTerm();
+        if (t.year || t.semester) return false;
+        return true;   // ระบบที่ยังไม่ได้ตั้งปี/ภาคเลย → ใช้แบบเดิม (เปิดได้เสมอ)
+      }
       const now = new Date();
       const startDate = new Date(scheduleRecord.start_date);
       const endDate = new Date(scheduleRecord.end_date);
@@ -27786,7 +27875,13 @@ function _examResultIdentityHtml(sub, set) {
     }
     function getRegistrationStatusMessage() {
       const scheduleRecord = currentSchedule();   // 📅 ช่วงเวลาของภาคที่เปิดใช้งาน
-      if (!scheduleRecord) return null;
+      if (!scheduleRecord) {
+        const t = activeTerm();
+        if (t.year || t.semester) {
+          return `⏳ ยังไม่เปิดลงทะเบียนของ${termLabel(t.year, t.semester)} — ครูผู้สอนยังไม่ได้กำหนดช่วงเวลา`;
+        }
+        return null;
+      }
       const now = new Date();
       const startDate = new Date(scheduleRecord.start_date);
       const endDate = new Date(scheduleRecord.end_date);
