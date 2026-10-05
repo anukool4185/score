@@ -3062,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.212';
+    const APP_VERSION = 'SUPABASE-2026.10.05.213';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3993,7 +3993,17 @@ const supabaseDataSdk = {
       if (!table || !record.__backendId) {
         return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการลบ' } };
       }
-      await this._api('DELETE', `${table}?id=eq.${record.__backendId}`);
+      const _del = await this._api('DELETE', `${table}?id=eq.${record.__backendId}`);
+      // 🔍 ตรวจว่าฐานข้อมูล "ลบจริง" ไหม
+      // PostgREST ส่ง Prefer: return=representation ไปแล้ว ถ้าลบสำเร็จจะได้แถวที่ลบกลับมา
+      // ถ้าได้อาร์เรย์ว่าง อาจเป็นเพราะไม่มีสิทธิ์ลบ (RLS) ซึ่ง Supabase ตอบ 204 เงียบๆ เหมือนสำเร็จ
+      // เดิมระบบเชื่อว่าสำเร็จ จึงลบออกจากหน้าจอให้ แต่พอรีเฟรชข้อมูลก็กลับมาเหมือนไม่ได้ลบ
+      if (Array.isArray(_del) && _del.length === 0) {
+        const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
+        if (Array.isArray(still) && still.length > 0) {
+          return { isOk: false, error: { message: `ฐานข้อมูลไม่ยอมลบแถวนี้ (ตาราง ${table}) — มักเกิดจากยังไม่ได้เปิดสิทธิ์ลบ (RLS) กรุณารันไฟล์ fix_delete_policy.sql ใน Supabase แล้วลองอีกครั้ง` } };
+        }
+      }
       // ⚠️ ต้องเช็คประเภทด้วย ไม่งั้นอาจลบข้อมูลผิดตัวออกจากหน้าจอ (รหัสซ้ำกันได้ระหว่างตาราง)
       this._cache = this._cache.filter(d =>
         !(String(d.__backendId) === String(record.__backendId) && d.type === record.type));
@@ -23046,7 +23056,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ลบข้อมูลสำเร็จ ✅');
         updateMFDisplayList();
       } else {
-        showToast('ไม่สามารถลบข้อมูล', 'error');
+        showToast('❌ ลบไม่สำเร็จ: ' + (result.error?.message || 'ไม่ทราบสาเหตุ'), 'error');
       }
     }
     function editIndividualMF(mfId) {
@@ -23474,7 +23484,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ลบข้อมูลสำเร็จ ✅');
         updateHoursDisplayList();
       } else {
-        showToast('ไม่สามารถลบข้อมูล', 'error');
+        showToast('❌ ลบไม่สำเร็จ: ' + (result.error?.message || 'ไม่ทราบสาเหตุ'), 'error');
       }
     }
     // ======= SCORES MANAGEMENT FUNCTIONS =======
@@ -23606,12 +23616,22 @@ function _examResultIdentityHtml(sub, set) {
       const arr = parseFullScoresArray(fullScoresStr, times);
       return arr.map(v => `<span class="inline-flex items-center justify-center w-6 h-6 border border-gray-300 rounded text-[10px] text-gray-700 flex-shrink-0">${v !== '' ? v : '-'}</span>`).join('');
     }
+    /** รายการคะแนนเต็มของวิชาเดียวกันในปี/ภาคเดียวกัน (ใช้หา "รายการซ้ำ")
+     *  ถ้ามีซ้ำ การลบทีละรายการจะดูเหมือน "ลบไม่ได้" เพราะการ์ดหน้าตาเหมือนกันยังเหลืออยู่ */
+    function _duplicateScoresOf(s) {
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      return allData.filter(d => d.type === 'class_subject_scores'
+        && N(d.class_name) === N(s.class_name) && N(d.room_number) === N(s.room_number)
+        && N(d.subject_name) === N(s.subject_name) && _termKey(d) === _termKey(s));
+    }
     function buildScoresCardInnerHtml(s) {
+      const dupCount = _duplicateScoresOf(s).length;
       return `
         <div class="flex items-center justify-between mb-2">
           <div>
             <p class="font-semibold text-gray-800">📚 ${s.class_name}/${s.room_number} | 📖 ${s.subject_name}</p>
             <p class="text-xs ${_termKey(s) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(s.academic_year, s.semester))}</p>
+            ${dupCount > 1 ? `<p class="text-xs text-red-600 font-semibold mt-0.5">⚠️ วิชานี้มีรายการซ้ำ ${dupCount} รายการ — ลบให้เหลือรายการเดียว</p>` : ''}
           </div>
           <div class="flex gap-2">
             <button onclick="editScoresPopup('${s.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
@@ -23754,10 +23774,14 @@ function _examResultIdentityHtml(sub, set) {
       const result = await window.dataSdk.delete(scores);
       if (result.isOk) {
         _closeAllPopups();
-        showToast('ลบข้อมูลสำเร็จ ✅');
+        // ⚠️ ถ้าวิชานี้มีรายการซ้ำ การ์ดหน้าตาเหมือนกันจะยังเหลืออยู่ ต้องบอกให้ชัด ไม่งั้นดูเหมือนลบไม่ได้
+        const left = _duplicateScoresOf(scores).filter(d => String(d.__backendId) !== String(scoresId)).length;
+        showToast(left
+          ? `ลบข้อมูลสำเร็จ ✅ — วิชานี้ยังมีรายการซ้ำเหลืออีก ${left} รายการ กดลบต่อได้เลย`
+          : 'ลบข้อมูลสำเร็จ ✅');
         updateScoresDisplayList();
       } else {
-        showToast('ไม่สามารถลบข้อมูล', 'error');
+        showToast('❌ ลบไม่สำเร็จ: ' + (result.error?.message || 'ไม่ทราบสาเหตุ'), 'error');
       }
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
