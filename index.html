@@ -3028,7 +3028,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.198';
+    const APP_VERSION = 'SUPABASE-2026.10.05.199';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5651,7 +5651,7 @@ const supabaseDataSdk = {
     }
     /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
     function _stampTermOnNew(record) {
-      if (!record || (record.type !== 'student' && record.type !== 'student_registration')) return record;
+      if (!record || (record.type !== 'student' && record.type !== 'student_registration' && record.type !== 'grade')) return record;
       const t = activeTerm();
       if (record.academic_year === undefined || String(record.academic_year).trim() === '') record.academic_year = t.year;
       if (record.semester === undefined || String(record.semester).trim() === '') record.semester = t.semester;
@@ -18043,11 +18043,14 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg) return null;
       let g = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(reg.__backendId));
       if (!g) {
+        // 📅 ทางสำรอง (แถวคะแนนที่ยังไม่ผูกรหัสการลงทะเบียน) ต้องอยู่ "ปี/ภาคเดียวกัน" เท่านั้น
+        //    ถ้าไม่กรอง ภาคเรียนใหม่จะไปหยิบคะแนนของภาคเก่ามาคิดเกรด และกดบันทึกทับของภาคเก่าด้วย
         g = allData.find(d => d.type === 'grade'
           && String(d.student_id) === String(reg.student_id)
           && d.class_name === reg.class_name
           && String(d.room_number) === String(reg.room_number)
-          && d.subject_name === reg.subject_name);
+          && d.subject_name === reg.subject_name
+          && _termKey(d) === _termKey(reg));
       }
       return g || null;
     }
@@ -20105,7 +20108,10 @@ function _examResultIdentityHtml(sub, set) {
         && (!room || _rRoom(d.room_number) === _rRoom(room));
       const students = allData.filter(d => d.type === 'student' && match(d));
       const regs = withRegs ? allData.filter(d => d.type === 'student_registration' && match(d)) : [];
-      return { students, regs, cls, room };
+      // 📅 แถวคะแนนของคนเหล่านี้ต้องใส่ปี/ภาคไปด้วย ไม่งั้นพอการลงทะเบียนมีปี/ภาคแล้ว
+      //    ระบบจะหาคะแนนเดิมไม่เจอ (เพราะคนละปี/ภาค) แล้วขึ้นเป็นคะแนนว่าง
+      const grades = withRegs ? allData.filter(d => d.type === 'grade' && match(d)) : [];
+      return { students, regs, grades, cls, room };
     }
     function renderBackfillBox() {
       const clsSel = document.getElementById('backfill-class');
@@ -20128,10 +20134,11 @@ function _examResultIdentityHtml(sub, set) {
       const tg = _blankTermTargets();
       const info = document.getElementById('backfill-info');
       if (info) {
-        info.innerHTML = (tg.students.length === 0 && tg.regs.length === 0)
+        info.innerHTML = (tg.students.length === 0 && tg.regs.length === 0 && tg.grades.length === 0)
           ? '<span style="color:#15803d">✅ ไม่มีข้อมูลที่ยังไม่ระบุปี/ภาคตามตัวกรองนี้</span>'
           : `<span style="color:#92400e">จะใส่ให้ <b>นักเรียน ${tg.students.length} คน</b>`
-            + (document.getElementById('backfill-include-regs')?.checked ? ` และ <b>การลงทะเบียน ${tg.regs.length} รายการ</b>` : '')
+            + (document.getElementById('backfill-include-regs')?.checked
+                ? ` · <b>การลงทะเบียน ${tg.regs.length} รายการ</b> · <b>แถวคะแนน ${tg.grades.length} แถว</b>` : '')
             + '</span>';
       }
     }
@@ -20140,11 +20147,11 @@ function _examResultIdentityHtml(sub, set) {
       const sem = String(document.getElementById('backfill-sem')?.value || '').trim();
       if (!year || !sem) { showToast('กรุณากรอกปีการศึกษาและภาคเรียนที่จะใส่', 'error'); return; }
       const tg = _blankTermTargets();
-      const total = tg.students.length + tg.regs.length;
+      const total = tg.students.length + tg.regs.length + tg.grades.length;
       if (total === 0) { showToast('ไม่มีข้อมูลที่ยังไม่ระบุปี/ภาคตามตัวกรองนี้', 'info'); return; }
-      if (!confirm(`ใส่ ${termLabel(year, sem)} ให้นักเรียน ${tg.students.length} คน และการลงทะเบียน ${tg.regs.length} รายการ?`)) return;
+      if (!confirm(`ใส่ ${termLabel(year, sem)} ให้นักเรียน ${tg.students.length} คน · การลงทะเบียน ${tg.regs.length} รายการ · แถวคะแนน ${tg.grades.length} แถว?`)) return;
       let done = 0, failed = 0;
-      for (const row of [...tg.students, ...tg.regs]) {
+      for (const row of [...tg.students, ...tg.regs, ...tg.grades]) {
         const res = await window.dataSdk.update({ ...row, academic_year: year, semester: sem });
         if (res.isOk) done++; else failed++;
       }
@@ -23401,8 +23408,10 @@ function _examResultIdentityHtml(sub, set) {
     /** สร้างการลงทะเบียนเสมือน (ยังไม่มีในฐานข้อมูล) เพื่อให้หน้าให้คะแนนใช้งานได้เหมือนทุกคน */
     function _makeVirtualReg(student, subjectName) {
       const id = 'virt_' + student.__backendId;
+      const [_vy, _vs] = (typeof workingTermKey === 'function' ? workingTermKey() : '|').split('|');
       const v = {
         type: 'student_registration', __virtual: true, __backendId: id,
+        academic_year: _vy, semester: _vs,   // 📅 คะแนนที่เก็บไว้ก่อนลงทะเบียน ก็ต้องอยู่ปี/ภาคที่กำลังทำงาน
         student_id: String(student.student_id), student_backend_id: String(student.__backendId),
         student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
         class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
@@ -24573,6 +24582,8 @@ function _examResultIdentityHtml(sub, set) {
             class_name: reg.class_name,
             room_number: reg.room_number,
             subject_name: reg.subject_name,
+            academic_year: String(reg.academic_year ?? ''),   // 📅 ผูกกับปี/ภาคของการลงทะเบียนนั้น
+            semester: String(reg.semester ?? ''),
             pretest_scores,
             k_scores,
             p_scores,
