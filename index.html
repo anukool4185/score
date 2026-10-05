@@ -1112,7 +1112,7 @@
        <!-- 📅 สร้างปีการศึกษา/ภาคเรียน — สร้างล่วงหน้าได้หลายปีหลายภาค -->
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-1">📅 ปีการศึกษา / ภาคเรียน</h3>
-        <p class="text-gray-500 text-sm mb-4">สร้างล่วงหน้าได้หลายปีหลายภาค · เทอมที่ <b>⭐ เปิดใช้งาน</b> คือเทอมที่ข้อมูลใหม่ทุกอย่างจะถูกบันทึกเข้าไป (รวมถึงการลงทะเบียนของนักเรียน) · เลือกดูข้อมูลของเทอมไหนให้ใช้ดรอปดาวน์บนหัวเว็บ</p>
+        <p class="text-gray-500 text-sm mb-4">สร้างล่วงหน้าได้หลายปีหลายภาค · <b>เลือกเทอมบนหัวเว็บ = กำลังทำงานในเทอมนั้น</b> ข้อมูลใหม่ทุกอย่างจะถูกบันทึกเข้าเทอมที่เลือก (รวมถึงการลงทะเบียนของนักเรียน) · สร้างใหม่แล้วระบบจะพาเข้าไปทำงานในเทอมนั้นให้เลย</p>
         <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-4">
          <div class="flex items-end gap-2 flex-wrap">
           <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
@@ -3062,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.210';
+    const APP_VERSION = 'SUPABASE-2026.10.05.211';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4049,7 +4049,7 @@ const supabaseDataSdk = {
         // 🚧 การลงทะเบียนต้องระบุปี/ภาคเสมอ — ถ้ายังไม่ได้ตั้งค่าที่เปิดใช้งาน ให้หยุดและบอกให้ชัด
         if (record && record.type === 'student_registration'
             && String(record.academic_year || '').trim() === '' && String(record.semester || '').trim() === '') {
-          const msg = 'ยังไม่ได้ตั้ง "ปี/ภาคที่เปิดใช้งาน" — ลงทะเบียนไม่ได้ (แอดมินตั้งที่แถบด้านบนของหน้าแอดมิน)';
+          const msg = 'ยังไม่ได้เลือกปี/ภาคที่จะทำงาน — ลงทะเบียนไม่ได้ (ครูเลือกจากดรอปดาวน์บนหัวเว็บ)';
           try { showToast('⚠️ ' + msg, 'error'); } catch (e) {}
           return Promise.resolve({ isOk: false, error: { message: msg } });
         }
@@ -5639,11 +5639,16 @@ const supabaseDataSdk = {
       }
       const res = await window.dataSdk.create({ type: 'academic_term', academic_year: year, semester: sem, created_at: new Date().toISOString() });
       if (!res.isOk) { showToast('ไม่สามารถสร้างได้', 'error'); return; }
-      showToast(`✅ สร้าง ${termLabel(year, sem)} แล้ว`);
+      showToast(`✅ สร้าง ${termLabel(year, sem)} แล้ว — เข้าไปทำงานในเทอมนี้ให้เลย`);
       const y = document.getElementById('newterm-year'); const sm = document.getElementById('newterm-sem');
       if (y) y.value = year; if (sm) sm.value = sem;
+      // สร้างแล้วเข้าไปทำงานในเทอมนั้นทันที (เลือกดู = ปฏิบัติงาน)
+      try { localStorage.setItem(TERM_VIEW_KEY, year + '|' + sem); } catch (e) {}
+      _reapplyTermScope();
+      _persistWorkingTerm(year, sem);
       renderAcademicTerms();
       renderTermViewSelect();
+      if (typeof renderImportTermNote === 'function') renderImportTermNote();
       setTimeout(() => {
         if (!academicTerms().some(t => t.year === year && t.semester === sem)) {
           showToast('⚠️ บันทึกไม่ติด — ฐานข้อมูลยังไม่มีคอลัมน์ settings.academic_year/semester กรุณารันไฟล์ add_academic_term.sql', 'error');
@@ -5707,6 +5712,7 @@ const supabaseDataSdk = {
       const list = academicTerms();
       const t = activeTerm();
       const activeKey = t.year + '|' + t.semester;
+      const viewKey = termView();
       if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-6">ยังไม่ได้สร้างปีการศึกษา/ภาคเรียน — กรอกด้านบนแล้วกด "➕ สร้างปี/ภาค"</td></tr>';
         return;
@@ -5723,12 +5729,12 @@ const supabaseDataSdk = {
          <td class="px-2 py-2 text-center ${c.students ? '' : 'text-gray-300'}">${c.students}</td>
          <td class="px-2 py-2 text-center ${c.regs ? '' : 'text-gray-300'}">${c.regs}</td>
          <td class="px-2 py-2 text-center whitespace-nowrap">${isActive
-            ? '<span class="px-2 py-1 bg-amber-500 text-white rounded text-xs font-bold">⭐ เปิดใช้งาน</span>'
+            ? '<span class="px-2 py-1 bg-amber-500 text-white rounded text-xs font-bold">⭐ กำลังทำงานอยู่</span>'
             : '<span class="text-gray-400 text-xs">—</span>'}</td>
          <td class="px-2 py-2 text-center whitespace-nowrap">
           <div class="flex gap-1 justify-center flex-wrap">
-           ${isActive ? '' : `<button onclick="activateAcademicTerm('${escHtml(x.year)}','${escHtml(x.semester)}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs whitespace-nowrap">⭐ เปิดใช้งาน</button>`}
-           <button onclick="changeTermViewTo('${escHtml(key)}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs whitespace-nowrap">👁️ ดูเทอมนี้</button>
+           ${isActive && viewKey === key ? '<span class="text-xs text-amber-700 font-semibold">กำลังอยู่ในเทอมนี้</span>'
+             : `<button onclick="changeTermViewTo('${escHtml(key)}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs whitespace-nowrap">📅 เข้าไปทำงานในเทอมนี้</button>`}
            ${empty && !isActive ? `<button onclick="deleteAcademicTerm('${x.rec.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>` : ''}
           </div>
          </td>
@@ -5745,7 +5751,8 @@ const supabaseDataSdk = {
       try { localStorage.setItem(TERM_VIEW_KEY, key); } catch (e) {}
       _reapplyTermScope();
       const [y, sm] = key.split('|');
-      showToast(`👁️ กำลังดูข้อมูลของ ${termLabel(y, sm)}`);
+      if (key && key !== '__blank') _persistWorkingTerm(y, sm);
+      showToast(`📅 กำลังทำงานใน ${termLabel(y, sm)} — ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเข้าเทอมนี้`);
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
       renderTermViewSelect();
       renderAcademicTerms();
@@ -5877,6 +5884,13 @@ const supabaseDataSdk = {
       if (!vEl || !isStaff) return;
       const t = activeTerm();
       const activeKey = t.year + '|' + t.semester;
+      // เครื่องที่ยังไม่เคยเลือก → เริ่มที่เทอมที่ระบบกำลังทำงานอยู่ (ไม่ใช่ "ทุกปี/ภาค")
+      let raw = null;
+      try { raw = localStorage.getItem(TERM_VIEW_KEY); } catch (e) { raw = null; }
+      if (raw === null && (t.year || t.semester)) {
+        try { localStorage.setItem(TERM_VIEW_KEY, activeKey); } catch (e) {}
+        _reapplyTermScope();
+      }
       const keep = termView();
       const blanks = allData.filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
       vEl.innerHTML = '<option value="" class="text-gray-800">ทุกปี/ภาค</option>'
@@ -5888,8 +5902,8 @@ const supabaseDataSdk = {
       vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
       if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
       vEl.title = (!t.year && !t.semester)
-        ? '⚠️ ยังไม่ได้เปิดใช้งานปี/ภาค — ตั้งที่เมนู "นำเข้าข้อมูลวิชา"'
-        : `ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเป็น ${termLabel(t.year, t.semester)} (ตั้งที่เมนูนำเข้าข้อมูลวิชา)`;
+        ? '⚠️ ยังไม่ได้เลือกปี/ภาค — สร้างที่เมนู "นำเข้าข้อมูลวิชา" แล้วเลือกที่นี่'
+        : `เลือกปี/ภาคที่นี่ = กำลังทำงานในเทอมนั้น · ตอนนี้ปฏิบัติงานใน ${termLabel(t.year, t.semester)}`;
     }
     /** ชื่อเดิม — ยังเรียกได้จากที่เดิมทั้งหมด */
     function renderTermBar() { renderTermViewSelect(); if (typeof renderAcademicTerms === 'function') renderAcademicTerms(); }
@@ -5912,12 +5926,34 @@ const supabaseDataSdk = {
         renderTermBar();
       }, 1200);
     }
+    /** 📅 เลือกปี/ภาคบนหัวเว็บ = "กำลังทำงานในเทอมนั้น"
+     *  ข้อมูลใหม่ทุกอย่างจะถูกบันทึกเข้าเทอมที่เลือก และฝั่งนักเรียนก็ตามเทอมนี้ด้วย
+     *  (เลือก "ทุกปี/ภาค" หรือ "ยังไม่ระบุ" = ดูอย่างเดียว ไม่เปลี่ยนเทอมที่ปฏิบัติงาน) */
     function changeTermView() {
       const v = document.getElementById('term-view')?.value || '';
       try { localStorage.setItem(TERM_VIEW_KEY, v); } catch (e) {}
       _reapplyTermScope();   // 🧩 คัดค่าตั้งต้นของรายวิชาใหม่ตามปี/ภาคที่เลือก
-      showToast(v === '' ? '🔎 มุมมอง: ทุกปี/ภาค' : v === '__blank' ? '🔎 มุมมอง: ยังไม่ระบุปี/ภาค' : `🔎 มุมมอง: ${termLabel(...v.split('|'))}`);
+      if (v && v !== '__blank') {
+        const [y, sm] = v.split('|');
+        _persistWorkingTerm(y, sm);   // เลือกแล้วถือว่าปฏิบัติงานในเทอมนี้
+        showToast(`📅 กำลังทำงานใน ${termLabel(y, sm)} — ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเข้าเทอมนี้`);
+      } else {
+        showToast(v === '' ? '🔎 ดูข้อมูลทุกปี/ภาค (ยังปฏิบัติงานในเทอมเดิม)' : '🔎 ดูข้อมูลที่ยังไม่ระบุปี/ภาค (ยังปฏิบัติงานในเทอมเดิม)');
+      }
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
+      renderTermViewSelect();
+      if (typeof renderAcademicTerms === 'function') renderAcademicTerms();
+      if (typeof renderImportTermNote === 'function') renderImportTermNote();
+    }
+    /** บันทึกเทอมที่ปฏิบัติงานเป็นค่าของระบบ (ฝั่งนักเรียนและเครื่องอื่นตามค่านี้) */
+    async function _persistWorkingTerm(year, sem) {
+      const t = activeTerm();
+      if (t.year === year && t.semester === sem) return;
+      const existing = allData.find(d => d.type === 'settings');
+      const r = existing
+        ? await window.dataSdk.update({ ...existing, active_year: year, active_semester: sem })
+        : await window.dataSdk.create({ type: 'settings', active_year: year, active_semester: sem });
+      if (!r.isOk) { showToast('⚠️ บันทึกเทอมที่ปฏิบัติงานไม่สำเร็จ', 'error'); return; }
       renderTermViewSelect();
       if (typeof renderAcademicTerms === 'function') renderAcademicTerms();
     }
@@ -20692,7 +20728,7 @@ function _examResultIdentityHtml(sub, set) {
       const mine = allData.filter(d => d.type === 'class_subject' && _termKey(d) === key).length;
       const legacy = allData.filter(d => d.type === 'class_subject' && _termKey(d) === '|').length;
       if (key === '|') {
-        el.innerHTML = '<span style="color:#b45309">⚠️ ยังไม่มีปี/ภาคที่เปิดใช้งาน — สร้างและกด "⭐ เปิดใช้งาน" ที่ตารางด้านบนก่อน ไม่งั้นวิชาที่นำเข้าจะยังไม่ระบุปี/ภาค</span>';
+        el.innerHTML = '<span style="color:#b45309">⚠️ ยังไม่ได้เลือกปี/ภาคที่จะทำงาน — สร้างที่ตารางด้านบน หรือเลือกจากดรอปดาวน์บนหัวเว็บก่อน ไม่งั้นวิชาที่นำเข้าจะยังไม่ระบุปี/ภาค</span>';
         return;
       }
       el.innerHTML = `นำเข้าเข้าสู่ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
