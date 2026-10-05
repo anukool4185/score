@@ -3039,7 +3039,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.204';
+    const APP_VERSION = 'SUPABASE-2026.10.05.205';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -19234,7 +19234,7 @@ function _examResultIdentityHtml(sub, set) {
           <h3 class="text-xl font-bold text-gray-800 mb-2">⏳ กำลังดำเนินการนำเข้าข้อมูล</h3>
           <p class="text-gray-600 text-sm">กรุณารอสักครู่...</p>
           <div class="mt-4 text-sm text-gray-500">
-            <p>ลบข้อมูลเก่า: <span id="import-step-1">...</span></p>
+            <p>ของเดิม: <span id="import-step-1">...</span></p>
             <p>สร้างชั้นเรียน: <span id="import-step-2">...</span></p>
             <p>สร้างห้องเรียน: <span id="import-step-3">...</span></p>
             <p>สร้างวิชา: <span id="import-step-4">...</span></p>
@@ -19244,58 +19244,41 @@ function _examResultIdentityHtml(sub, set) {
       `;
       document.body.appendChild(loadingDiv);
       try {
-        // ลบข้อมูลเก่าทั้งหมด (M/F, หน่วยกิต, คะแนน)
-        document.getElementById('import-step-1').textContent = '🔄 กำลังดำเนินการ...';
-        // 📅 ลบเฉพาะชุดของปี/ภาคที่กำลังทำงานอยู่ — ชุดของเทอมอื่นต้องอยู่ครบ ไม่งั้นเกรดเก่าพัง
-        const _inTerm = d => (typeof sameWorkingTerm === 'function') ? sameWorkingTerm(d) : true;
-        const oldMFRecords = allData.filter(d => d.type === 'class_subject' && _inTerm(d));
-        const oldHoursRecords = allData.filter(d => d.type === 'class_subject_hours' && _inTerm(d));
-        const oldScoresRecords = allData.filter(d => d.type === 'class_subject_scores' && _inTerm(d));
-        for (const record of oldMFRecords) {
-          await window.dataSdk.delete(record);
-        }
-        for (const record of oldHoursRecords) {
-          await window.dataSdk.delete(record);
-        }
-        for (const record of oldScoresRecords) {
-          await window.dataSdk.delete(record);
-        }
-        // ลบ class, room, subject records เก่าที่ไม่ใช้แล้ว
-        const oldClassRecords = allData.filter(d => d.type === 'class');
-        const oldRoomRecords = allData.filter(d => d.type === 'room');
-        const oldSubjectRecords = allData.filter(d => d.type === 'subject');
-        for (const record of oldClassRecords) {
-          await window.dataSdk.delete(record);
-        }
-        for (const record of oldRoomRecords) {
-          await window.dataSdk.delete(record);
-        }
-        for (const record of oldSubjectRecords) {
-          await window.dataSdk.delete(record);
-        }
-        document.getElementById('import-step-1').textContent = '✅ เสร็จ';
-        // สร้าง class records ใหม่
+        // 🛡️ ไม่ลบของเดิมอีกต่อไป — ของที่ทำไว้แล้วต้องอยู่ครบเสมอ
+        //    นำเข้า = "เพิ่มเฉพาะที่ยังไม่มีในปี/ภาคนี้" ของเทอมอื่นและของเดิมไม่ถูกแตะเลย
+        document.getElementById('import-step-1').textContent = '✅ ไม่ลบของเดิม (เพิ่มเฉพาะที่ยังไม่มี)';
+        // สร้าง class / room / subject เฉพาะชื่อที่ยังไม่มีในระบบ (ไม่ซ้ำของเดิม)
+        const _N2 = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
         document.getElementById('import-step-2').textContent = '🔄 กำลังดำเนินการ...';
         for (const className of classes) {
+          if (allData.some(d => d.type === 'class' && _N2(d.class_name) === _N2(className))) continue;
           await window.dataSdk.create({ type: 'class', class_name: className });
         }
         document.getElementById('import-step-2').textContent = '✅ เสร็จ';
-        // สร้าง room records ใหม่
         document.getElementById('import-step-3').textContent = '🔄 กำลังดำเนินการ...';
         for (const roomNumber of rooms) {
+          if (allData.some(d => d.type === 'room' && _N2(d.room_number) === _N2(roomNumber))) continue;
           await window.dataSdk.create({ type: 'room', room_number: roomNumber });
         }
         document.getElementById('import-step-3').textContent = '✅ เสร็จ';
-        // สร้าง subject records ใหม่
         document.getElementById('import-step-4').textContent = '🔄 กำลังดำเนินการ...';
         for (const subjectName of subjects) {
+          if (allData.some(d => d.type === 'subject' && _N2(d.subject_name) === _N2(subjectName))) continue;
           await window.dataSdk.create({ type: 'subject', subject_name: subjectName });
         }
         document.getElementById('import-step-4').textContent = '✅ เสร็จ';
         // สร้าง class_subject records จาก pairs ที่นำเข้ามา
         document.getElementById('import-step-5').textContent = '🔄 กำลังดำเนินการ...';
+        let _added = 0, _kept = 0;
         for (const pair of pairs) {
           const classSubjectId = `${pair.className}_${pair.roomNumber}_${pair.subjectName}`;
+          // 📅 มีอยู่แล้วในปี/ภาคนี้ → ข้าม ไม่สร้างซ้ำและไม่ลบของเดิม
+          if (allData.some(d => d.type === 'class_subject'
+              && _rN(d.class_name) === _rN(pair.className)
+              && _rRoom(d.room_number) === _rRoom(pair.roomNumber)
+              && _rN(d.subject_name) === _rN(pair.subjectName)
+              && (typeof sameWorkingTerm === 'function' ? sameWorkingTerm(d) : true))) { _kept++; continue; }
+          _added++;
           await window.dataSdk.create({
             type: 'class_subject',
             class_subject_id: classSubjectId,
@@ -19349,8 +19332,10 @@ function _examResultIdentityHtml(sub, set) {
           document.getElementById('import-preview').classList.add('hidden');
           document.getElementById('text-file').value = '';
           window.pendingImportData = null;
-          showToast('นำเข้าข้อมูลสำเร็จ ✅');
+          showToast(`นำเข้าสำเร็จ ✅ เพิ่มใหม่ ${_added} รายวิชา`
+            + (_kept ? ` · มีอยู่แล้วใน${typeof workingTermLabel === 'function' ? workingTermLabel() : 'เทอมนี้'} ${_kept} รายวิชา (ไม่แตะของเดิม)` : ''));
           updateImportedData();
+          renderImportTermNote();
           loadMFFilters();
           loadHoursFilters();
           loadScoresFilters();
@@ -20513,7 +20498,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       el.innerHTML = `นำเข้าเข้าสู่ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
         + ` · ตอนนี้เทอมนี้มีรายวิชา <b>${mine}</b> รายการ`
-        + ` · <span style="color:#dc2626">การนำเข้าจะล้างรายวิชา/คะแนนเต็ม/หน่วยกิต <b>เฉพาะของเทอมนี้</b> แล้วสร้างใหม่ (เทอมอื่นไม่ถูกแตะ)</span>`
+        + ` · <span style="color:#15803d">การนำเข้า<b>ไม่ลบของเดิม</b> เพิ่มเฉพาะวิชาที่ยังไม่มีในเทอมนี้</span>`
         + (mine === 0 && legacy
             ? `<br><span style="color:#b45309">ℹ️ รายวิชา ${legacy} รายการที่เห็นอยู่ตอนนี้ยังไม่ระบุปี/ภาค จึงแสดงในทุกเทอม — นำเข้าของเทอมนี้แล้วจะถูกแทนที่ หรือไปใส่ปี/ภาคให้ที่แท็บนักเรียน → โอนรายชื่อ → กล่อง 0️⃣</span>`
             : '');
