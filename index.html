@@ -2071,14 +2071,19 @@
             <p class="text-sm font-semibold text-purple-800 mb-2">2️⃣ ปลายทาง</p>
             <div class="grid grid-cols-2 gap-2 mb-2">
              <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
-              <input type="text" id="transfer-dst-year" placeholder="เช่น 2570" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+              <input type="text" id="transfer-dst-year" oninput="renderTransferPicker()" placeholder="เช่น 2570" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
              <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียน</label>
-              <input type="text" id="transfer-dst-sem" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+              <input type="text" id="transfer-dst-sem" oninput="renderTransferPicker()" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
             </div>
-            <label class="block text-xs text-gray-600 mb-1">ชั้นเรียนใหม่ <span class="text-gray-400">(เว้นว่าง = ใช้ชั้นเดิม)</span></label>
-            <input type="text" id="transfer-dst-class" placeholder="เช่น ม.2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
-            <label class="block text-xs text-gray-600 mb-1">ห้องใหม่ <span class="text-gray-400">(เว้นว่าง = ใช้ห้องเดิม)</span></label>
-            <input type="text" id="transfer-dst-room" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+            <label class="flex items-center gap-2 text-xs cursor-pointer mb-2 bg-white border-2 border-purple-200 rounded-lg px-2 py-2">
+             <input type="checkbox" id="transfer-promote" onchange="renderTransferPicker()" class="w-4 h-4">
+             <span>⬆️ เลื่อนชั้นให้อัตโนมัติ (ม.1 → ม.2) <b>ห้องคงเดิม</b></span>
+            </label>
+            <p id="transfer-rule-note" class="text-[11px] mb-2"></p>
+            <label class="block text-xs text-gray-600 mb-1">กำหนดชั้นเองทุกคน <span class="text-gray-400">(เว้นว่าง = ตามกติกาด้านบน)</span></label>
+            <input type="text" id="transfer-dst-class" oninput="renderTransferPicker()" placeholder="เช่น ม.2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
+            <label class="block text-xs text-gray-600 mb-1">กำหนดห้องเองทุกคน <span class="text-gray-400">(เว้นว่าง = ใช้ห้องเดิม)</span></label>
+            <input type="text" id="transfer-dst-room" oninput="renderTransferPicker()" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
             <p class="text-[11px] text-gray-500 mt-2">ชื่อ-นามสกุล · รหัสนักเรียน · username/password · เบอร์โทร คงเดิมทุกอย่าง</p>
            </div>
           </div>
@@ -2089,9 +2094,10 @@
               <th class="px-1 py-2 text-center"><input type="checkbox" onchange="toggleTransferAll(this.checked)" class="w-4 h-4"></th>
               <th class="px-1 py-2 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
               <th class="px-1 py-2 text-left whitespace-nowrap">รหัส</th>
-              <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง</th>
+              <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง เดิม</th>
+              <th class="px-1 py-2 text-center whitespace-nowrap">→ ปลายทาง</th>
               <th class="px-1 py-2 text-center whitespace-nowrap">เลขที่</th>
-              <th class="px-1 py-2 text-left whitespace-nowrap">สถานะปลายทาง</th>
+              <th class="px-1 py-2 text-left whitespace-nowrap">สถานะ</th>
              </tr>
             </thead>
             <tbody id="transfer-tbody"></tbody>
@@ -3028,7 +3034,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.199';
+    const APP_VERSION = 'SUPABASE-2026.10.05.203';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3740,6 +3746,9 @@ const supabaseDataSdk = {
         class_name: cs.class_name,
         room_number: cs.room_number,
         subject_name: cs.subject_name,
+        // 📅 หน่วยกิต/เวลาเรียน อยู่แถวเดียวกับ M/F จึงใช้ปี/ภาคชุดเดียวกัน
+        academic_year: cs.academic_year,
+        semester: cs.semester,
         // ค่าเหล่านี้ถูกแปลงเป็นตัวเลขแล้วโดย _toLegacy (ดู SB_NUMERIC_FIELDS) จึงคัดลอกมาได้เลย
         credits: cs.credits || 0,
         hours_per_week: cs.hours_per_week || 0,
@@ -3978,6 +3987,25 @@ const supabaseDataSdk = {
     // 📅 ประทับปีการศึกษา/ภาคเรียนให้ทุกแถวนักเรียนและการลงทะเบียนที่สร้างใหม่
     //    ครอบที่ชั้น SDK จุดเดียว จึงครบทุกเส้นทาง (นักเรียนลงเอง · แอดมิน · ผู้ช่วยแอดมิน · ลงหมู่ · มือถือ)
     (function () {
+      // 🧩 แก้ค่าตั้งต้นของรายวิชา (M/F · คะแนนเต็ม · หน่วยกิต) ที่ยังเป็นของเดิมใช้ร่วมกันอยู่
+      //    ขณะกำลังทำงานในปี/ภาคหนึ่ง → สร้างเป็น "ชุดของเทอมนี้" ให้เอง ไม่ไปทับของเทอมเก่า
+      const _origUpdate = supabaseDataSdk.update.bind(supabaseDataSdk);
+      supabaseDataSdk.update = function (record) {
+        try {
+          const CT = ['class_subject', 'class_subject_scores', 'class_subject_hours'];
+          if (record && CT.indexOf(record.type) >= 0
+              && String(record.academic_year || '').trim() === '' && String(record.semester || '').trim() === ''
+              && typeof workingTermKey === 'function' && workingTermKey() !== '|') {
+            const [wy, ws] = workingTermKey().split('|');
+            const copy = { ...record, academic_year: wy, semester: ws };
+            delete copy.__backendId;
+            delete copy.id;
+            try { showToast(`🧩 แยกชุดค่าของ${termLabel(wy, ws)} ให้แล้ว — ของเทอมก่อนหน้าไม่ถูกแก้`); } catch (e) {}
+            return supabaseDataSdk.create(copy);
+          }
+        } catch (e) { /* ถ้าตรวจไม่ได้ ให้ทำงานแบบเดิม ปลอดภัยกว่า */ }
+        return _origUpdate(record);
+      };
       const _origCreate = supabaseDataSdk.create.bind(supabaseDataSdk);
       supabaseDataSdk.create = function (record) {
         try { if (typeof _stampTermOnNew === 'function') _stampTermOnNew(record); } catch (e) {}
@@ -4029,7 +4057,9 @@ const supabaseDataSdk = {
             if (rec.password) rec.password = _fix(rec.password);
           });
         } catch (e) { console.log('[PhoneFix] ซ่อมเบอร์โทรไม่สำเร็จ (ไม่ร้ายแรง):', e.message); }
-        allData = data;
+        window.__allRaw = data;
+        // 🧩 ค่าตั้งต้นของรายวิชาแยกชุดตามปี/ภาค — คัดให้เหลือชุดที่ใช้กับปี/ภาคที่กำลังดู
+        allData = (typeof _scopeConfigRows === 'function') ? _scopeConfigRows(data) : data;
         window.__dataReady = true;
 
         // 🔑 ตรวจสอบ "โทเค็นล็อกอินอัตโนมัติ" ก่อนเสมอ (ถ้ามีติดมากับลิงก์ ?alt=...) — ทำครั้งเดียวตอนข้อมูลโหลดเสร็จครั้งแรก
@@ -5572,6 +5602,43 @@ const supabaseDataSdk = {
       return _termKey(row) === v;
     }
     function filterByTermView(rows) { return (rows || []).filter(inTermView); }
+
+    // ══════════════════════════════════════════════════════════════
+    // 🧩 ค่าตั้งต้นของรายวิชา (M/F · คะแนนเต็ม · หน่วยกิต) แยกชุดตามปี/ภาค
+    //    เปิดเทอมใหม่ = เริ่มชุดใหม่ เลือกปี/ภาคไหนก็เห็นเฉพาะของปี/ภาคนั้น
+    //    ของเดิมที่ยังไม่ระบุปี/ภาค ใช้เป็นทางสำรองไปก่อน จนกว่าเทอมนั้นจะมีชุดของตัวเอง
+    // ══════════════════════════════════════════════════════════════
+    const TERM_CONFIG_TYPES = ['class_subject', 'class_subject_scores', 'class_subject_hours'];
+    function _configKeyOf(d) {
+      return d.type + '|' + _rN(d.class_name) + '|' + _rRoom(d.room_number) + '|' + _rN(d.subject_name);
+    }
+    /** คัดค่าตั้งต้นของรายวิชาให้เหลือเฉพาะชุดที่ใช้กับปี/ภาคที่กำลังดู */
+    function _scopeConfigRows(data) {
+      let view = '';
+      try { view = localStorage.getItem(TERM_VIEW_KEY) || ''; } catch (e) { view = ''; }
+      if (!view) return data;                       // ทุกปี/ภาค = เห็นหมด ไม่กรอง
+      const want = (view === '__blank') ? '|' : view;
+      const exact = new Set();
+      data.forEach(d => {
+        if (TERM_CONFIG_TYPES.indexOf(d.type) < 0) return;
+        if (_termKey(d) === want) exact.add(_configKeyOf(d));
+      });
+      const out = data.filter(d => {
+        if (TERM_CONFIG_TYPES.indexOf(d.type) < 0) return true;
+        const k = _termKey(d);
+        if (k === want) return true;
+        if (want === '|') return false;
+        // ของเดิมที่ยังไม่ระบุปี/ภาค — ใช้ต่อได้จนกว่าเทอมนี้จะมีชุดของตัวเอง
+        return k === '|' && !exact.has(_configKeyOf(d));
+      });
+      // ไม่มีอะไรถูกคัดออก → คืนชุดเดิมไปเลย (คงตัวตนของอาร์เรย์ไว้ ไม่ให้ของที่เพิ่งเพิ่มหลุดหาย)
+      return out.length === data.length ? data : out;
+    }
+    /** วาดใหม่ทั้งหน้าเมื่อเปลี่ยนมุมมองปี/ภาค — ต้องคัดค่าตั้งต้นใหม่ด้วย */
+    function _reapplyTermScope() {
+      if (Array.isArray(window.__allRaw)) allData = _scopeConfigRows(window.__allRaw);
+    }
+
     /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
      *  ข้อมูลถูกแยกด้วย (ปีการศึกษา + ภาคเรียน) — ปีเดียวกันแต่คนละภาค ถือเป็นคนละชุดข้อมูล
      *  คนเดียวกันจึงลงทะเบียนวิชาเดิมซ้ำได้ในภาคใหม่ โดยไม่ถูกมองว่าซ้ำ
@@ -5589,15 +5656,25 @@ const supabaseDataSdk = {
     function sameWorkingTerm(row) { return _termKey(row) === workingTermKey(); }
     function workingTermLabel() { const [y, sm] = workingTermKey().split('|'); return termLabel(y, sm); }
 
-    /** คู่ปี/ภาคทั้งหมดที่มีข้อมูลอยู่จริง */
+    /** คู่ปี/ภาคทั้งหมดที่เลือกดูได้
+     *  รวม "ปี/ภาคที่เพิ่งเปิดใช้งาน" ที่ยังไม่มีข้อมูลสักแถวด้วย
+     *  ไม่งั้นพอตั้งภาค 2 ใหม่ จะยังไม่มีให้เลือกในดรอปดาวน์จนกว่าจะมีคนลงทะเบียน */
     function allTermKeys() {
       const set = new Set();
       allData.forEach(d => {
-        if (d.type !== 'student' && d.type !== 'student_registration') return;
+        if (d.type !== 'student' && d.type !== 'student_registration'
+            && d.type !== 'grade' && d.type !== 'registration_schedule') return;
         const k = _termKey(d);
         if (k !== '|') set.add(k);
       });
+      const t = activeTerm();
+      if (t.year || t.semester) set.add(t.year + '|' + t.semester);
       return [...set].sort().reverse();
+    }
+    /** จำนวนแถวข้อมูลของปี/ภาคนั้น (ใช้บอกว่าเทอมไหนยังว่างอยู่) */
+    function _termRowCount(key) {
+      return allData.filter(d => (d.type === 'student' || d.type === 'student_registration')
+        && _termKey(d) === key).length;
     }
     function renderTermBar() {
       const yEl = document.getElementById('term-active-year');
@@ -5613,7 +5690,10 @@ const supabaseDataSdk = {
         vEl.innerHTML = '<option value="">ทุกปี/ภาค</option>'
           + `<option value="__blank">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks} แถว)` : ''}</option>`
           + allTermKeys().map(k => { const [y, sm] = k.split('|');
-              return `<option value="${escHtml(k)}">${escHtml(termLabel(y, sm))}</option>`; }).join('');
+              const act = (activeTerm().year + '|' + activeTerm().semester) === k;
+              const n = _termRowCount(k);
+              return `<option value="${escHtml(k)}">${act ? '⭐ ' : ''}${escHtml(termLabel(y, sm))}`
+                   + `${n ? ` (${n} แถว)` : ' (ยังไม่มีข้อมูล)'}</option>`; }).join('');
         vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
         if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
       }
@@ -5645,13 +5725,15 @@ const supabaseDataSdk = {
     function changeTermView() {
       const v = document.getElementById('term-view')?.value || '';
       try { localStorage.setItem(TERM_VIEW_KEY, v); } catch (e) {}
+      _reapplyTermScope();   // 🧩 คัดค่าตั้งต้นของรายวิชาใหม่ตามปี/ภาคที่เลือก
       showToast(v === '' ? '🔎 มุมมอง: ทุกปี/ภาค' : v === '__blank' ? '🔎 มุมมอง: ยังไม่ระบุปี/ภาค' : `🔎 มุมมอง: ${termLabel(...v.split('|'))}`);
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
       renderTermBar();
     }
     /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
     function _stampTermOnNew(record) {
-      if (!record || (record.type !== 'student' && record.type !== 'student_registration' && record.type !== 'grade')) return record;
+      const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours'];
+      if (!record || STAMP.indexOf(record.type) < 0) return record;
       const t = activeTerm();
       if (record.academic_year === undefined || String(record.academic_year).trim() === '') record.academic_year = t.year;
       if (record.semester === undefined || String(record.semester).trim() === '') record.semester = t.semester;
@@ -18059,7 +18141,13 @@ function _examResultIdentityHtml(sub, set) {
      *  ⚠️ สำคัญมาก: ถ้าหาไม่เจอ คะแนนเต็มจะเป็น 0 ทำให้คิดเกรดผิดทั้งห้อง */
     function _findScoresConfig(reg) {
       if (!reg) return null;
-      let sc = reg.class_subject_id
+      // 🧩 ชุดของปี/ภาคเดียวกันมาก่อนเสมอ (เปิดเทอมใหม่ = คะแนนเต็มชุดใหม่ ของเก่าไม่เปลี่ยน)
+      let sc = allData.find(d => d.type === 'class_subject_scores'
+        && _rN(d.class_name) === _rN(reg.class_name)
+        && _rRoom(d.room_number) === _rRoom(reg.room_number)
+        && _rN(d.subject_name) === _rN(reg.subject_name)
+        && _termKey(d) === _termKey(reg));
+      if (!sc) sc = reg.class_subject_id
         ? allData.find(d => d.type === 'class_subject_scores' && String(d.class_subject_id) === String(reg.class_subject_id))
         : null;
       if (!sc) {
@@ -18082,7 +18170,10 @@ function _examResultIdentityHtml(sub, set) {
         d.type === 'student_registration' &&
         d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName
       ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);   // 📅 ตามมุมมองปี/ภาค
-      const classSubjectRecord = allData.find(d => d.type === 'class_subject' && _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
+      // 🧩 น้ำหนัก M/F ใช้ชุดของปี/ภาคที่กำลังดูก่อน ของเทอมอื่นต้องไม่มาเปลี่ยนเกรดเก่า
+      const _csAll = allData.filter(d => d.type === 'class_subject' && _eaN(d.class_name) === _eaN(className) && _eaN(d.room_number) === _eaN(roomNumber) && _eaN(d.subject_name) === _eaN(subjectName));
+      const _wantKey = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const classSubjectRecord = _csAll.find(d => _termKey(d) === _wantKey) || _csAll.find(d => _termKey(d) === '|') || _csAll[0] || null;
       const midPercentWeight = classSubjectRecord?.mid_percent || 0;
       const finalPercentWeight = classSubjectRecord?.final_percent || 0;
       const sumScoresStrLocal = (str) => {
@@ -20169,10 +20260,11 @@ function _examResultIdentityHtml(sub, set) {
         const keep = srcSel.value;
         const keys = allTermKeys();
         const blanks = allData.filter(d => d.type === 'student' && _termKey(d) === '|').length;
+        // ต้นทางต้องมีรายชื่ออยู่จริงถึงจะโอนได้ — เทอมที่ยังว่างไม่ต้องโชว์
         srcSel.innerHTML = (blanks ? `<option value="__blank">ยังไม่ระบุปี/ภาค (${blanks} คน)</option>` : '')
           + keys.map(k => { const [y, sm] = k.split('|');
               const n = allData.filter(d => d.type === 'student' && _termKey(d) === k).length;
-              return `<option value="${escHtml(k)}">${escHtml(termLabel(y, sm))} (${n} คน)</option>`; }).join('');
+              return n ? `<option value="${escHtml(k)}">${escHtml(termLabel(y, sm))} (${n} คน)</option>` : ''; }).join('');
         if (!srcSel.options.length) srcSel.innerHTML = '<option value="">-- ยังไม่มีรายชื่อนักเรียน --</option>';
         srcSel.value = Array.prototype.some.call(srcSel.options, o => o.value === keep) ? keep : srcSel.options[0].value;
       }
@@ -20185,6 +20277,60 @@ function _examResultIdentityHtml(sub, set) {
       renderBackfillBox();
       renderTransferPicker();
     }
+
+    /** ⬆️ ชั้นถัดไปของชั้นนี้ — เพิ่มเลขท้ายขึ้น 1 (ม.1 → ม.2 · ป.3 → ป.4)
+     *  ชั้นสุดท้ายของช่วงชั้น (ม.6 / ป.6) ไม่เลื่อนต่อ คืนค่าเดิมไว้ให้ครูตัดสินใจเอง */
+    function _nextClassName(cls) {
+      const t = String(cls == null ? '' : cls).trim();
+      const m = t.match(/^(.*?)(\d+)(\D*)$/);
+      if (!m) return t;
+      const n = parseInt(m[2], 10);
+      if (!isFinite(n)) return t;
+      if (n >= 6) return t;      // จบช่วงชั้นแล้ว ไม่เลื่อนให้อัตโนมัติ
+      return m[1] + (n + 1) + m[3];
+    }
+    /** ชั้น/ห้องปลายทางของนักเรียนคนหนึ่ง ตามกติกาที่เลือกไว้
+     *  ปีเดียวกันคนละภาค → ชั้น/ห้องคงเดิม (ม.1/1 ยังเป็น ม.1/1)
+     *  ข้ามปีการศึกษา → เลื่อนชั้นขึ้น 1 ถ้าติ๊กไว้ · ห้องคงเดิมเสมอ เว้นแต่กำหนดเอง */
+    function _transferDestFor(st) {
+      const manualC = String(document.getElementById('transfer-dst-class')?.value || '').trim();
+      const manualR = String(document.getElementById('transfer-dst-room')?.value || '').trim();
+      const promote = !!document.getElementById('transfer-promote')?.checked;
+      let cls = String(st.class_name || '');
+      if (manualC) cls = manualC;
+      else if (promote) cls = _nextClassName(cls);
+      const room = manualR || String(st.room_number || '');
+      return { cls, room, promotedBlocked: !manualC && promote && cls === String(st.class_name || '') };
+    }
+    /** ปี/ภาคต้นทาง–ปลายทางเป็นปีเดียวกันไหม (ปีเดียวกัน = ไม่ต้องเลื่อนชั้น) */
+    function _transferSameYear() {
+      const src = String(document.getElementById('transfer-src')?.value || '');
+      const srcYear = src === '__blank' ? '' : src.split('|')[0];
+      const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
+      return !!srcYear && srcYear === dstYear;
+    }
+    /** ปรับตัวเลือก "เลื่อนชั้นอัตโนมัติ" ให้ตรงกติกา แล้วอธิบายให้ครูเห็น */
+    function _syncTransferPromote() {
+      const cb = document.getElementById('transfer-promote');
+      const note = document.getElementById('transfer-rule-note');
+      if (!cb) return;
+      const sameYear = _transferSameYear();
+      const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
+      if (sameYear) {
+        cb.checked = false;
+        cb.disabled = true;
+      } else {
+        if (cb.disabled) { cb.disabled = false; cb.checked = !!dstYear; }   // เพิ่งเปลี่ยนเป็นข้ามปี → ติ๊กให้เอง
+        cb.disabled = false;
+      }
+      if (note) {
+        note.innerHTML = sameYear
+          ? '<span style="color:#15803d">ปีการศึกษาเดียวกัน คนละภาคเรียน → <b>ชั้น/ห้องคงเดิม</b> (ม.1/1 ยังเป็น ม.1/1)</span>'
+          : (dstYear ? '<span style="color:#b45309">ข้ามปีการศึกษา → เลื่อนชั้นขึ้น 1 ระดับ ห้องคงเดิม (แก้เองได้ด้านล่าง)</span>'
+                     : '<span style="color:#94a3b8">กรอกปี/ภาคปลายทางก่อน ระบบจะบอกกติกาชั้นเรียนให้</span>');
+      }
+    }
+
     /** นักเรียนของปี/ภาคต้นทางที่เลือกไว้ (กรองเฉพาะชั้น/ห้องได้ เพื่อโอนทีละห้อง) */
     function _transferSourceStudents() {
       const v = document.getElementById('transfer-src')?.value || '';
@@ -20218,21 +20364,25 @@ function _examResultIdentityHtml(sub, set) {
       }
       const list = _transferSourceStudents();
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-6">ไม่มีรายชื่อในปี/ภาคที่เลือก</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-6">ไม่มีรายชื่อในปี/ภาคที่เลือก</td></tr>';
         updateTransferCount();
         return;
       }
+      _syncTransferPromote();
       const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
       const dstSem = String(document.getElementById('transfer-dst-sem')?.value || '').trim();
       const dstKey = dstYear + '|' + dstSem;
       tbody.innerHTML = list.map(st => {
         const already = (dstYear || dstSem) && allData.some(d => d.type === 'student'
           && _rN(d.student_id) === _rN(st.student_id) && _termKey(d) === dstKey);
+        const dest = _transferDestFor(st);
+        const moved = dest.cls !== String(st.class_name || '') || dest.room !== String(st.room_number || '');
         return `<tr class="border-t border-gray-100 hover:bg-gray-50">
          <td class="px-1 py-1 text-center"><input type="checkbox" class="transfer-cb w-4 h-4" value="${st.__backendId}" ${already ? 'disabled' : 'checked'} onchange="updateTransferCount()"></td>
          <td class="px-1 py-1 whitespace-nowrap">${escHtml((st.prefix || '') + (st.first_name || '') + ' ' + (st.last_name || ''))}</td>
          <td class="px-1 py-1 font-mono whitespace-nowrap">${escHtml(String(st.student_id || ''))}</td>
-         <td class="px-1 py-1 text-center whitespace-nowrap">${escHtml(String(st.class_name || '-'))}/${escHtml(String(st.room_number || '-'))}</td>
+         <td class="px-1 py-1 text-center whitespace-nowrap text-gray-500">${escHtml(String(st.class_name || '-'))}/${escHtml(String(st.room_number || '-'))}</td>
+         <td class="px-1 py-1 text-center whitespace-nowrap ${moved ? 'text-purple-700 font-bold' : 'text-gray-700'}">${escHtml(dest.cls || '-')}/${escHtml(dest.room || '-')}${dest.promotedBlocked ? ' <span class="text-[10px] text-amber-600">(ชั้นสุดท้าย ไม่เลื่อน)</span>' : ''}</td>
          <td class="px-1 py-1 text-center">${escHtml(String(st.student_number || '-'))}</td>
          <td class="px-1 py-1 ${already ? 'text-gray-400' : 'text-green-700'}">${already ? 'มีอยู่แล้วในปลายทาง' : 'พร้อมโอน'}</td>
         </tr>`;
@@ -20258,8 +20408,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       const ids = Array.from(document.querySelectorAll('.transfer-cb:checked')).map(cb => cb.value);
       if (ids.length === 0) { showToast('กรุณาเลือกนักเรียนที่ต้องการโอนอย่างน้อย 1 คน', 'error'); return; }
-      const newClass = String(document.getElementById('transfer-dst-class')?.value || '').trim();
-      const newRoom = String(document.getElementById('transfer-dst-room')?.value || '').trim();
+      // ชั้น/ห้องปลายทางคิดรายคนตามกติกา (ปีเดียวกัน = คงเดิม · ข้ามปี = เลื่อนชั้นถ้าติ๊กไว้)
       if (!confirm(`โอน ${ids.length} คน ไปเป็น ${termLabel(dstYear, dstSem)}?\n(คัดลอกรายชื่อใหม่ ของเดิมยังอยู่ครบ ไม่โอนการลงทะเบียนและคะแนน)`)) return;
       const resultEl = document.getElementById('transfer-result');
       let done = 0, skipped = 0, failed = 0;
@@ -20274,8 +20423,9 @@ function _examResultIdentityHtml(sub, set) {
         delete copy.id;
         copy.academic_year = dstYear;
         copy.semester = dstSem;
-        if (newClass) copy.class_name = newClass;
-        if (newRoom) copy.room_number = newRoom;
+        const dest = _transferDestFor(st);
+        copy.class_name = dest.cls;
+        copy.room_number = dest.room;
         copy.created_at = new Date().toISOString();
         const res = await window.dataSdk.create(copy);
         if (res.isOk) done++; else failed++;
@@ -20358,10 +20508,11 @@ function _examResultIdentityHtml(sub, set) {
     // ══════════════════════════════════════════════════════════════
     /** ขีดจำกัด K+P+A+C ของวิชาหนึ่ง (ตามชั้น/ห้องของแถวลงทะเบียนนั้น) */
     function _kpacLimitForReg(reg) {
-      const cs = allData.find(d => d.type === 'class_subject'
+      const _list = allData.filter(d => d.type === 'class_subject'
         && _rN(d.class_name) === _rN(reg.class_name)
         && _rRoom(d.room_number) === _rRoom(reg.room_number)
         && _rN(d.subject_name) === _rN(reg.subject_name));
+      const cs = _list.find(d => _termKey(d) === _termKey(reg)) || _list.find(d => _termKey(d) === '|') || _list[0] || null;
       if (!cs) return null;   // ไม่พบวิชาที่เปิดสอน — ไม่รู้ขีดจำกัด จึงไม่ตัดสิน
       return Math.round((100 - (Number(cs.mid_percent) || 0) - (Number(cs.final_percent) || 0)) * 100) / 100;
     }
@@ -23279,8 +23430,9 @@ function _examResultIdentityHtml(sub, set) {
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
     function loadGradingFilters() {
-      // ดึงชั้นเรียนจากการลงทะเบียนนักเรียน
-      const registrations = allData.filter(d => d.type === 'student_registration');
+      // ดึงชั้นเรียนจากการลงทะเบียนนักเรียน (📅 เฉพาะปี/ภาคที่กำลังดู)
+      const registrations = allData.filter(d => d.type === 'student_registration')
+        .filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       const uniqueClasses = new Set();
       const uniqueRooms = new Set();
       const uniqueSubjects = new Set();
@@ -23313,11 +23465,11 @@ function _examResultIdentityHtml(sub, set) {
         updateGradingStudents();
         return;
       }
-      // ค้นหาห้องเรียนที่มีชั้นเรียนนี้
+      // ค้นหาห้องเรียนที่มีชั้นเรียนนี้ (📅 เฉพาะปี/ภาคที่กำลังดู)
       const registrations = allData.filter(d => 
         d.type === 'student_registration' && 
         d.class_name === selectedClass
-      );
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);
       const uniqueRooms = new Set();
       registrations.forEach(reg => {
         if (reg.room_number) uniqueRooms.add(reg.room_number);
@@ -23602,7 +23754,7 @@ function _examResultIdentityHtml(sub, set) {
         d.class_name === className &&
         d.room_number === roomNumber &&
         d.subject_name === subjectName
-      );
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true);   // 📅 เฉพาะปี/ภาคที่กำลังดู
       // 🔔 รวมนักเรียนที่ยังไม่ลงทะเบียนเข้ามาด้วย ให้กรอกคะแนนเก็บไว้ได้เหมือนทุกคน
       const _unreg = _getUnregisteredStudents(className, roomNumber, subjectName).map(s => _makeVirtualReg(s, subjectName));
       registrations = registrations.concat(_unreg);
@@ -24796,7 +24948,13 @@ function _examResultIdentityHtml(sub, set) {
      *  จำเป็นหลังย้ายมา Supabase เพราะรหัสอ้างอิงอาจไม่ตรงกับของเดิม ทำให้หาข้อมูลไม่เจอ */
     function _findHoursData(reg) {
       if (!reg) return null;
-      let h = reg.class_subject_id
+      // 🧩 ชุดหน่วยกิต/เวลาเรียนของปี/ภาคเดียวกันมาก่อน (การตัด มส. ของเทอมเก่าจึงไม่เปลี่ยน)
+      let h = allData.find(x => x.type === 'class_subject_hours'
+        && _rN(x.class_name) === _rN(reg.class_name)
+        && _rRoom(x.room_number) === _rRoom(reg.room_number)
+        && _rN(x.subject_name) === _rN(reg.subject_name)
+        && _termKey(x) === _termKey(reg));
+      if (!h) h = reg.class_subject_id
         ? allData.find(x => x.type === 'class_subject_hours' && x.class_subject_id === reg.class_subject_id)
         : null;
       if (!h) {
