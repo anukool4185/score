@@ -3062,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.208';
+    const APP_VERSION = 'SUPABASE-2026.10.05.210';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4027,6 +4027,12 @@ const supabaseDataSdk = {
           if (record && CT.indexOf(record.type) >= 0
               && String(record.academic_year || '').trim() === '' && String(record.semester || '').trim() === ''
               && typeof workingTermKey === 'function' && workingTermKey() !== '|') {
+            // 📅 คะแนนเต็ม/หน่วยกิต ยึดปี/ภาคของรายวิชาตัวเอง ถ้ารายวิชายังไม่ระบุก็ไม่ต้องแยกชุด
+            if (record.type !== 'class_subject' && typeof _subjectTermFor === 'function') {
+              const own = _subjectTermFor(record);
+              if (!own || (!own.year && !own.semester)) return _origUpdate(record);
+              return _origUpdate({ ...record, academic_year: own.year, semester: own.semester });
+            }
             const [wy, ws] = workingTermKey().split('|');
             const copy = { ...record, academic_year: wy, semester: ws };
             delete copy.__backendId;
@@ -5823,6 +5829,19 @@ const supabaseDataSdk = {
       const t = activeTerm();
       return t.year + '|' + t.semester;
     }
+    /** 📅 ปี/ภาคของรายวิชาที่ค่านี้สังกัดอยู่ (ใช้กับคะแนนเต็ม/หน่วยกิต)
+     *  เลือกรายวิชาของเทอมที่กำลังทำงานก่อน ถ้าไม่มีก็ใช้ของเดิมที่ยังไม่ระบุ */
+    function _subjectTermFor(row) {
+      if (!row) return null;
+      const same = d => _rN(d.class_name) === _rN(row.class_name)
+        && _rRoom(d.room_number) === _rRoom(row.room_number)
+        && _rN(d.subject_name) === _rN(row.subject_name);
+      const list = (window.__allRaw || allData).filter(d => d.type === 'class_subject' && same(d));
+      if (!list.length) return null;
+      const want = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const hit = list.find(d => _termKey(d) === want) || list.find(d => _termKey(d) === '|') || list[0];
+      return { year: String(hit.academic_year ?? '').trim(), semester: String(hit.semester ?? '').trim() };
+    }
     /** แถวนี้อยู่ในปี/ภาคเดียวกับที่กำลังทำงานอยู่ไหม */
     function sameWorkingTerm(row) { return _termKey(row) === workingTermKey(); }
     function workingTermLabel() { const [y, sm] = workingTermKey().split('|'); return termLabel(y, sm); }
@@ -5906,6 +5925,16 @@ const supabaseDataSdk = {
     function _stampTermOnNew(record) {
       const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours'];
       if (!record || STAMP.indexOf(record.type) < 0) return record;
+      // 📅 คะแนนเต็ม/หน่วยกิต ยึดปี/ภาคตาม "รายวิชา" ของตัวเอง (มาจากการนำเข้าวิชา)
+      //    ไม่ใช่ตามเทอมที่เปิดใช้งาน เพราะครูอาจกำลังแก้คะแนนเต็มของเทอมเก่าอยู่
+      if (record.type === 'class_subject_scores' || record.type === 'class_subject_hours') {
+        const own = _subjectTermFor(record);
+        if (own) {
+          if (String(record.academic_year ?? '').trim() === '') record.academic_year = own.year;
+          if (String(record.semester ?? '').trim() === '') record.semester = own.semester;
+          return record;
+        }
+      }
       const t = activeTerm();
       if (record.academic_year === undefined || String(record.academic_year).trim() === '') record.academic_year = t.year;
       if (record.semester === undefined || String(record.semester).trim() === '') record.semester = t.semester;
@@ -22906,6 +22935,7 @@ function _examResultIdentityHtml(sub, set) {
             <div class="flex items-center justify-between mb-2">
               <div>
                 <p class="font-semibold text-gray-800">📚 ${mf.class_name}/${mf.room_number} | 📖 ${mf.subject_name}</p>
+                <p class="text-xs ${_termKey(mf) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(mf.academic_year, mf.semester))}</p>
               </div>
               <div class="flex gap-2">
                 <button onclick="editIndividualMF('${mf.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
@@ -22966,7 +22996,9 @@ function _examResultIdentityHtml(sub, set) {
       editDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
           <h3 class="text-xl font-bold text-gray-800 mb-4">✏️ แก้ไข M/F</h3>
-          <p class="text-gray-600 mb-4 text-sm">📚 ${mf.class_name}/${mf.room_number} | 📖 ${mf.subject_name}</p>
+          <p class="text-gray-600 mb-1 text-sm">📚 ${mf.class_name}/${mf.room_number} | 📖 ${mf.subject_name}</p>
+          <p class="mb-4 text-sm ${_termKey(mf) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(mf.academic_year, mf.semester))}</p>
+          <p class="text-[11px] text-gray-500 mb-3">ปี/ภาคมาตามรายวิชาที่นำเข้า — ถ้าต้องการเปลี่ยน ให้แก้ที่เมนู "นำเข้าข้อมูลวิชา"</p>
           <div class="space-y-4 mb-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">📋 กลางภาค (M) %</label>
@@ -23002,7 +23034,10 @@ function _examResultIdentityHtml(sub, set) {
         showToast('M% + F% ต้องไม่เกิน 100%', 'error');
         return;
       }
-      const result = await window.dataSdk.update({
+      // 📅 ปี/ภาคยึดตามรายวิชาเดิมเสมอ (มาจากการนำเข้าวิชา) ไม่เปลี่ยนที่หน้านี้
+      const mfYear = String(mf.academic_year ?? '').trim();
+      const mfSem = String(mf.semester ?? '').trim();
+      const result = await window.dataSdk.updateRaw({
         ...mf,
         mid_percent: midValue,
         final_percent: finalValue
@@ -23010,10 +23045,14 @@ function _examResultIdentityHtml(sub, set) {
       if (result.isOk) {
         _closeAllPopups();
         updateMFDisplayList();
-        showToast('แก้ไข M/F สำเร็จ ✅');
+        showToast(`แก้ไข M/F สำเร็จ ✅ (${termLabel(mfYear, mfSem)})`);
         refreshCurrentView();
+        if (typeof renderTermViewSelect === 'function') renderTermViewSelect();
       } else {
-        showToast('ไม่สามารถแก้ไข M/F', 'error');
+        const msg = String(result.error?.message || '');
+        showToast(/duplicate key|23505/.test(msg)
+          ? '❌ ซ้ำกับวิชาเดิมในปี/ภาคนี้ — ถ้ายังไม่ได้รันไฟล์ add_academic_term.sql รอบล่าสุด กรุณารันก่อน'
+          : 'ไม่สามารถแก้ไข M/F: ' + msg, 'error');
       }
     }
     // ======= HOURS MANAGEMENT FUNCTIONS =======
@@ -23198,6 +23237,7 @@ function _examResultIdentityHtml(sub, set) {
         const html = `
           <div class="flex items-center justify-between mb-2">
             <p class="font-semibold text-gray-800">📚 ${h.class_name}/${h.room_number} | 📖 ${h.subject_name}</p>
+            <p class="text-xs ${_termKey(h) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(h.academic_year, h.semester))}</p>
             <div class="flex gap-2">
               <button onclick="editHoursPopup('${h.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
               <button onclick="deleteHours('${h.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
@@ -23501,7 +23541,10 @@ function _examResultIdentityHtml(sub, set) {
     function buildScoresCardInnerHtml(s) {
       return `
         <div class="flex items-center justify-between mb-2">
-          <p class="font-semibold text-gray-800">📚 ${s.class_name}/${s.room_number} | 📖 ${s.subject_name}</p>
+          <div>
+            <p class="font-semibold text-gray-800">📚 ${s.class_name}/${s.room_number} | 📖 ${s.subject_name}</p>
+            <p class="text-xs ${_termKey(s) === '|' ? 'text-amber-600 font-semibold' : 'text-indigo-700'}">📅 ${escHtml(termLabel(s.academic_year, s.semester))}</p>
+          </div>
           <div class="flex gap-2">
             <button onclick="editScoresPopup('${s.__backendId}')" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm">✏️</button>
             <button onclick="deleteScores('${s.__backendId}')" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded text-sm">🗑️</button>
