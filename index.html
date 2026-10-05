@@ -1008,6 +1008,14 @@
        <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
        <span class="text-[10px] text-white/70 leading-tight">เวอร์ชัน <span id="app-version">-</span></span>
       </div>
+      <!-- 📅 เลือกดูข้อมูลตามปีการศึกษา/ภาคเรียน — เปลี่ยนการดูทั้งระบบ -->
+      <div id="term-view-wrap" class="hidden flex-col">
+       <label class="text-[10px] text-white/70 leading-tight">📅 ดูข้อมูลของ</label>
+       <select id="term-view" onchange="changeTermView()" title="เลือกปีการศึกษา/ภาคเรียนที่ต้องการดู — เปลี่ยนการแสดงผลทั้งระบบ"
+               class="bg-white/20 text-white text-sm font-semibold rounded-lg px-2 py-1 border border-white/30 focus:outline-none focus:bg-white/30">
+        <option value="" class="text-gray-800">ทุกปี/ภาค</option>
+       </select>
+      </div>
       <div class="flex flex-wrap gap-2 items-center">
        <div id="admin-bells-container" class="hidden gap-3">
         <div class="relative flex flex-col items-center">
@@ -1097,27 +1105,42 @@
     <div id="page-admin" class="page p-4 md:p-8 flex flex-col hidden">
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
-      <!-- 📅 ปีการศึกษา / ภาคเรียน — ใช้ร่วมกันทุกหน้าของแอดมิน -->
-      <div id="term-bar" class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-3 mb-4 flex items-end gap-4 flex-wrap">
-       <div>
-        <label class="block text-[11px] font-semibold text-indigo-900 mb-1">📅 ปี/ภาค ที่เปิดใช้งาน <span class="font-normal text-gray-500">(ประทับให้ข้อมูลใหม่ทุกครั้ง)</span></label>
-        <div class="flex gap-2">
-         <input type="text" id="term-active-year" placeholder="ปีการศึกษา เช่น 2569" class="w-40 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-         <input type="text" id="term-active-sem" placeholder="ภาคเรียน เช่น 1" class="w-32 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-         <button onclick="saveActiveTerm()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold whitespace-nowrap">💾 บันทึก</button>
-        </div>
-       </div>
-       <div>
-        <label class="block text-[11px] font-semibold text-indigo-900 mb-1">🔎 มุมมองข้อมูล <span class="font-normal text-gray-500">(เฉพาะการแสดงผล ไม่กระทบข้อมูล)</span></label>
-        <select id="term-view" onchange="changeTermView()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
-         <option value="">ทุกปี/ภาค</option>
-        </select>
-       </div>
-       <p id="term-bar-note" class="text-[11px] w-full"></p>
-      </div>
+      <!-- 📅 แถบเดิมถูกย้ายแล้ว: ดรอปดาวน์เลือกดู → หัวเว็บ · การสร้าง/เปิดใช้งานปี-ภาค → เมนูนำเข้าข้อมูลวิชา -->
       <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สัดส่วนเกรด</button> <button onclick="showAdminTab('gradedist')" id="tab-gradedist" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🥧 สรุปเกรด</button> <button onclick="showAdminTab('charread')" id="tab-charread" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⭐ คุณลักษณะ/อ่านคิดวิเคราะห์</button> <button onclick="showAdminTab('exportdata')" id="tab-exportdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 ส่งออกข้อมูล</button> <button onclick="showAdminTab('examquestions')" id="tab-examquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗂️ คลังข้อสอบ</button> <button onclick="showAdminTab('essayquestions')" id="tab-essayquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ คลังข้อสอบอัตนัย</button> <button onclick="showAdminTab('examassign')" id="tab-examassign" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดสอบ</button> <button onclick="showAdminTab('examgrading')" id="tab-examgrading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ ตรวจข้ออัตนัย</button> <button onclick="showAdminTab('retryrequest')" id="tab-retryrequest" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📨 คำขอสอบแก้ตัว</button> <button onclick="showAdminTab('menumanager')" id="tab-menumanager" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎨 จัดการเมนู</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
+       <!-- 📅 สร้างปีการศึกษา/ภาคเรียน — สร้างล่วงหน้าได้หลายปีหลายภาค -->
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📅 ปีการศึกษา / ภาคเรียน</h3>
+        <p class="text-gray-500 text-sm mb-4">สร้างล่วงหน้าได้หลายปีหลายภาค · เทอมที่ <b>⭐ เปิดใช้งาน</b> คือเทอมที่ข้อมูลใหม่ทุกอย่างจะถูกบันทึกเข้าไป (รวมถึงการลงทะเบียนของนักเรียน) · เลือกดูข้อมูลของเทอมไหนให้ใช้ดรอปดาวน์บนหัวเว็บ</p>
+        <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-4">
+         <div class="flex items-end gap-2 flex-wrap">
+          <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
+           <input type="text" id="newterm-year" placeholder="เช่น 2569" class="w-36 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none"></div>
+          <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียน</label>
+           <input type="text" id="newterm-sem" placeholder="เช่น 1" class="w-28 px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none"></div>
+          <button onclick="createAcademicTerm()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold btn-3d whitespace-nowrap">➕ สร้างปี/ภาค</button>
+          <button onclick="createAcademicTermNextSem()" class="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg text-sm whitespace-nowrap" title="สร้างภาคเรียนถัดไปของปีเดียวกัน">➕ ภาคถัดไป</button>
+          <button onclick="createAcademicTermNextYear()" class="px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 rounded-lg text-sm whitespace-nowrap" title="สร้างปีการศึกษาถัดไป ภาค 1">➕ ปีถัดไป</button>
+         </div>
+        </div>
+        <div class="overflow-x-auto border-2 border-gray-200 rounded-lg">
+         <table class="w-full text-sm">
+          <thead class="bg-gray-100">
+           <tr>
+            <th class="px-2 py-2 text-center whitespace-nowrap">ปีการศึกษา</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">ภาคเรียน</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">รายวิชา</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">นักเรียน</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">ลงทะเบียน</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">สถานะ</th>
+            <th class="px-2 py-2 text-center whitespace-nowrap">จัดการ</th>
+           </tr>
+          </thead>
+          <tbody id="academic-terms-tbody"></tbody>
+         </table>
+        </div>
+       </div>
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-1">📥 นำเข้าข้อมูลวิชา</h3>
         <p id="import-term-note" class="text-sm mb-3"></p>
@@ -3039,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.206';
+    const APP_VERSION = 'SUPABASE-2026.10.05.207';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -3459,6 +3482,7 @@ SB_TYPE_TO_TABLE['class']               = 'settings';
 SB_TYPE_TO_TABLE['room']                = 'settings';
 SB_TYPE_TO_TABLE['subject']             = 'settings';
 SB_TYPE_TO_TABLE['registration_schedule'] = 'settings';
+SB_TYPE_TO_TABLE['academic_term']       = 'settings';   // 📅 ปีการศึกษา/ภาคเรียน ที่สร้างไว้ล่วงหน้า
 SB_TYPE_TO_TABLE['exam_retry_permission'] = 'exam_retry_requests';
 SB_TYPE_TO_TABLE['exam_camera_consent'] = 'exam_camera_snapshots';
 SB_TYPE_TO_TABLE['task_message']        = 'notifications';
@@ -4224,7 +4248,8 @@ const supabaseDataSdk = {
         if (evaluatorsListPage && !evaluatorsListPage.classList.contains('hidden')) {
           renderEvaluatorsListContent();
         }
-        try { if (typeof renderTermBar === 'function' && document.getElementById('term-bar')) renderTermBar(); } catch (e) {}
+        try { if (typeof renderTermViewSelect === 'function' && document.getElementById('term-view')) renderTermViewSelect(); } catch (e) {}
+        try { if (typeof renderAcademicTerms === 'function' && document.getElementById('academic-terms-tbody')) renderAcademicTerms(); } catch (e) {}
         const settingsRecord = data.find(d => d.type === 'settings');
         if (settingsRecord) {
           adminSettings.mid_percent = settingsRecord.mid_percent || 25;
@@ -5579,6 +5604,145 @@ const supabaseDataSdk = {
     //      (ข้อมูลเดิมที่ยังไม่ระบุปี/ภาคจึงไม่หายไปไหน)
     // ══════════════════════════════════════════════════════════════
     const TERM_VIEW_KEY = 'kpac_term_view';
+
+    // ══════════════════════════════════════════════════════════════
+    // 📅 หน้าสร้างปีการศึกษา/ภาคเรียน (อยู่ในเมนูนำเข้าข้อมูลวิชา)
+    //    สร้างล่วงหน้าได้หลายปีหลายภาค · เทอมที่เปิดใช้งาน = เทอมที่ข้อมูลใหม่จะถูกบันทึกเข้าไป
+    // ══════════════════════════════════════════════════════════════
+    /** ปี/ภาคทั้งหมดที่สร้างไว้ (เรียงใหม่สุดก่อน) */
+    function academicTerms() {
+      return allData.filter(d => d.type === 'academic_term'
+          && (String(d.academic_year || '').trim() || String(d.semester || '').trim()))
+        .map(d => ({ rec: d, year: String(d.academic_year || '').trim(), semester: String(d.semester || '').trim() }))
+        .sort((a, b) => (b.year + '|' + b.semester).localeCompare(a.year + '|' + a.semester, 'th', { numeric: true }));
+    }
+    /** นับข้อมูลของปี/ภาคนั้นแยกตามชนิด */
+    function _termCounts(key) {
+      const raw = window.__allRaw || allData;
+      const n = t => raw.filter(d => d.type === t && _termKey(d) === key).length;
+      return { subjects: n('class_subject'), students: n('student'), regs: n('student_registration') };
+    }
+    async function createAcademicTerm(year, sem) {
+      year = String(year ?? document.getElementById('newterm-year')?.value ?? '').trim();
+      sem = String(sem ?? document.getElementById('newterm-sem')?.value ?? '').trim();
+      if (!year || !sem) { showToast('กรุณากรอกทั้งปีการศึกษาและภาคเรียน', 'error'); return; }
+      if (academicTerms().some(t => t.year === year && t.semester === sem)) {
+        showToast(`มี ${termLabel(year, sem)} อยู่แล้ว`, 'info'); return;
+      }
+      const res = await window.dataSdk.create({ type: 'academic_term', academic_year: year, semester: sem, created_at: new Date().toISOString() });
+      if (!res.isOk) { showToast('ไม่สามารถสร้างได้', 'error'); return; }
+      showToast(`✅ สร้าง ${termLabel(year, sem)} แล้ว`);
+      const y = document.getElementById('newterm-year'); const sm = document.getElementById('newterm-sem');
+      if (y) y.value = year; if (sm) sm.value = sem;
+      renderAcademicTerms();
+      renderTermViewSelect();
+      setTimeout(() => {
+        if (!academicTerms().some(t => t.year === year && t.semester === sem)) {
+          showToast('⚠️ บันทึกไม่ติด — ฐานข้อมูลยังไม่มีคอลัมน์ settings.academic_year/semester กรุณารันไฟล์ add_academic_term.sql', 'error');
+        }
+        renderAcademicTerms(); renderTermViewSelect();
+      }, 1200);
+    }
+    /** ➕ ภาคเรียนถัดไปของปีเดียวกัน (ดูจากเทอมใหม่สุดที่มี) */
+    function createAcademicTermNextSem() {
+      const list = academicTerms();
+      const base = list[0] || { year: String(new Date().getFullYear() + 543), semester: '0' };
+      const n = parseInt(base.semester, 10);
+      createAcademicTerm(base.year, isFinite(n) ? String(n + 1) : '2');
+    }
+    /** ➕ ปีการศึกษาถัดไป ภาค 1 */
+    function createAcademicTermNextYear() {
+      const list = academicTerms();
+      const base = list[0] || { year: String(new Date().getFullYear() + 542), semester: '1' };
+      const y = parseInt(base.year, 10);
+      createAcademicTerm(isFinite(y) ? String(y + 1) : base.year, '1');
+    }
+    /** ⭐ ตั้งเทอมนี้เป็นเทอมที่เปิดใช้งาน (ข้อมูลใหม่ทุกอย่างจะถูกบันทึกเข้าเทอมนี้) */
+    async function activateAcademicTerm(year, sem) {
+      const existing = allData.find(d => d.type === 'settings');
+      const result = existing
+        ? await window.dataSdk.update({ ...existing, active_year: year, active_semester: sem })
+        : await window.dataSdk.create({ type: 'settings', active_year: year, active_semester: sem });
+      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      showToast(`⭐ เปิดใช้งาน ${termLabel(year, sem)} แล้ว — ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเข้าเทอมนี้`);
+      renderAcademicTerms();
+      renderTermViewSelect();
+      setTimeout(() => {
+        const t = activeTerm();
+        if (t.year !== year || t.semester !== sem) {
+          showToast('⚠️ บันทึกไม่ติด — ฐานข้อมูลยังไม่มีคอลัมน์ settings.active_year/active_semester กรุณารันไฟล์ add_academic_term.sql', 'error');
+        }
+        renderAcademicTerms(); renderTermViewSelect();
+      }, 1200);
+    }
+    /** 🗑️ ลบปี/ภาค — ได้เฉพาะเทอมที่ยังไม่มีข้อมูลผูกอยู่ */
+    async function deleteAcademicTerm(backendId) {
+      const rec = allData.find(d => d.type === 'academic_term' && String(d.__backendId) === String(backendId));
+      if (!rec) return;
+      const key = _termKey(rec);
+      const c = _termCounts(key);
+      if (c.subjects || c.students || c.regs) {
+        showToast(`ลบไม่ได้ — ${termLabel(rec.academic_year, rec.semester)} มีข้อมูลผูกอยู่ (รายวิชา ${c.subjects} · นักเรียน ${c.students} · ลงทะเบียน ${c.regs})`, 'error');
+        return;
+      }
+      const t = activeTerm();
+      if (t.year + '|' + t.semester === key) { showToast('ลบไม่ได้ — เทอมนี้กำลังเปิดใช้งานอยู่ (เปลี่ยนไปเปิดเทอมอื่นก่อน)', 'error'); return; }
+      if (!confirm(`ลบ ${termLabel(rec.academic_year, rec.semester)} ใช่หรือไม่? (ยังไม่มีข้อมูลผูกอยู่)`)) return;
+      const res = await window.dataSdk.delete(rec);
+      showToast(res.isOk ? '🗑️ ลบแล้ว' : 'ลบไม่สำเร็จ', res.isOk ? 'success' : 'error');
+      renderAcademicTerms();
+      renderTermViewSelect();
+    }
+    function renderAcademicTerms() {
+      const tbody = document.getElementById('academic-terms-tbody');
+      if (!tbody) return;
+      const list = academicTerms();
+      const t = activeTerm();
+      const activeKey = t.year + '|' + t.semester;
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-6">ยังไม่ได้สร้างปีการศึกษา/ภาคเรียน — กรอกด้านบนแล้วกด "➕ สร้างปี/ภาค"</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(x => {
+        const key = x.year + '|' + x.semester;
+        const c = _termCounts(key);
+        const isActive = key === activeKey;
+        const empty = !c.subjects && !c.students && !c.regs;
+        return `<tr class="border-t border-gray-100 ${isActive ? 'bg-amber-50' : 'hover:bg-gray-50'}">
+         <td class="px-2 py-2 text-center font-semibold">${escHtml(x.year)}</td>
+         <td class="px-2 py-2 text-center font-semibold">${escHtml(x.semester)}</td>
+         <td class="px-2 py-2 text-center ${c.subjects ? '' : 'text-gray-300'}">${c.subjects}</td>
+         <td class="px-2 py-2 text-center ${c.students ? '' : 'text-gray-300'}">${c.students}</td>
+         <td class="px-2 py-2 text-center ${c.regs ? '' : 'text-gray-300'}">${c.regs}</td>
+         <td class="px-2 py-2 text-center whitespace-nowrap">${isActive
+            ? '<span class="px-2 py-1 bg-amber-500 text-white rounded text-xs font-bold">⭐ เปิดใช้งาน</span>'
+            : '<span class="text-gray-400 text-xs">—</span>'}</td>
+         <td class="px-2 py-2 text-center whitespace-nowrap">
+          <div class="flex gap-1 justify-center flex-wrap">
+           ${isActive ? '' : `<button onclick="activateAcademicTerm('${escHtml(x.year)}','${escHtml(x.semester)}')" class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded text-xs whitespace-nowrap">⭐ เปิดใช้งาน</button>`}
+           <button onclick="changeTermViewTo('${escHtml(key)}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs whitespace-nowrap">👁️ ดูเทอมนี้</button>
+           ${empty && !isActive ? `<button onclick="deleteAcademicTerm('${x.rec.__backendId}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️</button>` : ''}
+          </div>
+         </td>
+        </tr>`;
+      }).join('');
+    }
+    /** เปลี่ยนมุมมองไปที่ปี/ภาคที่ระบุ (ใช้จากปุ่มในตาราง) */
+    function changeTermViewTo(key) {
+      const sel = document.getElementById('term-view');
+      if (sel) {
+        if (!Array.prototype.some.call(sel.options, o => o.value === key)) renderTermViewSelect();
+        sel.value = key;
+      }
+      try { localStorage.setItem(TERM_VIEW_KEY, key); } catch (e) {}
+      _reapplyTermScope();
+      const [y, sm] = key.split('|');
+      showToast(`👁️ กำลังดูข้อมูลของ ${termLabel(y, sm)}`);
+      if (typeof refreshCurrentView === 'function') refreshCurrentView();
+      renderTermViewSelect();
+      renderAcademicTerms();
+    }
+
     /** ปี/ภาคที่เปิดใช้งาน — ค่าว่าง = ยังไม่ได้ตั้ง */
     function activeTerm() {
       const rec = allData.find(d => d.type === 'settings');
@@ -5667,8 +5831,9 @@ const supabaseDataSdk = {
     function allTermKeys() {
       const set = new Set();
       allData.forEach(d => {
-        if (d.type !== 'student' && d.type !== 'student_registration'
-            && d.type !== 'grade' && d.type !== 'registration_schedule') return;
+        if (d.type !== 'student' && d.type !== 'student_registration' && d.type !== 'grade'
+            && d.type !== 'registration_schedule' && d.type !== 'academic_term'
+            && d.type !== 'class_subject') return;
         const k = _termKey(d);
         if (k !== '|') set.add(k);
       });
@@ -5681,33 +5846,32 @@ const supabaseDataSdk = {
       return allData.filter(d => (d.type === 'student' || d.type === 'student_registration')
         && _termKey(d) === key).length;
     }
-    function renderTermBar() {
-      const yEl = document.getElementById('term-active-year');
-      const sEl = document.getElementById('term-active-sem');
+    /** 📅 ดรอปดาวน์เลือกดูข้อมูลบนหัวเว็บ — เปลี่ยนการดูทั้งระบบ */
+    function renderTermViewSelect() {
+      const wrap = document.getElementById('term-view-wrap');
       const vEl = document.getElementById('term-view');
-      const note = document.getElementById('term-bar-note');
+      // แสดงให้ครู/ผู้ช่วยแอดมิน/ผอ. เท่านั้น (ฝั่งนักเรียนยึดเทอมที่เปิดใช้งานเสมอ)
+      const isStaff = currentUser && ['admin', 'subadmin', 'director'].includes(currentUser.user_type);
+      if (wrap) wrap.classList.toggle('hidden', !isStaff);
+      if (!vEl || !isStaff) return;
       const t = activeTerm();
-      if (yEl && document.activeElement !== yEl) yEl.value = t.year;
-      if (sEl && document.activeElement !== sEl) sEl.value = t.semester;
-      if (vEl) {
-        const keep = termView();
-        const blanks = allData.filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
-        vEl.innerHTML = '<option value="">ทุกปี/ภาค</option>'
-          + `<option value="__blank">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks} แถว)` : ''}</option>`
-          + allTermKeys().map(k => { const [y, sm] = k.split('|');
-              const act = (activeTerm().year + '|' + activeTerm().semester) === k;
-              const n = _termRowCount(k);
-              return `<option value="${escHtml(k)}">${act ? '⭐ ' : ''}${escHtml(termLabel(y, sm))}`
-                   + `${n ? ` (${n} แถว)` : ' (ยังไม่มีข้อมูล)'}</option>`; }).join('');
-        vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
-        if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
-      }
-      if (note) {
-        note.innerHTML = (!t.year && !t.semester)
-          ? '<span style="color:#b45309">⚠️ ยังไม่ได้ตั้งปี/ภาคที่เปิดใช้งาน — ยังลงทะเบียนให้นักเรียนไม่ได้ (กรอกปีและภาคเรียนแล้วกด 💾 บันทึก)</span>'
-          : `<span style="color:#3730a3">ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเป็น <b>${escHtml(termLabel(t.year, t.semester))}</b></span>`;
-      }
+      const activeKey = t.year + '|' + t.semester;
+      const keep = termView();
+      const blanks = allData.filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
+      vEl.innerHTML = '<option value="" class="text-gray-800">ทุกปี/ภาค</option>'
+        + `<option value="__blank" class="text-gray-800">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks})` : ''}</option>`
+        + allTermKeys().map(k => { const [y, sm] = k.split('|');
+            const n = _termRowCount(k);
+            return `<option value="${escHtml(k)}" class="text-gray-800">${k === activeKey ? '⭐ ' : ''}${escHtml(termLabel(y, sm))}`
+                 + `${n ? ` (${n})` : ''}</option>`; }).join('');
+      vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
+      if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
+      vEl.title = (!t.year && !t.semester)
+        ? '⚠️ ยังไม่ได้เปิดใช้งานปี/ภาค — ตั้งที่เมนู "นำเข้าข้อมูลวิชา"'
+        : `ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเป็น ${termLabel(t.year, t.semester)} (ตั้งที่เมนูนำเข้าข้อมูลวิชา)`;
     }
+    /** ชื่อเดิม — ยังเรียกได้จากที่เดิมทั้งหมด */
+    function renderTermBar() { renderTermViewSelect(); if (typeof renderAcademicTerms === 'function') renderAcademicTerms(); }
     async function saveActiveTerm() {
       const year = String(document.getElementById('term-active-year')?.value || '').trim();
       const semester = String(document.getElementById('term-active-sem')?.value || '').trim();
@@ -5733,7 +5897,8 @@ const supabaseDataSdk = {
       _reapplyTermScope();   // 🧩 คัดค่าตั้งต้นของรายวิชาใหม่ตามปี/ภาคที่เลือก
       showToast(v === '' ? '🔎 มุมมอง: ทุกปี/ภาค' : v === '__blank' ? '🔎 มุมมอง: ยังไม่ระบุปี/ภาค' : `🔎 มุมมอง: ${termLabel(...v.split('|'))}`);
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
-      renderTermBar();
+      renderTermViewSelect();
+      if (typeof renderAcademicTerms === 'function') renderAcademicTerms();
     }
     /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
     function _stampTermOnNew(record) {
@@ -19035,6 +19200,7 @@ function _examResultIdentityHtml(sub, set) {
         if (!window.__fullScoreSyncRepaired) { window.__fullScoreSyncRepaired = true; repairSingularFullScoreSync(true); }
       } else if (tabName === 'import') {
         updateImportedData();
+        renderAcademicTerms();    // 📅 ตารางปีการศึกษา/ภาคเรียน
         renderImportTermNote();   // 📅 บอกว่ากำลังนำเข้าเข้าเทอมไหน
       } else if (tabName === 'evaltopics') {
         loadEvalTopicsTab();
@@ -20495,14 +20661,14 @@ function _examResultIdentityHtml(sub, set) {
       const mine = allData.filter(d => d.type === 'class_subject' && _termKey(d) === key).length;
       const legacy = allData.filter(d => d.type === 'class_subject' && _termKey(d) === '|').length;
       if (key === '|') {
-        el.innerHTML = '<span style="color:#b45309">⚠️ ยังไม่ได้ตั้ง "ปี/ภาคที่เปิดใช้งาน" — วิชาที่นำเข้าจะยังไม่ระบุปี/ภาค</span>';
+        el.innerHTML = '<span style="color:#b45309">⚠️ ยังไม่มีปี/ภาคที่เปิดใช้งาน — สร้างและกด "⭐ เปิดใช้งาน" ที่ตารางด้านบนก่อน ไม่งั้นวิชาที่นำเข้าจะยังไม่ระบุปี/ภาค</span>';
         return;
       }
       el.innerHTML = `นำเข้าเข้าสู่ <b style="color:#3730a3">${escHtml(workingTermLabel())}</b>`
         + ` · ตอนนี้เทอมนี้มีรายวิชา <b>${mine}</b> รายการ`
         + ` · <span style="color:#15803d">การนำเข้า<b>ไม่ลบของเดิม</b> เพิ่มเฉพาะวิชาที่ยังไม่มีในเทอมนี้</span>`
         + (mine === 0 && legacy
-            ? `<br><span style="color:#b45309">ℹ️ รายวิชา ${legacy} รายการที่เห็นอยู่ตอนนี้ยังไม่ระบุปี/ภาค จึงแสดงในทุกเทอม — นำเข้าของเทอมนี้แล้วจะถูกแทนที่ หรือไปใส่ปี/ภาคให้ที่แท็บนักเรียน → โอนรายชื่อ → กล่อง 0️⃣</span>`
+            ? `<br><span style="color:#b45309">ℹ️ รายวิชา ${legacy} รายการที่เห็นอยู่ตอนนี้ยังไม่ระบุปี/ภาค จึงแสดงในทุกเทอม — ไปใส่ปี/ภาคให้ได้ที่แท็บนักเรียน → 🔁 โอนรายชื่อ → กล่อง 0️⃣ (ไม่มีอะไรถูกลบ)</span>`
             : '');
     }
 
