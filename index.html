@@ -3062,7 +3062,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.211';
+    const APP_VERSION = 'SUPABASE-2026.10.05.212';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5754,8 +5754,8 @@ const supabaseDataSdk = {
       if (key && key !== '__blank') _persistWorkingTerm(y, sm);
       showToast(`📅 กำลังทำงานใน ${termLabel(y, sm)} — ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเข้าเทอมนี้`);
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
+      _refreshTermDependentPages();   // 🔄 วาดหน้าค่าตั้งต้นใหม่ให้ตรงเทอมที่เพิ่งเข้าไปทำงาน
       renderTermViewSelect();
-      renderAcademicTerms();
     }
 
     /** ปี/ภาคที่เปิดใช้งาน — ค่าว่าง = ยังไม่ได้ตั้ง */
@@ -5822,6 +5822,28 @@ const supabaseDataSdk = {
     function _reapplyTermScope() {
       if (Array.isArray(window.__allRaw)) allData = _scopeConfigRows(window.__allRaw);
     }
+    /** 🔄 วาดใหม่ทุกหน้าที่ผูกกับปี/ภาค ทันทีที่เปลี่ยนเทอม
+     *  refreshCurrentView() เดิมไม่ครอบแท็บค่าตั้งต้น (ตั้งค่า M/F · คะแนนเต็ม · หน่วยกิต · นำเข้าวิชา)
+     *  ทำให้เปลี่ยนเทอมแล้วหน้าค้างแสดงข้อมูลของเทอมเดิมจนกว่าจะกดสลับแท็บ
+     *  ทุกฟังก์ชันมีด่านตรวจว่ามี element จริงอยู่แล้ว เรียกตรงนี้ได้เลยไม่ว่าจะเปิดแท็บไหนอยู่ */
+    function _refreshTermDependentPages() {
+      const run = fn => { try { if (typeof fn === 'function') fn(); } catch (e) {} };
+      // ⚙️ ตั้งค่า M/F (กลางภาค/ปลายภาค)
+      run(typeof loadMFFilters === 'function' ? loadMFFilters : null);
+      run(typeof updateMFDisplayList === 'function' ? updateMFDisplayList : null);
+      // 📊 ตั้งค่าคะแนนเต็ม
+      run(typeof loadScoresFilters === 'function' ? loadScoresFilters : null);
+      run(typeof updateScoresDisplayList === 'function' ? updateScoresDisplayList : null);
+      // ⏰ หน่วยกิต/เวลาเรียน
+      run(typeof loadHoursFilters === 'function' ? loadHoursFilters : null);
+      run(typeof updateHoursDisplayList === 'function' ? updateHoursDisplayList : null);
+      // 📥 นำเข้าข้อมูลวิชา (ตารางรายวิชา + ตารางปี/ภาค + ข้อความบอกเทอมปลายทาง)
+      run(typeof updateImportedData === 'function' ? updateImportedData : null);
+      run(typeof renderAcademicTerms === 'function' ? renderAcademicTerms : null);
+      run(typeof renderImportTermNote === 'function' ? renderImportTermNote : null);
+      // 🎓 ให้คะแนน — ตัวกรองต้องเหลือเฉพาะวิชาของเทอมที่เลือก
+      run(typeof loadGradingFilters === 'function' ? loadGradingFilters : null);
+    }
 
     /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
      *  ข้อมูลถูกแยกด้วย (ปีการศึกษา + ภาคเรียน) — ปีเดียวกันแต่คนละภาค ถือเป็นคนละชุดข้อมูล
@@ -5858,7 +5880,9 @@ const supabaseDataSdk = {
      *  ไม่งั้นพอตั้งภาค 2 ใหม่ จะยังไม่มีให้เลือกในดรอปดาวน์จนกว่าจะมีคนลงทะเบียน */
     function allTermKeys() {
       const set = new Set();
-      allData.forEach(d => {
+      // ⚠️ ต้องอ่านจากชุดเต็ม (__allRaw) ไม่ใช่ allData ที่ถูกคัดตามมุมมองแล้ว
+      // ไม่งั้นพอเลือกดูภาค 1 รายการ "ภาค 2" จะหลุดหายไปจากดรอปดาวน์ กลับไปภาค 2 ไม่ได้
+      (window.__allRaw || allData).forEach(d => {
         if (d.type !== 'student' && d.type !== 'student_registration' && d.type !== 'grade'
             && d.type !== 'registration_schedule' && d.type !== 'academic_term'
             && d.type !== 'class_subject') return;
@@ -5871,7 +5895,7 @@ const supabaseDataSdk = {
     }
     /** จำนวนแถวข้อมูลของปี/ภาคนั้น (ใช้บอกว่าเทอมไหนยังว่างอยู่) */
     function _termRowCount(key) {
-      return allData.filter(d => (d.type === 'student' || d.type === 'student_registration')
+      return (window.__allRaw || allData).filter(d => (d.type === 'student' || d.type === 'student_registration')
         && _termKey(d) === key).length;
     }
     /** 📅 ดรอปดาวน์เลือกดูข้อมูลบนหัวเว็บ — เปลี่ยนการดูทั้งระบบ */
@@ -5892,7 +5916,7 @@ const supabaseDataSdk = {
         _reapplyTermScope();
       }
       const keep = termView();
-      const blanks = allData.filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
+      const blanks = (window.__allRaw || allData).filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
       vEl.innerHTML = '<option value="" class="text-gray-800">ทุกปี/ภาค</option>'
         + `<option value="__blank" class="text-gray-800">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks})` : ''}</option>`
         + allTermKeys().map(k => { const [y, sm] = k.split('|');
@@ -5941,9 +5965,8 @@ const supabaseDataSdk = {
         showToast(v === '' ? '🔎 ดูข้อมูลทุกปี/ภาค (ยังปฏิบัติงานในเทอมเดิม)' : '🔎 ดูข้อมูลที่ยังไม่ระบุปี/ภาค (ยังปฏิบัติงานในเทอมเดิม)');
       }
       if (typeof refreshCurrentView === 'function') refreshCurrentView();
+      _refreshTermDependentPages();   // 🔄 ตั้งค่า M/F · คะแนนเต็ม · หน่วยกิต · นำเข้าวิชา เปลี่ยนตามทันที
       renderTermViewSelect();
-      if (typeof renderAcademicTerms === 'function') renderAcademicTerms();
-      if (typeof renderImportTermNote === 'function') renderImportTermNote();
     }
     /** บันทึกเทอมที่ปฏิบัติงานเป็นค่าของระบบ (ฝั่งนักเรียนและเครื่องอื่นตามค่านี้) */
     async function _persistWorkingTerm(year, sem) {
@@ -8808,11 +8831,13 @@ const supabaseDataSdk = {
           else if (tab === 'admins') updateAdminList?.();
           else if (tab === 'homework') updateHomeworkTable?.();
           else if (tab === 'timekeeping') updateTimekeepingStudents?.();
-          else if (tab === 'scores') updateScoreInputTable?.();
+          else if (tab === 'scores') { updateScoreInputTable?.(); updateScoresDisplayList?.(); }
           else if (tab === 'gradereport') loadGradeReportTab?.();
           else if (tab === 'uploadscore') renderPendingScoreTable?.();
-          else if (tab === 'hours') updateHoursTable?.();
+          else if (tab === 'hours') { updateHoursTable?.(); updateHoursDisplayList?.(); }
           else if (tab === 'grading') renderGradingView?.();
+          else if (tab === 'settings') updateMFDisplayList?.();
+          else if (tab === 'import') { updateImportedData?.(); renderAcademicTerms?.(); renderImportTermNote?.(); }
         }
 
         if (_currentPage === 'student-management') {
@@ -22959,7 +22984,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!container) return;
       const mfRecords = allData.filter(d => d.type === 'class_subject');
       if (mfRecords.length === 0) {
-        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูล M/F</p>';
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูล M/F ใน' + workingTermLabel() + '</p>';
         return;
       }
       container.innerHTML = mfRecords.map(mf => {
@@ -23261,6 +23286,13 @@ function _examResultIdentityHtml(sub, set) {
       const container = document.getElementById('hours-display-list');
       if (!container) return;
       const hoursRecords = allData.filter(d => d.type === 'class_subject_hours');
+      // 📅 เปลี่ยนปี/ภาคแล้วรายการว่าง → แสดงข้อความว่างให้ชัด (กันการ์ดของเทอมเดิมค้างอยู่)
+      if (hoursRecords.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลหน่วยกิตใน' + workingTermLabel() + '</p>';
+        return;
+      }
+      // ล้างข้อความ "ยังไม่มีข้อมูล" ที่ค้างอยู่ (ไม่มี data-hours-id จึงไม่ถูกเก็บกวาดในรอบถัดไป)
+      Array.prototype.slice.call(container.children).forEach(el => { if (!el.dataset?.hoursId) el.remove(); });
       // ใช้ selective update - อัปเดตเฉพาะรายการที่เปลี่ยนแปลง
       const existingItems = new Map();
       for (let i = 0; i < container.children.length; i++) {
@@ -23600,6 +23632,13 @@ function _examResultIdentityHtml(sub, set) {
       const container = document.getElementById('scores-display-list');
       if (!container) return;
       const scoresRecords = allData.filter(d => d.type === 'class_subject_scores');
+      // 📅 เปลี่ยนปี/ภาคแล้วรายการว่าง → แสดงข้อความว่างให้ชัด (กันการ์ดของเทอมเดิมค้างอยู่)
+      if (scoresRecords.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">ยังไม่มีข้อมูลคะแนนเต็มใน' + workingTermLabel() + '</p>';
+        return;
+      }
+      // ล้างข้อความ "ยังไม่มีข้อมูล" ที่ค้างอยู่ (ไม่มี data-score-id จึงไม่ถูกเก็บกวาดในรอบถัดไป)
+      Array.prototype.slice.call(container.children).forEach(el => { if (!el.dataset?.scoreId) el.remove(); });
       // ใช้ selective update - อัปเดตเฉพาะรายการที่เปลี่ยนแปลง
       const existingItems = new Map();
       for (let i = 0; i < container.children.length; i++) {
