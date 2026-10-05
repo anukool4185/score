@@ -3020,7 +3020,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.196';
+    const APP_VERSION = 'SUPABASE-2026.10.05.197';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5564,6 +5564,23 @@ const supabaseDataSdk = {
       return _termKey(row) === v;
     }
     function filterByTermView(rows) { return (rows || []).filter(inTermView); }
+    /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
+     *  ข้อมูลถูกแยกด้วย (ปีการศึกษา + ภาคเรียน) — ปีเดียวกันแต่คนละภาค ถือเป็นคนละชุดข้อมูล
+     *  คนเดียวกันจึงลงทะเบียนวิชาเดิมซ้ำได้ในภาคใหม่ โดยไม่ถูกมองว่าซ้ำ
+     *  ฝั่งครู: ใช้มุมมองที่เลือกถ้าเจาะจง · ถ้าเลือก "ทุกปี/ภาค" ให้ใช้ปี/ภาคที่เปิดใช้งาน
+     *  ฝั่งนักเรียน: ใช้ปี/ภาคที่เปิดใช้งานเสมอ */
+    function workingTermKey() {
+      const isStaff = currentUser && (currentUser.user_type === 'admin' || currentUser.user_type === 'subadmin');
+      const v = isStaff ? termView() : '';
+      if (v === '__blank') return '|';
+      if (v) return v;
+      const t = activeTerm();
+      return t.year + '|' + t.semester;
+    }
+    /** แถวนี้อยู่ในปี/ภาคเดียวกับที่กำลังทำงานอยู่ไหม */
+    function sameWorkingTerm(row) { return _termKey(row) === workingTermKey(); }
+    function workingTermLabel() { const [y, sm] = workingTermKey().split('|'); return termLabel(y, sm); }
+
     /** คู่ปี/ภาคทั้งหมดที่มีข้อมูลอยู่จริง */
     function allTermKeys() {
       const set = new Set();
@@ -5634,9 +5651,10 @@ const supabaseDataSdk = {
     }
 
     function _studentRegStatus(s) {
-      // 📅 เฉพาะการลงทะเบียนในมุมมองปี/ภาคที่เลือกไว้ (ทุกปี/ภาค = ไม่กรอง)
+      // 📅 เฉพาะการลงทะเบียนของปี/ภาคที่กำลังทำงานอยู่
+      //    (ปีเดียวกันคนละภาค = คนละชุด คนเดิมต้องลงทะเบียนใหม่ในภาคใหม่)
       const regs = allData.filter(r => r.type === 'student_registration' && s && _rN(r.student_id) === _rN(s.student_id))
-        .filter(r => typeof inTermView === 'function' ? inTermView(r) : true);
+        .filter(r => typeof sameWorkingTerm === 'function' ? sameWorkingTerm(r) : true);
       const regSet = new Set(regs.map(r => _rN(r.subject_name)));
       const seen = new Set();
       const allSubjects = allData.filter(cs => cs.type === 'class_subject' && s
@@ -5645,10 +5663,12 @@ const supabaseDataSdk = {
       const missing = allSubjects.map(cs => cs.subject_name).filter(x => !regSet.has(_rN(x)));
       return { regs, allSubjects, missing, hasAny: regs.length > 0, isFull: allSubjects.length > 0 && missing.length === 0 };
     }
-    /** นักเรียนคนนี้ลงทะเบียนแล้วหรือยัง (ระบุวิชา = เฉพาะวิชานั้น) */
+    /** นักเรียนคนนี้ลงทะเบียนแล้วหรือยัง (ระบุวิชา = เฉพาะวิชานั้น)
+     *  📅 นับเฉพาะปี/ภาคที่กำลังทำงานอยู่ — ลงภาค 1 แล้ว ภาค 2 ยังถือว่า "ยังไม่ลงทะเบียน" */
     function _hasRegistration(studentId, subjectName) {
       return allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(studentId)
-        && (!subjectName || _rN(r.subject_name) === _rN(subjectName)));
+        && (!subjectName || _rN(r.subject_name) === _rN(subjectName))
+        && sameWorkingTerm(r));
     }
 
     function computeNewApplicants() {
@@ -7255,7 +7275,7 @@ const supabaseDataSdk = {
             </thead>
             <tbody>
               ${students.length === 0 ? `<tr><td colspan="${perm === 'manage' ? 7 : 6}" class="text-center text-gray-400 py-8">ไม่มีนักเรียนในห้องนี้</td></tr>` : students.map(s => {
-                const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id));
+                const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && sameWorkingTerm(r));
                 // ⚠️ บั๊กที่พบและแก้แล้ว: เมื่อมีคำขอซ้ำหลายรายการ ระบบเจอรายการที่ยังไม่อนุมัติก่อน
                 // จึงแสดงว่ายังรออนุมัติ ทั้งที่มีอีกรายการที่อนุมัติแล้ว
                 // แก้โดยหารายการที่อนุมัติแล้วก่อนเสมอ และหาได้ทั้งจากรหัสอ้างอิงและรหัสนักเรียน
@@ -19926,7 +19946,7 @@ function _examResultIdentityHtml(sub, set) {
         return;
       }
       container.innerHTML = students.map(s => {
-        const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id));
+        const hasAnyRegistration = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && sameWorkingTerm(r));
         const regBtnColorClass = hasAnyRegistration ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600';
         // ⚠️ บั๊กที่พบและแก้แล้ว: เทียบรหัสแบบเข้มงวด ซึ่งล้มเหลวถ้าชนิดข้อมูลไม่ตรงกัน
         // (Supabase ส่งรหัสมาเป็นตัวเลข แต่ระบบเก็บเป็นข้อความ) ทำให้หาผู้ช่วยแอดมินไม่เจอ
@@ -20291,8 +20311,8 @@ function _examResultIdentityHtml(sub, set) {
     function getNoEnrollStudents() {
       // ⚠️ ปรับให้ตรงกับพฤติกรรมจริงของตารางหลัก (renderNoEnrollTable) ซึ่งไม่มีการกรองตามชั้น/ห้องเลย (dropdown ที่เคยคาดว่ามีไม่เคยมีอยู่จริงในหน้า)
       // ฟังก์ชันนี้ใช้สำหรับส่งออก Excel/PDF เท่านั้น จึงควรแสดงรายการเดียวกับที่เห็นในตารางเป๊ะ (นักเรียนที่ยังไม่ลงทะเบียนทั้งหมด เรียงลำดับให้อ่านง่าย)
-      return allData.filter(s => s.type === 'student' &&
-        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id))
+      return allData.filter(s => s.type === 'student' && sameWorkingTerm(s) &&
+        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && sameWorkingTerm(r))
       ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
     }
 
@@ -20399,8 +20419,9 @@ function _examResultIdentityHtml(sub, set) {
       if (noenrollSel && (noenrollSel.options.length <= 1)) {
         noenrollSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
       }
-      const allNoEnroll = allData.filter(s => s.type === 'student' &&
-        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id)));
+      // 📅 เทียบภายในปี/ภาคเดียวกัน — คนที่ลงภาค 1 แล้วแต่ยังไม่ลงภาค 2 ต้องขึ้นที่นี่ด้วย
+      const allNoEnroll = allData.filter(s => s.type === 'student' && sameWorkingTerm(s) &&
+        !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && sameWorkingTerm(r)));
       // Build multi class/room checkboxes
       const classRoomMap = {};
       allNoEnroll.forEach(s => {
@@ -21032,7 +21053,7 @@ function _examResultIdentityHtml(sub, set) {
         if (!student) { skipped++; continue; }
         // ⚠️ เทียบแบบข้อความเสมอ กันลงทะเบียนซ้ำเพราะชนิดข้อมูลไม่ตรงกัน
         const existingReg = allData.find(r => r.type === 'student_registration'
-          && String(r.student_id) === String(sid) && r.subject_name === subjectName);
+          && String(r.student_id) === String(sid) && r.subject_name === subjectName && sameWorkingTerm(r));
         if (existingReg) { skipped++; continue; }
         const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName
           && d.class_name === student.class_name && String(d.room_number) === String(student.room_number));
@@ -21121,13 +21142,13 @@ function _examResultIdentityHtml(sub, set) {
       students = students.sort((a, b) => (a.class_name||'').localeCompare(b.class_name||'') || (a.room_number||'').localeCompare(b.room_number||'') || (parseFloat(a.student_number)||0) - (parseFloat(b.student_number)||0));
       if (fstatus !== 'all') {
         students = students.filter(s => {
-          const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)));
+          const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)) && sameWorkingTerm(r));
           return fstatus === 'not_reg' ? !hasReg : hasReg;
         });
       }
       if (students.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">ไม่พบนักเรียน</td></tr>'; return; }
       tbody.innerHTML = students.map(s => {
-        const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)));
+        const hasReg = allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && (!fsub || _rN(r.subject_name) === _rN(fsub)) && sameWorkingTerm(r));
         const badge = hasReg
           ? '<span class="text-green-600 text-xs">✅ ลงทะเบียนแล้ว</span>'
           : '<span class="text-red-600 text-xs">🔴 ยังไม่ลงทะเบียน</span>';
@@ -21828,7 +21849,7 @@ function _examResultIdentityHtml(sub, set) {
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
       // ถ้านักเรียนกำหนด KPAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
-      const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName));
+      const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName) && sameWorkingTerm(d));
       const kVal = existingReg?.k_percent ?? '';
       const pVal = existingReg?.p_percent ?? '';
       const aVal = existingReg?.a_percent ?? '';
@@ -23341,9 +23362,12 @@ function _examResultIdentityHtml(sub, set) {
       const opened = allData.some(d => (d.type === 'class_subject' || d.type === 'student_registration')
         && N(d.class_name) === N(className) && R(d.room_number) === R(roomNumber) && N(d.subject_name) === N(subjectName));
       if (!opened) return [];
-      const registered = new Set(allData.filter(r => r.type === 'student_registration' && N(r.subject_name) === N(subjectName))
+      // 📅 เทียบภายในปี/ภาคเดียวกัน — คนเดียวกันมีแถวนักเรียนได้หลายปี/ภาค ถ้าไม่กรองจะนับซ้ำ
+      //    และคนที่ลงทะเบียนไว้ภาคที่แล้ว ต้องถือว่า "ยังไม่ลงทะเบียน" ของภาคนี้
+      const registered = new Set(allData.filter(r => r.type === 'student_registration' && N(r.subject_name) === N(subjectName)
+          && sameWorkingTerm(r))
         .map(r => N(r.student_id)));
-      return allData.filter(s => s.type === 'student' && N(s.class_name) === N(className)
+      return allData.filter(s => s.type === 'student' && sameWorkingTerm(s) && N(s.class_name) === N(className)
         && R(s.room_number) === R(roomNumber) && s.student_id && !registered.has(N(s.student_id)));
     }
 
@@ -23487,8 +23511,8 @@ function _examResultIdentityHtml(sub, set) {
       if (k + p + a + cc > limit) { showToast(`รวม KPAC เกิน ${limit}%`, 'error'); return; }
       if (k + p + a + cc === 0 && !confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0) ยืนยันลงทะเบียนต่อหรือไม่?')) return;
       const dup = allData.find(r => r.type === 'student_registration'
-        && String(r.student_id) === String(student.student_id) && r.subject_name === subjectName);
-      if (dup) { showToast('นักเรียนคนนี้ลงทะเบียนวิชานี้แล้ว', 'info'); document.getElementById('enroll-kpac-popup')?.remove(); return; }
+        && String(r.student_id) === String(student.student_id) && r.subject_name === subjectName && sameWorkingTerm(r));
+      if (dup) { showToast(`นักเรียนคนนี้ลงทะเบียนวิชานี้แล้วใน${workingTermLabel()}`, 'info'); document.getElementById('enroll-kpac-popup')?.remove(); return; }
       const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === subjectName
         && d.class_name === student.class_name && String(d.room_number) === String(student.room_number));
       const btn = document.getElementById('ek-save-btn');
@@ -27230,7 +27254,8 @@ function _examResultIdentityHtml(sub, set) {
         d.type === 'student_registration' && 
         String(d.student_id) === String(student.student_id)
       );
-      const registeredSubjectNames = new Set(registrations.map(reg => reg.subject_name));
+      // 📅 นับเฉพาะภาคเรียนปัจจุบัน — วิชาที่ลงไว้ภาคที่แล้ว ไม่ถือว่า "ลงทะเบียนแล้ว" ของภาคนี้
+      const registeredSubjectNames = new Set(registrations.filter(sameWorkingTerm).map(reg => reg.subject_name));
       content.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📚 ลงทะเบียนเรียน</h2>
@@ -27420,10 +27445,11 @@ function _examResultIdentityHtml(sub, set) {
         String(d.student_id) === String(currentUser.student_id) &&
         d.class_name === studentClassName &&
         d.room_number === studentRoomNumber &&
-        d.subject_name === subjectName
+        d.subject_name === subjectName &&
+        sameWorkingTerm(d)      // 📅 ซ้ำเฉพาะเมื่ออยู่ปี/ภาคเดียวกัน
       );
       if (alreadyRegistered) {
-        document.getElementById('reg-error-msg').textContent = '❌ คุณลงทะเบียนวิชานี้แล้ว (วิชาเดียวกันลงทะเบียนได้แค่ครั้งเดียว)';
+        document.getElementById('reg-error-msg').textContent = `❌ คุณลงทะเบียนวิชานี้แล้วใน${workingTermLabel()} (ภาคเรียนเดียวกันลงทะเบียนได้แค่ครั้งเดียว)`;
         document.getElementById('reg-error-msg').classList.remove('hidden');
         return;
       }
@@ -29558,8 +29584,8 @@ function _examResultIdentityHtml(sub, set) {
   function mShowNoEnrollList() {
     document.getElementById('m-noenroll-overlay')?.remove();
     const subjects = [...new Set((allData||[]).filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
-    const list = (allData||[]).filter(s => s.type === 'student' &&
-      !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id))
+    const list = (allData||[]).filter(s => s.type === 'student' && sameWorkingTerm(s) &&
+      !allData.some(r => r.type === 'student_registration' && _rN(r.student_id) === _rN(s.student_id) && sameWorkingTerm(r))
     ).sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'')||(a.room_number||'').localeCompare(b.room_number||'')||(parseInt(a.student_number)||0)-(parseInt(b.student_number)||0));
 
     const overlay = document.createElement('div');
