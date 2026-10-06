@@ -3067,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.218';
+    const APP_VERSION = 'SUPABASE-2026.10.06.219';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5810,6 +5810,55 @@ const supabaseDataSdk = {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // 📚 ดรอปดาวน์วิชาในหน้าคลังข้อสอบ / จัดสอบ
+    //    คลังข้อสอบใช้ร่วมกันได้ทุกปี/ภาค (ย้ายข้อสอบไปวิชาของเทอมอื่นได้)
+    //    จึงต้องเห็นวิชาทุกเทอม แต่ "ต้องรู้ว่าวิชาไหนของเทอมไหน" → จัดกลุ่มตามปี/ภาค
+    //    ส่วนหน้าจัดสอบต้องใช้เฉพาะวิชาของเทอมที่กำลังทำงาน (มอบหมายให้นักเรียนจริง)
+    // ══════════════════════════════════════════════════════════════
+    /** วิชาทั้งหมดทุกปี/ภาค จัดกลุ่มไว้ — เทอมที่กำลังทำงานอยู่ขึ้นก่อนเสมอ */
+    function _subjectGroupsAllTerms() {
+      const raw = (window.__allRaw || allData).filter(d => d.type === 'class_subject' && d.subject_name);
+      const byTerm = new Map();
+      raw.forEach(d => {
+        const key = _termKey(d);
+        if (!byTerm.has(key)) byTerm.set(key, new Map());
+        const m = byTerm.get(key);
+        const nk = String(d.subject_name).replace(/\s+/g, '').toLowerCase();
+        if (!m.has(nk)) m.set(nk, String(d.subject_name).trim());
+      });
+      const working = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const keys = [...byTerm.keys()].sort((a, b) => {
+        if (a === working) return -1;
+        if (b === working) return 1;
+        return b.localeCompare(a);
+      });
+      return keys.map(k => {
+        const [y, sm] = k.split('|');
+        return {
+          key: k,
+          label: (k === working ? '📅 ' : '') + termLabel(y, sm) + (k === working ? ' (เทอมที่กำลังทำงาน)' : ''),
+          subjects: [...byTerm.get(k).values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }))
+        };
+      });
+    }
+    /** สร้าง <optgroup> ของวิชาทุกปี/ภาค ใช้กับช่อง "วิชาของข้อสอบ" และช่องกรองในคลังข้อสอบ */
+    function _subjectOptionsGrouped(firstOptionHtml) {
+      const groups = _subjectGroupsAllTerms();
+      if (groups.length === 0) return firstOptionHtml || '';
+      return (firstOptionHtml || '') + groups.map(g =>
+        `<optgroup label="${escHtml(g.label)}">`
+        + g.subjects.map(sj => `<option value="${escHtml(sj)}">${escHtml(sj)}</option>`).join('')
+        + '</optgroup>').join('');
+    }
+    /** วิชาของเทอมที่กำลังทำงานอยู่เท่านั้น (ใช้กับหน้าจัดสอบ) */
+    function _subjectsWorkingTermOnly() {
+      const g = _subjectGroupsAllTerms();
+      const working = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const hit = g.find(x => x.key === working);
+      return hit ? hit.subjects.slice() : [];
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // 🧩 ค่าตั้งต้นของรายวิชา (M/F · คะแนนเต็ม · หน่วยกิต) แยกชุดตามปี/ภาค
     //    เปิดเทอมใหม่ = เริ่มชุดใหม่ เลือกปี/ภาคไหนก็เห็นเฉพาะของปี/ภาคนั้น
     //    ของเดิมที่ยังไม่ระบุปี/ภาค ใช้เป็นทางสำรองไปก่อน จนกว่าเทอมนั้นจะมีชุดของตัวเอง
@@ -5876,6 +5925,11 @@ const supabaseDataSdk = {
       // 👨‍🎓 นักเรียน → ลงทะเบียนแล้ว · ⏱️ ลงเวลาเรียน
       run(typeof loadRegistrationsTab === 'function' ? loadRegistrationsTab : null);
       run(typeof loadTimekeepingFilters === 'function' ? loadTimekeepingFilters : null);
+      // 🗂️ คลังข้อสอบ/จัดสอบ ทั้งปรนัยและอัตนัย — ดรอปดาวน์วิชาต้องจัดกลุ่มใหม่ตามเทอมที่เลือก
+      run(typeof loadExamQuestionsTab === 'function' ? loadExamQuestionsTab : null);
+      run(typeof loadEssayQuestionsTab === 'function' ? loadEssayQuestionsTab : null);
+      run(typeof loadExamAssignTab === 'function' ? loadExamAssignTab : null);
+      run(typeof loadEssayAssignTab === 'function' ? loadEssayAssignTab : null);
     }
 
     /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
@@ -10614,11 +10668,17 @@ const supabaseDataSdk = {
         }
       }
       window._eqRetryCount = 0;
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      // 📚 คลังข้อสอบใช้ร่วมกันได้ทุกปี/ภาค — แสดงวิชาทุกเทอม แต่จัดกลุ่มบอกชัดว่าวิชาไหนของเทอมไหน
+      //    (เทอมที่กำลังทำงานอยู่ขึ้นกลุ่มแรกเสมอ จึงเลือกของเทอมตัวเองได้ทันที
+      //     และยังย้ายข้อสอบไปวิชาของปี/ภาคอื่นได้ตามที่ต้องการ)
       const subjSel = document.getElementById('eq-subject');
       const filterSubjSel = document.getElementById('eq-filter-subject');
-      if (subjSel) subjSel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
-      if (filterSubjSel) filterSubjSel.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+      if (subjSel) subjSel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
+      if (filterSubjSel) {
+        const keepF = filterSubjSel.value;
+        filterSubjSel.innerHTML = _subjectOptionsGrouped('<option value="">ทุกวิชา (ทุกปี/ภาค)</option>');
+        if (Array.prototype.some.call(filterSubjSel.options, o => o.value === keepF)) filterSubjSel.value = keepF;
+      }
       updateEqTypeUI();
       updateEqChapterFilterOptions();
       renderExamQuestionList();
@@ -11442,12 +11502,23 @@ const supabaseDataSdk = {
     /** โหลดหน้าคลังข้อสอบอัตนัย */
     function loadEssayQuestionsTab() {
       // รวมวิชาจากตารางรายวิชา + วิชาที่มีข้อสอบในคลังจริง (ไม่ให้วิชาตกหล่นจากตัวกรอง)
-      const _sm = new Map();
-      allData.filter(d => (d.type === 'class_subject' || d.type === 'essay_question') && d.subject_name)
-        .forEach(d => { const k = _eaN(d.subject_name); if (!_sm.has(k)) _sm.set(k, String(d.subject_name).trim()); });
-      const subjects = [..._sm.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+      // 📚 วิชาทุกปี/ภาค จัดกลุ่มบอกเทอม + วิชาที่มีข้อสอบในคลังแต่ไม่มีในตารางรายวิชา (ไม่ให้ตกหล่น)
+      const _known = new Set();
+      _subjectGroupsAllTerms().forEach(g => g.subjects.forEach(sj => _known.add(_eaN(sj))));
+      const _orphan = new Map();
+      allData.filter(d => d.type === 'essay_question' && d.subject_name).forEach(d => {
+        const k = _eaN(d.subject_name);
+        if (!_known.has(k) && !_orphan.has(k)) _orphan.set(k, String(d.subject_name).trim());
+      });
       const fSubj = document.getElementById('esq-filter-subject');
-      if (fSubj) fSubj.innerHTML = '<option value="">ทุกวิชา</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+      if (fSubj) {
+        const keepF = fSubj.value;
+        fSubj.innerHTML = _subjectOptionsGrouped('<option value="">ทุกวิชา (ทุกปี/ภาค)</option>')
+          + (_orphan.size ? '<optgroup label="ยังไม่ระบุปี/ภาค">'
+              + [..._orphan.values()].sort().map(sj => `<option value="${escHtml(sj)}">${escHtml(sj)}</option>`).join('')
+              + '</optgroup>' : '');
+        if (Array.prototype.some.call(fSubj.options, o => o.value === keepF)) fSubj.value = keepF;
+      }
       updateEsqChapterFilter();
       renderEssayQuestionList();
     }
@@ -11691,10 +11762,11 @@ const supabaseDataSdk = {
     }
 
     function openCreateEssayQuestionPopup() {
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      // 📚 วิชาทุกปี/ภาค จัดกลุ่มไว้ (ย้ายข้อสอบไปเทอมอื่นได้)
+      const subjects = _subjectGroupsAllTerms().reduce((a, g) => a.concat(g.subjects), []);
       if (subjects.length === 0) { showToast('⚠️ ยังไม่มีรายวิชาในระบบ กรุณาเพิ่มรายวิชาก่อน', 'error'); return; }
       const sel = document.getElementById('esq-subject');
-      if (sel) sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+      if (sel) sel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
       resetEssayQuestionForm();
       _showEsqFormAsPopup();
     }
@@ -11800,9 +11872,9 @@ const supabaseDataSdk = {
     function editEssayQuestion(id) {
       const q = allData.find(d => d.__backendId === id && d.type === 'essay_question');
       if (!q) return;
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      // 📚 วิชาทุกปี/ภาค จัดกลุ่มไว้ — ย้ายข้อสอบข้อนี้ไปวิชาของปี/ภาคอื่นได้จากที่นี่
       const sel = document.getElementById('esq-subject');
-      if (sel) sel.innerHTML = '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+      if (sel) sel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
       document.getElementById('esq-edit-id').value = id;
       document.getElementById('esq-form-title').textContent = '✏️ แก้ไขข้อสอบอัตนัย';
       document.getElementById('esq-save-btn').textContent = '💾 บันทึกการแก้ไข';
@@ -11834,11 +11906,12 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมต้องกดเข้าเมนู "คลังข้อสอบ" ก่อน ปุ่มสร้างข้อสอบถึงจะใช้ได้
       // เพราะรายการวิชาในช่องเลือกถูกเติมโดย loadExamQuestionsTab() ซึ่งทำงานเฉพาะตอนเปิดแท็บนั้น
       // แก้โดยเติมรายการวิชาให้เองทุกครั้งที่เปิดหน้าต่าง ไม่ต้องพึ่งการกดเมนูก่อนอีกต่อไป
-      const subjects = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.subject_name).filter(Boolean))].sort();
+      // 📚 แสดงวิชาทุกปี/ภาค จัดกลุ่มไว้ (ย้ายข้อสอบไปเทอมอื่นได้)
+      const subjects = _subjectGroupsAllTerms().reduce((a, g) => a.concat(g.subjects), []);
       const subjSel = document.getElementById('eq-subject');
       if (subjSel) {
         subjSel.innerHTML = subjects.length > 0
-          ? '<option value="">-- เลือกวิชา --</option>' + subjects.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('')
+          ? _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>')
           : '<option value="">⚠️ ยังไม่มีรายวิชาในระบบ</option>';
       }
       if (subjects.length === 0) {
@@ -12008,19 +12081,24 @@ const supabaseDataSdk = {
      *     (1) ห้องนั้นมีนักเรียนลงทะเบียนแล้วแต่ยังไม่มีรายวิชาในตาราง  (2) ชื่อชั้นเขียนต่างกันเล็กน้อย เช่น "ม.6" กับ "ม. 6" */
     function _eaN(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
     function _eaOpt(v) { return `<option value="${escHtml(v)}">${escHtml(v)}</option>`; }
+    /** 📅 แหล่งชั้น/ห้อง/วิชา ของหน้าจัดสอบ — เฉพาะปี/ภาคที่กำลังทำงานอยู่
+     *  จัดสอบคือการมอบหมายให้นักเรียนจริง จึงต้องไม่หยิบห้อง/วิชาของเทอมอื่นมาให้เลือก */
     function _eaSources() {
-      return allData.filter(d => (d.type === 'class_subject' || d.type === 'student_registration') && d.class_name);
+      return allData.filter(d => (d.type === 'class_subject' || d.type === 'student_registration') && d.class_name)
+        .filter(d => (typeof inTermView === 'function') ? inTermView(d) : true);
     }
     function _eaClasses() {
       const map = new Map();
-      _eaSources().concat(allData.filter(d => d.type === 'student' && d.class_name)).forEach(d => {
+      _eaSources().concat(allData.filter(d => d.type === 'student' && d.class_name
+        && ((typeof inTermView === 'function') ? inTermView(d) : true))).forEach(d => {
         const k = _eaN(d.class_name); if (k && !map.has(k)) map.set(k, String(d.class_name).trim());
       });
       return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
     }
     function _eaRooms(className) {
       const cn = _eaN(className), map = new Map();
-      _eaSources().concat(allData.filter(d => d.type === 'student')).forEach(d => {
+      _eaSources().concat(allData.filter(d => d.type === 'student'
+        && ((typeof inTermView === 'function') ? inTermView(d) : true))).forEach(d => {
         if (_eaN(d.class_name) !== cn) return;
         const r = String(d.room_number == null ? '' : d.room_number).trim();
         if (r && !map.has(_eaN(r))) map.set(_eaN(r), r);
