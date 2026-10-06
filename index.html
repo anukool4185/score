@@ -3067,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.217';
+    const APP_VERSION = 'SUPABASE-2026.10.06.218';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5801,6 +5801,13 @@ const supabaseDataSdk = {
       return _termKey(row) === v;
     }
     function filterByTermView(rows) { return (rows || []).filter(inTermView); }
+    /** 📅 การลงทะเบียนของปี/ภาคที่กำลังดูอยู่เท่านั้น
+     *  ⚠️ ทุกหน้าที่แสดงรายชื่อ/คะแนน/เกรด ต้องอ่านผ่านตัวนี้
+     *     ถ้าอ่าน allData ตรงๆ จะเห็นข้อมูลของทุกเทอมปนกัน (บั๊กที่แก้แล้ว) */
+    function _termRegs() {
+      return allData.filter(d => d.type === 'student_registration')
+        .filter(d => (typeof inTermView === 'function') ? inTermView(d) : true);
+    }
 
     // ══════════════════════════════════════════════════════════════
     // 🧩 ค่าตั้งต้นของรายวิชา (M/F · คะแนนเต็ม · หน่วยกิต) แยกชุดตามปี/ภาค
@@ -5858,6 +5865,17 @@ const supabaseDataSdk = {
       run(typeof renderImportTermNote === 'function' ? renderImportTermNote : null);
       // 🎓 ให้คะแนน — ตัวกรองต้องเหลือเฉพาะวิชาของเทอมที่เลือก
       run(typeof loadGradingFilters === 'function' ? loadGradingFilters : null);
+      // 📑 สัดส่วนเกรด · 🥧 สรุปเกรด · ⭐ คุณลักษณะ/อ่านคิดวิเคราะห์
+      run(typeof loadGradeReportTab === 'function' ? loadGradeReportTab : null);
+      run(typeof loadAdminGradeDistTab === 'function' ? loadAdminGradeDistTab : null);
+      run(typeof loadCharReadTab === 'function' ? loadCharReadTab : null);
+      // 📊 ตารางผลการเรียน/เวลาเรียน · 📤 อัพโหลดคะแนนจาก Excel · 📤 ส่งออกข้อมูล
+      run(typeof loadStudentDataTab === 'function' ? loadStudentDataTab : null);
+      run(typeof loadUploadScoreTab === 'function' ? loadUploadScoreTab : null);
+      run(typeof loadExportDataTab === 'function' ? loadExportDataTab : null);
+      // 👨‍🎓 นักเรียน → ลงทะเบียนแล้ว · ⏱️ ลงเวลาเรียน
+      run(typeof loadRegistrationsTab === 'function' ? loadRegistrationsTab : null);
+      run(typeof loadTimekeepingFilters === 'function' ? loadTimekeepingFilters : null);
     }
 
     /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
@@ -6068,7 +6086,7 @@ const supabaseDataSdk = {
     function computeNewRegistrations() {
       // หลุดออกจากแจ้งเตือนได้ 2 ทาง: (1) แอดมินกดรับทราบ หรือ (2) มีการกรอกคะแนนแล้วอย่างน้อย 1 ครั้ง
       // 🔍 วินิจฉัย: บันทึกไว้ว่าแต่ละรายการถูกกรองออกเพราะอะไร (ช่วยหาสาเหตุกรณีชื่อวนกลับมา)
-      const allRegs = allData.filter(d => d.type === 'student_registration');
+      const allRegs = _termRegs();
       const result = allRegs.filter(d => {
         // ⚠️ ค่าจากฐานข้อมูลอาจมาเป็นข้อความ "true" ไม่ใช่ค่าจริง ต้องเช็คทั้ง 2 แบบ
         const acked = d.notification_acknowledged === true || d.notification_acknowledged === 'true';
@@ -8851,6 +8869,9 @@ const supabaseDataSdk = {
           else if (tab === 'timekeeping') updateTimekeepingStudents?.();
           else if (tab === 'scores') { updateScoreInputTable?.(); updateScoresDisplayList?.(); }
           else if (tab === 'gradereport') loadGradeReportTab?.();
+          else if (tab === 'gradedist') updateAdminGradeDistTable?.();
+          else if (tab === 'charread') renderCharReadTable?.();
+          else if (tab === 'studentdata') updateStudentDataTable?.();
           else if (tab === 'uploadscore') renderPendingScoreTable?.();
           else if (tab === 'hours') { updateHoursTable?.(); updateHoursDisplayList?.(); }
           else if (tab === 'grading') renderGradingView?.();
@@ -8968,9 +8989,9 @@ const supabaseDataSdk = {
       updateAdminEvaluatorsList();
     }
     function loadStudentDataTab() {
-      const subjects = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.subject_name).filter(Boolean))].sort();
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
-      const rooms = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(_termRegs().map(d => d.subject_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(_termRegs().map(d => d.room_number).filter(Boolean))].sort();
       const subjectSelect = document.getElementById('admindata-filter-subject');
       const classSelect = document.getElementById('admindata-filter-class');
       const roomSelect = document.getElementById('admindata-filter-room');
@@ -8986,7 +9007,7 @@ const supabaseDataSdk = {
       const subjectFilter = document.getElementById('admindata-filter-subject')?.value || '';
       const classFilter = document.getElementById('admindata-filter-class')?.value || '';
       const roomFilter = document.getElementById('admindata-filter-room')?.value || '';
-      let registrations = allData.filter(d => d.type === 'student_registration');
+      let registrations = _termRegs();
       const totalCount = registrations.length;
       if (subjectFilter) registrations = registrations.filter(r => r.subject_name === subjectFilter);
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
@@ -11513,7 +11534,7 @@ const supabaseDataSdk = {
     /** เปิดหน้าต่างสร้างระบบให้นักเรียนใหม่ พร้อมให้กำหนดสัดส่วน KPAC */
     function openBulkSetupNewStudents() {
       // หานักเรียนที่ยังไม่ได้ลงทะเบียนวิชาใดเลย
-      const registered = new Set(allData.filter(d => d.type === 'student_registration').map(d => d.student_id));
+      const registered = new Set(_termRegs().map(d => d.student_id));
       const newStudents = allData.filter(d => d.type === 'student' && !registered.has(d.student_id));
 
       if (newStudents.length === 0) {
@@ -11602,7 +11623,7 @@ const supabaseDataSdk = {
         if (!confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0)\n\nยืนยันดำเนินการต่อหรือไม่? (แก้ไขภายหลังได้)')) return;
       }
 
-      const registered = new Set(allData.filter(d => d.type === 'student_registration').map(d => d.student_id));
+      const registered = new Set(_termRegs().map(d => d.student_id));
       const newStudents = allData.filter(d => d.type === 'student' && !registered.has(d.student_id));
       if (newStudents.length === 0) { showToast('ไม่มีนักเรียนที่ต้องสร้างข้อมูล', 'info'); return; }
 
@@ -17777,7 +17798,7 @@ function _examResultIdentityHtml(sub, set) {
 
     function loadCharReadTab() {
       renderCharReadConfig();
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       const classSel = document.getElementById('charread-filter-class');
       if (classSel) classSel.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
       updateCharReadRoomSubject();
@@ -17789,7 +17810,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSel = document.getElementById('charread-filter-room');
       const subjSel = document.getElementById('charread-filter-subject');
       if (!roomSel || !subjSel) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -17840,7 +17861,7 @@ function _examResultIdentityHtml(sub, set) {
       const className = document.getElementById('charread-filter-class')?.value || '';
       const roomNumber = document.getElementById('charread-filter-room')?.value || '';
       const subjectName = document.getElementById('charread-filter-subject')?.value || '';
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       if (roomNumber) regs = regs.filter(r => String(r.room_number) === String(roomNumber));
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
@@ -18105,7 +18126,7 @@ function _examResultIdentityHtml(sub, set) {
     function renderExportBlocks() {
       const wrap = document.getElementById('export-blocks');
       if (!wrap) return;
-      const regs = allData.filter(d => d.type === 'student_registration');
+      const regs = _termRegs();
       const classes = [...new Set(regs.map(d => d.class_name).filter(Boolean))].sort();
       const opt = (list, cur, ph) => `<option value="">${ph}</option>` +
         list.map(v => `<option value="${escHtml(String(v))}" ${String(v) === String(cur) ? 'selected' : ''}>${escHtml(String(v))}</option>`).join('');
@@ -18296,7 +18317,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function loadAdminGradeDistTab() {
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       const classSel = document.getElementById('admin-gradedist-filter-class');
       if (classSel) classSel.innerHTML = '<option value="">ทุกชั้น</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
       updateAdminGradeDistRoomSubject();
@@ -18307,7 +18328,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSel = document.getElementById('admin-gradedist-filter-room');
       const subjSel = document.getElementById('admin-gradedist-filter-subject');
       if (!roomSel || !subjSel) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -18321,7 +18342,7 @@ function _examResultIdentityHtml(sub, set) {
       const listEl = document.getElementById('admin-gradedist-list');
       const overviewEl = document.getElementById('admin-gradedist-overview');
       if (!listEl) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
@@ -18388,7 +18409,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function loadGradeReportTab() {
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('gradereport-filter-class');
       if (classSelect) classSelect.innerHTML = '<option value="">🏫 ทุกชั้น</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
       // ตั้งค่า radio ให้ตรงกับการตั้งค่าที่บันทึกไว้
@@ -18413,7 +18434,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSelect = document.getElementById('gradereport-filter-room');
       const subjectSelect = document.getElementById('gradereport-filter-subject');
       if (!roomSelect || !subjectSelect) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -21763,7 +21784,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function loadRegistrationsTab() {
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       const classSelect = document.getElementById('reg-table-filter-class');
       if (classSelect) classSelect.innerHTML = '<option value="">-- เลือกชั้นเรียน --</option>' + classes.map(c => `<option value="${c}">${c}</option>`).join('');
       updateRegTableSubjects();
@@ -21774,7 +21795,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSelect = document.getElementById('reg-table-filter-room');
       const subjectSelect = document.getElementById('reg-table-filter-subject');
       if (!roomSelect || !subjectSelect) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -26985,9 +27006,9 @@ function _examResultIdentityHtml(sub, set) {
     function showDirectorDashboard() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
-      const subjects = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.subject_name).filter(Boolean))].sort();
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
-      const rooms = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.room_number).filter(Boolean))].sort();
+      const subjects = [...new Set(_termRegs().map(d => d.subject_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
+      const rooms = [...new Set(_termRegs().map(d => d.room_number).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">⏱️ เวลาเรียน</h2>
@@ -27032,7 +27053,7 @@ function _examResultIdentityHtml(sub, set) {
       const subjectFilter = document.getElementById('director-filter-subject')?.value || '';
       const classFilter = document.getElementById('director-filter-class')?.value || '';
       const roomFilter = document.getElementById('director-filter-room')?.value || '';
-      let registrations = allData.filter(d => d.type === 'student_registration');
+      let registrations = _termRegs();
       const totalCount = registrations.length;
       if (subjectFilter) registrations = registrations.filter(r => r.subject_name === subjectFilter);
       if (classFilter) registrations = registrations.filter(r => r.class_name === classFilter);
@@ -27174,7 +27195,7 @@ function _examResultIdentityHtml(sub, set) {
     function showDirectorKpacFullScores() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">🎯 คะแนนเต็ม KPAC</h2>
@@ -27221,7 +27242,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSel = document.getElementById('director-kpac-filter-room');
       const subjSel = document.getElementById('director-kpac-filter-subject');
       if (!roomSel || !subjSel) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -27235,7 +27256,7 @@ function _examResultIdentityHtml(sub, set) {
       const tbody = document.getElementById('director-kpac-table-body');
       const countLabel = document.getElementById('director-kpac-count');
       if (!tbody) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
@@ -27271,7 +27292,7 @@ function _examResultIdentityHtml(sub, set) {
     function showDirectorGradeSummary() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📊 ผลการเรียน</h2>
@@ -27319,7 +27340,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSel = document.getElementById('director-grade-filter-room');
       const subjSel = document.getElementById('director-grade-filter-subject');
       if (!roomSel || !subjSel) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -27333,7 +27354,7 @@ function _examResultIdentityHtml(sub, set) {
       const tbody = document.getElementById('director-grade-table-body');
       const countLabel = document.getElementById('director-grade-count');
       if (!tbody) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
@@ -27653,7 +27674,7 @@ function _examResultIdentityHtml(sub, set) {
     function showDirectorGradeDistribution() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
-      const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+      const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📑 สรุปเกรด</h2>
@@ -27684,7 +27705,7 @@ function _examResultIdentityHtml(sub, set) {
       const roomSel = document.getElementById('director-gradedist-filter-room');
       const subjSel = document.getElementById('director-gradedist-filter-subject');
       if (!roomSel || !subjSel) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -27698,7 +27719,7 @@ function _examResultIdentityHtml(sub, set) {
       const listEl = document.getElementById('director-gradedist-list');
       const overviewEl = document.getElementById('director-gradedist-overview');
       if (!listEl) return;
-      let regs = allData.filter(d => d.type === 'student_registration');
+      let regs = _termRegs();
       if (className) regs = regs.filter(r => r.class_name === className);
       if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
       if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
@@ -29159,7 +29180,7 @@ function _examResultIdentityHtml(sub, set) {
   // 📱 ระบบ director ฝั่งมือถือ — ออกแบบเป็นมือถือจริง (การ์ด ไม่ใช่ตารางลอกจากคอม)
   // ══════════════════════════════════════════════════
   function mDirSelectorsHtml(prefix) {
-    const classes = [...new Set(allData.filter(d => d.type === 'student_registration').map(d => d.class_name).filter(Boolean))].sort();
+    const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
     return `
       <select id="${prefix}-class" onchange="mDirUpdateRoomSubject('${prefix}')" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;margin-bottom:8px;box-sizing:border-box">
         <option value="">ทุกชั้น</option>
@@ -29179,7 +29200,7 @@ function _examResultIdentityHtml(sub, set) {
     const roomSel = document.getElementById(prefix + '-room');
     const subjSel = document.getElementById(prefix + '-subject');
     if (!roomSel || !subjSel) return;
-    let regs = allData.filter(d => d.type === 'student_registration');
+    let regs = _termRegs();
     if (className) regs = regs.filter(r => r.class_name === className);
     const rooms = [...new Set(regs.map(r => r.room_number).filter(Boolean))].sort();
     roomSel.innerHTML = '<option value="">ทุกห้อง</option>' + rooms.map(r => `<option value="${r}">${r}</option>`).join('');
@@ -29191,7 +29212,7 @@ function _examResultIdentityHtml(sub, set) {
     const roomNumber = document.getElementById(prefix + '-room')?.value || '';
     const subjSel = document.getElementById(prefix + '-subject');
     if (!subjSel) return;
-    let regs = allData.filter(d => d.type === 'student_registration');
+    let regs = _termRegs();
     if (className) regs = regs.filter(r => r.class_name === className);
     if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
     const subjects = [...new Set(regs.map(r => r.subject_name).filter(Boolean))].sort();
@@ -29238,7 +29259,7 @@ function _examResultIdentityHtml(sub, set) {
     const { className, roomNumber, subjectName } = mDirGetSelection('m-dir-score');
     const el = document.getElementById('m-dir-score-result');
     if (!el) return;
-    let regs = allData.filter(d => d.type === 'student_registration');
+    let regs = _termRegs();
     if (className) regs = regs.filter(r => r.class_name === className);
     if (roomNumber) regs = regs.filter(r => r.room_number === roomNumber);
     if (subjectName) regs = regs.filter(r => r.subject_name === subjectName);
