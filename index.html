@@ -3067,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.220';
+    const APP_VERSION = 'SUPABASE-2026.10.06.221';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5815,6 +5815,20 @@ const supabaseDataSdk = {
     //    จึงต้องเห็นวิชาทุกเทอม แต่ "ต้องรู้ว่าวิชาไหนของเทอมไหน" → จัดกลุ่มตามปี/ภาค
     //    ส่วนหน้าจัดสอบต้องใช้เฉพาะวิชาของเทอมที่กำลังทำงาน (มอบหมายให้นักเรียนจริง)
     // ══════════════════════════════════════════════════════════════
+    /** 📅 แถวที่ "ไม่มีคอลัมน์ปี/ภาคของตัวเอง" (การบ้าน · แจ้งเตือนนักเรียน)
+     *  ตัดสินว่าเป็นของเทอมที่กำลังดูหรือไม่ จากชั้น/ห้อง/วิชาที่แถวนั้นผูกไว้
+     *  ถ้าชั้น/ห้อง/วิชานั้นไม่มีอยู่ในเทอมใดเลย (เช่นลบรายวิชาไปแล้ว) ให้แสดงไว้ ไม่ให้ข้อมูลหายเงียบๆ */
+    function _crsInTermView(row) {
+      if (!row) return true;
+      const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
+      const R = v => { const t = N(v); return /^\d+$/.test(t) ? String(parseInt(t, 10)) : t; };
+      const same = d => (!row.class_name || N(d.class_name) === N(row.class_name))
+        && (!row.room_number || R(d.room_number) === R(row.room_number))
+        && (!row.subject_name || N(d.subject_name) === N(row.subject_name));
+      const hits = (window.__allRaw || allData).filter(d => d.type === 'class_subject' && same(d));
+      if (hits.length === 0) return true;
+      return hits.some(d => (typeof inTermView === 'function') ? inTermView(d) : true);
+    }
     /** 📚 ชื่อวิชาทั้งหมดในระบบ (ไม่เกี่ยวกับปี/ภาคเลย)
      *  คลังข้อสอบผูกกับ "ชื่อวิชา" เท่านั้น วิชาชื่อเดียวกันของคนละเทอมถือเป็นวิชาเดียวกันในคลัง
      *  รวมชื่อวิชาที่มีข้อสอบอยู่แล้วแต่ไม่มีในตารางรายวิชาด้วย เพื่อไม่ให้ข้อสอบเก่าหาไม่เจอ */
@@ -5916,6 +5930,10 @@ const supabaseDataSdk = {
       // 👨‍🎓 นักเรียน → ลงทะเบียนแล้ว · ⏱️ ลงเวลาเรียน
       run(typeof loadRegistrationsTab === 'function' ? loadRegistrationsTab : null);
       run(typeof loadTimekeepingFilters === 'function' ? loadTimekeepingFilters : null);
+      run(typeof updateTimekeepingStudents === 'function' ? updateTimekeepingStudents : null);
+      // 📝 การบ้าน · 🔔 แจ้งเตือนนักเรียน (ผูกกับชั้น/ห้อง/วิชา จึงต้องตามเทอมไปด้วย)
+      run(typeof loadHomeworkTab === 'function' ? loadHomeworkTab : null);
+      run(typeof loadStuNotifTab === 'function' ? loadStuNotifTab : null);
       // 📝 จัดสอบ ทั้งปรนัยและอัตนัย — ชั้น/ห้อง/วิชา ต้องเป็นของเทอมที่กำลังทำงาน
       //    (คลังข้อสอบไม่ต้องวาดใหม่ เพราะผูกกับชื่อวิชาเท่านั้น ไม่เกี่ยวกับปี/ภาค)
       run(typeof loadExamAssignTab === 'function' ? loadExamAssignTab : null);
@@ -8916,6 +8934,7 @@ const supabaseDataSdk = {
           else if (tab === 'gradedist') updateAdminGradeDistTable?.();
           else if (tab === 'charread') renderCharReadTable?.();
           else if (tab === 'studentdata') updateStudentDataTable?.();
+          else if (tab === 'stunotif') renderAdminNotificationList?.();
           else if (tab === 'uploadscore') renderPendingScoreTable?.();
           else if (tab === 'hours') { updateHoursTable?.(); updateHoursDisplayList?.(); }
           else if (tab === 'grading') renderGradingView?.();
@@ -9234,7 +9253,8 @@ const supabaseDataSdk = {
     }
     function getFilteredHomeworkList(scope) {
       // scope (ถ้ามี) ใช้สำหรับผู้ช่วยแอดมิน: { className, roomNumber, subjectName } บังคับกรองตามขอบเขตเสมอ
-      let list = allData.filter(d => d.type === 'homework');
+      // 📅 เฉพาะการบ้านของชั้น/ห้อง/วิชา ที่อยู่ในปี/ภาคที่กำลังดูอยู่
+      let list = allData.filter(d => d.type === 'homework').filter(_crsInTermView);
       const className = scope?.className ?? document.getElementById('hw-filter-class')?.value;
       const roomNumber = scope?.roomNumber ?? document.getElementById('hw-filter-room')?.value;
       const subjectName = scope?.subjectName ?? document.getElementById('hw-filter-subject')?.value;
@@ -12339,7 +12359,8 @@ const supabaseDataSdk = {
     // 🔔 หน้าจัดการแจ้งเตือนนักเรียน (ฝั่งแอดมิน) — กรองตามชั้น/ห้อง/วิชา + เลือกลบทีละคน/หลายคน/ทั้งหมด
     // ══════════════════════════════════════════════════
     function loadStuNotifTab() {
-      const notifs = allData.filter(d => d.type === 'student_notification');
+      // 📅 ตัวเลือกชั้น/ห้อง/วิชา สร้างจากแจ้งเตือนของปี/ภาคที่กำลังดูเท่านั้น
+      const notifs = allData.filter(d => d.type === 'student_notification').filter(_crsInTermView);
       const classes = [...new Set(notifs.map(n => n.class_name).filter(Boolean))].sort();
       const rooms = [...new Set(notifs.map(n => n.room_number).filter(Boolean))].sort();
       const subjects = [...new Set(notifs.map(n => n.subject_name).filter(Boolean))].sort();
@@ -12357,7 +12378,7 @@ const supabaseDataSdk = {
       const fClass = document.getElementById('stunotif-filter-class')?.value || '';
       const fRoom = document.getElementById('stunotif-filter-room')?.value || '';
       const fSubject = document.getElementById('stunotif-filter-subject')?.value || '';
-      let notifs = allData.filter(d => d.type === 'student_notification');
+      let notifs = allData.filter(d => d.type === 'student_notification').filter(_crsInTermView);   // 📅 ตามปี/ภาคที่กำลังดู
       if (fClass) notifs = notifs.filter(n => n.class_name === fClass);
       if (fRoom) notifs = notifs.filter(n => n.room_number === fRoom);
       if (fSubject) notifs = notifs.filter(n => n.subject_name === fSubject);
@@ -25310,6 +25331,21 @@ function _examResultIdentityHtml(sub, set) {
       refreshCurrentView();
     }
     // ======= TIMEKEEPING MANAGEMENT FUNCTIONS (ลงเวลาเรียน) =======
+    /** 🧹 ล้างหน้าลงเวลาเรียนให้ว่าง — ใช้ทุกครั้งที่สร้างตัวกรองใหม่ (เปลี่ยนปี/ภาค) */
+    function _clearTimekeepingView(msg) {
+      selectedTimekeepingRegId = null;
+      const namelist = document.getElementById('timekeeping-student-namelist');
+      const detail = document.getElementById('timekeeping-student-detail');
+      const container = document.getElementById('timekeeping-students-container');
+      const emptyMsg = document.getElementById('timekeeping-empty-message');
+      if (namelist) namelist.innerHTML = '';
+      if (detail) detail.innerHTML = '';
+      if (container) container.classList.add('hidden');
+      if (emptyMsg) {
+        emptyMsg.textContent = msg || `เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน (${typeof workingTermLabel === 'function' ? workingTermLabel() : ''})`;
+        emptyMsg.classList.remove('hidden');
+      }
+    }
     function loadTimekeepingFilters() {
       // ดึงชั้นเรียน/ห้องเรียน/วิชา จาก student_registration เท่านั้น
       // 📅 เฉพาะปี/ภาคที่กำลังดูอยู่ ไม่งั้นจะเห็นห้อง/วิชาของทุกเทอมรวมกัน
@@ -25374,12 +25410,12 @@ function _examResultIdentityHtml(sub, set) {
       if (!container || !className || !roomNumber || !subjectName) return null;
       let registrations = allData.filter(d => {
         if (d.type !== 'student_registration') return false;
+        if (typeof inTermView === 'function' && !inTermView(d)) return false;   // 📅 เฉพาะปี/ภาคที่กำลังดู
         return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
       });
       registrations = _sortRegistrations(registrations, _sortPrefs.timekeeping); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
-        container.classList.add('hidden');
-        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนลงทะเบียนวิชานี้'; emptyMsg.classList.remove('hidden'); }
+        _clearTimekeepingView(`ไม่มีนักเรียนลงทะเบียนวิชานี้ใน${typeof workingTermLabel === 'function' ? workingTermLabel() : ''}`);
         return registrations;
       }
       if (emptyMsg) emptyMsg.classList.add('hidden');
@@ -25411,9 +25447,7 @@ function _examResultIdentityHtml(sub, set) {
       const emptyMsg = document.getElementById('timekeeping-empty-message');
       if (!container) return;
       if (!className || !roomNumber || !subjectName) {
-        container.classList.add('hidden');
-        emptyMsg.textContent = 'เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน';
-        emptyMsg.classList.remove('hidden');
+        _clearTimekeepingView();   // 🧹 ล้างรายชื่อและการ์ดด้วย ไม่ใช่แค่ซ่อนกล่อง
         return;
       }
       const registrations = refreshTimekeepingNameListOnly();
@@ -25663,6 +25697,7 @@ function _examResultIdentityHtml(sub, set) {
       // ค้นหานักเรียนที่ลงทะเบียนวิชานี้
       let registrations = allData.filter(d => {
         if (d.type !== 'student_registration') return false;
+        if (typeof inTermView === 'function' && !inTermView(d)) return false;   // 📅 เฉพาะปี/ภาคที่กำลังดู
         return d.class_name === className && d.room_number === roomNumber && d.subject_name === subjectName;
       });
       registrations = _sortRegistrations(registrations, _sortPrefs.timekeeping); // 🔢 เรียงตามที่ผู้ใช้เลือก
