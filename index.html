@@ -3067,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.219';
+    const APP_VERSION = 'SUPABASE-2026.10.06.220';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5815,47 +5815,38 @@ const supabaseDataSdk = {
     //    จึงต้องเห็นวิชาทุกเทอม แต่ "ต้องรู้ว่าวิชาไหนของเทอมไหน" → จัดกลุ่มตามปี/ภาค
     //    ส่วนหน้าจัดสอบต้องใช้เฉพาะวิชาของเทอมที่กำลังทำงาน (มอบหมายให้นักเรียนจริง)
     // ══════════════════════════════════════════════════════════════
-    /** วิชาทั้งหมดทุกปี/ภาค จัดกลุ่มไว้ — เทอมที่กำลังทำงานอยู่ขึ้นก่อนเสมอ */
-    function _subjectGroupsAllTerms() {
-      const raw = (window.__allRaw || allData).filter(d => d.type === 'class_subject' && d.subject_name);
-      const byTerm = new Map();
-      raw.forEach(d => {
-        const key = _termKey(d);
-        if (!byTerm.has(key)) byTerm.set(key, new Map());
-        const m = byTerm.get(key);
-        const nk = String(d.subject_name).replace(/\s+/g, '').toLowerCase();
-        if (!m.has(nk)) m.set(nk, String(d.subject_name).trim());
+    /** 📚 ชื่อวิชาทั้งหมดในระบบ (ไม่เกี่ยวกับปี/ภาคเลย)
+     *  คลังข้อสอบผูกกับ "ชื่อวิชา" เท่านั้น วิชาชื่อเดียวกันของคนละเทอมถือเป็นวิชาเดียวกันในคลัง
+     *  รวมชื่อวิชาที่มีข้อสอบอยู่แล้วแต่ไม่มีในตารางรายวิชาด้วย เพื่อไม่ให้ข้อสอบเก่าหาไม่เจอ */
+    function _allSubjectNames() {
+      const map = new Map();
+      const add = v => {
+        const t = String(v == null ? '' : v).trim();
+        if (!t) return;
+        const k = t.replace(/\s+/g, '').toLowerCase();
+        if (!map.has(k)) map.set(k, t);
+      };
+      (window.__allRaw || allData).forEach(d => {
+        if (d.type === 'class_subject' || d.type === 'exam_question' || d.type === 'essay_question') add(d.subject_name);
       });
-      const working = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
-      const keys = [...byTerm.keys()].sort((a, b) => {
-        if (a === working) return -1;
-        if (b === working) return 1;
-        return b.localeCompare(a);
-      });
-      return keys.map(k => {
-        const [y, sm] = k.split('|');
-        return {
-          key: k,
-          label: (k === working ? '📅 ' : '') + termLabel(y, sm) + (k === working ? ' (เทอมที่กำลังทำงาน)' : ''),
-          subjects: [...byTerm.get(k).values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }))
-        };
-      });
+      return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
     }
-    /** สร้าง <optgroup> ของวิชาทุกปี/ภาค ใช้กับช่อง "วิชาของข้อสอบ" และช่องกรองในคลังข้อสอบ */
-    function _subjectOptionsGrouped(firstOptionHtml) {
-      const groups = _subjectGroupsAllTerms();
-      if (groups.length === 0) return firstOptionHtml || '';
-      return (firstOptionHtml || '') + groups.map(g =>
-        `<optgroup label="${escHtml(g.label)}">`
-        + g.subjects.map(sj => `<option value="${escHtml(sj)}">${escHtml(sj)}</option>`).join('')
-        + '</optgroup>').join('');
+    /** ตัวเลือกวิชาสำหรับคลังข้อสอบ — รายการเดียวเรียงตามชื่อ ไม่แยกปี/ภาค */
+    function _subjectOptionsAll(firstOptionHtml) {
+      return (firstOptionHtml || '')
+        + _allSubjectNames().map(sj => `<option value="${escHtml(sj)}">${escHtml(sj)}</option>`).join('');
     }
-    /** วิชาของเทอมที่กำลังทำงานอยู่เท่านั้น (ใช้กับหน้าจัดสอบ) */
+    /** วิชาของเทอมที่กำลังทำงานอยู่เท่านั้น (ใช้กับหน้าจัดสอบ ที่ต้องมอบหมายให้นักเรียนจริง) */
     function _subjectsWorkingTermOnly() {
-      const g = _subjectGroupsAllTerms();
-      const working = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
-      const hit = g.find(x => x.key === working);
-      return hit ? hit.subjects.slice() : [];
+      const map = new Map();
+      allData.filter(d => d.type === 'class_subject' && d.subject_name
+          && ((typeof inTermView === 'function') ? inTermView(d) : true))
+        .forEach(d => {
+          const t = String(d.subject_name).trim();
+          const k = t.replace(/\s+/g, '').toLowerCase();
+          if (t && !map.has(k)) map.set(k, t);
+        });
+      return [...map.values()].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -5925,9 +5916,8 @@ const supabaseDataSdk = {
       // 👨‍🎓 นักเรียน → ลงทะเบียนแล้ว · ⏱️ ลงเวลาเรียน
       run(typeof loadRegistrationsTab === 'function' ? loadRegistrationsTab : null);
       run(typeof loadTimekeepingFilters === 'function' ? loadTimekeepingFilters : null);
-      // 🗂️ คลังข้อสอบ/จัดสอบ ทั้งปรนัยและอัตนัย — ดรอปดาวน์วิชาต้องจัดกลุ่มใหม่ตามเทอมที่เลือก
-      run(typeof loadExamQuestionsTab === 'function' ? loadExamQuestionsTab : null);
-      run(typeof loadEssayQuestionsTab === 'function' ? loadEssayQuestionsTab : null);
+      // 📝 จัดสอบ ทั้งปรนัยและอัตนัย — ชั้น/ห้อง/วิชา ต้องเป็นของเทอมที่กำลังทำงาน
+      //    (คลังข้อสอบไม่ต้องวาดใหม่ เพราะผูกกับชื่อวิชาเท่านั้น ไม่เกี่ยวกับปี/ภาค)
       run(typeof loadExamAssignTab === 'function' ? loadExamAssignTab : null);
       run(typeof loadEssayAssignTab === 'function' ? loadEssayAssignTab : null);
     }
@@ -10668,15 +10658,13 @@ const supabaseDataSdk = {
         }
       }
       window._eqRetryCount = 0;
-      // 📚 คลังข้อสอบใช้ร่วมกันได้ทุกปี/ภาค — แสดงวิชาทุกเทอม แต่จัดกลุ่มบอกชัดว่าวิชาไหนของเทอมไหน
-      //    (เทอมที่กำลังทำงานอยู่ขึ้นกลุ่มแรกเสมอ จึงเลือกของเทอมตัวเองได้ทันที
-      //     และยังย้ายข้อสอบไปวิชาของปี/ภาคอื่นได้ตามที่ต้องการ)
+      // 📚 คลังข้อสอบผูกกับ "ชื่อวิชา" เท่านั้น ไม่เกี่ยวกับปี/ภาค — รายการเดียวเรียงตามชื่อวิชา
       const subjSel = document.getElementById('eq-subject');
       const filterSubjSel = document.getElementById('eq-filter-subject');
-      if (subjSel) subjSel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
+      if (subjSel) subjSel.innerHTML = _subjectOptionsAll('<option value="">-- เลือกวิชา --</option>');
       if (filterSubjSel) {
         const keepF = filterSubjSel.value;
-        filterSubjSel.innerHTML = _subjectOptionsGrouped('<option value="">ทุกวิชา (ทุกปี/ภาค)</option>');
+        filterSubjSel.innerHTML = _subjectOptionsAll('<option value="">ทุกวิชา</option>');
         if (Array.prototype.some.call(filterSubjSel.options, o => o.value === keepF)) filterSubjSel.value = keepF;
       }
       updateEqTypeUI();
@@ -11502,21 +11490,11 @@ const supabaseDataSdk = {
     /** โหลดหน้าคลังข้อสอบอัตนัย */
     function loadEssayQuestionsTab() {
       // รวมวิชาจากตารางรายวิชา + วิชาที่มีข้อสอบในคลังจริง (ไม่ให้วิชาตกหล่นจากตัวกรอง)
-      // 📚 วิชาทุกปี/ภาค จัดกลุ่มบอกเทอม + วิชาที่มีข้อสอบในคลังแต่ไม่มีในตารางรายวิชา (ไม่ให้ตกหล่น)
-      const _known = new Set();
-      _subjectGroupsAllTerms().forEach(g => g.subjects.forEach(sj => _known.add(_eaN(sj))));
-      const _orphan = new Map();
-      allData.filter(d => d.type === 'essay_question' && d.subject_name).forEach(d => {
-        const k = _eaN(d.subject_name);
-        if (!_known.has(k) && !_orphan.has(k)) _orphan.set(k, String(d.subject_name).trim());
-      });
+      // 📚 ชื่อวิชาทั้งหมด (รวมวิชาที่มีข้อสอบในคลังอยู่แล้ว) — ไม่เกี่ยวกับปี/ภาค
       const fSubj = document.getElementById('esq-filter-subject');
       if (fSubj) {
         const keepF = fSubj.value;
-        fSubj.innerHTML = _subjectOptionsGrouped('<option value="">ทุกวิชา (ทุกปี/ภาค)</option>')
-          + (_orphan.size ? '<optgroup label="ยังไม่ระบุปี/ภาค">'
-              + [..._orphan.values()].sort().map(sj => `<option value="${escHtml(sj)}">${escHtml(sj)}</option>`).join('')
-              + '</optgroup>' : '');
+        fSubj.innerHTML = _subjectOptionsAll('<option value="">ทุกวิชา</option>');
         if (Array.prototype.some.call(fSubj.options, o => o.value === keepF)) fSubj.value = keepF;
       }
       updateEsqChapterFilter();
@@ -11762,11 +11740,11 @@ const supabaseDataSdk = {
     }
 
     function openCreateEssayQuestionPopup() {
-      // 📚 วิชาทุกปี/ภาค จัดกลุ่มไว้ (ย้ายข้อสอบไปเทอมอื่นได้)
-      const subjects = _subjectGroupsAllTerms().reduce((a, g) => a.concat(g.subjects), []);
+      // 📚 ชื่อวิชาทั้งหมด (คลังข้อสอบไม่เกี่ยวกับปี/ภาค)
+      const subjects = _allSubjectNames();
       if (subjects.length === 0) { showToast('⚠️ ยังไม่มีรายวิชาในระบบ กรุณาเพิ่มรายวิชาก่อน', 'error'); return; }
       const sel = document.getElementById('esq-subject');
-      if (sel) sel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
+      if (sel) sel.innerHTML = _subjectOptionsAll('<option value="">-- เลือกวิชา --</option>');
       resetEssayQuestionForm();
       _showEsqFormAsPopup();
     }
@@ -11872,9 +11850,9 @@ const supabaseDataSdk = {
     function editEssayQuestion(id) {
       const q = allData.find(d => d.__backendId === id && d.type === 'essay_question');
       if (!q) return;
-      // 📚 วิชาทุกปี/ภาค จัดกลุ่มไว้ — ย้ายข้อสอบข้อนี้ไปวิชาของปี/ภาคอื่นได้จากที่นี่
+      // 📚 ชื่อวิชาทั้งหมด — ย้ายข้อสอบข้อนี้ไปวิชาอื่นได้จากที่นี่ (ไม่เกี่ยวกับปี/ภาค)
       const sel = document.getElementById('esq-subject');
-      if (sel) sel.innerHTML = _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>');
+      if (sel) sel.innerHTML = _subjectOptionsAll('<option value="">-- เลือกวิชา --</option>');
       document.getElementById('esq-edit-id').value = id;
       document.getElementById('esq-form-title').textContent = '✏️ แก้ไขข้อสอบอัตนัย';
       document.getElementById('esq-save-btn').textContent = '💾 บันทึกการแก้ไข';
@@ -11906,12 +11884,12 @@ const supabaseDataSdk = {
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมต้องกดเข้าเมนู "คลังข้อสอบ" ก่อน ปุ่มสร้างข้อสอบถึงจะใช้ได้
       // เพราะรายการวิชาในช่องเลือกถูกเติมโดย loadExamQuestionsTab() ซึ่งทำงานเฉพาะตอนเปิดแท็บนั้น
       // แก้โดยเติมรายการวิชาให้เองทุกครั้งที่เปิดหน้าต่าง ไม่ต้องพึ่งการกดเมนูก่อนอีกต่อไป
-      // 📚 แสดงวิชาทุกปี/ภาค จัดกลุ่มไว้ (ย้ายข้อสอบไปเทอมอื่นได้)
-      const subjects = _subjectGroupsAllTerms().reduce((a, g) => a.concat(g.subjects), []);
+      // 📚 ชื่อวิชาทั้งหมด (คลังข้อสอบไม่เกี่ยวกับปี/ภาค)
+      const subjects = _allSubjectNames();
       const subjSel = document.getElementById('eq-subject');
       if (subjSel) {
         subjSel.innerHTML = subjects.length > 0
-          ? _subjectOptionsGrouped('<option value="">-- เลือกวิชา --</option>')
+          ? _subjectOptionsAll('<option value="">-- เลือกวิชา --</option>')
           : '<option value="">⚠️ ยังไม่มีรายวิชาในระบบ</option>';
       }
       if (subjects.length === 0) {
