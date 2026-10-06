@@ -3067,7 +3067,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.05.215';
+    const APP_VERSION = 'SUPABASE-2026.10.06.217';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -7557,7 +7557,8 @@ const supabaseDataSdk = {
       const registrations = allData.filter(d =>
         d.type === 'student_registration' && d.class_name === scope.className &&
         String(d.room_number) === String(scope.roomNumber) && d.subject_name === scope.subjectName
-      ).concat(_getUnregisteredStudents(scope.className, scope.roomNumber, scope.subjectName)
+      ).filter(d => typeof inTermView === 'function' ? inTermView(d) : true)   // 📅 เฉพาะปี/ภาคที่กำลังทำงาน
+       .concat(_getUnregisteredStudents(scope.className, scope.roomNumber, scope.subjectName)
         .map(s => _makeVirtualReg(s, scope.subjectName))
       ).sort((a, b) => {
         const sa = allData.find(s => s.type === 'student' && String(s.student_id) === String(a.student_id));
@@ -7566,7 +7567,9 @@ const supabaseDataSdk = {
       });
       const namelistEl = document.getElementById('subadmin-grading-namelist');
       if (registrations.length === 0) {
-        namelistEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนในห้องนี้</p>';
+        namelistEl.innerHTML = `<p class="text-gray-400 text-sm text-center py-3">ไม่มีนักเรียนในห้องนี้ของ${typeof workingTermLabel === 'function' ? workingTermLabel() : ''}</p>`;
+        const _d = document.getElementById('subadmin-grading-detail');
+        if (_d) _d.innerHTML = '';   // 🧹 ไม่ให้การ์ดคะแนนของเทอมก่อนค้างอยู่
         return;
       }
       if (!window.subAdminSelectedGradingRegId || !registrations.find(r => r.__backendId === window.subAdminSelectedGradingRegId)) {
@@ -20459,6 +20462,20 @@ function _examResultIdentityHtml(sub, set) {
     }
     // ลบข้อมูลที่ผูกกับการลงทะเบียน 1 รายการ (คะแนน + เวลาเรียน) แต่ไม่ลบตัว registration เอง
     // (เดิมโค้ดมองหา type 'attendance' ซึ่งไม่มีจริง ที่ถูกต้องคือ attendance_part1/attendance_part2 — แก้ไขให้ถูกต้องแล้ว)
+    /** 🔒 การลงทะเบียนนี้มีคะแนนที่กรอกไว้แล้วหรือยัง
+     *  ใช้กันนักเรียนลบการลงทะเบียนที่มีคะแนนแล้ว เพราะการลบจะพาคะแนนหายไปด้วย
+     *  (ถ้าหาย ครูต้องกรอกใหม่ทั้งหมด และ KPAC เดิมที่นักเรียนกำหนดไว้ก็กู้ไม่ได้) */
+    function _registrationHasScores(reg) {
+      const g = (typeof _findGradeRow === 'function') ? _findGradeRow(reg) : null;
+      if (!g) return false;
+      const nums = ['k_scores', 'p_scores', 'a_scores', 'c_scores', 'm_score', 'f_score',
+                    'k_score', 'p_score', 'a_score', 'c_score'];
+      return nums.some(f => {
+        const v = g[f];
+        if (v == null || v === '') return false;
+        return String(v).split(',').some(x => (parseFloat(x) || 0) > 0);
+      });
+    }
     async function cascadeDeleteRegistrationData(reg) {
       const grade = _findGradeRow(reg);
       if (grade) await window.dataSdk.delete(grade);
@@ -23804,6 +23821,24 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
+    /** 🧹 ล้างหน้าบันทึกคะแนนให้ว่าง — ใช้ทุกครั้งที่เปลี่ยนปี/ภาค
+     *  ⚠️ บั๊กที่พบและแก้แล้ว: เดิมเปลี่ยนเทอมแล้วดรอปดาวน์ว่างถูกต้อง
+     *     แต่ "รายชื่อนักเรียน" และ "การ์ดคะแนน" ของเทอมเก่ายังค้างอยู่บนหน้าจอ
+     *     เพราะไม่มีใครล้าง และ selectedGradingRegId ยังชี้ไปที่การลงทะเบียนของเทอมเก่า */
+    function _clearGradingView(msg) {
+      selectedGradingRegId = null;
+      const namelist = document.getElementById('grading-student-namelist');
+      const detail = document.getElementById('grading-student-detail');
+      const container = document.getElementById('grading-students-container');
+      const emptyMsg = document.getElementById('grading-empty-message');
+      if (namelist) namelist.innerHTML = '';
+      if (detail) detail.innerHTML = '';
+      if (container) container.classList.add('hidden');
+      if (emptyMsg) {
+        emptyMsg.textContent = msg || `เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน (${typeof workingTermLabel === 'function' ? workingTermLabel() : ''})`;
+        emptyMsg.classList.remove('hidden');
+      }
+    }
     function loadGradingFilters() {
       // ดึงชั้นเรียนจากการลงทะเบียนนักเรียน (📅 เฉพาะปี/ภาคที่กำลังดู)
       const registrations = allData.filter(d => d.type === 'student_registration')
@@ -23829,6 +23864,10 @@ function _examResultIdentityHtml(sub, set) {
       classSelect.addEventListener('change', updateRoomSelectForGrading);
       roomSelect.addEventListener('change', updateGradingStudents);
       subjectSelect.addEventListener('change', updateGradingStudents);
+      // 📅 ตัวกรองถูกสร้างใหม่ = ยังไม่ได้เลือกอะไร → ต้องไม่เหลือรายชื่อ/การ์ดคะแนนของเทอมก่อนหน้า
+      _clearGradingView(uniqueClasses.size === 0
+        ? `⚠️ ${typeof workingTermLabel === 'function' ? workingTermLabel() : ''} ยังไม่มีนักเรียนลงทะเบียน — ไม่มีข้อมูลให้บันทึกคะแนน`
+        : null);
     }
     function updateRoomSelectForGrading() {
       const selectedClass = document.getElementById('filter-grading-class').value;
@@ -24135,8 +24174,7 @@ function _examResultIdentityHtml(sub, set) {
       registrations = registrations.concat(_unreg);
       registrations = _sortRegistrations(registrations, _sortPrefs.grading); // 🔢 เรียงตามที่ผู้ใช้เลือก
       if (registrations.length === 0) {
-        container.classList.add('hidden');
-        if (emptyMsg) { emptyMsg.textContent = 'ไม่มีนักเรียนในห้องนี้'; emptyMsg.classList.remove('hidden'); }
+        _clearGradingView(`ไม่มีนักเรียนในห้องนี้ของ${typeof workingTermLabel === 'function' ? workingTermLabel() : ''}`);
         return registrations;
       }
       if (emptyMsg) emptyMsg.classList.add('hidden');
@@ -24168,9 +24206,7 @@ function _examResultIdentityHtml(sub, set) {
       const emptyMsg = document.getElementById('grading-empty-message');
       if (!container) return;
       if (!className || !roomNumber || !subjectName) {
-        container.classList.add('hidden');
-        emptyMsg.textContent = 'เลือกชั้นเรียน ห้องเรียน และวิชาเพื่อดูรายชื่อนักเรียน';
-        emptyMsg.classList.remove('hidden');
+        _clearGradingView();   // 🧹 ล้างรายชื่อและการ์ดคะแนนด้วย ไม่ใช่แค่ซ่อนกล่อง
         return;
       }
       const classSubjectId = `${className}_${roomNumber}_${subjectName}`;
@@ -24204,6 +24240,8 @@ function _examResultIdentityHtml(sub, set) {
       if (!detailEl) return;
       const reg = _getRegById(regId);
       if (!reg) { detailEl.innerHTML = ''; return; }
+      // 📅 ด่านสุดท้าย: การลงทะเบียนของปี/ภาคอื่น ห้ามแสดงในเทอมที่กำลังดูอยู่
+      if (typeof inTermView === 'function' && !inTermView(reg)) { detailEl.innerHTML = ''; return; }
       detailEl.innerHTML = buildGradingCardHtml(reg, scoresData, className, subjectName);
       // เพิ่ม event listeners (มีแค่นักเรียนคนเดียวในหน้าตอนนี้ จึงไม่ต้องกรองเฉพาะ)
       document.querySelectorAll('input[type="number"].score-input').forEach(input => {
@@ -28379,11 +28417,17 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg) return;
       const gate = studentCanEditRegistration(reg);
       if (!gate.ok) { showToast(gate.why.replace('แก้ไข', 'ลบ'), 'error'); return; }
+      // 🔒 มีคะแนนแล้ว ลบเองไม่ได้ — ลบทีเดียวคะแนนและสัดส่วน KPAC ที่กำหนดไว้หายทั้งหมด
+      if (_registrationHasScores(reg)) {
+        showToast('⛔ วิชานี้มีคะแนนบันทึกไว้แล้ว ลบเองไม่ได้ — ถ้าต้องการถอนวิชา กรุณาติดต่อครูผู้สอน', 'error');
+        return;
+      }
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
-          <p class="text-lg font-semibold text-gray-800 mb-4">ลบรายการลงทะเบียน "${reg.class_name}/${reg.room_number} - ${reg.subject_name}" ใช่หรือไม่?</p>
+          <p class="text-lg font-semibold text-gray-800 mb-2">ลบรายการลงทะเบียน "${reg.class_name}/${reg.room_number} - ${reg.subject_name}" ใช่หรือไม่?</p>
+          <p class="text-sm text-red-600 mb-4">⚠️ สัดส่วน KPAC ที่กำหนดไว้ (K ${reg.k_percent ?? 0}% · P ${reg.p_percent ?? 0}% · A ${reg.a_percent ?? 0}% · C ${reg.c_percent ?? 0}%) จะหายไปและกู้คืนเองไม่ได้ ต้องลงทะเบียนใหม่ทั้งหมด</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="studentConfirmDeleteRegistration('${regId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -28396,6 +28440,12 @@ function _examResultIdentityHtml(sub, set) {
       if (!isRegistrationOpen()) { showToast('⛔ ปิดช่วงเวลาลงทะเบียนแล้ว ไม่สามารถลบได้', 'error'); _closeAllPopups(); return; }
       const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
+      if (_registrationHasScores(reg)) {
+        showToast('⛔ วิชานี้มีคะแนนบันทึกไว้แล้ว ลบเองไม่ได้ — กรุณาติดต่อครูผู้สอน', 'error');
+        _closeAllPopups(); return;
+      }
+      // 🧹 ลบของที่ผูกกันไว้ด้วย ไม่ให้เหลือคะแนน/เวลาเรียนลอยค้างในฐานข้อมูล
+      await cascadeDeleteRegistrationData(reg);
       const result = await window.dataSdk.delete(reg);
       if (result.isOk) {
         _closeAllPopups();
