@@ -572,6 +572,15 @@
      
   <style>body { box-sizing: border-box; }</style>
   <style>
+  /* 📜 กล่องที่เลื่อนดูเนื้อหาข้างในได้เอง (ไม่ลากทั้งหน้า)
+     ซ่อนแถบเลื่อนไว้ตลอด ไม่โผล่มากินพื้นที่เลย
+     แค่วางเมาส์ลงบนกล่องแล้วหมุนลูกกลิ้ง ก็เลื่อนดูได้ทั้งหมด (overflow:auto ทำงานอยู่)
+     overscroll-behavior: contain = เลื่อนจนสุดกล่องแล้วหน้าเว็บด้านหลังจะไม่เลื่อนตาม */
+  .scroll-pane { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+                 scrollbar-width: none; -ms-overflow-style: none; }
+  .scroll-pane::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* บนมือถือไม่ต้องจำกัดความสูง ปล่อยให้เลื่อนทั้งหน้าตามปกติ */
+  body.is-mobile .scroll-pane { max-height: none !important; overflow-y: visible; }
   /* ==================== MOBILE ONLY (phone) ==================== */
   /* ==================== MOBILE ONLY — ยึดตาม body.is-mobile (JS ตรวจ) ไม่ใช่ขนาดจอ ==================== */
     /* 4 ปุ่ม login เท่ากัน */
@@ -1344,8 +1353,8 @@
         <div id="cs-round-bar" class="flex items-center gap-2 flex-wrap mb-4"></div>
         <p id="cs-empty-message" class="text-gray-400 text-center py-6">เลือกชั้นเรียน ห้องเรียน และวิชา เพื่อแสดงรายชื่อนักเรียน</p>
         <div id="cs-container" class="hidden grid grid-cols-1 md:grid-cols-4 gap-4">
-         <div class="md:col-span-1"><div id="cs-namelist" class="space-y-1 max-h-[70vh] overflow-y-auto border-2 border-gray-200 rounded-lg p-2"></div></div>
-         <div class="md:col-span-3"><div id="cs-detail"></div></div>
+         <div class="md:col-span-1"><div id="cs-namelist" class="scroll-pane space-y-1 max-h-[70vh] border-2 border-gray-200 rounded-lg p-2"></div></div>
+         <div class="md:col-span-3"><div id="cs-detail" class="scroll-pane max-h-[70vh] pr-1"></div></div>
         </div>
        </div>
       </div><!-- 📦 รวบรวมงาน -->
@@ -3102,7 +3111,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.222';
+    const APP_VERSION = 'SUPABASE-2026.10.06.223';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
