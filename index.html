@@ -1440,7 +1440,7 @@
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
          <p class="text-sm font-semibold text-blue-800 mb-2">⚙️ ปรับแถบเลื่อนรายชื่อ (มีผลกับทุกคนที่เห็นหน้า login)</p>
          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-          <span>ความเร็ว: <span id="marquee-speed-display" class="font-bold">5</span>/10</span>
+          <span>ความเร็ว: <span id="marquee-speed-display" class="font-bold">5</span>/10 <span class="text-[10px] text-gray-500">(แถวต่อ 10 วิ · 0 = ไม่ขยับ)</span></span>
           <button onclick="adjustMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
           <span class="ml-3">จำนวนแถวที่เห็น: <span id="marquee-rows-display" class="font-bold">3</span></span>
@@ -1455,7 +1455,7 @@
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
          <p class="text-sm font-semibold text-amber-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "การบ้านวันนี้" (หน้า login)</p>
          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-          <span>ความเร็ว: <span id="hw-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <span>ความเร็ว: <span id="hw-marquee-speed-display" class="font-bold">5</span>/10 <span class="text-[10px] text-gray-500">(แถวต่อ 10 วิ · 0 = ไม่ขยับ)</span></span>
           <button onclick="adjustHwMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustHwMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
           <span class="ml-3">จำนวนแถวที่เห็น: <span id="hw-marquee-rows-display" class="font-bold">3</span></span>
@@ -1469,7 +1469,7 @@
         <div class="bg-rose-50 border border-rose-200 rounded-lg p-4 mb-4">
          <p class="text-sm font-semibold text-rose-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "การสอบวันนี้" (หน้า login)</p>
          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-          <span>ความเร็ว: <span id="exam-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <span>ความเร็ว: <span id="exam-marquee-speed-display" class="font-bold">5</span>/10 <span class="text-[10px] text-gray-500">(แถวต่อ 10 วิ · 0 = ไม่ขยับ)</span></span>
           <button onclick="adjustExamMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustExamMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
           <span class="ml-3">จำนวนแถวที่เห็น: <span id="exam-marquee-rows-display" class="font-bold">3</span></span>
@@ -1483,7 +1483,7 @@
         <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
          <p class="text-sm font-semibold text-emerald-800 mb-2">⚙️ ตั้งค่าแถบเลื่อน "สถานะอนุมัติคำขอ" (หน้า login)</p>
          <div class="flex items-center gap-3 text-sm text-gray-700 flex-wrap">
-          <span>ความเร็ว: <span id="approved-marquee-speed-display" class="font-bold">5</span>/10</span>
+          <span>ความเร็ว: <span id="approved-marquee-speed-display" class="font-bold">5</span>/10 <span class="text-[10px] text-gray-500">(แถวต่อ 10 วิ · 0 = ไม่ขยับ)</span></span>
           <button onclick="adjustApprovedMarqueeSpeed(-1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➖</button>
           <button onclick="adjustApprovedMarqueeSpeed(1)" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">➕</button>
           <span class="ml-3">จำนวนแถวที่เห็น: <span id="approved-marquee-rows-display" class="font-bold">3</span></span>
@@ -3111,7 +3111,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.06.223';
+    const APP_VERSION = 'SUPABASE-2026.10.07.224';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4323,16 +4323,16 @@ const supabaseDataSdk = {
           adminSettings.final_percent = settingsRecord.final_percent || 25;
           adminSettings.lock_date = settingsRecord.lock_date || '';
           adminSettings.grade_rounding_method = settingsRecord.grade_rounding_method || 'standard';
-          if (settingsRecord.marquee_speed_level) marqueeSpeedLevel = settingsRecord.marquee_speed_level;
+          if (settingsRecord.marquee_speed_level !== undefined && settingsRecord.marquee_speed_level !== null && settingsRecord.marquee_speed_level !== '') marqueeSpeedLevel = Number(settingsRecord.marquee_speed_level);
           if (settingsRecord.marquee_rows) marqueeRows = settingsRecord.marquee_rows;
           if (settingsRecord.marquee_pause_delay_sec !== undefined) marqueePauseDelaySec = settingsRecord.marquee_pause_delay_sec;
-          if (settingsRecord.hw_marquee_speed_level) hwMarqueeSpeedLevel = settingsRecord.hw_marquee_speed_level;
+          if (settingsRecord.hw_marquee_speed_level !== undefined && settingsRecord.hw_marquee_speed_level !== null && settingsRecord.hw_marquee_speed_level !== '') hwMarqueeSpeedLevel = Number(settingsRecord.hw_marquee_speed_level);
           if (settingsRecord.hw_marquee_rows) hwMarqueeRows = settingsRecord.hw_marquee_rows;
           if (settingsRecord.hw_marquee_pause_delay_sec !== undefined) hwMarqueePauseDelaySec = settingsRecord.hw_marquee_pause_delay_sec;
-          if (settingsRecord.approved_marquee_speed_level) approvedMarqueeSpeedLevel = settingsRecord.approved_marquee_speed_level;
+          if (settingsRecord.approved_marquee_speed_level !== undefined && settingsRecord.approved_marquee_speed_level !== null && settingsRecord.approved_marquee_speed_level !== '') approvedMarqueeSpeedLevel = Number(settingsRecord.approved_marquee_speed_level);
           if (settingsRecord.approved_marquee_rows) approvedMarqueeRows = settingsRecord.approved_marquee_rows;
           if (settingsRecord.approved_marquee_pause_delay_sec !== undefined) approvedMarqueePauseDelaySec = settingsRecord.approved_marquee_pause_delay_sec;
-          if (settingsRecord.exam_marquee_speed_level) examMarqueeSpeedLevel = settingsRecord.exam_marquee_speed_level;
+          if (settingsRecord.exam_marquee_speed_level !== undefined && settingsRecord.exam_marquee_speed_level !== null && settingsRecord.exam_marquee_speed_level !== '') examMarqueeSpeedLevel = Number(settingsRecord.exam_marquee_speed_level);
           if (settingsRecord.exam_marquee_rows) examMarqueeRows = settingsRecord.exam_marquee_rows;
           if (settingsRecord.exam_marquee_pause_delay_sec !== undefined) examMarqueePauseDelaySec = settingsRecord.exam_marquee_pause_delay_sec;
         }
@@ -8091,8 +8091,19 @@ const supabaseDataSdk = {
     let approvedMarqueeSpeedLevel = 5; // ความเร็วแถบเลื่อน "สถานะอนุมัติคำขอ" (ตั้งค่าที่แท็บนักเรียนที่สมัคร)
     let approvedMarqueeRows = 3;
     let approvedMarqueePauseDelaySec = 3;
-    function getMarqueeDurationSec() {
-      return Math.max(3, 30 - marqueeSpeedLevel * 2.5);
+    // ⏱️ ความเร็วแถบเลื่อน = "กี่แถวต่อ 10 วินาที" ไม่ขึ้นกับจำนวนข้อมูลอีกต่อไป
+    //    ระดับ 0 = ไม่ขยับเลย · ระดับ 1 = 1 แถวต่อ 10 วินาที (เลื่อนจากล่างสุดขึ้นบนสุด)
+    //    ระดับ L = L แถวต่อ 10 วินาที → เวลาเลื่อนครบ R แถว = R × 10 ÷ L วินาที
+    // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมใช้เวลาคงที่ต่อ "หนึ่งรอบ" (30 − ระดับ × 2.5 วินาที)
+    //    รายการยิ่งมาก ยิ่งเลื่อนเร็วขึ้นเรื่อยๆ จนอ่านไม่ทัน ความเร็วที่ตั้งไว้จึงไม่มีความหมาย
+    function marqueeScrollSecFor(level, rows) {
+      const L = Math.max(0, Math.min(10, parseFloat(level)));
+      const R = Math.max(1, parseFloat(rows) || 1);
+      if (!(L > 0)) return 0;          // ระดับ 0 = หยุดนิ่ง
+      return (R * 10) / L;
+    }
+    function getMarqueeDurationSec(rows) {
+      return marqueeScrollSecFor(marqueeSpeedLevel, rows);
     }
     function renderNotificationMarquee() {
       const box = document.getElementById('notification-marquee-box');
@@ -8126,8 +8137,9 @@ const supabaseDataSdk = {
       const centeredTop = (viewportHeight - bandHeight) / 2;
       band.style.top = `${Math.max(0, centeredTop)}px`; // ขยับขึ้นมา 1 แถว (กลับมาที่กึ่งกลางพอดี)
     }
-    function applyMarqueeKeyframes() {
-      const scrollSec = getMarqueeDurationSec();
+    function applyMarqueeKeyframes(rows) {
+      const scrollSec = getMarqueeDurationSec(rows);
+      if (scrollSec <= 0) return 0;    // ระดับ 0 = ไม่ขยับ (ตัวเรียกจะไม่ใส่ animation ให้)
       const pauseSec = marqueePauseDelaySec;
       const totalSec = scrollSec + pauseSec;
       const pausePercent = totalSec > 0 ? (pauseSec / totalSec) * 100 : 0;
@@ -8180,9 +8192,14 @@ const supabaseDataSdk = {
       const rowHtml = (s) => `<div style="height:32px" class="flex items-center px-3 text-sm text-gray-700">👤 ${s.prefix}${s.first_name} ${s.last_name} — ${s.class_name}/${s.room_number}</div>`;
       // เพิ่มแถวว่าง 1 แถวไว้ก่อนคนที่ 1 เพื่อให้คนที่ 1 ตกอยู่ในกรอบสีม่วงตั้งแต่ต้นพอดี
       const unitHtml = spacerHtml + applicants.map(rowHtml).join('');
-      const totalSec = applyMarqueeKeyframes();
+      // จำนวนแถวที่ต้องเลื่อนผ่านครบหนึ่งรอบ = แถวว่างนำ 1 + จำนวนผู้สมัคร
+      const unitRows = 1 + applicants.length;
+      const totalSec = applyMarqueeKeyframes(unitRows);
       // ทำซ้ำ 2 ชุดต่อกัน เพื่อให้เลื่อนวนแบบไม่มีรอยต่อ (seamless loop)
-      trackContainer.innerHTML = `<div class="marquee-track" id="marquee-track" style="animation: marquee-scroll-up-dynamic ${totalSec}s linear infinite;">${unitHtml}${unitHtml}</div>`;
+      //    ระดับ 0 = ไม่ใส่ animation เลย ค้างนิ่งให้อ่านสบาย (แสดงชุดเดียว ไม่ซ้ำ)
+      trackContainer.innerHTML = totalSec > 0
+        ? `<div class="marquee-track" id="marquee-track" style="animation: marquee-scroll-up-dynamic ${totalSec}s linear infinite;">${unitHtml}${unitHtml}</div>`
+        : `<div class="marquee-track" id="marquee-track" style="animation:none">${unitHtml}</div>`;
       // เริ่มจับเวลาใหม่ เพื่อคำนวณว่าขณะนี้เลื่อนผ่านคนที่เท่าไรแล้ว
       marqueeStartTime = Date.now();
       marqueeItemCount = applicants.length;
@@ -8229,7 +8246,7 @@ const supabaseDataSdk = {
       if (totEl) totEl.textContent = total;
     }
     async function adjustMarqueeSpeed(delta) {
-      marqueeSpeedLevel = Math.max(1, Math.min(10, marqueeSpeedLevel + delta));
+      marqueeSpeedLevel = Math.max(0, Math.min(10, marqueeSpeedLevel + delta));   // 0 = ไม่ขยับ
       const totalSec = applyMarqueeKeyframes();
       const track = document.getElementById('marquee-track');
       if (track) track.style.animation = `marquee-scroll-up-dynamic ${totalSec}s linear infinite`;
@@ -8274,6 +8291,7 @@ const supabaseDataSdk = {
       if (!result.isOk) showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
     }
     function applyGenericMarqueeKeyframes(keyframeName, scrollSec, pauseSec) {
+      if (!(scrollSec > 0)) return 0;   // ระดับ 0 = ไม่ขยับ
       const totalSec = scrollSec + pauseSec;
       const pausePercent = totalSec > 0 ? (pauseSec / totalSec) * 100 : 0;
       let styleEl = document.getElementById(`${keyframeName}-style`);
@@ -8292,7 +8310,7 @@ const supabaseDataSdk = {
       return totalSec;
     }
     async function adjustHwMarqueeSpeed(delta) {
-      hwMarqueeSpeedLevel = Math.max(1, Math.min(10, hwMarqueeSpeedLevel + delta));
+      hwMarqueeSpeedLevel = Math.max(0, Math.min(10, hwMarqueeSpeedLevel + delta));   // 0 = ไม่ขยับ
       const display = document.getElementById('hw-marquee-speed-display');
       if (display) display.textContent = hwMarqueeSpeedLevel;
       renderTodayHomeworkMarquee();
@@ -8313,11 +8331,11 @@ const supabaseDataSdk = {
       renderTodayHomeworkMarquee();
       await saveMarqueeSettings();
     }
-    function getHwMarqueeDurationSec() {
-      return Math.max(3, 30 - hwMarqueeSpeedLevel * 2.5);
+    function getHwMarqueeDurationSec(rows) {
+      return marqueeScrollSecFor(hwMarqueeSpeedLevel, rows);
     }
     async function adjustExamMarqueeSpeed(delta) {
-      examMarqueeSpeedLevel = Math.max(1, Math.min(10, examMarqueeSpeedLevel + delta));
+      examMarqueeSpeedLevel = Math.max(0, Math.min(10, examMarqueeSpeedLevel + delta));   // 0 = ไม่ขยับ
       const display = document.getElementById('exam-marquee-speed-display');
       if (display) display.textContent = examMarqueeSpeedLevel;
       renderTodayExamMarquee();
@@ -8338,8 +8356,8 @@ const supabaseDataSdk = {
       renderTodayExamMarquee();
       await saveMarqueeSettings();
     }
-    function getExamMarqueeDurationSec() {
-      return Math.max(3, 30 - examMarqueeSpeedLevel * 2.5);
+    function getExamMarqueeDurationSec(rows) {
+      return marqueeScrollSecFor(examMarqueeSpeedLevel, rows);
     }
     function toggleTodayExamMarquee() {
       const section = document.getElementById('today-exam-marquee-section');
@@ -8390,8 +8408,10 @@ const supabaseDataSdk = {
         trackContainer.innerHTML = `<div>${listHtml}</div>`;
         return;
       }
-      const totalSec = applyGenericMarqueeKeyframes('exam-marquee-scroll', getExamMarqueeDurationSec(), examMarqueePauseDelaySec);
-      trackContainer.innerHTML = `<div class="hw-marquee-el" style="animation: exam-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
+      const totalSec = applyGenericMarqueeKeyframes('exam-marquee-scroll', getExamMarqueeDurationSec(todayExams.length), examMarqueePauseDelaySec);
+      trackContainer.innerHTML = totalSec > 0
+        ? `<div class="hw-marquee-el" style="animation: exam-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`
+        : `<div class="hw-marquee-el" style="animation:none">${listHtml}</div>`;
     }
     function toggleTodayHomeworkMarquee() {
       const section = document.getElementById('today-homework-marquee-section');
@@ -8446,12 +8466,14 @@ const supabaseDataSdk = {
         trackContainer.innerHTML = `<div>${listHtml}</div>`;
         return;
       }
-      const totalSec = applyGenericMarqueeKeyframes('hw-marquee-scroll', getHwMarqueeDurationSec(), hwMarqueePauseDelaySec);
-      trackContainer.innerHTML = `<div class="hw-marquee-el" style="animation: hw-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
+      const totalSec = applyGenericMarqueeKeyframes('hw-marquee-scroll', getHwMarqueeDurationSec(todayHomework.length), hwMarqueePauseDelaySec);
+      trackContainer.innerHTML = totalSec > 0
+        ? `<div class="hw-marquee-el" style="animation: hw-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`
+        : `<div class="hw-marquee-el" style="animation:none">${listHtml}</div>`;
     }
     // ----- ✅ แถบเลื่อนสถานะอนุมัติคำขอลงทะเบียน (ตั้งค่าความเร็ว/แถว/หน่วงเวลาที่แท็บ "นักเรียนที่สมัคร") -----
-    function getApprovedMarqueeDurationSec() {
-      return Math.max(3, 30 - approvedMarqueeSpeedLevel * 2.5);
+    function getApprovedMarqueeDurationSec(rows) {
+      return marqueeScrollSecFor(approvedMarqueeSpeedLevel, rows);
     }
     function toggleApprovedRequestsMarquee() {
       const section = document.getElementById('approved-requests-marquee-section');
@@ -8491,11 +8513,13 @@ const supabaseDataSdk = {
         trackContainer.innerHTML = `<div>${listHtml}</div>`;
         return;
       }
-      const totalSec = applyGenericMarqueeKeyframes('approved-marquee-scroll', getApprovedMarqueeDurationSec(), approvedMarqueePauseDelaySec);
-      trackContainer.innerHTML = `<div class="approved-marquee-el" style="animation: approved-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`;
+      const totalSec = applyGenericMarqueeKeyframes('approved-marquee-scroll', getApprovedMarqueeDurationSec(approved.length), approvedMarqueePauseDelaySec);
+      trackContainer.innerHTML = totalSec > 0
+        ? `<div class="approved-marquee-el" style="animation: approved-marquee-scroll ${totalSec}s linear infinite;">${listHtml}${listHtml}</div>`
+        : `<div class="approved-marquee-el" style="animation:none">${listHtml}</div>`;
     }
     async function adjustApprovedMarqueeSpeed(delta) {
-      approvedMarqueeSpeedLevel = Math.max(1, Math.min(10, approvedMarqueeSpeedLevel + delta));
+      approvedMarqueeSpeedLevel = Math.max(0, Math.min(10, approvedMarqueeSpeedLevel + delta));   // 0 = ไม่ขยับ
       const display = document.getElementById('approved-marquee-speed-display');
       if (display) display.textContent = approvedMarqueeSpeedLevel;
       renderApprovedRequestsMarquee();
