@@ -3111,7 +3111,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.07.224';
+    const APP_VERSION = 'SUPABASE-2026.10.07.225';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -16493,45 +16493,167 @@ function _examResultIdentityHtml(sub, set) {
       overlay.id = 'equation-builder-modal';
       overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:16px';
       // 🎨 ปุ่มด่วนจัดหมวดหมู่ — ใช้ตัวอักษร Unicode ตัวยก/ตัวห้อยธรรมดา (ไม่ใช้ CSS จัดตำแหน่งเองแล้ว เพราะเคยแสดงผลเพี้ยนมาก่อน)
+      // 📚 ชุดรูปแบบสมการ — จัดเป็นหมวด กดแท็บเพื่อสลับหมวด กดปุ่มแล้วเติมเฉพาะตัวเลขในช่องประ
+      //    ทุกช่องว่างเป็น \placeholder{} กด Tab เลื่อนไปช่องถัดไปได้
       const categories = [
-        { title: '📐 ยกกำลัง / ตัวห้อย / ราก / เศษส่วน', items: [
-          ['◻ʸ','^{\\placeholder{}}','ตัวยก'], ['◻ᵧ','_{\\placeholder{}}','ตัวห้อย'],
-          ['√','\\sqrt{}','รากที่สอง'], ['ⁿ√','\\sqrt[n]{}','รากที่ n'], ['÷','\\frac{}{}','เศษส่วน'],
+        { tab: '📐 พื้นฐาน', title: '📐 เศษส่วน · ยกกำลัง · ราก · ค่าสัมบูรณ์', items: [
+          ['a/b','\\frac{\\placeholder{}}{\\placeholder{}}','เศษส่วน'],
+          ['◻ʸ','^{\\placeholder{}}','ตัวยก'],
+          ['◻ᵧ','_{\\placeholder{}}','ตัวห้อย'],
+          ['◻ᵧʸ','_{\\placeholder{}}^{\\placeholder{}}','ตัวห้อยและตัวยกพร้อมกัน'],
+          ['x²','^{2}','ยกกำลังสอง'],
+          ['x³','^{3}','ยกกำลังสาม'],
+          ['x⁻¹','^{-1}','ยกกำลังลบหนึ่ง'],
+          ['√','\\sqrt{\\placeholder{}}','รากที่สอง'],
+          ['ⁿ√','\\sqrt[\\placeholder{}]{\\placeholder{}}','รากที่ n'],
+          ['x^(a/b)','^{\\frac{\\placeholder{}}{\\placeholder{}}}','ยกกำลังเศษส่วน'],
+          ['เศษซ้อน','\\frac{\\frac{\\placeholder{}}{\\placeholder{}}}{\\placeholder{}}','เศษส่วนซ้อนเศษส่วน'],
+          ['|x|','\\left|\\placeholder{}\\right|','ค่าสัมบูรณ์'],
+          ['×10ⁿ','\\times 10^{\\placeholder{}}','สัญกรณ์วิทยาศาสตร์'],
+          ['n!','\\placeholder{}!','แฟกทอเรียล'],
         ]},
-        { title: '≤ เปรียบเทียบ / ตรรกะ', items: [
-          ['±','\\pm','บวก/ลบ'], ['∓','\\mp','ลบ/บวก'], ['×','\\times','คูณ'], ['÷','\\div','หาร'],
-          ['≤','\\leq','น้อยกว่าหรือเท่ากับ'], ['≥','\\geq','มากกว่าหรือเท่ากับ'], ['≠','\\neq','ไม่เท่ากับ'],
-          ['≈','\\approx','ประมาณ'], ['∈','\\in','เป็นสมาชิกของ'], ['∀','\\forall','สำหรับทุก'],
+        { tab: '( ) วงเล็บ', title: '( ) วงเล็บยืดตามเนื้อหา · ช่วง · คู่อันดับ', items: [
+          ['( )','\\left(\\placeholder{}\\right)','วงเล็บโค้งยืดได้'],
+          ['[ ]','\\left[\\placeholder{}\\right]','วงเล็บเหลี่ยมยืดได้'],
+          ['{ }','\\left\\{\\placeholder{}\\right\\}','วงเล็บปีกกายืดได้'],
+          ['{ ซ้ายเดียว','\\left\\{\\placeholder{}\\right.','ปีกกาใหญ่เปิดข้างเดียว'],
+          ['(a,b)','\\left(\\placeholder{},\\placeholder{}\\right)','ช่วงเปิด / คู่อันดับ'],
+          ['[a,b]','\\left[\\placeholder{},\\placeholder{}\\right]','ช่วงปิด'],
+          ['(a,b]','\\left(\\placeholder{},\\placeholder{}\\right]','ช่วงครึ่งเปิดซ้าย'],
+          ['[a,b)','\\left[\\placeholder{},\\placeholder{}\\right)','ช่วงครึ่งเปิดขวา'],
+          ['(a,∞)','\\left(\\placeholder{},\\infty\\right)','ช่วงถึงอนันต์'],
+          ['f(x)','f\\left(\\placeholder{}\\right)','ค่าของฟังก์ชัน'],
+          ['nCr','\\binom{\\placeholder{}}{\\placeholder{}}','สัมประสิทธิ์ทวินาม'],
         ]},
-        { title: '∑ แคลคูลัส / ผลรวม', items: [
-          ['∑','\\sum_{}^{}','ผลรวม (ซิกม่า)'], ['∏','\\prod_{}^{}','ผลคูณ (ไพ)'],
-          ['∫','\\int_{}^{}','อินทิกรัล'], ['∬','\\iint','อินทิกรัลสองชั้น'],
-          ['lim','\\lim_{}','ลิมิต'], ['d/dx','\\frac{d}{dx}','อนุพันธ์'], ['∞','\\infty','อนันต์'],
+        { tab: '≤ เปรียบเทียบ', title: '≤ เครื่องหมายเปรียบเทียบ · อสมการ · ตรรกะ', items: [
+          ['±','\\pm','บวกหรือลบ'], ['∓','\\mp','ลบหรือบวก'],
+          ['×','\\times','คูณ'], ['÷','\\div','หาร'], ['·','\\cdot','คูณแบบจุด'],
+          ['≤','\\leq','น้อยกว่าหรือเท่ากับ'], ['≥','\\geq','มากกว่าหรือเท่ากับ'],
+          ['<','<','น้อยกว่า'], ['>','>','มากกว่า'],
+          ['≠','\\neq','ไม่เท่ากับ'], ['≈','\\approx','ประมาณ'], ['≡','\\equiv','สมมูล'],
+          ['a<x≤b','\\placeholder{} < \\placeholder{} \\leq \\placeholder{}','อสมการต่อเนื่อง'],
+          ['⇒','\\Rightarrow','ดังนั้น (ถ้า...แล้ว)'], ['⇔','\\Leftrightarrow','สมมูลกัน'],
+          ['∴','\\therefore','ดังนั้น'], ['∵','\\because','เพราะว่า'],
+          ['∀','\\forall','สำหรับทุก'], ['∃','\\exists','มีอย่างน้อยหนึ่ง'],
         ]},
-        { title: 'α อักษรกรีก', items: [
-          ['π','\\pi','พาย'], ['α','\\alpha','อัลฟา'], ['β','\\beta','เบต้า'], ['θ','\\theta','ทีตา'],
-          ['λ','\\lambda','แลมบ์ดา'], ['μ','\\mu','มิว'], ['σ','\\sigma','ซิกมา'], ['Δ','\\Delta','เดลตา'], ['°','^\\circ','องศา'],
+        { tab: '📈 ลิมิต', title: '📈 ลิมิต · ลิมิตซ้าย-ขวา · อนันต์', items: [
+          ['lim','\\lim_{\\placeholder{} \\to \\placeholder{}}','ลิมิตทั่วไป'],
+          ['lim x→a','\\lim_{x \\to \\placeholder{}}','ลิมิตเมื่อ x เข้าใกล้ a'],
+          ['lim ซ้าย','\\lim_{x \\to \\placeholder{}^{-}}','ลิมิตซ้าย (เข้าใกล้ทางซ้าย)'],
+          ['lim ขวา','\\lim_{x \\to \\placeholder{}^{+}}','ลิมิตขวา (เข้าใกล้ทางขวา)'],
+          ['lim x→∞','\\lim_{x \\to \\infty}','ลิมิตเมื่อ x เข้าใกล้อนันต์'],
+          ['lim x→-∞','\\lim_{x \\to -\\infty}','ลิมิตเมื่อ x เข้าใกล้ลบอนันต์'],
+          ['lim h→0','\\lim_{h \\to 0}','ลิมิตเมื่อ h เข้าใกล้ศูนย์'],
+          ['→','\\to','ลูกศรเข้าใกล้'],
+          ['a⁻','^{-}','เครื่องหมายลบด้านขวาบน (ทางซ้าย)'],
+          ['a⁺','^{+}','เครื่องหมายบวกด้านขวาบน (ทางขวา)'],
+          ['∞','\\infty','อนันต์'],
+          ['นิยามอนุพันธ์','\\lim_{h \\to 0}\\frac{f(x+h)-f(x)}{h}','นิยามอนุพันธ์แบบลิมิต'],
         ]},
-        { title: 'sin ตรีโกณมิติ', items: [
-          ['sin','\\sin()','ไซน์'], ['cos','\\cos()','โคไซน์'], ['tan','\\tan()','แทนเจนต์'],
-          ['sin⁻¹','\\sin^{-1}()','อาร์กไซน์'], ['log','\\log()','ล็อก'], ['ln','\\ln()','ลอการิทึมธรรมชาติ'],
+        { tab: '∫ แคลคูลัส', title: '∫ อนุพันธ์ · อินทิกรัล · ผลรวม', items: [
+          ['dy/dx','\\frac{dy}{dx}','อนุพันธ์ของ y เทียบ x'],
+          ['d/dx( )','\\frac{d}{dx}\\left(\\placeholder{}\\right)','ตัวดำเนินการอนุพันธ์'],
+          ['d²y/dx²','\\frac{d^{2}y}{dx^{2}}','อนุพันธ์อันดับสอง'],
+          ["f'(x)","f'\\left(\\placeholder{}\\right)",'อนุพันธ์อันดับหนึ่ง'],
+          ["f''(x)","f''\\left(\\placeholder{}\\right)",'อนุพันธ์อันดับสอง'],
+          ['∫ dx','\\int \\placeholder{}\\, dx','อินทิกรัลไม่จำกัดเขต'],
+          ['∫ₐᵇ','\\int_{\\placeholder{}}^{\\placeholder{}} \\placeholder{}\\, dx','อินทิกรัลจำกัดเขต'],
+          ['∑','\\sum_{\\placeholder{}}^{\\placeholder{}}','ผลรวม (ซิกม่า)'],
+          ['∑ᵢ₌₁ⁿ','\\sum_{i=1}^{n} \\placeholder{}','ผลรวมตั้งแต่ 1 ถึง n'],
+          ['∏','\\prod_{\\placeholder{}}^{\\placeholder{}}','ผลคูณ (ไพ)'],
+          ['∬','\\iint','อินทิกรัลสองชั้น'],
+        ]},
+        { tab: '{ เป็นช่วง', title: '{ ฟังก์ชันเป็นช่วง · ระบบสมการ · เมทริกซ์', items: [
+          ['เป็นช่วง 2','\\begin{cases}\\placeholder{} & \\text{เมื่อ } \\placeholder{} \\\\ \\placeholder{} & \\text{เมื่อ } \\placeholder{}\\end{cases}','ฟังก์ชันเป็นช่วง 2 เงื่อนไข'],
+          ['เป็นช่วง 3','\\begin{cases}\\placeholder{} & \\text{เมื่อ } \\placeholder{} \\\\ \\placeholder{} & \\text{เมื่อ } \\placeholder{} \\\\ \\placeholder{} & \\text{เมื่อ } \\placeholder{}\\end{cases}','ฟังก์ชันเป็นช่วง 3 เงื่อนไข'],
+          ['ระบบสมการ 2','\\begin{cases}\\placeholder{} \\\\ \\placeholder{}\\end{cases}','ระบบสมการ 2 สมการ'],
+          ['ระบบสมการ 3','\\begin{cases}\\placeholder{} \\\\ \\placeholder{} \\\\ \\placeholder{}\\end{cases}','ระบบสมการ 3 สมการ'],
+          ['เมทริกซ์ 2×2','\\begin{bmatrix}\\placeholder{} & \\placeholder{} \\\\ \\placeholder{} & \\placeholder{}\\end{bmatrix}','เมทริกซ์ 2 แถว 2 หลัก'],
+          ['เมทริกซ์ 3×3','\\begin{bmatrix}\\placeholder{} & \\placeholder{} & \\placeholder{} \\\\ \\placeholder{} & \\placeholder{} & \\placeholder{} \\\\ \\placeholder{} & \\placeholder{} & \\placeholder{}\\end{bmatrix}','เมทริกซ์ 3 แถว 3 หลัก'],
+          ['ดีเทอร์มิแนนต์','\\begin{vmatrix}\\placeholder{} & \\placeholder{} \\\\ \\placeholder{} & \\placeholder{}\\end{vmatrix}','ดีเทอร์มิแนนต์ 2×2'],
+          ['ข้อความไทย','\\text{\\placeholder{}}','แทรกข้อความไทยในสมการ'],
+          ['เมื่อ','\\text{เมื่อ }','คำว่า "เมื่อ" ในสมการ'],
+          ['และ','\\text{ และ }','คำว่า "และ" ในสมการ'],
+          ['ซ้อนบรรทัด','\\begin{array}{l}\\placeholder{} \\\\ \\placeholder{}\\end{array}','เรียงสองบรรทัดชิดซ้าย'],
+        ]},
+        { tab: '∪ เซต', title: '∪ เซต · จำนวน', items: [
+          ['∈','\\in','เป็นสมาชิกของ'], ['∉','\\notin','ไม่เป็นสมาชิกของ'],
+          ['⊂','\\subset','เป็นสับเซตแท้'], ['⊆','\\subseteq','เป็นสับเซต'],
+          ['∪','\\cup','ยูเนียน'], ['∩','\\cap','อินเตอร์เซกชัน'],
+          ['∅','\\varnothing','เซตว่าง'], ["A'","\\placeholder{}'",'คอมพลีเมนต์'],
+          ['{a,b,…}','\\left\\{\\placeholder{}, \\placeholder{}, \\dots\\right\\}','เซตแบบแจกแจงสมาชิก'],
+          ['{x|…}','\\left\\{ x \\mid \\placeholder{} \\right\\}','เซตแบบบอกเงื่อนไข'],
+          ['n(A)','n\\left(\\placeholder{}\\right)','จำนวนสมาชิกของเซต'],
+          ['ℝ','\\mathbb{R}','จำนวนจริง'], ['ℤ','\\mathbb{Z}','จำนวนเต็ม'],
+          ['ℕ','\\mathbb{N}','จำนวนนับ'], ['ℚ','\\mathbb{Q}','จำนวนตรรกยะ'],
+        ]},
+        { tab: 'sin ตรีโกณ', title: 'sin ตรีโกณมิติ · ลอการิทึม · เลขยกกำลัง', items: [
+          ['sin','\\sin\\left(\\placeholder{}\\right)','ไซน์'],
+          ['cos','\\cos\\left(\\placeholder{}\\right)','โคไซน์'],
+          ['tan','\\tan\\left(\\placeholder{}\\right)','แทนเจนต์'],
+          ['cot','\\cot\\left(\\placeholder{}\\right)','โคแทนเจนต์'],
+          ['sec','\\sec\\left(\\placeholder{}\\right)','ซีแคนต์'],
+          ['csc','\\csc\\left(\\placeholder{}\\right)','โคซีแคนต์'],
+          ['sin²','\\sin^{2}\\left(\\placeholder{}\\right)','ไซน์กำลังสอง'],
+          ['sin⁻¹','\\sin^{-1}\\left(\\placeholder{}\\right)','อาร์กไซน์'],
+          ['cos⁻¹','\\cos^{-1}\\left(\\placeholder{}\\right)','อาร์กโคไซน์'],
+          ['tan⁻¹','\\tan^{-1}\\left(\\placeholder{}\\right)','อาร์กแทนเจนต์'],
+          ['log','\\log\\left(\\placeholder{}\\right)','ล็อกฐานสิบ'],
+          ['log ฐาน','\\log_{\\placeholder{}}\\left(\\placeholder{}\\right)','ล็อกระบุฐาน'],
+          ['ln','\\ln\\left(\\placeholder{}\\right)','ลอการิทึมธรรมชาติ'],
+          ['eˣ','e^{\\placeholder{}}','e ยกกำลัง'],
+          ['°','^\\circ','องศา'],
+        ]},
+        { tab: '∠ เรขาคณิต', title: '∠ เรขาคณิต · เวกเตอร์', items: [
+          ['∠','\\angle \\placeholder{}','มุม'], ['△','\\triangle \\placeholder{}','สามเหลี่ยม'],
+          ['∥','\\parallel','ขนานกับ'], ['⊥','\\perp','ตั้งฉากกับ'],
+          ['≅','\\cong','เท่ากันทุกประการ'], ['~','\\sim','คล้ายกับ'],
+          ['AB‾','\\overline{\\placeholder{}}','ส่วนของเส้นตรง'],
+          ['AB→','\\overrightarrow{\\placeholder{}}','รังสี / เวกเตอร์'],
+          ['v⃗','\\vec{\\placeholder{}}','เวกเตอร์'],
+          ['x̂','\\hat{\\placeholder{}}','เวกเตอร์หนึ่งหน่วย'],
+          ['π','\\pi','พาย'],
+        ]},
+        { tab: '📊 สถิติ', title: '📊 สถิติ · ความน่าจะเป็น', items: [
+          ['x̄','\\bar{x}','ค่าเฉลี่ยของตัวอย่าง'],
+          ['μ','\\mu','ค่าเฉลี่ยประชากร'],
+          ['σ','\\sigma','ส่วนเบี่ยงเบนมาตรฐาน'],
+          ['σ²','\\sigma^{2}','ความแปรปรวนประชากร'],
+          ['s²','s^{2}','ความแปรปรวนตัวอย่าง'],
+          ['∑xᵢ','\\sum_{i=1}^{n} x_{i}','ผลรวมของข้อมูล'],
+          ['x̄ สูตร','\\frac{\\sum_{i=1}^{n} x_{i}}{n}','สูตรค่าเฉลี่ย'],
+          ['P(A)','P\\left(\\placeholder{}\\right)','ความน่าจะเป็น'],
+          ['nCr','{}_{\\placeholder{}}C_{\\placeholder{}}','การจัดหมู่'],
+          ['nPr','{}_{\\placeholder{}}P_{\\placeholder{}}','การเรียงสับเปลี่ยน'],
+          ['z','\\frac{x - \\mu}{\\sigma}','คะแนนมาตรฐาน z'],
+        ]},
+        { tab: 'α กรีก', title: 'α อักษรกรีกและสัญลักษณ์อื่น', items: [
+          ['α','\\alpha','อัลฟา'], ['β','\\beta','เบต้า'], ['γ','\\gamma','แกมมา'],
+          ['δ','\\delta','เดลตาเล็ก'], ['ε','\\varepsilon','เอปไซลอน'], ['θ','\\theta','ทีตา'],
+          ['λ','\\lambda','แลมบ์ดา'], ['μ','\\mu','มิว'], ['ρ','\\rho','โร'],
+          ['σ','\\sigma','ซิกมาเล็ก'], ['φ','\\varphi','ฟาย'], ['ω','\\omega','โอเมกาเล็ก'],
+          ['Δ','\\Delta','เดลตาใหญ่'], ['Σ','\\Sigma','ซิกมาใหญ่'], ['Ω','\\Omega','โอเมกาใหญ่'],
+          ['…','\\dots','จุดสามจุด'], ['⋯','\\cdots','จุดสามจุดกลางบรรทัด'],
         ]},
       ];
       overlay.innerHTML = `
         <div style="background:white;border-radius:16px;max-width:600px;width:100%;padding:20px;max-height:92vh;overflow-y:auto">
           <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">🖊️ ตัวช่วยแทรกสมการ</h3>
-          <p style="font-size:11px;color:#64748b;margin:0 0 12px">พิมพ์ตัวเลข/สัญลักษณ์ปกติได้เลย เช่น พิมพ์ "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ — หรือกดปุ่มด่วนด้านล่างช่วยได้เลย</p>
+          <p style="font-size:11px;color:#64748b;margin:0 0 12px">กดแท็บหมวดด้านล่างเพื่อเลือกรูปแบบสมการ กดปุ่มแล้วเติมเฉพาะตัวเลขในช่องประ กด Tab เลื่อนไปช่องถัดไป — หรือพิมพ์เองก็ได้ เช่น "1/2" จะกลายเป็นเศษส่วนอัตโนมัติ</p>
           <math-field id="equation-builder-field" virtual-keyboard-mode="off" oninput="_lastEquationScriptCmd=null;_updateEquationPreview()" style="width:100%;font-size:19px;padding:12px;border:2px solid #2563eb;border-radius:10px;box-sizing:border-box;display:block;min-height:44px"></math-field>
 
           <div style="margin-top:8px;margin-bottom:14px">
             <p style="font-size:10px;color:#94a3b8;margin:0 0 3px">👁️ ตัวอย่างที่จะปรากฏจริง:</p>
             <div id="equation-builder-preview" style="font-size:15px;padding:10px 12px;background:#f8fafc;border-radius:8px;min-height:28px;color:#1e293b"></div>
           </div>
-          ${categories.map(cat => `
-            <div style="margin-bottom:10px">
+          <div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px;border-bottom:2px solid #e2e8f0;-webkit-overflow-scrolling:touch">
+            ${categories.map((cat, i) => `<button type="button" id="eqcat-tab-${i}" onclick="_eqBuilderTab(${i})" style="flex:0 0 auto;padding:6px 11px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;border:1px solid ${i === 0 ? '#2563eb' : '#e2e8f0'};background:${i === 0 ? '#2563eb' : '#f8fafc'};color:${i === 0 ? 'white' : '#475569'}">${cat.tab}</button>`).join('')}
+          </div>
+          ${categories.map((cat, i) => `
+            <div id="eqcat-panel-${i}" style="margin-bottom:10px;display:${i === 0 ? 'block' : 'none'}">
               <p style="font-size:10.5px;font-weight:700;color:#475569;margin:0 0 5px">${cat.title}</p>
               <div style="display:flex;flex-wrap:wrap;gap:4px">
-                ${cat.items.map(([label, cmd, title]) => `<button title="${title}" onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;min-width:34px">${label}</button>`).join('')}
+                ${cat.items.map(([label, cmd, title]) => `<button type="button" title="${title}" onclick="_insertToEquationField('${cmd.replace(/\\/g,'\\\\')}')" style="padding:7px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;cursor:pointer;min-width:34px">${_eqEsc(label)}</button>`).join('')}
               </div>
             </div>
           `).join('')}
@@ -16542,6 +16664,32 @@ function _examResultIdentityHtml(sub, set) {
         </div>
       `;
       document.body.appendChild(overlay);
+    }
+    // 🔖 สลับหมวดปุ่มสมการ (แสดงทีละหมวด ป๊อปอัปจะไม่ยาวจนต้องเลื่อนหา)
+    function _eqBuilderTab(idx) {
+      let i = 0;
+      while (true) {
+        const tab = document.getElementById('eqcat-tab-' + i);
+        const panel = document.getElementById('eqcat-panel-' + i);
+        if (!tab || !panel) break;
+        const on = (i === idx);
+        panel.style.display = on ? 'block' : 'none';
+        tab.style.background = on ? '#2563eb' : '#f8fafc';
+        tab.style.color = on ? 'white' : '#475569';
+        tab.style.borderColor = on ? '#2563eb' : '#e2e8f0';
+        i++;
+      }
+    }
+    // ป้ายบนปุ่มอาจมีอักขระ < > & ต้องแปลงก่อนใส่ใน HTML
+    function _eqEsc(t) {
+      return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    // 🧹 ลบ \placeholder{} ที่ครูไม่ได้เติมออกก่อนนำไปแสดงผล (KaTeX ไม่รู้จักคำสั่งนี้)
+    function _stripEqPlaceholders(latex) {
+      if (!latex) return latex;
+      let out = String(latex);
+      for (let i = 0; i < 6; i++) out = out.replace(/\\placeholder\{\s*\}/g, '');
+      return out.replace(/\\placeholder/g, '');
     }
     let _lastEquationScriptCmd = null; // จำคำสั่งตัวยก/ตัวห้อยล่าสุดที่กด ไว้ตรวจว่ากดซ้ำเพื่อยกเลิกหรือไม่
     function _insertToEquationField(latexCmd) {
@@ -16565,7 +16713,7 @@ function _examResultIdentityHtml(sub, set) {
       const field = document.getElementById('equation-builder-field');
       const preview = document.getElementById('equation-builder-preview');
       if (!field || !preview) return;
-      const latex = field.getValue ? field.getValue() : field.value;
+      const latex = _stripEqPlaceholders(field.getValue ? field.getValue() : field.value);
       preview.innerHTML = latex ? `$${latex}$` : '';
       renderMathIn('#equation-builder-preview');
     }
@@ -16573,7 +16721,7 @@ function _examResultIdentityHtml(sub, set) {
       const field = document.getElementById('equation-builder-field');
       const targetInput = document.getElementById(targetInputId);
       if (field && targetInput) {
-        const latex = field.getValue ? field.getValue() : field.value;
+        const latex = _stripEqPlaceholders(field.getValue ? field.getValue() : field.value);
         if (latex) {
           const cursorPos = targetInput.selectionStart ?? targetInput.value.length;
           const before = targetInput.value.slice(0, cursorPos);
