@@ -16,6 +16,927 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
   <!-- 🖊️ MathLive: ตัวช่วยแทรกสมการแบบไม่ต้องพิมพ์คำสั่ง LaTeX เอง (คลิก/พิมพ์แล้วขึ้นรูปสมการให้อัตโนมัติ) -->
   <script src="https://cdn.jsdelivr.net/npm/mathlive"></script>
+  <!-- 📥 อ่านไฟล์ Word (.docx) ในเครื่องของครู ไม่ส่งไฟล์ออกไปไหน -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+/* ═══════════════════════════════════════════════════════════════════════
+   🧮 ตัวถอดสมการ Equation ของ Word (Equation 3.0 / MathType) → LaTeX
+   รองรับ MTEF เวอร์ชัน 3 (Equation 3.0 เดิม) และ 5 (MathType รุ่นใหม่)
+   ใช้ในเบราว์เซอร์ล้วน ไม่ต้องส่งไฟล์ออกไปไหน
+   ═══════════════════════════════════════════════════════════════════════ */
+(function (root) {
+  'use strict';
+
+  function Err(m) { const e = new Error(m); e.mtef = true; return e; }
+
+  const END = 0, LINE = 1, CHAR = 2, TMPL = 3, PILE = 4, MATRIX = 5, EMBELL = 6,
+        RULER = 7, FSTYLE = 8, SIZE = 9;
+  const SIZES = { 10: 'full', 11: 'sub', 12: 'sub2', 13: 'sym', 14: 'subsym' };
+
+  // ───────── ตัวอ่านไบต์ ─────────
+  function R(b, i) { this.b = b; this.i = i || 0; }
+  R.prototype.u8 = function () {
+    if (this.i >= this.b.length) throw Err('eof');
+    return this.b[this.i++];
+  };
+  R.prototype.u16 = function () {
+    if (this.i + 1 >= this.b.length) throw Err('eof');
+    const v = this.b[this.i] | (this.b[this.i + 1] << 8); this.i += 2; return v;
+  };
+  R.prototype.zstr = function () {
+    let o = '';
+    for (;;) { const c = this.u8(); if (c === 0) return o; o += String.fromCharCode(c); }
+  };
+
+  // ───────── โครงสร้างต้นไม้ ─────────
+  function nd(k, o) { const n = { k: k }; if (o) for (const p in o) n[p] = o[p]; return n; }
+
+  function parseObjList(r, ver) {
+    const out = [];
+    for (;;) {
+      if (r.i >= r.b.length) throw Err('eof-objlist');
+      const tag = r.u8();
+      const t = (ver < 5 || tag < 0x0F) ? (tag & 0x0F) : tag;
+      if (tag === END) return out;
+      if (t === LINE || t === PILE || t === MATRIX) { r.i--; out.push(parseObj(r, ver)); continue; }
+      if (t === CHAR) {
+        let o, tf, mt = null;
+        if (ver < 5) {
+          o = (tag & 0x08) ? 0x08 : 0;
+          if (tag & 0x20) o |= 0x01;
+          if (o & 0x08) { r.u8(); r.u8(); }
+          tf = r.u8(); mt = r.u16();
+        } else {
+          o = r.u8();
+          if (o & 0x08) { r.u8(); r.u8(); }
+          tf = r.u8();
+          if (!(o & 0x20)) mt = r.u16();
+          if (o & 0x04) { const c8 = r.u8(); if (mt === null) mt = c8; }
+          if (o & 0x10) mt = r.u16();
+        }
+        const c = nd('char', { mt: mt || 0, tf: tf, func: !!(o & 0x02) });
+        if (o & 0x01) {
+          c.emb = [];
+          for (;;) {
+            const tg = r.u8();
+            if (tg === END) break;
+            if ((tg & 0x0F) !== EMBELL) throw Err('emb? ' + tg);
+            if (ver >= 5) { const eo = r.u8(); if (eo & 0x08) { r.u8(); r.u8(); } }
+            else if (tg & 0x08) { r.u8(); r.u8(); }
+            c.emb.push(r.u8());
+          }
+        }
+        out.push(c); continue;
+      }
+      if (t === TMPL) {
+        const o = (ver < 5) ? (tag & 0x08) : r.u8();
+        if (o & 0x08) { r.u8(); r.u8(); }
+        const sel = r.u8();
+        let varr = r.u8();
+        if ((varr & 0x80) && ver >= 5) varr = ((varr & 0x7F) << 8) | r.u8();
+        r.u8();
+        out.push(nd('tmpl', { sel: sel, varr: varr, slots: parseObjList(r, ver) }));
+        continue;
+      }
+      if (SIZES[tag] !== undefined) { out.push(nd('size', { sz: SIZES[tag] })); continue; }
+      if (t === SIZE) { const v = r.u8(); if (v === 0x05) r.u8(); continue; }
+      if (t === RULER) { const n = r.u8(); for (let x = 0; x < n; x++) { r.u8(); r.u16(); } continue; }
+      if (t === FSTYLE) { r.u8(); r.u8(); r.u8(); continue; }
+      if (tag === 0x0F) { r.u8(); continue; }
+      if (tag === 0x10) { r.u8(); r.u8(); r.u8(); r.u8(); r.zstr(); continue; }
+      if (tag === 100) { const n = r.u16(); r.i += n; continue; }
+      throw Err('bad tag ' + tag);
+    }
+  }
+
+  function parseObj(r, ver) {
+    const tag = r.u8();
+    const t = (ver < 5 || tag < 0x0F) ? (tag & 0x0F) : tag;
+    if (t === LINE) {
+      const o = (ver < 5) ? (((tag & 0x10) >> 4) | (tag & 0x08)) : r.u8();
+      if (o & 0x08) { r.u8(); r.u8(); }
+      if (o & 0x04) r.u8();
+      if (o & 0x01) return nd('line', { kids: [], isNull: true });
+      return nd('line', { kids: parseObjList(r, ver), isNull: false });
+    }
+    if (t === PILE) {
+      const o = (ver < 5) ? ((tag & 0x08) | ((tag & 0x20) >> 4)) : r.u8();
+      if (o & 0x08) { r.u8(); r.u8(); }
+      r.u8(); r.u8();
+      if (o & 0x02) { const n = r.u8(); for (let x = 0; x < n; x++) { r.u8(); r.u16(); } }
+      return nd('pile', { kids: parseObjList(r, ver) });
+    }
+    if (t === MATRIX) {
+      const o = (ver < 5) ? (tag & 0x08) : r.u8();
+      if (o & 0x08) { r.u8(); r.u8(); }
+      r.u8();
+      const rows = r.u8(), cols = r.u8();
+      let n = Math.floor(((rows + 1) * 2 + 7) / 8); while (n-- > 0) r.u8();
+      n = Math.floor(((cols + 1) * 2 + 7) / 8); while (n-- > 0) r.u8();
+      return nd('matrix', { rows: rows, cols: cols, kids: parseObjList(r, ver) });
+    }
+    throw Err('expect obj, got ' + tag);
+  }
+
+  function kidsOf(n) { return n.kids || n.slots || []; }
+
+  function sane(n, ver) {
+    if (n.k === 'char') {
+      if (ver >= 5 && n.tf < 128) return false;
+      if (n.mt < 0x20) return false;
+    }
+    const ks = kidsOf(n);
+    for (let i = 0; i < ks.length; i++) if (!sane(ks[i], ver)) return false;
+    return true;
+  }
+  function nchar(n) {
+    let c = n.k === 'char' ? 1 : 0;
+    const ks = kidsOf(n);
+    for (let i = 0; i < ks.length; i++) c += nchar(ks[i]);
+    return c;
+  }
+  function tailOk(r) {
+    for (let i = r.i; i < r.b.length; i++) if (r.b[i] !== 0) return false;
+    return true;
+  }
+  function allSane(kids, ver) {
+    for (let i = 0; i < kids.length; i++) if (!sane(kids[i], ver)) return false;
+    return true;
+  }
+  function bestFrom(b, ver, lo, hi) {
+    let best = null;
+    for (let off = lo; off < hi; off++) {
+      let rr, kids;
+      try { rr = new R(b, off); kids = parseObjList(rr, ver); } catch (e) { continue; }
+      if (!(kids.length && tailOk(rr))) continue;
+      if (!allSane(kids, ver)) continue;
+      let n = 0; for (let i = 0; i < kids.length; i++) n += nchar(kids[i]);
+      if (!best || n > best[0]) best = [n, kids];
+    }
+    return best ? best[1] : null;
+  }
+
+  /** อ่านก้อน "Equation Native" (ตัดหัว 28 ไบต์แล้ว ไม่ตัดก็ได้ ระบบตัดให้) */
+  function parseEquationNative(stream) {
+    const b = (stream.length > 28 && stream[0] === 0x1C) ? stream.subarray(28) : stream;
+    const r = new R(b);
+    const ver = r.u8(); r.u8(); r.u8(); r.u8(); r.u8();
+    if (ver >= 5) {
+      r.zstr(); r.u8();
+      while (r.i < b.length) {
+        const tag = b[r.i];
+        if (tag === 0x11) { r.i++; r.u8(); r.zstr(); continue; }
+        if (tag === 0x13) { r.i++; r.zstr(); continue; }
+        break;
+      }
+    }
+    let kids = null;
+    if (ver >= 5 && r.i < b.length && b[r.i] === 0x12) {
+      // EQN_PREFS: ท้ายบล็อกเป็นคู่ (ลำดับฟอนต์, สไตล์) ต่อกัน แล้วปิดด้วยไบต์ 0
+      let j = r.i + 1;
+      while (j < b.length - 2 && kids === null) {
+        let k = j, pairs = 0;
+        while (k < b.length - 1 && b[k] >= 1 && b[k] <= 10 && b[k + 1] <= 4) { k += 2; pairs++; }
+        if (pairs >= 6 && k < b.length && b[k] === 0) {
+          try {
+            const rr = new R(b, k + 1); const kk = parseObjList(rr, ver);
+            if (kk.length && tailOk(rr) && allSane(kk, ver)) kids = kk;
+          } catch (e) { /* ลองตำแหน่งถัดไป */ }
+        }
+        j++;
+      }
+    }
+    if (kids === null) {
+      try {
+        const rr = new R(b, r.i); const kk = parseObjList(rr, ver);
+        if (kk.length && tailOk(rr) && allSane(kk, ver)) kids = kk;
+      } catch (e) { /* ใช้วิธีไล่หา */ }
+    }
+    if (kids === null) kids = bestFrom(b, ver, r.i, Math.min(b.length, r.i + 400));
+    if (!kids) throw Err('หาจุดเริ่มเนื้อหาสมการไม่ได้');
+    return { ver: ver, kids: kids };
+  }
+
+  /* ═════════════ ต้นไม้ → LaTeX ═════════════ */
+
+  const SYM = {
+    0x2192: '\\to', 0x2190: '\\leftarrow', 0x2212: '-', 0x221E: '\\infty', 0x222B: '\\int',
+    0x2260: '\\neq', 0x2264: '\\le', 0x2265: '\\ge', 0x00D7: '\\times', 0x00F7: '\\div',
+    0x00B1: '\\pm', 0x2248: '\\approx', 0x2208: '\\in', 0x2209: '\\notin', 0x2229: '\\cap',
+    0x222A: '\\cup', 0x2211: '\\sum', 0x220F: '\\prod', 0x221A: '\\sqrt', 0x2220: '\\angle',
+    0x2225: '\\parallel', 0x22A5: '\\perp', 0x2234: '\\therefore', 0x2235: '\\because',
+    0x2032: "'", 0x00B0: '^\\circ', 0x2026: '\\dots', 0x22EF: '\\cdots', 0x2219: '\\cdot',
+    0x00B7: '\\cdot', 0x2261: '\\equiv', 0x221D: '\\propto', 0x2205: '\\emptyset',
+    0x2282: '\\subset', 0x2286: '\\subseteq', 0x00AC: '\\neg', 0x2200: '\\forall', 0x2203: '\\exists',
+    0x03B1: '\\alpha', 0x03B2: '\\beta', 0x03B3: '\\gamma', 0x03B4: '\\delta', 0x03B5: '\\varepsilon',
+    0x03B6: '\\zeta', 0x03B7: '\\eta', 0x03B8: '\\theta', 0x03BB: '\\lambda', 0x03BC: '\\mu',
+    0x03BD: '\\nu', 0x03BE: '\\xi', 0x03C0: '\\pi', 0x03C1: '\\rho', 0x03C3: '\\sigma',
+    0x03C4: '\\tau', 0x03C6: '\\varphi', 0x03C8: '\\psi', 0x03C9: '\\omega',
+    0x0393: '\\Gamma', 0x0394: '\\Delta', 0x0398: '\\Theta', 0x03A3: '\\Sigma', 0x03A9: '\\Omega',
+    0xEF01: '\\,', 0xEF02: '\\;', 0xEF04: '\\;', 0xEF05: '\\quad'
+  };
+  const ESC = { '{': '\\{', '}': '\\}', '%': '\\%', '&': '\\&', '#': '\\#', '$': '\\$', '_': '\\_', '^': '\\^{}', '~': '\\sim' };
+  const FUNCS = {
+    lim: '\\lim', sin: '\\sin', cos: '\\cos', tan: '\\tan', cot: '\\cot', sec: '\\sec',
+    csc: '\\csc', log: '\\log', ln: '\\ln', max: '\\max', min: '\\min', exp: '\\exp', det: '\\det'
+  };
+  // selector → ชนิดแม่แบบ (เลขต่างกันตามเวอร์ชัน MTEF)
+  const KIND5 = { 11: 'frac', 27: 'subsup', 28: 'subsup', 22: 'oplim', 23: 'oplim', 10: 'root', 14: 'overline',
+                  0: 'fence', 1: 'fence', 2: 'fence', 3: 'fence', 4: 'fence', 5: 'fence', 6: 'fence', 7: 'fence' };
+  const KIND3 = { 14: 'frac', 13: 'subsup', 15: 'subsup', 43: 'oplim', 11: 'root', 12: 'overline',
+                  0: 'fence', 1: 'fence', 2: 'fence', 3: 'fence', 4: 'fence', 5: 'fence', 6: 'fence', 7: 'fence' };
+  const FENCE = { 0: ['\\langle', '\\rangle'], 1: ['(', ')'], 2: ['\\{', '\\}'], 3: ['[', ']'],
+                  4: ['|', '|'], 5: ['\\|', '\\|'], 6: ['\\lfloor', '\\rfloor'], 7: ['\\lceil', '\\rceil'] };
+
+  function isThai(c) { return c >= 0x0E00 && c <= 0x0E7F; }
+  function isAlpha(c) { return (c >= 65 && c <= 90) || (c >= 97 && c <= 122); }
+  function isAlnum(c) { return isAlpha(c) || (c >= 48 && c <= 57); }
+
+  function Cx(ver) { this.ver = ver; this.kind = ver >= 5 ? KIND5 : KIND3; }
+
+  function emit(cx, nodes) {
+    const out = []; let i = 0;
+    while (i < nodes.length) {
+      const n = nodes[i];
+      if (n.k === 'size') { i++; continue; }
+      if (n.k === 'char') {
+        // ข้อความไทย / ข้อความสไตล์ text → รวมเป็น \text{...}
+        if (isThai(n.mt) || (n.tf === 129 && (n.mt === 0x20 || isAlpha(n.mt)))) {
+          let buf = '';
+          while (i < nodes.length && nodes[i].k === 'char' &&
+                 (isThai(nodes[i].mt) || nodes[i].mt === 0x20 || (nodes[i].tf === 129 && isAlnum(nodes[i].mt)))) {
+            buf += String.fromCharCode(nodes[i].mt); i++;
+          }
+          buf = buf.trim();
+          out.push(buf ? '\\text{' + buf + '}' : '\\;');
+          continue;
+        }
+        // ชื่อฟังก์ชันหลายตัวอักษร (สไตล์ function)
+        if (n.tf === 130 && isAlpha(n.mt)) {
+          let buf = '';
+          while (i < nodes.length && nodes[i].k === 'char' && nodes[i].tf === 130 && isAlpha(nodes[i].mt)) {
+            buf += String.fromCharCode(nodes[i].mt); i++;
+          }
+          out.push(buf.length > 1 ? (FUNCS[buf] || '\\operatorname{' + buf + '}') : buf);
+          continue;
+        }
+        i++;
+        if (SYM[n.mt]) { out.push(SYM[n.mt]); continue; }
+        let c = n.mt >= 0x20 ? String.fromCharCode(n.mt) : '';
+        if (n.mt >= 0xE000 && n.mt <= 0xF8FF) c = '\\;';   // อักขระพิเศษ MT Extra = ช่องว่าง
+        out.push(ESC[c] || c); continue;
+      }
+      if (n.k === 'line') { out.push(emit(cx, n.kids)); i++; continue; }
+      if (n.k === 'pile' || n.k === 'matrix') { out.push(grid(cx, n)); i++; continue; }
+      if (n.k === 'tmpl') { out.push(tmpl(cx, n)); i++; continue; }
+      i++;
+    }
+    return out.filter(function (x) { return x !== ''; }).join(' ');
+  }
+
+  function slotsOf(n) {
+    return n.slots.filter(function (s) { return s.k === 'line' || s.k === 'pile' || s.k === 'matrix'; });
+  }
+  function txt(cx, s) {
+    if (!s || (s.k === 'line' && s.isNull)) return '';
+    return emit(cx, [s]).trim();
+  }
+  function rowsOf(cx, n) {
+    const rs = []; const ks = (n.k === 'pile' || n.k === 'matrix') ? n.kids : [];
+    for (let i = 0; i < ks.length; i++) {
+      const s = ks[i];
+      if (s.k === 'pile' || s.k === 'matrix') { const sub = rowsOf(cx, s); for (let j = 0; j < sub.length; j++) rs.push(sub[j]); }
+      else { const t = txt(cx, s); if (t) rs.push(t); }
+    }
+    return rs;
+  }
+  function grid(cx, n) {
+    const rs = rowsOf(cx, n);
+    if (!rs.length) return '';
+    const cols = n.cols || 1;
+    if (cols <= 1) return '\\begin{array}{l}' + rs.join(' \\\\ ') + '\\end{array}';
+    const ln = [];
+    for (let i = 0; i < rs.length; i += cols) ln.push(rs.slice(i, i + cols).join(' & '));
+    return '\\begin{array}{' + new Array(cols + 1).join('l') + '}' + ln.join(' \\\\ ') + '\\end{array}';
+  }
+  function bare(t) { return t.replace(/\\text\{|\\operatorname\{|\}/g, '').trim(); }
+
+  function oplim(cx, n) {
+    const sl = slotsOf(n); let opi = -1;
+    for (let k = 0; k < sl.length; k++) {
+      const t = txt(cx, sl[k]); const bb = bare(t);
+      if (t && (t.indexOf('\\lim') === 0 || t.indexOf('\\operatorname') === 0 || FUNCS[bb] ||
+                t.trim() === '\\int' || t.trim() === '\\sum' || t.trim() === '\\prod')) { opi = k; break; }
+    }
+    if (opi < 0) return '\\operatorname{?}';
+    let op = txt(cx, sl[opi]);
+    if (FUNCS[bare(op)]) op = FUNCS[bare(op)];
+    const rest = [];
+    for (let k = 0; k < sl.length; k++) {
+      if (k === opi) continue;
+      const t = txt(cx, sl[k]); if (t) rest.push(t);
+    }
+    if (rest.length > 0) op += '_{' + rest[0] + '}';
+    if (rest.length > 1) op += '^{' + rest[1] + '}';
+    return op;
+  }
+
+  function tmpl(cx, n) {
+    const sl = slotsOf(n), kind = cx.kind[n.sel];
+    if (kind === 'frac') {
+      if (sl.length >= 2) return '\\frac{' + txt(cx, sl[0]) + '}{' + txt(cx, sl[1]) + '}';
+      return sl.length ? txt(cx, sl[0]) : '';
+    }
+    if (kind === 'subsup') {
+      const sub = sl.length > 0 ? txt(cx, sl[0]) : '';
+      const sup = sl.length > 1 ? txt(cx, sl[1]) : '';
+      return (sub ? '_{' + sub + '}' : '') + (sup ? '^{' + sup + '}' : '');
+    }
+    if (kind === 'oplim') return oplim(cx, n);
+    if (kind === 'root') {
+      if (sl.length >= 2 && txt(cx, sl[1])) return '\\sqrt[' + txt(cx, sl[1]) + ']{' + txt(cx, sl[0]) + '}';
+      return '\\sqrt{' + (sl.length ? txt(cx, sl[0]) : '') + '}';
+    }
+    if (kind === 'overline') return '\\overline{' + (sl.length ? txt(cx, sl[0]) : '') + '}';
+    if (kind === 'fence') {
+      const rows = [];
+      for (let i = 0; i < sl.length; i++) {
+        const x = sl[i];
+        if (x.k === 'pile' || x.k === 'matrix') { const sub = rowsOf(cx, x); for (let j = 0; j < sub.length; j++) rows.push(sub[j]); }
+        else { const t = txt(cx, x); if (t) rows.push(t); }
+      }
+      const f = FENCE[n.sel] || ['(', ')'];
+      if (n.sel === 2 && rows.length > 1) return '\\begin{cases}' + rows.join(' \\\\ ') + '\\end{cases}';
+      const inner = rows.join(' ');
+      if ((n.varr & 0x01) && !(n.varr & 0x02)) return '\\left' + f[0] + ' ' + inner + ' \\right.';
+      return '\\left' + f[0] + ' ' + inner + ' \\right' + f[1];
+    }
+    return '[?tmpl' + n.sel + ']';
+  }
+
+  function toLatex(parsed) {
+    let tex = emit(new Cx(parsed.ver), parsed.kids).replace(/\s+/g, ' ').trim();
+    tex = tex.replace(/(\\;\s*)+/g, '\\; ').replace(/\s+/g, ' ').trim();
+    return tex;
+  }
+
+  /** ก้อน oleObject*.bin (Uint8Array) → { ver, tex } — ต้องมี XLSX.CFB ให้ใช้ */
+  function oleToLatex(bytes, CFB) {
+    const cfb = (CFB || root.XLSX && root.XLSX.CFB).read(bytes, { type: 'array' });
+    const ent = (CFB || root.XLSX.CFB).find(cfb, 'Equation Native');
+    if (!ent || !ent.content) throw Err('ในก้อนนี้ไม่มีสมการ');
+    const stream = ent.content instanceof Uint8Array ? ent.content : new Uint8Array(ent.content);
+    const parsed = parseEquationNative(stream);
+    return { ver: parsed.ver, tex: toLatex(parsed) };
+  }
+
+  root.KpacMtef = {
+    oleToLatex: oleToLatex,
+    parseEquationNative: parseEquationNative,
+    toLatex: toLatex
+  };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script>
+/* ═══════════════════════════════════════════════════════════════════════
+   📥 ตัวแยกข้อสอบจากไฟล์ Word (.docx) — ทำงานในเบราว์เซอร์ ไม่ส่งไฟล์ออกไปไหน
+   อ่าน word/document.xml แยกเลขข้อ โจทย์ ตัวเลือก ก.ข.ค.ง. และเฉลยจากตัวอักษรสีแดง
+   สมการ Equation ของ Word → LaTeX   รูปกราฟ → ข้อมูลรูปย่อขนาดแล้ว
+   ═══════════════════════════════════════════════════════════════════════ */
+(function (root) {
+  'use strict';
+
+  // ───────── ตัวช่วยทั่วไป ─────────
+  const THAI_LABELS = 'กขคงจฉชซ';          // ลำดับที่ยอมรับเป็นป้ายตัวเลือก (เผื่อพิมพ์ผิด เช่น ช. แทน ข.)
+  const SLOT = ['a', 'b', 'c', 'd', 'e'];
+
+  /** สีนี้นับเป็น "สีแดงที่ใช้ทำเฉลย" หรือไม่ — แดงเข้ม แดงสด ส้มแดง ผ่าน / ดำ เทา น้ำเงิน ไม่ผ่าน */
+  function isAnswerRed(hex) {
+    if (!hex || hex === 'auto') return false;
+    const h = String(hex).replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return false;
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return r >= 0x80 && g <= 0x60 && b <= 0x60;
+  }
+
+  function childElems(el, name) {
+    const out = [];
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const c = el.childNodes[i];
+      if (c.nodeType === 1 && (!name || c.nodeName === name)) out.push(c);
+    }
+    return out;
+  }
+  function firstTag(el, name) {
+    const l = el.getElementsByTagName(name);
+    return l && l.length ? l[0] : null;
+  }
+  function attr(el, name) { return el && el.getAttribute ? el.getAttribute(name) : null; }
+
+  /* ═════════════ OMML (สมการแบบใหม่ของ Word) → LaTeX ═════════════ */
+  const OMML_FUNC = { lim: '\\lim', sin: '\\sin', cos: '\\cos', tan: '\\tan', log: '\\log', ln: '\\ln' };
+
+  function ommlToLatex(el) {
+    let out = '';
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const c = el.childNodes[i];
+      if (c.nodeType === 3) continue;
+      if (c.nodeType !== 1) continue;
+      const n = c.nodeName.replace(/^m:/, '');
+      switch (n) {
+        case 'r': {                                    // ข้อความในสมการ
+          let t = '';
+          const ts = c.getElementsByTagName('m:t');
+          for (let k = 0; k < ts.length; k++) t += ts[k].textContent;
+          if (!ts.length) { const t2 = c.getElementsByTagName('w:t'); for (let k = 0; k < t2.length; k++) t += t2[k].textContent; }
+          out += ommlText(t);
+          break;
+        }
+        case 'f': {                                    // เศษส่วน
+          const num = firstChild(c, 'm:num'), den = firstChild(c, 'm:den');
+          out += '\\frac{' + (num ? ommlToLatex(num) : '') + '}{' + (den ? ommlToLatex(den) : '') + '}';
+          break;
+        }
+        case 'rad': {                                  // กรณฑ์
+          const deg = firstChild(c, 'm:deg'), e = firstChild(c, 'm:e');
+          const d = deg ? ommlToLatex(deg).trim() : '';
+          out += d ? '\\sqrt[' + d + ']{' + ommlToLatex(e) + '}' : '\\sqrt{' + (e ? ommlToLatex(e) : '') + '}';
+          break;
+        }
+        case 'sSub': {
+          const e = firstChild(c, 'm:e'), s = firstChild(c, 'm:sub');
+          out += (e ? ommlToLatex(e) : '') + '_{' + (s ? ommlToLatex(s) : '') + '}';
+          break;
+        }
+        case 'sSup': {
+          const e = firstChild(c, 'm:e'), s = firstChild(c, 'm:sup');
+          out += (e ? ommlToLatex(e) : '') + '^{' + (s ? ommlToLatex(s) : '') + '}';
+          break;
+        }
+        case 'sSubSup': {
+          const e = firstChild(c, 'm:e'), sb = firstChild(c, 'm:sub'), sp = firstChild(c, 'm:sup');
+          out += (e ? ommlToLatex(e) : '') + '_{' + (sb ? ommlToLatex(sb) : '') + '}^{' + (sp ? ommlToLatex(sp) : '') + '}';
+          break;
+        }
+        case 'd': {                                    // วงเล็บ
+          const pr = firstChild(c, 'm:dPr');
+          let L = '(', Rr = ')';
+          if (pr) {
+            const b = firstChild(pr, 'm:begChr'), e2 = firstChild(pr, 'm:endChr');
+            if (b) L = attr(b, 'm:val') || '(';
+            if (e2) Rr = attr(e2, 'm:val') || ')';
+          }
+          const fence = { '(': '(', ')': ')', '[': '[', ']': ']', '{': '\\{', '}': '\\}', '|': '|', '': '.' };
+          const inner = [];
+          childElems(c, 'm:e').forEach(function (x) { inner.push(ommlToLatex(x)); });
+          out += '\\left' + (fence[L] !== undefined ? fence[L] : '(') + ' ' + inner.join(' , ') +
+                 ' \\right' + (fence[Rr] !== undefined ? fence[Rr] : ')');
+          break;
+        }
+        case 'func': {
+          const fn = firstChild(c, 'm:fName'), e = firstChild(c, 'm:e');
+          let f = fn ? ommlToLatex(fn).trim() : '';
+          if (OMML_FUNC[f]) f = OMML_FUNC[f];
+          out += f + ' ' + (e ? ommlToLatex(e) : '');
+          break;
+        }
+        case 'limLow': case 'limUpp': {
+          const e = firstChild(c, 'm:e'), lim = firstChild(c, 'm:lim');
+          let b = e ? ommlToLatex(e).trim() : '';
+          if (OMML_FUNC[b]) b = OMML_FUNC[b];
+          out += b + (n === 'limLow' ? '_{' : '^{') + (lim ? ommlToLatex(lim) : '') + '}';
+          break;
+        }
+        case 'nary': {                                 // ∑ ∫ ∏
+          const pr = firstChild(c, 'm:naryPr');
+          let ch = '\\sum';
+          if (pr) {
+            const g = firstChild(pr, 'm:chr');
+            const v = g ? attr(g, 'm:val') : null;
+            if (v === '\u222B') ch = '\\int'; else if (v === '\u220F') ch = '\\prod'; else if (v) ch = '\\sum';
+          }
+          const sb = firstChild(c, 'm:sub'), sp = firstChild(c, 'm:sup'), e = firstChild(c, 'm:e');
+          out += ch + (sb ? '_{' + ommlToLatex(sb) + '}' : '') + (sp ? '^{' + ommlToLatex(sp) + '}' : '') +
+                 ' ' + (e ? ommlToLatex(e) : '');
+          break;
+        }
+        case 'bar': { const e = firstChild(c, 'm:e'); out += '\\overline{' + (e ? ommlToLatex(e) : '') + '}'; break; }
+        case 'acc': { const e = firstChild(c, 'm:e'); out += '\\hat{' + (e ? ommlToLatex(e) : '') + '}'; break; }
+        case 'eqArr': {
+          const rows = childElems(c, 'm:e').map(function (x) { return ommlToLatex(x); });
+          out += '\\begin{array}{l}' + rows.join(' \\\\ ') + '\\end{array}';
+          break;
+        }
+        case 'm': {
+          const rows = [];
+          childElems(c, 'm:mr').forEach(function (mr) {
+            rows.push(childElems(mr, 'm:e').map(function (x) { return ommlToLatex(x); }).join(' & '));
+          });
+          out += '\\begin{bmatrix}' + rows.join(' \\\\ ') + '\\end{bmatrix}';
+          break;
+        }
+        case 'oMath': case 'e': case 'num': case 'den': case 'sub': case 'sup': case 'lim': case 'fName':
+          out += ommlToLatex(c); break;
+        default:
+          if (c.getElementsByTagName && c.childNodes.length) out += ommlToLatex(c);
+      }
+    }
+    return out;
+  }
+  function firstChild(el, name) {
+    for (let i = 0; i < el.childNodes.length; i++) {
+      const c = el.childNodes[i];
+      if (c.nodeType === 1 && c.nodeName === name) return c;
+    }
+    return null;
+  }
+  const OMML_MAP = { '\u2192': '\\to', '\u221E': '\\infty', '\u2264': '\\le', '\u2265': '\\ge',
+                     '\u2260': '\\neq', '\u00D7': '\\times', '\u00F7': '\\div', '\u2212': '-',
+                     '\u03BC': '\\mu', '\u03C3': '\\sigma', '\u03C0': '\\pi', '\u0394': '\\Delta' };
+  function ommlText(t) {
+    let o = '';
+    for (let i = 0; i < t.length; i++) {
+      const ch = t[i];
+      if (OMML_MAP[ch]) { o += OMML_MAP[ch] + ' '; continue; }
+      const cc = ch.charCodeAt(0);
+      if (cc >= 0x0E00 && cc <= 0x0E7F) {           // ข้อความไทยในสมการ
+        let buf = '';
+        while (i < t.length && (t.charCodeAt(i) >= 0x0E00 && t.charCodeAt(i) <= 0x0E7F || t[i] === ' ')) { buf += t[i]; i++; }
+        i--;
+        o += '\\text{' + buf.trim() + '}';
+        continue;
+      }
+      o += ('{}%&#$_^~'.indexOf(ch) >= 0) ? '\\' + ch : ch;
+    }
+    return o;
+  }
+
+  /* ═════════════ อ่านย่อหน้าเป็นชิ้นข้อความ + สมการ + รูป ═════════════ */
+
+  async function paragraphSegs(p, ctx) {
+    const segs = [];
+    // ไล่โหนดตามลำดับในเอกสาร เพื่อให้สมการ รูป และข้อความเรียงถูกที่
+    const stack = [p];
+    const walk = async function (el) {
+      for (let i = 0; i < el.childNodes.length; i++) {
+        const c = el.childNodes[i];
+        if (c.nodeType !== 1) continue;
+        const nm = c.nodeName;
+        if (nm === 'm:oMath') {
+          const tex = ommlToLatex(c).replace(/\s+/g, ' ').trim();
+          if (tex) segs.push({ t: '$' + tex + '$', red: false, eq: true });
+          continue;
+        }
+        if (nm === 'w:object') {
+          const ole = firstTag(c, 'o:OLEObject');
+          const rid = attr(ole, 'r:id');
+          let tex = null;
+          if (rid && ctx.rels[rid]) {
+            try {
+              const bytes = await ctx.getBinary('word/' + ctx.rels[rid].replace(/^\/?word\//, ''));
+              if (bytes) tex = ctx.mtef.oleToLatex(bytes, ctx.CFB).tex;
+            } catch (e) { tex = null; }
+          }
+          segs.push(tex ? { t: '$' + tex + '$', red: isRedRun(c), eq: true }
+                        : { t: ' [สมการอ่านไม่ได้] ', red: false, eq: true, bad: true });
+          continue;
+        }
+        if (nm === 'w:drawing' || nm === 'w:pict') {
+          const blip = firstTag(c, 'a:blip');
+          const rid = attr(blip, 'r:embed') || attr(firstTag(c, 'v:imagedata'), 'r:id');
+          if (rid && ctx.rels[rid]) {
+            const target = ctx.rels[rid];
+            if (!/\.(wmf|emf|wdp)$/i.test(target)) { segs.push({ img: target, red: false }); continue; }
+          }
+          // ไม่มีไฟล์รูปฝังอยู่ = เป็นรูปที่วาดด้วยเครื่องมือวาดของ Word ดึงออกมาเป็นไฟล์ไม่ได้
+          // นับเฉพาะรูปที่ใหญ่พอจะเป็นกราฟ (เกินราว 0.9 นิ้ว) ไม่นับเครื่องหมายถูกเล็ก ๆ
+          const ex = firstTag(c, 'wp:extent') || firstTag(c, 'a:ext');
+          const cx = ex ? parseInt(attr(ex, 'cx') || '0', 10) : 0;
+          const cy = ex ? parseInt(attr(ex, 'cy') || '0', 10) : 0;
+          let big = (cx > 800000 || cy > 800000);
+          if (!ex && nm === 'w:pict') {
+            const sh = firstTag(c, 'v:shape') || firstTag(c, 'v:group');
+            const st = attr(sh, 'style') || '';
+            const mw = /width:\s*([0-9.]+)pt/.exec(st), mh = /height:\s*([0-9.]+)pt/.exec(st);
+            big = (mw && +mw[1] > 64) || (mh && +mh[1] > 64);
+          }
+          if (big) segs.push({ drawn: true, red: false });
+          continue;
+        }
+        if (nm === 'w:t') { segs.push({ t: c.textContent, red: isRedRun(el) }); continue; }
+        if (nm === 'w:tab') { segs.push({ t: '  ', red: false }); continue; }
+        if (nm === 'w:br') { segs.push({ t: ' ', red: false }); continue; }
+        await walk(c);
+      }
+    };
+    void stack;
+    await walk(p);
+    return segs;
+  }
+
+  function isRedRun(el) {
+    // ไล่หา w:color ของ run ที่ครอบข้อความชิ้นนี้
+    let cur = el;
+    for (let d = 0; d < 4 && cur; d++) {
+      if (cur.nodeName === 'w:r') {
+        const pr = firstChild(cur, 'w:rPr');
+        if (pr) { const col = firstChild(pr, 'w:color'); if (col) return isAnswerRed(attr(col, 'w:val')); }
+        return false;
+      }
+      cur = cur.parentNode;
+    }
+    return false;
+  }
+
+  /* ═════════════ ประกอบเป็นข้อสอบ ═════════════ */
+
+  const JUNK = [
+    /ลงชื่อ\.{3,}/, /^[.\-_\s…]{10,}$/, /หัวหน้ากลุ่ม/, /ผู้ตรวจ\s*\(/, /ครูผู้สอน/
+  ];
+  function stripJunk(s) {
+    let t = s;
+    t = t.replace(/ลงชื่อ\.{4,}[^$]*?(ครูผู้สอน|ผู้ตรวจ[^)]*\)|ผู้ทาน|หัวหน้ากลุ่ม\S*)/g, ' ');
+    t = t.replace(/[.\u2026]{6,}/g, ' ').replace(/-{6,}/g, ' ');
+    return t.replace(/\s{2,}/g, ' ').trim();
+  }
+  function isJunkPara(s) {
+    const t = s.trim();
+    if (!t) return true;
+    for (let i = 0; i < JUNK.length; i++) if (JUNK[i].test(t)) return true;
+    return false;
+  }
+
+  /** หาตำแหน่งป้ายตัวเลือกในข้อความรวมของข้อนั้น */
+  function findChoiceMarks(text) {
+    const out = [];
+    const re = /([ก-ฮ])\s*[.)]/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      if (THAI_LABELS.indexOf(m[1]) < 0) continue;
+      out.push({ at: m.index, end: m.index + m[0].length, ch: m[1] });
+    }
+    // เอาเฉพาะชุดที่เรียงกันเป็นตัวเลือกจริง (เริ่มด้วย ก และไล่ต่อกัน 2–5 ตัว)
+    for (let s = 0; s < out.length; s++) {
+      if (out[s].ch !== 'ก') continue;
+      const run = [out[s]];
+      for (let k = s + 1; k < out.length && run.length < 5; k++) {
+        const want = THAI_LABELS[run.length];
+        if (out[k].ch === want || (run.length === 1 && out[k].ch === 'ช')) { run.push(out[k]); continue; }
+        if (out[k].ch === THAI_LABELS[run.length - 1]) continue;       // ป้ายซ้ำ ข้าม
+        break;
+      }
+      if (run.length >= 2) return run;
+    }
+    return [];
+  }
+
+  async function parse(ctx) {
+    const doc = ctx.doc;
+    const body = firstTag(doc, 'w:body');
+    if (!body) throw new Error('ไฟล์นี้ไม่ใช่เอกสาร Word ที่อ่านได้');
+
+    // 1) อ่านทุกย่อหน้าเป็นชิ้น ๆ
+    const paras = [];
+    const tops = childElems(body);
+    for (let i = 0; i < tops.length; i++) {
+      const el = tops[i];
+      if (el.nodeName !== 'w:p') continue;                 // ตารางเป็นหัวกระดาษ ไม่ใช่เนื้อข้อสอบ
+      const segs = await paragraphSegs(el, ctx);
+      const text = segs.map(function (s) { return s.t || (s.img ? ' ' : ''); }).join('');
+      paras.push({ segs: segs, text: text });
+    }
+
+    // 2) โจทย์ร่วมที่ใช้ตอบหลายข้อ เช่น "ใช้ข้อมูลต่อไปนี้ตอบคำถามข้อที่ 1-6"
+    const stems = [];
+    const STEM_RE = /(?:ตอบคำถาม|ใช้ตอบ|ตอบข้อ)[^0-9]{0,12}(\d+)\s*[-–—ถึง]+\s*(\d+)/;
+    for (let i = 0; i < paras.length; i++) {
+      const m = STEM_RE.exec(paras[i].text);
+      if (!m) continue;
+      if (/^\s*\d+\s*[.)]/.test(paras[i].text)) continue;      // ย่อหน้านี้เป็นตัวข้อสอบเอง ไม่ใช่โจทย์ร่วม
+      const a = +m[1], b = +m[2];
+      if (b <= a || b - a > 12) continue;
+      stems.push({ p: i, from: a, to: b, extra: [] });
+    }
+    // โจทย์ร่วมกินย่อหน้าถัดไปด้วย (เนื้อโจทย์มักอยู่บรรทัดถัดจากประโยคชี้แจง)
+    stems.forEach(function (x) {
+      for (let i = x.p + 1; i < paras.length && i <= x.p + 4; i++) {
+        const t = paras[i].text;
+        if (/^\s*\d+\s*[.)]\s*\S/.test(t)) break;              // ถึงตัวข้อสอบแล้ว
+        if (findChoiceMarks(t).length) break;                      // ถึงตัวเลือกแล้ว
+        if (STEM_RE.test(t)) break;
+        if (!t.trim()) continue;
+        x.extra.push(i);
+      }
+    });
+    const stemAt = {};
+    stems.forEach(function (x) {
+      stemAt[x.p] = x;
+      x.extra.forEach(function (i) { stemAt[i] = x; });
+    });
+
+    // 3) ไล่หาเลขข้อแบบเรียงลำดับทั่วเอกสาร (กัน "ผลการเรียนรู้ 2." ที่ไม่ใช่ข้อสอบ)
+    const mcqStarts = [];
+    let want = 1;
+    // ข้ามหัวกระดาษและคำชี้แจง — เริ่มนับหลังหัวข้อ "ตอนที่ 1" ถ้ามี
+    let scanFrom = 0;
+    for (let i = 0; i < paras.length; i++) {
+      if (/^\s*ตอนที่\s*[1๑]/.test(paras[i].text)) { scanFrom = i + 1; break; }
+    }
+    for (let i = scanFrom; i < paras.length; i++) {
+      if (stemAt[i]) continue;
+      const t = paras[i].text;
+      if (!t.trim()) continue;
+      let pos = -1;
+      // ผ่อนปรนให้ข้ามเลขได้ 1 ตัว เฉพาะเมื่อเจอข้อแรกแล้ว (ไม่ให้ "ผลการเรียนรู้ 2." กลายเป็นข้อ)
+      const cands = mcqStarts.length ? [want, want + 1] : [want];
+      const head = t.match(/^\s*(\d+)\s*[.)]/);
+      if (head && cands.indexOf(+head[1]) >= 0) pos = t.indexOf(head[1]);
+      if (pos < 0) {
+        // เลขข้ออยู่กลางย่อหน้า (เช่น ต่อท้ายป้ายแกนกราฟ)
+        for (const cand of cands) {
+          const re = new RegExp('(?:^|[^0-9.])(' + cand + ')\\s*[.)]\\s*(?=[\\u0E00-\\u0E7F])');
+          const m = re.exec(t);
+          if (m) { pos = m.index + m[0].indexOf(m[1]); want = cand; break; }
+        }
+        if (pos >= 0) { mcqStarts.push({ p: i, at: pos, no: want }); want++; continue; }
+        continue;
+      }
+      want = +head[1];
+      mcqStarts.push({ p: i, at: pos, no: want });
+      want++;
+    }
+
+    // หัวข้อ "ตอนที่ 2" ต้องขึ้นต้นย่อหน้า และอยู่หลังข้อปรนัยข้อสุดท้าย
+    let essayFrom = -1;
+    const lastMcq = mcqStarts.length ? mcqStarts[mcqStarts.length - 1].p : -1;
+    for (let i = lastMcq + 1; i < paras.length; i++) {
+      if (/^\s*(ตอนที่\s*[2๒]|ข้อสอบอัตนัย|โจทย์\s)/.test(paras[i].text) ||
+          /^\s*ตอนที่\s*[2๒]/.test(paras[i].text)) { essayFrom = i; break; }
+    }
+    const limit = paras.length;
+    while (mcqStarts.length && essayFrom >= 0 && mcqStarts[mcqStarts.length - 1].p >= essayFrom) mcqStarts.pop();
+
+    // 4) ตัดเนื้อหาแต่ละข้อ แล้วแยกโจทย์กับตัวเลือก
+    const mcq = [];
+    for (let q = 0; q < mcqStarts.length; q++) {
+      const st = mcqStarts[q];
+      const en = q + 1 < mcqStarts.length ? mcqStarts[q + 1] : { p: limit, at: 0 };
+      const segs = [];
+      for (let i = st.p; i <= Math.min(en.p, paras.length - 1); i++) {
+        if (i === en.p && q + 1 < mcqStarts.length) {
+          // ตัดครึ่งย่อหน้าที่มีข้อถัดไปอยู่ด้วย
+          let acc = 0;
+          for (const s of paras[i].segs) {
+            const len = (s.t || '').length;
+            if (acc >= en.at) break;
+            if (acc + len <= en.at) { segs.push(s); acc += len; continue; }
+            segs.push({ t: (s.t || '').slice(0, en.at - acc), red: s.red, eq: s.eq });
+            acc = en.at; break;
+          }
+          break;
+        }
+        if (i === st.p) {
+          let acc = 0; const keep = [];
+          for (const s of paras[i].segs) {
+            const len = (s.t || '').length;
+            if (acc + len <= st.at) { acc += len; continue; }
+            if (acc >= st.at) keep.push(s);
+            else keep.push({ t: (s.t || '').slice(st.at - acc), red: s.red, eq: s.eq });
+            acc += len;
+          }
+          keep.forEach(function (s) { segs.push(s); });
+        } else if (!stemAt[i]) {
+          paras[i].segs.forEach(function (s) { segs.push(s); });
+        }
+        segs.push({ t: '\n', red: false });
+      }
+      const q2 = buildQuestion(st.no, segs);
+      // โจทย์ร่วมของช่วงที่ครอบข้อนี้
+      stems.forEach(function (x) {
+        if (st.no < x.from || st.no > x.to) return;
+        let sg = paras[x.p].segs.slice();
+        x.extra.forEach(function (i) { sg = sg.concat([{ t: ' ', red: false }], paras[i].segs); });
+        const stemText = clean(sg.map(function (s) { return s.t || ''; }).join(''));
+        if (stemText) q2.sharedStem = (q2.sharedStem ? q2.sharedStem + ' ' : '') + stemText;
+        sg.forEach(function (s) { if (s.img) q2.images.unshift({ img: s.img, at: -1, fromStem: true }); });
+      });
+      if (q2.sharedStem) q2.text = q2.sharedStem + '\n' + q2.text;
+      mcq.push(q2);
+    }
+
+    // 5) ข้ออัตนัย
+    const essay = [];
+    if (essayFrom >= 0) {
+      const starts = [];
+      for (let i = essayFrom; i < paras.length; i++) {
+        const t = paras[i].text;
+        if (/^\s*(\d+)\s*[.)]\s*\S/.test(t) || /^\s*โจทย์/.test(t)) starts.push(i);
+      }
+      for (let k = 0; k < starts.length; k++) {
+        const a = starts[k], b = k + 1 < starts.length ? starts[k + 1] : paras.length;
+        const segs = [];
+        for (let i = a; i < b; i++) {
+          if (isJunkPara(paras[i].text)) continue;
+          paras[i].segs.forEach(function (s) { segs.push(s); });
+          segs.push({ t: ' ', red: false });
+        }
+        const imgs = segs.filter(function (s) { return s.img; }).map(function (s) { return s.img; });
+        const txt = stripJunk(segs.map(function (s) { return s.t || ''; }).join('')).replace(/^\s*(\d+\s*[.)]|โจทย์)\s*/, '');
+        if (txt) essay.push({ no: k + 1, text: txt, images: imgs, notes: [],
+                              issues: txt.length < 8 ? ['โจทย์สั้นผิดปกติ ตรวจอีกครั้ง'] : [] });
+      }
+    }
+
+    return { mcq: mcq, essay: essay };
+  }
+
+  function buildQuestion(no, segs) {
+    // ข้อความรวมของข้อนี้ พร้อมตำแหน่งของแต่ละชิ้น เพื่อระบุว่าสีแดงตกอยู่ตัวเลือกไหน
+    let full = '';
+    const marks = [];     // {from,to,red,img}
+    segs.forEach(function (s) {
+      const t = s.t || (s.img ? '' : '');
+      const from = full.length;
+      full += t;
+      marks.push({ from: from, to: full.length, red: !!s.red, img: s.img || null,
+                   eq: !!s.eq, drawn: !!s.drawn });
+    });
+
+    const body = full.replace(/^\s*(\d+)\s*[.)]\s*/, '');
+    const shift = full.length - body.length;
+    const cm = findChoiceMarks(body);
+
+    const images = marks.filter(function (m) { return m.img; }).map(function (m) { return { img: m.img, at: m.from - shift }; });
+    const issues = [];   // ต้องแก้ก่อนใช้งาน
+    const notes = [];    // แจ้งให้ทราบ ไม่บล็อก
+
+    if (!cm.length) {
+      return { no: no, text: clean(body), choices: [], answer: null, images: images,
+               isEssayLike: true, notes: [], issues: ['ไม่พบตัวเลือก ก. ข. ค. ง. — อาจเป็นข้ออัตนัย'] };
+    }
+
+    const stem = clean(body.slice(0, cm[0].at));
+    const choices = [];
+    // นับอักขระสีแดงที่ไม่ใช่ช่องว่าง ในช่วง [p,q) ของข้อความ
+    const redChars = function (p0, q0) {
+      let n = 0;
+      marks.forEach(function (m) {
+        if (!m.red) return;
+        const s0 = Math.max(m.from - shift, p0), s1 = Math.min(m.to - shift, q0);
+        if (s1 <= s0) return;
+        const piece = body.slice(s0, s1);
+        for (let k = 0; k < piece.length; k++) if (!/\s/.test(piece[k])) n++;
+      });
+      return n;
+    };
+    for (let i = 0; i < cm.length; i++) {
+      const a = cm[i].end, b = i + 1 < cm.length ? cm[i + 1].at : body.length;
+      // ครูทาสีแดงที่ "ป้ายตัวเลือก" เป็นหลัก จึงให้น้ำหนักตรงป้ายมากกว่าเนื้อหา
+      const onLabel = redChars(cm[i].at, cm[i].end) > 0;
+      const onText = redChars(a, b);
+      choices.push({ slot: SLOT[i], label: cm[i].ch, text: clean(body.slice(a, b)),
+                     red: onLabel || onText > 0, onLabel: onLabel, redChars: onText });
+    }
+
+    let answer = null;
+    const lab = choices.filter(function (c) { return c.onLabel; });
+    const con = choices.filter(function (c) { return !c.onLabel && c.redChars > 0; });
+    if (lab.length === 1) {
+      answer = lab[0].slot;
+      if (con.length) notes.push('มีสีแดงที่เนื้อหาตัวเลือก ' + con.map(function (c) { return c.label; }).join(' ') + ' ด้วย — ระบบเลือกตามป้ายที่ทาสี (' + lab[0].label + ')');
+    } else if (lab.length > 1) {
+      answer = lab[0].slot;
+      issues.push('ทาสีแดงที่ป้าย ' + lab.length + ' ตัวเลือก (' + lab.map(function (c) { return c.label; }).join(' ') + ') — กรุณายืนยันเฉลย');
+    } else if (con.length === 1) {
+      answer = con[0].slot;
+    } else if (con.length > 1) {
+      const top = con.slice().sort(function (x, y) { return y.redChars - x.redChars; });
+      answer = top[0].slot;
+      issues.push('พบสีแดง ' + con.length + ' ตัวเลือก (' + con.map(function (c) { return c.label; }).join(' ') + ') — กรุณายืนยันเฉลย');
+    } else {
+      issues.push('ไม่พบเฉลย (ไม่มีตัวอักษรสีแดง) — กรุณาติ๊กเฉลย');
+    }
+
+    if (choices.length < 4) (choices.length < 2 ? issues : notes).push('อ่านตัวเลือกได้ ' + choices.length + ' ตัว (ปกติ 4 ตัว)');
+    if (!stem) issues.push('ไม่พบข้อความโจทย์');
+    choices.forEach(function (c) { if (!c.text) issues.push('ตัวเลือก ' + c.label + ' ว่างเปล่า'); });
+    if (/\[สมการอ่านไม่ได้\]/.test(body)) issues.push('มีสมการที่อ่านไม่ได้');
+    const drawn = marks.filter(function (m) { return m.drawn; }).length;
+    if (drawn) issues.push('ข้อนี้มีรูปที่วาดด้วยเครื่องมือวาดของ Word ' + drawn + ' รูป — ดึงเป็นไฟล์รูปไม่ได้ กรุณาจับภาพจาก Word มาแนบในช่องรูปของข้อนี้');
+
+    return { no: no, text: stem, choices: choices, answer: answer, images: images,
+             drawnCount: drawn, isEssayLike: false, issues: issues, notes: notes };
+  }
+
+  function clean(s) {
+    return stripJunk(String(s).replace(/\n+/g, ' ')).replace(/\s{2,}/g, ' ').trim();
+  }
+
+  root.KpacDocxExam = { parse: parse, ommlToLatex: ommlToLatex, isAnswerRed: isAnswerRed, findChoiceMarks: findChoiceMarks };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
   <style>
     * { font-family: 'Prompt', sans-serif; }
@@ -2577,8 +3498,53 @@
           <h3 class="text-xl font-bold text-gray-800 mb-1">🗂️ คลังข้อสอบ</h3>
           <p class="text-gray-500 text-sm">ค้นหา แก้ไข หรือลบข้อสอบที่มีอยู่ — กดปุ่มด้านขวาเพื่อสร้างข้อสอบใหม่</p>
          </div>
-         <button onclick="openCreateExamQuestionPopup()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
-          ➕ สร้างข้อสอบใหม่
+         <div class="flex gap-2 flex-shrink-0 flex-wrap">
+          <button onclick="openExamImportPanel()" class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm shadow-sm">
+           📥 นำเข้าจากไฟล์ Word
+          </button>
+          <button onclick="openCreateExamQuestionPopup()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm">
+           ➕ สร้างข้อสอบใหม่
+          </button>
+         </div>
+        </div>
+
+        <!-- 📥 นำเข้าข้อสอบจากไฟล์ Word — อ่านในเครื่อง ไม่เก็บไฟล์ -->
+        <div id="ei-container" class="hidden bg-blue-50 border-2 border-blue-200 rounded-xl p-5 mb-6">
+         <div class="flex items-start justify-between gap-3 mb-3 flex-wrap">
+          <div>
+           <p class="font-semibold text-gray-800">📥 นำเข้าข้อสอบจากไฟล์ Word</p>
+           <p class="text-xs text-gray-600 mt-1">ระบบอ่านไฟล์ในเครื่องของครูเอง ถอดสมการ Equation ของ Word เป็น LaTeX และจับเฉลยจากตัวอักษรสีแดงให้อัตโนมัติ
+            <b class="text-blue-700">ไฟล์ที่เลือกไม่ถูกเก็บไว้ในระบบ</b> เก็บเฉพาะข้อสอบที่ครูกดบันทึก</p>
+          </div>
+          <button onclick="closeExamImportPanel()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-semibold">ปิด</button>
+         </div>
+         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📚 วิชาปลายทาง</label>
+           <select id="ei-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+            <option value="">-- เลือกวิชา --</option>
+           </select>
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">📖 บท/เรื่อง (ใส่ให้ทุกข้อ)</label>
+           <input type="text" id="ei-chapter" placeholder="เช่น ลิมิตและความต่อเนื่อง" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+          <div>
+           <label class="block text-xs text-gray-600 mb-1">✅ คะแนนต่อข้อ</label>
+           <input type="number" id="ei-score" value="1" min="0.25" step="0.25" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+          </div>
+         </div>
+         <div class="flex items-center gap-3 flex-wrap mb-2">
+          <label class="px-4 py-2 bg-white border-2 border-blue-300 text-blue-700 rounded-lg text-sm font-semibold cursor-pointer hover:bg-blue-50">
+           📄 เลือกไฟล์ .docx
+           <input type="file" id="ei-file" accept=".docx" class="hidden" onchange="eiPickFile(this)">
+          </label>
+          <p id="ei-status" class="text-xs text-gray-600"></p>
+         </div>
+         <div id="ei-summary" class="mb-3"></div>
+         <div id="ei-list" class="scroll-pane mb-3" style="max-height:62vh"></div>
+         <button id="ei-save-btn" onclick="eiSaveAll()" disabled class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-lg font-bold text-sm">
+          💾 บันทึกเข้าคลังข้อสอบ
          </button>
         </div>
 
@@ -3111,7 +4077,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.07.225';
+    const APP_VERSION = 'SUPABASE-2026.10.07.226';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10838,6 +11804,9 @@ const supabaseDataSdk = {
       let result;
       if (editId) {
         const existing = allData.find(d => d.__backendId === editId);
+        // ครูตรวจและกดบันทึกเองแล้ว ถือว่าข้อนี้สมบูรณ์ ย้ายออกจากส่วน "ยังไม่สมบูรณ์"
+        record.is_draft = false;
+        record.import_note = null;
         result = await window.dataSdk.update({ ...existing, ...record });
       } else {
         result = await window.dataSdk.create(record);
@@ -10885,10 +11854,16 @@ const supabaseDataSdk = {
       let questions = allData.filter(d => d.type === 'exam_question');
       if (filterSubj) questions = questions.filter(q => _eaN(q.subject_name) === _eaN(filterSubj));
       if (filterChapter) questions = questions.filter(q => String(q.chapter || '') === filterChapter);
-      questions.sort((a,b) => (a.subject_name||'').localeCompare(b.subject_name||'') || (a.chapter||'').localeCompare(b.chapter||''));
+      // 📌 ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ ขึ้นก่อนเสมอ เพื่อให้เห็นและแก้ได้ง่าย
+      questions.sort((a,b) => (_qReady(a) ? 1 : 0) - (_qReady(b) ? 1 : 0)
+        || (a.subject_name||'').localeCompare(b.subject_name||'')
+        || (a.chapter||'').localeCompare(b.chapter||'')
+        || ((a.question_number||0) - (b.question_number||0)));
 
+      const draftCount = questions.filter(q => !_qReady(q)).length;
       const countLabel = document.getElementById('eq-count-label');
-      if (countLabel) countLabel.textContent = `ทั้งหมด ${questions.length} ข้อ`;
+      if (countLabel) countLabel.textContent = `ทั้งหมด ${questions.length} ข้อ` +
+        (draftCount ? ` · ⚠️ ยังไม่สมบูรณ์ ${draftCount} ข้อ (ยังไม่ถูกนำไปออกข้อสอบ)` : '');
 
       const listEl = document.getElementById('eq-list');
       if (!listEl) return;
@@ -10914,11 +11889,16 @@ const supabaseDataSdk = {
             ${['a','b','c','d','e'].map(l => q[`choice_${l}`] ? `<p class="${q.correct_answer===l ? 'text-green-700 font-semibold' : ''}">${l==='a'?'ก':l==='b'?'ข':l==='c'?'ค':l==='d'?'ง':'จ'}. ${q[`choice_${l}`]} ${q.correct_answer===l?'✅':''}</p>` : '').join('')}
           </div>` : '<p class="text-xs text-gray-400 mt-2">ครูตรวจให้คะแนนเอง</p>';
         const imgHtml = q.question_image_url ? `<img src="${q.question_image_url}" style="max-height:100px;border-radius:8px;margin-top:6px" onerror="this.style.display='none'">` : '';
+        const isDraft = !_qReady(q);
+        const draftHtml = isDraft
+          ? `<p class="text-xs text-red-700 bg-red-100 border border-red-200 rounded px-2 py-1 mt-1">⚠️ ยังไม่สมบูรณ์ — ${q.import_note || 'ต้องตรวจก่อนใช้งาน'} <span class="text-red-500">(กด ✏️ แก้ไขแล้วบันทึก จะย้ายเข้าคลังใช้งานจริงให้เอง)</span></p>`
+          : '';
         return `
-          <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+          <div class="${isDraft ? 'bg-red-50 border-2 border-red-200' : 'bg-gray-50 border-2 border-gray-200'} rounded-lg p-4">
             <div class="flex items-start justify-between gap-2">
               <div class="flex-1">
-                <p class="text-xs text-gray-500">${idx+1}. 📚 ${q.subject_name} ${q.chapter ? '· 📖 '+q.chapter : ''} · ${typeLabel} · ✅ ${q.score_per_question} คะแนน</p>
+                <p class="text-xs text-gray-500">${idx+1}. 📚 ${q.subject_name} ${q.chapter ? '· 📖 '+q.chapter : ''} · ${typeLabel} · ✅ ${q.score_per_question} คะแนน${q.question_number ? ' · ข้อที่ '+q.question_number+' ในไฟล์' : ''}</p>
+                ${draftHtml}
                 <p class="font-medium text-gray-800 mt-1">${q.question_text}</p>
                 ${imgHtml}
                 ${choicesHtml}
@@ -11130,7 +12110,7 @@ const supabaseDataSdk = {
       const subj = document.getElementById('esa-subject')?.value;
       if (!subj) { box.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
       const counts = {};
-      allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj))
+      allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj) && _qReady(d))
         .forEach(q => { const ch = q.chapter || 'ไม่ระบุบท'; counts[ch] = (counts[ch] || 0) + 1; });
       const chs = Object.keys(counts).sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
       box.innerHTML = chs.length ? chs.map(ch => `<label class="flex items-center gap-1 text-xs bg-white border border-indigo-200 rounded px-2 py-1 cursor-pointer">
@@ -11144,7 +12124,7 @@ const supabaseDataSdk = {
     function _getEsaPool() {
       const subj = document.getElementById('esa-subject')?.value;
       const chs = _getEsaSelectedChapters();
-      let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj));
+      let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(subj) && _qReady(d));
       if (chs) pool = pool.filter(q => chs.includes(q.chapter || 'ไม่ระบุบท'));
       return pool;
     }
@@ -11973,6 +12953,340 @@ const supabaseDataSdk = {
       }
     }
 
+    /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
+    function _qReady(q) { return !(q.is_draft === true || q.is_draft === 'true'); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       📥 นำเข้าข้อสอบจากไฟล์ Word — อ่านในเครื่องของครู ไม่เก็บไฟล์ที่อัปโหลด
+       ═══════════════════════════════════════════════════════════════════════ */
+    let _eiData = null;        // ผลที่อ่านได้จากไฟล์ล่าสุด { mcq:[], essay:[], imgs:{} }
+
+    function openExamImportPanel() {
+      const box = document.getElementById('ei-container');
+      if (!box) return;
+      document.getElementById('eq-form-container')?.classList.add('hidden');
+      box.classList.remove('hidden');
+      const sel = document.getElementById('ei-subject');
+      if (sel) sel.innerHTML = _subjectOptionsAll('<option value="">-- เลือกวิชา --</option>');
+      if (typeof box.scrollIntoView === 'function') box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    function closeExamImportPanel() {
+      document.getElementById('ei-container')?.classList.add('hidden');
+      _eiData = null;
+      const f = document.getElementById('ei-file'); if (f) f.value = '';
+      const l = document.getElementById('ei-list'); if (l) l.innerHTML = '';
+      const s = document.getElementById('ei-summary'); if (s) s.innerHTML = '';
+    }
+
+    /** ย่อรูปแล้วแปลงเป็นข้อมูลรูปในตัว (ไม่ต้องเก็บไฟล์) */
+    function _eiCompressImage(bytes, name) {
+      return new Promise(function (resolve) {
+        const mime = /\.png$/i.test(name) ? 'image/png' : /\.gif$/i.test(name) ? 'image/gif' : 'image/jpeg';
+        let blobUrl = null;
+        const fallback = function () {
+          try {
+            let s = '';
+            for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+            resolve('data:' + mime + ';base64,' + btoa(s));
+          } catch (e) { resolve(''); }
+        };
+        try {
+          if (typeof document.createElement('canvas').getContext !== 'function') return fallback();
+          blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+          const img = new Image();
+          img.onload = function () {
+            try {
+              const MAX = 700;
+              const sc = Math.min(1, MAX / Math.max(img.width || 1, img.height || 1));
+              const cv = document.createElement('canvas');
+              cv.width = Math.max(1, Math.round((img.width || 1) * sc));
+              cv.height = Math.max(1, Math.round((img.height || 1) * sc));
+              const cx = cv.getContext('2d');
+              cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height);
+              cx.drawImage(img, 0, 0, cv.width, cv.height);
+              let out = cv.toDataURL('image/webp', 0.82);
+              if (out.indexOf('data:image/webp') !== 0) out = cv.toDataURL('image/jpeg', 0.85);
+              URL.revokeObjectURL(blobUrl);
+              resolve(out);
+            } catch (e) { if (blobUrl) URL.revokeObjectURL(blobUrl); fallback(); }
+          };
+          img.onerror = function () { if (blobUrl) URL.revokeObjectURL(blobUrl); fallback(); };
+          img.src = blobUrl;
+        } catch (e) { fallback(); }
+      });
+    }
+
+    /** อ่านไฟล์ .docx (ArrayBuffer) → ข้อสอบ — แยกไว้เพื่อให้ทดสอบได้ */
+    async function eiLoadFromArrayBuffer(buf) {
+      if (typeof JSZip === 'undefined') throw new Error('ยังโหลดตัวอ่านไฟล์ Word ไม่สำเร็จ กรุณาเชื่อมอินเทอร์เน็ตแล้วรีเฟรชหน้า');
+      const zip = await JSZip.loadAsync(buf);
+      const docFile = zip.file('word/document.xml');
+      if (!docFile) throw new Error('ไฟล์นี้ไม่ใช่เอกสาร Word (.docx)');
+      const dp = new DOMParser();
+      const doc = dp.parseFromString(await docFile.async('string'), 'text/xml');
+      const rels = {};
+      const relFile = zip.file('word/_rels/document.xml.rels');
+      if (relFile) {
+        const rdoc = dp.parseFromString(await relFile.async('string'), 'text/xml');
+        const rl = rdoc.getElementsByTagName('Relationship');
+        for (let i = 0; i < rl.length; i++) rels[rl[i].getAttribute('Id')] = rl[i].getAttribute('Target');
+      }
+      const res = await window.KpacDocxExam.parse({
+        doc: doc, rels: rels,
+        mtef: window.KpacMtef, CFB: (window.XLSX && window.XLSX.CFB) || null,
+        getBinary: async function (name) {
+          const f = zip.file(name) || zip.file(name.replace(/^word\//, 'word/'));
+          return f ? new Uint8Array(await f.async('uint8array')) : null;
+        }
+      });
+      // ย่อรูปที่ฝังมาในไฟล์ (เก็บเฉพาะข้อมูลรูป ไม่เก็บไฟล์ Word)
+      const imgs = {};
+      const need = {};
+      res.mcq.concat(res.essay).forEach(function (q) {
+        (q.images || []).forEach(function (im) { need[im.img || im] = 1; });
+      });
+      for (const key of Object.keys(need)) {
+        const path = 'word/' + String(key).replace(/^\/?word\//, '');
+        const f = zip.file(path);
+        if (!f) continue;
+        imgs[key] = await _eiCompressImage(new Uint8Array(await f.async('uint8array')), path);
+      }
+      return { mcq: res.mcq, essay: res.essay, imgs: imgs };
+    }
+
+    async function eiPickFile(input) {
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      const st = document.getElementById('ei-status');
+      if (st) st.textContent = '⏳ กำลังอ่านไฟล์และถอดสมการ...';
+      try {
+        const buf = await file.arrayBuffer();
+        _eiData = await eiLoadFromArrayBuffer(buf);
+        _eiPrepare();
+        eiRender();
+        if (st) st.textContent = '✅ อ่านไฟล์เสร็จแล้ว — ไฟล์ Word ไม่ถูกเก็บไว้ในระบบ';
+      } catch (e) {
+        if (st) st.textContent = '❌ ' + (e.message || 'อ่านไฟล์ไม่สำเร็จ');
+        showToast(e.message || 'อ่านไฟล์ไม่สำเร็จ', 'error');
+      } finally {
+        input.value = '';   // ไม่ถือไฟล์ไว้ต่อ
+      }
+    }
+
+    /** เตรียมข้อมูลให้แก้ไขได้ในหน้าตัวอย่าง */
+    function _eiPrepare() {
+      if (!_eiData) return;
+      const rows = [];
+      _eiData.mcq.forEach(function (q) {
+        rows.push({
+          kind: q.isEssayLike ? 'essay' : 'choice',
+          no: q.no, text: q.text,
+          choices: (q.choices || []).map(function (c) { return c.text; }),
+          answer: q.answer || '',
+          img: (q.images && q.images.length) ? (_eiData.imgs[q.images[0].img] || '') : '',
+          issues: q.issues || [], notes: q.notes || [], drop: false
+        });
+      });
+      _eiData.essay.forEach(function (q) {
+        rows.push({
+          kind: 'essay', no: q.no, text: q.text, choices: [], answer: '',
+          img: (q.images && q.images.length) ? (_eiData.imgs[q.images[0]] || _eiData.imgs[q.images[0] && q.images[0].img] || '') : '',
+          issues: q.issues || [], notes: q.notes || [], drop: false, fromEssaySection: true
+        });
+      });
+      _eiData.rows = rows;
+    }
+
+    function _eiRowIssues(r) {
+      const out = (r.issues || []).slice();
+      if (r.kind === 'choice') {
+        const filled = r.choices.filter(function (t) { return String(t || '').trim(); });
+        if (filled.length < 2) out.push('ต้องมีตัวเลือกอย่างน้อย 2 ตัว');
+        if (!r.answer) out.push('ยังไม่ได้ติ๊กเฉลย');
+      }
+      if (!String(r.text || '').trim()) out.push('ยังไม่มีข้อความโจทย์');
+      return out.filter(function (v, i, a) { return a.indexOf(v) === i; });
+    }
+
+    function eiRender() {
+      const listEl = document.getElementById('ei-list');
+      const sumEl = document.getElementById('ei-summary');
+      if (!_eiData || !listEl) return;
+      const rows = _eiData.rows;
+      let ready = 0, needFix = 0, dropped = 0, bytes = 0, essayN = 0;
+      rows.forEach(function (r) {
+        if (r.drop) { dropped++; return; }
+        if (r.kind === 'essay') essayN++;
+        if (_eiRowIssues(r).length) needFix++; else ready++;
+        if (r.img) bytes += Math.round(r.img.length * 0.75);
+      });
+      if (sumEl) {
+        sumEl.innerHTML =
+          '<div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">' +
+          _eiTile('ทั้งหมด', rows.length - dropped + ' ข้อ', 'text-gray-700') +
+          _eiTile('พร้อมบันทึก', ready + ' ข้อ', 'text-green-600') +
+          _eiTile('ต้องแก้ก่อน', needFix + ' ข้อ', needFix ? 'text-red-600' : 'text-gray-400') +
+          _eiTile('อัตนัย', essayN + ' ข้อ', 'text-purple-600') +
+          _eiTile('ขนาดรูปรวม', (bytes / 1024).toFixed(0) + ' KB', 'text-blue-600') +
+          '</div>' +
+          (needFix ? '<p class="text-xs text-red-600 mt-2">ข้อที่ต้องแก้จะถูกบันทึกแยกไว้ในส่วน "ยังไม่สมบูรณ์" ให้มาแก้ภายหลังได้ ไม่ถูกหยิบไปออกข้อสอบ</p>' : '');
+      }
+
+      listEl.innerHTML = rows.map(function (r, i) {
+        const iss = _eiRowIssues(r);
+        const bad = iss.length > 0;
+        const head =
+          '<div class="flex items-center justify-between gap-2 flex-wrap mb-2">' +
+            '<div class="flex items-center gap-2 flex-wrap">' +
+              '<span class="font-bold text-gray-700">ข้อ ' + r.no + '</span>' +
+              '<select onchange="eiSetKind(' + i + ', this.value)" class="px-2 py-1 border rounded text-xs">' +
+                '<option value="choice"' + (r.kind === 'choice' ? ' selected' : '') + '>ปรนัย</option>' +
+                '<option value="essay"' + (r.kind === 'essay' ? ' selected' : '') + '>อัตนัย</option>' +
+              '</select>' +
+              (bad ? '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-semibold">ต้องแก้</span>'
+                   : '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-semibold">พร้อม</span>') +
+            '</div>' +
+            '<label class="text-xs text-gray-500 flex items-center gap-1"><input type="checkbox" ' + (r.drop ? 'checked' : '') +
+              ' onchange="eiSetDrop(' + i + ', this.checked)"> ไม่นำเข้าข้อนี้</label>' +
+          '</div>';
+        if (r.drop) {
+          return '<div class="border-2 border-gray-200 rounded-xl p-3 mb-2 bg-gray-50 opacity-60">' + head + '</div>';
+        }
+        const msgs = (iss.length ? '<p class="text-xs text-red-600 mb-2">⚠ ' + iss.join(' · ') + '</p>' : '') +
+                     ((r.notes || []).length ? '<p class="text-xs text-amber-600 mb-2">ℹ ' + r.notes.join(' · ') + '</p>' : '');
+        const stem =
+          '<label class="block text-xs text-gray-600 mb-1">โจทย์</label>' +
+          '<textarea rows="2" oninput="eiSetText(' + i + ', this.value)" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-sm mb-1">' +
+            _eiEsc(r.text) + '</textarea>' +
+          '<div class="text-sm bg-gray-50 rounded px-2 py-1 mb-2 ei-prev">' + _eiEsc(r.text) + '</div>';
+        const imgBox =
+          '<div class="flex items-center gap-2 mb-2 flex-wrap">' +
+            (r.img ? '<img src="' + r.img + '" class="h-16 rounded border">' : '<span class="text-xs text-gray-400">ยังไม่มีรูป</span>') +
+            '<label class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs cursor-pointer border border-blue-200">📎 แนบรูป' +
+              '<input type="file" accept="image/*" class="hidden" onchange="eiAttachImage(' + i + ', this)"></label>' +
+            (r.img ? '<button onclick="eiClearImage(' + i + ')" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">ลบรูป</button>' : '') +
+          '</div>';
+        let body = stem + imgBox;
+        if (r.kind === 'choice') {
+          const labels = ['ก', 'ข', 'ค', 'ง', 'จ'];
+          const slots = ['a', 'b', 'c', 'd', 'e'];
+          body += '<p class="text-xs text-gray-600 mb-1">ตัวเลือก (กดวงกลมหน้าข้อเพื่อตั้งเป็นเฉลย)</p>';
+          for (let k = 0; k < 5; k++) {
+            const val = r.choices[k] || '';
+            if (k >= 4 && !val) continue;
+            body +=
+              '<div class="flex items-center gap-2 mb-1">' +
+                '<input type="radio" name="ei-ans-' + i + '" ' + (r.answer === slots[k] ? 'checked' : '') +
+                  ' onchange="eiSetAnswer(' + i + ', \'' + slots[k] + '\')">' +
+                '<span class="text-xs w-4 text-gray-500">' + labels[k] + '.</span>' +
+                '<input value="' + _eiEsc(val) + '" oninput="eiSetChoice(' + i + ', ' + k + ', this.value)" ' +
+                  'class="flex-1 px-2 py-1 border-2 ' + (r.answer === slots[k] ? 'border-green-400' : 'border-gray-200') + ' rounded text-sm">' +
+              '</div>' +
+              '<div class="text-sm text-gray-600 pl-10 mb-1 ei-prev">' + _eiEsc(val) + '</div>';
+          }
+        }
+        return '<div class="border-2 ' + (bad ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white') +
+               ' rounded-xl p-3 mb-2">' + head + msgs + body + '</div>';
+      }).join('');
+
+      renderMathIn('#ei-list');
+      const btn = document.getElementById('ei-save-btn');
+      if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกเข้าคลังข้อสอบ (' + (ready + needFix) + ' ข้อ)'; }
+    }
+    function _eiTile(label, val, cls) {
+      return '<div class="bg-white border rounded-lg px-2 py-2"><p class="text-[10px] text-gray-500">' + label +
+             '</p><p class="font-bold ' + cls + '">' + val + '</p></div>';
+    }
+    function _eiEsc(t) {
+      return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function eiSetText(i, v) { if (_eiData) { _eiData.rows[i].text = v; _eiLivePrev(); } }
+    function eiSetChoice(i, k, v) { if (_eiData) { _eiData.rows[i].choices[k] = v; _eiLivePrev(); } }
+    function eiSetAnswer(i, slot) { if (_eiData) { _eiData.rows[i].answer = slot; eiRender(); } }
+    function eiSetDrop(i, on) { if (_eiData) { _eiData.rows[i].drop = !!on; eiRender(); } }
+    function eiSetKind(i, kind) {
+      if (!_eiData) return;
+      const r = _eiData.rows[i];
+      r.kind = kind;
+      if (kind === 'essay') { r.issues = (r.issues || []).filter(function (s) { return !/ตัวเลือก|เฉลย/.test(s); }); r.answer = ''; }
+      eiRender();
+    }
+    function eiClearImage(i) { if (_eiData) { _eiData.rows[i].img = ''; eiRender(); } }
+    let _eiPrevTimer = null;
+    function _eiLivePrev() {
+      clearTimeout(_eiPrevTimer);
+      _eiPrevTimer = setTimeout(function () { eiRender(); }, 700);
+    }
+    async function eiAttachImage(i, input) {
+      const f = input && input.files && input.files[0];
+      if (!f || !_eiData) return;
+      const buf = new Uint8Array(await f.arrayBuffer());
+      _eiData.rows[i].img = await _eiCompressImage(buf, f.name);
+      _eiData.rows[i].issues = (_eiData.rows[i].issues || []).filter(function (s) { return !/รูปที่วาด/.test(s); });
+      input.value = '';
+      eiRender();
+    }
+
+    async function eiSaveAll() {
+      if (!_eiData || !_eiData.rows) { showToast('ยังไม่ได้เลือกไฟล์', 'error'); return; }
+      const subject = document.getElementById('ei-subject')?.value || '';
+      const chapter = document.getElementById('ei-chapter')?.value.trim() || '';
+      const score = parseFloat(document.getElementById('ei-score')?.value) || 1;
+      if (!subject) { showToast('กรุณาเลือกวิชาปลายทางก่อน', 'error'); return; }
+
+      const rows = _eiData.rows.filter(function (r) { return !r.drop; });
+      if (!rows.length) { showToast('ไม่มีข้อที่จะบันทึก', 'error'); return; }
+
+      const btn = document.getElementById('ei-save-btn');
+      if (btn) { btn.disabled = true; }
+      let okChoice = 0, okEssay = 0, draft = 0, fail = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const iss = _eiRowIssues(r);
+        const isDraft = iss.length > 0;
+        if (btn) btn.textContent = '⏳ กำลังบันทึก ' + (i + 1) + '/' + rows.length + '...';
+        let payload;
+        if (r.kind === 'essay') {
+          payload = {
+            type: 'essay_question', subject_name: subject, chapter: chapter || null,
+            question_text: r.text || '', question_image_url: r.img || null,
+            score_per_question: score, answer_guideline: null, min_words: 0,
+            question_number: r.no || null, is_draft: isDraft,
+            import_note: isDraft ? iss.join(' · ') : null
+          };
+        } else {
+          const ch = r.choices;
+          payload = {
+            type: 'exam_question', subject_name: subject, chapter: chapter || null,
+            score_per_question: score, question_type: 'choice',
+            question_text: r.text || '', question_image_url: r.img || null,
+            choice_a: ch[0] || '', choice_b: ch[1] || '', choice_c: ch[2] || '',
+            choice_d: ch[3] || '', choice_e: ch[4] || '',
+            correct_answer: r.answer || null,
+            question_number: r.no || null, is_draft: isDraft,
+            import_note: isDraft ? iss.join(' · ') : null
+          };
+        }
+        try {
+          const res = await window.dataSdk.create(payload);
+          if (res && res.isOk) {
+            if (isDraft) draft++;
+            else if (r.kind === 'essay') okEssay++; else okChoice++;
+          } else fail++;
+        } catch (e) { fail++; }
+      }
+      const parts = [];
+      if (okChoice) parts.push('ปรนัย ' + okChoice + ' ข้อ');
+      if (okEssay) parts.push('อัตนัย ' + okEssay + ' ข้อ');
+      if (draft) parts.push('เก็บไว้แก้ภายหลัง ' + draft + ' ข้อ');
+      if (fail) parts.push('บันทึกไม่สำเร็จ ' + fail + ' ข้อ');
+      showToast('✅ บันทึกแล้ว — ' + parts.join(' · '), fail ? 'error' : 'success');
+      closeExamImportPanel();
+      if (typeof loadExamQuestionsTab === 'function') loadExamQuestionsTab();
+      if (typeof renderExamQuestionList === 'function') renderExamQuestionList();
+    }
+
     function openCreateExamQuestionPopup() {
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมต้องกดเข้าเมนู "คลังข้อสอบ" ก่อน ปุ่มสร้างข้อสอบถึงจะใช้ได้
       // เพราะรายการวิชาในช่องเลือกถูกเติมโดย loadExamQuestionsTab() ซึ่งทำงานเฉพาะตอนเปิดแท็บนั้น
@@ -12223,7 +13537,7 @@ const supabaseDataSdk = {
       const container = document.getElementById('ea-chapter-checkboxes');
       if (!container) return;
       if (!subjectName) { container.innerHTML = '<p class="text-gray-400 text-xs">กรุณาเลือกวิชาก่อน</p>'; return; }
-      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      const questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName && _qReady(d));
       const chapters = [...new Set(questions.map(q => q.chapter || 'ไม่ระบุบท'))].sort();
       if (chapters.length === 0) { container.innerHTML = '<p class="text-gray-400 text-xs">ยังไม่มีข้อสอบในคลังสำหรับวิชานี้</p>'; return; }
       container.innerHTML = chapters.map(ch => `
@@ -12250,7 +13564,7 @@ const supabaseDataSdk = {
     function updateEaRandomInfo() {
       const subjectName = document.getElementById('ea-subject')?.value || '';
       const selectedChapters = _getEaSelectedChapters();
-      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName && _qReady(d));
       if (selectedChapters) questions = questions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
       const count = parseInt(document.getElementById('ea-random-count')?.value) || 0;
       const label = document.getElementById('ea-random-info-label');
@@ -12273,7 +13587,7 @@ const supabaseDataSdk = {
       if (!picker) return;
       if (!subjectName) { picker.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">กรุณาเลือกวิชาก่อน</p>'; updateEaTotalScore(); return; }
       const selectedChapters = _getEaSelectedChapters();
-      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+      let questions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName && _qReady(d));
       if (selectedChapters) questions = questions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
       if (questions.length === 0) { picker.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ไม่พบข้อสอบที่ตรงกับเรื่อง/บทที่กรองไว้ ลองติ๊กเรื่องอื่นเพิ่ม หรือยกเลิกการกรองทั้งหมด</p>'; updateEaTotalScore(); return; }
       picker.innerHTML = questions.map((q, idx) => `
@@ -12941,7 +14255,7 @@ const supabaseDataSdk = {
         // 🎲 โหมดสุ่ม: ยังไม่กำหนดข้อสอบตายตัวตอนนี้ — จะสุ่มให้แต่ละคนตอนเริ่มทำข้อสอบจริงแทน (เก็บแค่เงื่อนไข+จำนวนไว้)
         randomCount = parseInt(document.getElementById('ea-random-count')?.value) || 0;
         if (randomCount < 1) { showToast('กรุณากำหนดจำนวนข้อที่ต้องการสุ่มอย่างน้อย 1 ข้อ', 'error'); return; }
-        let poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName);
+        let poolQuestions = allData.filter(d => d.type === 'exam_question' && d.subject_name === subjectName && _qReady(d));
         if (selectedChapters) poolQuestions = poolQuestions.filter(q => selectedChapters.includes(q.chapter || 'ไม่ระบุบท'));
         if (poolQuestions.length === 0) { showToast('ไม่มีข้อสอบในคลังที่ตรงกับเรื่อง/บทที่กรองไว้เลย กรุณาติ๊กเรื่องอื่นเพิ่ม หรือยกเลิกการกรอง', 'error'); return; }
         // ⚠️ บั๊กสำคัญที่พบ: เดิมสมมติว่า "1 ข้อ = 1 คะแนน" เสมอ แต่ระบบสุ่มจริงเลือกข้อสอบแบบกระจายตามคะแนนต่อข้อ (ยากง่าย)
@@ -14487,7 +15801,7 @@ const supabaseDataSdk = {
         const seed = _seedFromString(String(sub.student_id) + '_' + set.__backendId + '_retry' + (used + 1));
         let qs;
         if (set.is_random_mode === true || set.is_random_mode === 'true') {
-          let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(set.subject_name));
+          let pool = allData.filter(d => d.type === 'essay_question' && _eaN(d.subject_name) === _eaN(set.subject_name) && _qReady(d));
           const chs = String(set.selected_chapters || '').split(',').filter(Boolean);
           if (chs.length) pool = pool.filter(q => chs.includes(q.chapter || 'ไม่ระบุบท'));
           qs = _pickEssayRandomForStudent(pool, parseInt(set.random_count) || 1, seed).map(_essaySnap);
