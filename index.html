@@ -4077,7 +4077,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.07.226';
+    const APP_VERSION = 'SUPABASE-2026.10.07.227';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -6839,6 +6839,18 @@ const supabaseDataSdk = {
       if (hits.length === 0) return true;
       return hits.some(d => (typeof inTermView === 'function') ? inTermView(d) : true);
     }
+    /** 🗓️ ชุดสอบอยู่ในปี/ภาคที่กำลังดูหรือไม่
+     *  คลังข้อสอบไม่ขึ้นกับปี/ภาค (ผูกกับชื่อวิชาเท่านั้น) แต่การ "จัดสอบ" มอบหมายให้นักเรียนจริง
+     *  ซึ่งอิงรายวิชา และรายวิชาถูกกำหนดด้วยปี/ภาค ดังนั้นรายการจัดสอบต้องแสดงตามปี/ภาค
+     *  แถวใหม่มีคอลัมน์ปี/ภาคประทับไว้แล้ว · แถวเดิมที่ยังไม่มี ตัดสินจากชั้น/ห้อง/วิชาของมันเอง */
+    function _setInTermView(row) {
+      if (!row) return true;
+      const hasTerm = String(row.academic_year == null ? '' : row.academic_year).trim() !== ''
+                   && String(row.semester == null ? '' : row.semester).trim() !== '';
+      if (hasTerm) return (typeof inTermView === 'function') ? inTermView(row) : true;
+      return _crsInTermView(row);
+    }
+
     /** 📚 ชื่อวิชาทั้งหมดในระบบ (ไม่เกี่ยวกับปี/ภาคเลย)
      *  คลังข้อสอบผูกกับ "ชื่อวิชา" เท่านั้น วิชาชื่อเดียวกันของคนละเทอมถือเป็นวิชาเดียวกันในคลัง
      *  รวมชื่อวิชาที่มีข้อสอบอยู่แล้วแต่ไม่มีในตารางรายวิชาด้วย เพื่อไม่ให้ข้อสอบเก่าหาไม่เจอ */
@@ -7090,11 +7102,15 @@ const supabaseDataSdk = {
     }
     /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
     function _stampTermOnNew(record) {
-      const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours', 'homework'];
+      const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours', 'homework',
+        'exam_set', 'essay_exam_set'];   // 🗓️ ชุดสอบอิงรายวิชา จึงต้องรู้ว่าเป็นของปี/ภาคไหน
       if (!record || STAMP.indexOf(record.type) < 0) return record;
       // 📅 คะแนนเต็ม/หน่วยกิต ยึดปี/ภาคตาม "รายวิชา" ของตัวเอง (มาจากการนำเข้าวิชา)
       //    ไม่ใช่ตามเทอมที่เปิดใช้งาน เพราะครูอาจกำลังแก้คะแนนเต็มของเทอมเก่าอยู่
-      if (record.type === 'class_subject_scores' || record.type === 'class_subject_hours') {
+      // 📝 ชุดสอบก็อิง "รายวิชา" เช่นกัน — ประทับปี/ภาคของรายวิชาที่มอบหมายให้ ไม่ใช่เทอมที่เปิดใช้งาน
+      //    (ครูอาจกำลังทำงานอยู่ในภาคที่ยังไม่เปิดใช้งาน แต่จัดสอบให้วิชาของภาคนั้น)
+      if (record.type === 'class_subject_scores' || record.type === 'class_subject_hours'
+          || record.type === 'exam_set' || record.type === 'essay_exam_set') {
         const own = _subjectTermFor(record);
         if (own) {
           if (String(record.academic_year ?? '').trim() === '') record.academic_year = own.year;
@@ -12459,10 +12475,12 @@ const supabaseDataSdk = {
     function renderEssayExamSetList() {
       const listEl = document.getElementById('esa-list');
       if (!listEl) return;
-      const sets = allData.filter(d => d.type === 'essay_exam_set')
+      // 🗓️ แสดงเฉพาะชุดสอบของปี/ภาคที่กำลังดู (ชุดสอบอิงรายวิชา รายวิชาอิงปี/ภาค)
+      const sets = allData.filter(d => d.type === 'essay_exam_set').filter(_setInTermView)
         .sort((a,b) => new Date(b.start_time||0) - new Date(a.start_time||0));
       if (sets.length === 0) {
-        listEl.innerHTML = '<p class="text-gray-400 text-center py-6">ยังไม่มีการมอบหมายข้อสอบอัตนัย</p>';
+        const lbl = (typeof workingTermLabel === 'function') ? workingTermLabel() : '';
+        listEl.innerHTML = `<p class="text-gray-400 text-center py-6">ยังไม่มีการมอบหมายข้อสอบอัตนัยของ ${escHtml(lbl)}</p>`;
         return;
       }
       const now = new Date();
@@ -14610,8 +14628,14 @@ const supabaseDataSdk = {
     function renderExamSetList() {
       const listEl = document.getElementById('ea-list');
       if (!listEl) return;
-      const sets = allData.filter(d => d.type === 'exam_set').sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'') || (a.room_number||'').localeCompare(b.room_number||''));
-      if (sets.length === 0) { listEl.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีการมอบหมายชุดสอบ</p>'; return; }
+      // 🗓️ แสดงเฉพาะชุดสอบของปี/ภาคที่กำลังดู (ชุดสอบอิงรายวิชา รายวิชาอิงปี/ภาค)
+      const sets = allData.filter(d => d.type === 'exam_set').filter(_setInTermView)
+        .sort((a,b) => (a.class_name||'').localeCompare(b.class_name||'') || (a.room_number||'').localeCompare(b.room_number||''));
+      if (sets.length === 0) {
+        const lbl = (typeof workingTermLabel === 'function') ? workingTermLabel() : '';
+        listEl.innerHTML = `<p class="text-gray-400 text-center py-8">ยังไม่มีการมอบหมายชุดสอบของ ${escHtml(lbl)}</p>`;
+        return;
+      }
       const now = new Date();
       listEl.innerHTML = sets.map(s => {
         const start = new Date(s.start_time);
