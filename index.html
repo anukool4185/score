@@ -649,6 +649,39 @@
     return false;
   }
 
+  /** อ่าน <w:tbl> เป็นตารางข้อมูล { c, h, r } — คืน null ถ้าไม่ใช่ตารางข้อมูลจริง */
+  async function readTable(tbl, ctx) {
+    const rows = [];
+    const trs = childElems(tbl, 'w:tr');
+    for (let i = 0; i < trs.length; i++) {
+      const cells = [];
+      const tcs = childElems(trs[i], 'w:tc');
+      for (let j = 0; j < tcs.length; j++) {
+        const segs = [];
+        const ps = tcs[j].getElementsByTagName('w:p');
+        for (let k = 0; k < ps.length; k++) {
+          const sg = await paragraphSegs(ps[k], ctx);
+          sg.forEach(function (x) { segs.push(x); });
+          segs.push({ t: ' ', red: false });
+        }
+        cells.push(segs.map(function (x) { return x.t || ''; }).join('').replace(/\s+/g, ' ').trim());
+      }
+      rows.push(cells);
+    }
+    if (!rows.length) return null;
+    // ตัดตารางที่ไม่ใช่ข้อมูล: หัวกระดาษ ตารางลายเซ็น ตารางช่องเดียว และตารางว่าง
+    const w = Math.max.apply(null, rows.map(function (r) { return r.length; }));
+    const filled = rows.reduce(function (a, r) { return a + r.filter(function (c) { return c; }).length; }, 0);
+    if (w < 2 || filled < 3) return null;
+    const flat = rows.map(function (r) { return r.join(' '); }).join(' ');
+    // ตารางหัวกระดาษของข้อสอบ (รายวิชา/รหัสวิชา/กลุ่มสาระ/ชั้น/เวลา) และตารางลายเซ็น ไม่ใช่ตารางข้อมูล
+    if (/ลงชื่อ|ผู้ตรวจ|ครูผู้สอน|หัวหน้ากลุ่ม|โรงเรียน|ปีการศึกษา|แบบทดสอบ/.test(flat)) return null;
+    if (/รายวิชา|รหัสวิชา|กลุ่มสาระ|ชั้นมัธยมศึกษา|ภาคเรียน|จำนวนนักเรียน|ข้อสอบมี|เวลา\s*\d+\s*นาที/.test(flat)) return null;
+    // เติมช่องให้ครบความกว้างเท่ากันทุกแถว
+    rows.forEach(function (r) { while (r.length < w) r.push(''); });
+    return { c: '', h: true, r: rows };
+  }
+
   /* ═════════════ ประกอบเป็นข้อสอบ ═════════════ */
 
   const JUNK = [
@@ -701,7 +734,13 @@
     const tops = childElems(body);
     for (let i = 0; i < tops.length; i++) {
       const el = tops[i];
-      if (el.nodeName !== 'w:p') continue;                 // ตารางเป็นหัวกระดาษ ไม่ใช่เนื้อข้อสอบ
+      if (el.nodeName === 'w:tbl') {
+        // 📊 ตารางข้อมูล — เก็บไว้ในลำดับเดิม เพื่อให้ตกอยู่ในช่วงของข้อที่ถูกต้อง
+        const tb = await readTable(el, ctx);
+        paras.push({ segs: tb ? [{ tbl: tb, red: false }] : [], text: '', isTable: true });
+        continue;
+      }
+      if (el.nodeName !== 'w:p') continue;
       const segs = await paragraphSegs(el, ctx);
       const text = segs.map(function (s) { return s.t || (s.img ? ' ' : ''); }).join('');
       paras.push({ segs: segs, text: text });
@@ -774,7 +813,8 @@
       if (/^\s*(ตอนที่\s*[2๒]|ข้อสอบอัตนัย|โจทย์\s)/.test(paras[i].text) ||
           /^\s*ตอนที่\s*[2๒]/.test(paras[i].text)) { essayFrom = i; break; }
     }
-    const limit = paras.length;
+    // ข้อสุดท้ายต้องไม่ลากเนื้อหาไปถึงท้ายเอกสาร (จะติดหัวกระดาษและบล็อกลายเซ็นมาด้วย)
+    const limit = essayFrom >= 0 ? essayFrom : paras.length;
     while (mcqStarts.length && essayFrom >= 0 && mcqStarts[mcqStarts.length - 1].p >= essayFrom) mcqStarts.pop();
 
     // 4) ตัดเนื้อหาแต่ละข้อ แล้วแยกโจทย์กับตัวเลือก
@@ -812,6 +852,7 @@
         segs.push({ t: '\n', red: false });
       }
       const q2 = buildQuestion(st.no, segs);
+      q2.tables = segs.filter(function (x) { return x.tbl; }).map(function (x) { return x.tbl; });
       // โจทย์ร่วมของช่วงที่ครอบข้อนี้
       stems.forEach(function (x) {
         if (st.no < x.from || st.no > x.to) return;
@@ -820,6 +861,7 @@
         const stemText = clean(sg.map(function (s) { return s.t || ''; }).join(''));
         if (stemText) q2.sharedStem = (q2.sharedStem ? q2.sharedStem + ' ' : '') + stemText;
         sg.forEach(function (s) { if (s.img) q2.images.unshift({ img: s.img, at: -1, fromStem: true }); });
+        sg.forEach(function (s) { if (s.tbl) q2.tables.unshift(s.tbl); });
       });
       if (q2.sharedStem) q2.text = q2.sharedStem + '\n' + q2.text;
       mcq.push(q2);
@@ -837,13 +879,14 @@
         const a = starts[k], b = k + 1 < starts.length ? starts[k + 1] : paras.length;
         const segs = [];
         for (let i = a; i < b; i++) {
-          if (isJunkPara(paras[i].text)) continue;
+          if (!paras[i].isTable && isJunkPara(paras[i].text)) continue;   // ย่อหน้าตารางมีข้อความว่าง ต้องไม่ทิ้ง
           paras[i].segs.forEach(function (s) { segs.push(s); });
           segs.push({ t: ' ', red: false });
         }
         const imgs = segs.filter(function (s) { return s.img; }).map(function (s) { return s.img; });
+        const tbls = segs.filter(function (s) { return s.tbl; }).map(function (s) { return s.tbl; });
         const txt = stripJunk(segs.map(function (s) { return s.t || ''; }).join('')).replace(/^\s*(\d+\s*[.)]|โจทย์)\s*/, '');
-        if (txt) essay.push({ no: k + 1, text: txt, images: imgs, notes: [],
+        if (txt) essay.push({ no: k + 1, text: txt, images: imgs, tables: tbls, notes: [],
                               issues: txt.length < 8 ? ['โจทย์สั้นผิดปกติ ตรวจอีกครั้ง'] : [] });
       }
     }
@@ -3590,6 +3633,12 @@
           <div id="eq-image-preview" class="mt-2"></div>
          </div>
 
+         <div class="mb-3">
+          <label class="block text-xs text-gray-600 mb-1">📊 ตารางข้อมูลประกอบ (ถ้ามี) — คลิกช่องแล้วพิมพ์ หรือคัดลอกตารางจาก Excel/Word แล้ววางที่ช่องแรกได้เลย · ใส่สมการคร่อม $...$ ได้</label>
+          <div id="eq-tables"></div>
+          <button type="button" onclick="qtAddTable('eq')" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตารางข้อมูล</button>
+         </div>
+
          <div id="eq-choices-section">
           <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก (ระบุเฉพาะข้อที่ใช้ ก-ง หรือเพิ่ม จ ได้) — ใส่รูปภาพประกอบแต่ละตัวเลือกได้ (ไม่บังคับ)</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
@@ -3692,6 +3741,12 @@
          <div class="mb-3">
           <label class="block text-xs text-gray-600 mb-1">🖼️ ลิงก์รูปประกอบ (ถ้ามี)</label>
           <input type="text" id="esq-image-url" placeholder="วางลิงก์รูปภาพ" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+         </div>
+
+         <div class="mb-3">
+          <label class="block text-xs text-gray-600 mb-1">📊 ตารางข้อมูลประกอบ (ถ้ามี) — คลิกช่องแล้วพิมพ์ หรือคัดลอกตารางจาก Excel/Word แล้ววางที่ช่องแรกได้เลย · ใส่สมการคร่อม $...$ ได้</label>
+          <div id="esq-tables"></div>
+          <button type="button" onclick="qtAddTable('esq')" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตารางข้อมูล</button>
          </div>
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <div>
@@ -4077,7 +4132,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.07.227';
+    const APP_VERSION = 'SUPABASE-2026.10.07.230';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4588,6 +4643,13 @@ const supabaseDataSdk = {
         window._missingDbColumns.add(badCol);
         return this._api(method, path, newBody, _tries + 1);
       }
+      // 📏 ค่ายาวเกินที่คอลัมน์รับได้ — พบบ่อยกับข้อสอบที่มีสมการ (LaTeX ยาว) หรือมีรูปฝังในตัวข้อ
+      const longMatch = txt.match(/value too long for type character varying\((\d+)\)/);
+      if (longMatch) {
+        const tbl = String(path).split('?')[0];
+        throw new Error(`ข้อความยาวเกินที่ตาราง ${tbl} รับได้ (คอลัมน์จำกัดไว้ ${longMatch[1]} ตัวอักษร) `
+          + `— พบบ่อยกับข้อสอบที่มีสมการหรือมีรูปฝังอยู่ กรุณารันไฟล์ widen_text_columns.sql ใน Supabase แล้วลองอีกครั้ง`);
+      }
       // 🚫 ชนกฎห้ามซ้ำของตาราง — แปลเป็นภาษาคนให้เข้าใจว่าต้องทำอะไร
       if (txt.includes('uniq_essay_exam_set')) {
         throw new Error('ตารางอัตนัยยังห้ามตั้งชุดสอบซ้ำในครั้งเดียวกัน — กรุณารันไฟล์ add_essay_score_mode.sql ใน Supabase ก่อน');
@@ -4981,7 +5043,17 @@ const supabaseDataSdk = {
       if (!table || !record.__backendId) {
         return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการแก้ไข' } };
       }
-      await this._api('PATCH', `${table}?id=eq.${record.__backendId}`, this._toSupabase(record));
+      const _upd = await this._api('PATCH', `${table}?id=eq.${record.__backendId}`, this._toSupabase(record));
+      // 🔍 ตรวจว่าฐานข้อมูล "แก้จริง" ไหม
+      // PostgREST ส่ง Prefer: return=representation ไปแล้ว ถ้าแก้สำเร็จจะได้แถวที่แก้กลับมา
+      // ถ้าได้อาร์เรย์ว่างแต่แถวยังอยู่ = ไม่มีสิทธิ์แก้ (RLS) ซึ่ง Supabase ตอบเงียบๆ เหมือนสำเร็จ
+      // เดิมระบบเชื่อว่าสำเร็จ จึงแสดงผลให้เห็นว่าแก้แล้ว แต่พอรีเฟรชข้อมูลก็กลับมาเป็นค่าเดิม
+      if (Array.isArray(_upd) && _upd.length === 0) {
+        const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
+        if (Array.isArray(still) && still.length > 0) {
+          return { isOk: false, error: { message: `ฐานข้อมูลไม่ยอมแก้แถวนี้ (ตาราง ${table}) — มักเกิดจากยังไม่ได้เปิดสิทธิ์แก้ไข (RLS) กรุณารันไฟล์ fix_delete_policy.sql ใน Supabase แล้วลองอีกครั้ง` } };
+        }
+      }
       // ⚡ อัปเดตในเครื่องทันที
       // ⚠️ บั๊กสำคัญที่พบและแก้แล้ว: เดิมเทียบแค่รหัส ไม่ได้เช็คประเภทข้อมูล
       // เนื่องจากแต่ละตารางมีรหัสของตัวเอง จึงมีรหัสซ้ำกันได้ (เช่น นักเรียนรหัส 52 และลงทะเบียนรหัส 52)
@@ -7102,15 +7174,13 @@ const supabaseDataSdk = {
     }
     /** ประทับปี/ภาคให้ข้อมูลใหม่ — ใช้จุดเดียวครอบทุกเส้นทางที่สร้างนักเรียน/การลงทะเบียน */
     function _stampTermOnNew(record) {
-      const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours', 'homework',
-        'exam_set', 'essay_exam_set'];   // 🗓️ ชุดสอบอิงรายวิชา จึงต้องรู้ว่าเป็นของปี/ภาคไหน
+      // 🗓️ หมายเหตุ: ไม่ประทับปี/ภาคให้ชุดสอบ เพราะตาราง exam_sets / essay_exam_sets ไม่มีคอลัมน์นี้
+      //    และ _setInTermView() ตัดสินเทอมของชุดสอบจากชั้น/ห้อง/วิชาของมันเองได้อยู่แล้ว
+      const STAMP = ['student', 'student_registration', 'grade', 'class_subject', 'class_subject_scores', 'class_subject_hours', 'homework'];
       if (!record || STAMP.indexOf(record.type) < 0) return record;
       // 📅 คะแนนเต็ม/หน่วยกิต ยึดปี/ภาคตาม "รายวิชา" ของตัวเอง (มาจากการนำเข้าวิชา)
       //    ไม่ใช่ตามเทอมที่เปิดใช้งาน เพราะครูอาจกำลังแก้คะแนนเต็มของเทอมเก่าอยู่
-      // 📝 ชุดสอบก็อิง "รายวิชา" เช่นกัน — ประทับปี/ภาคของรายวิชาที่มอบหมายให้ ไม่ใช่เทอมที่เปิดใช้งาน
-      //    (ครูอาจกำลังทำงานอยู่ในภาคที่ยังไม่เปิดใช้งาน แต่จัดสอบให้วิชาของภาคนั้น)
-      if (record.type === 'class_subject_scores' || record.type === 'class_subject_hours'
-          || record.type === 'exam_set' || record.type === 'essay_exam_set') {
+      if (record.type === 'class_subject_scores' || record.type === 'class_subject_hours') {
         const own = _subjectTermFor(record);
         if (own) {
           if (String(record.academic_year ?? '').trim() === '') record.academic_year = own.year;
@@ -11796,6 +11866,7 @@ const supabaseDataSdk = {
         question_type: questionType,
         question_text: questionText,
         question_image_url: imageUrl,
+        question_tables: qtValue('eq'),
       };
 
       if (questionType === 'choice') {
@@ -11839,7 +11910,7 @@ const supabaseDataSdk = {
         updateEqChapterFilterOptions();
         renderExamQuestionList(); // รายการอัปเดตให้เห็นการแก้ไขตรงตำแหน่งเดิมทันที
       } else {
-        showToast('บันทึกไม่สำเร็จ', 'error');
+        showToast('❌ บันทึกไม่สำเร็จ — ' + ((result && result.error && result.error.message) || 'ฐานข้อมูลไม่ตอบรับ'), 'error');
       }
     }
 
@@ -11851,6 +11922,7 @@ const supabaseDataSdk = {
       document.getElementById('eq-question-text').value = '';
       document.getElementById('eq-image-url').value = '';
       document.getElementById('eq-image-preview').innerHTML = '';
+      qtLoad('eq', null);   // 📊 เริ่มจากไม่มีตารางข้อมูล
       ['a','b','c','d','e'].forEach(l => {
         document.getElementById(`eq-choice-${l}`).value = '';
         const imgEl = document.getElementById(`eq-choice-${l}-image`);
@@ -11917,6 +11989,7 @@ const supabaseDataSdk = {
                 ${draftHtml}
                 <p class="font-medium text-gray-800 mt-1">${q.question_text}</p>
                 ${imgHtml}
+                ${_qtHtml(q.question_tables)}
                 ${choicesHtml}
               </div>
               <div class="flex gap-1 flex-shrink-0">
@@ -11964,6 +12037,7 @@ const supabaseDataSdk = {
       document.getElementById('eq-score').value = q.score_per_question || 1;
       document.getElementById('eq-question-text').value = q.question_text || '';
       document.getElementById('eq-image-url').value = q.question_image_url || '';
+      qtLoad('eq', q.question_tables);
       document.getElementById('eq-image-preview').innerHTML = q.question_image_url ? `<img src="${q.question_image_url}" style="max-height:120px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'">` : '';
       const typeRadio = document.querySelector(`input[name="eq-type"][value="${q.question_type}"]`);
       if (typeRadio) typeRadio.checked = true;
@@ -12102,7 +12176,7 @@ const supabaseDataSdk = {
           <input type="checkbox" class="esa-q-check mt-1" value="${q.__backendId}" data-score="${q.score_per_question || 0}" onchange="updateEsaTotalScore()">
           <div class="flex-1 min-w-0">
             <p class="text-xs text-gray-500">${escHtml(q.chapter || 'ไม่ระบุบท')} · ${q.score_per_question || 0} คะแนน${parseInt(q.min_words) > 0 ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''}</p>
-            <p class="text-sm text-gray-800">${i+1}. ${escHtml(q.question_text || '')}</p>
+            <p class="text-sm text-gray-800">${i+1}. ${escHtml(q.question_text || '')}${_qtBadge(q.question_tables)}</p>
           </div>
         </label>`).join('');
       updateEsaTotalScore();
@@ -12219,7 +12293,7 @@ const supabaseDataSdk = {
       return picked;
     }
     function _essaySnap(q) {
-      return { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+      return { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
         score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words, chapter: q.chapter };
     }
 
@@ -12645,7 +12719,7 @@ const supabaseDataSdk = {
                 ${escHtml(q.subject_name || '-')} · ${escHtml(q.chapter || 'ไม่ระบุบท')} · ${q.score_per_question || 0} คะแนน
                 ${parseInt(q.min_words) > 0 ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''}
               </p>
-              <p class="text-sm text-gray-800 font-medium">${idx+1}. ${escHtml(q.question_text || '')}</p>
+              <p class="text-sm text-gray-800 font-medium">${idx+1}. ${escHtml(q.question_text || '')}${_qtBadge(q.question_tables)}</p>
               ${q.question_image_url ? `<img src="${escHtml(q.question_image_url)}" style="max-height:100px;border-radius:8px;margin-top:6px" onerror="this.style.display='none'">` : ''}
               ${q.answer_guideline ? `<p class="text-xs text-green-700 mt-2 bg-green-50 rounded p-2">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
             </div>
@@ -12890,6 +12964,7 @@ const supabaseDataSdk = {
       document.getElementById('esq-question-text').value = '';
       document.getElementById('esq-image-url').value = '';
       document.getElementById('esq-guideline').value = '';
+      qtLoad('esq', null);
     }
 
     /** บันทึกข้อสอบอัตนัย (สร้างใหม่ หรือแก้ไข) */
@@ -12916,6 +12991,7 @@ const supabaseDataSdk = {
           chapter: chapter || null,
           question_text: text,
           question_image_url: imageUrl || null,
+          question_tables: qtValue('esq'),
           score_per_question: score,
           answer_guideline: guideline || null,
           min_words: minWords,
@@ -12954,6 +13030,7 @@ const supabaseDataSdk = {
       document.getElementById('esq-image-url').value = q.question_image_url || '';
       document.getElementById('esq-guideline').value = q.answer_guideline || '';
       document.getElementById('esq-min-words').value = q.min_words || 0;
+      qtLoad('esq', q.question_tables);
       _showEsqFormAsPopup();
     }
 
@@ -12969,6 +13046,154 @@ const supabaseDataSdk = {
       } else {
         showToast('ลบไม่สำเร็จ', 'error');
       }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 📊 ตารางข้อมูลในข้อสอบ — เก็บเป็นข้อความ JSON ที่คอลัมน์ question_tables
+    //    รูปแบบ: [ { c:"ชื่อตาราง", h:true, r:[["x","f"],["1","2"]] } ]
+    //    หนึ่งข้อมีได้หลายตาราง · ช่องในตารางใส่สมการคร่อม $...$ ได้
+    // ══════════════════════════════════════════════════════════════
+    function _qtParse(raw) {
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      try {
+        const v = JSON.parse(String(raw));
+        if (!Array.isArray(v)) return [];
+        return v.filter(t => t && Array.isArray(t.r) && t.r.length);
+      } catch (e) { return []; }
+    }
+    function _qtStringify(list) {
+      const clean = (list || []).filter(t => t && Array.isArray(t.r) && t.r.some(row => row.some(c => String(c == null ? '' : c).trim())));
+      return clean.length ? JSON.stringify(clean) : null;
+    }
+    /** วาดตารางข้อมูลเป็น HTML — ใช้ได้ทุกหน้าที่แสดงโจทย์ */
+    function _qtHtml(raw, opt) {
+      const list = _qtParse(raw);
+      if (!list.length) return '';
+      const small = opt && opt.small;
+      const fs = small ? '11px' : '13px';
+      return list.map(t => {
+        const rows = t.r.map(r => Array.isArray(r) ? r : [r]);
+        const head = (t.h !== false) ? rows[0] : null;
+        const body = head ? rows.slice(1) : rows;
+        const cell = (v, th) => {
+          const tag = th ? 'th' : 'td';
+          const bg = th ? 'background:#f1f5f9;font-weight:700;' : '';
+          return `<${tag} style="border:1px solid #cbd5e1;padding:${small ? '3px 6px' : '6px 10px'};${bg}text-align:center;white-space:nowrap">${escHtml(String(v == null ? '' : v))}</${tag}>`;
+        };
+        return `<div style="overflow-x:auto;margin:8px 0">`
+          + (t.c ? `<p style="font-size:${fs};font-weight:600;color:#475569;margin:0 0 4px">${escHtml(String(t.c))}</p>` : '')
+          + `<table style="border-collapse:collapse;font-size:${fs};color:#1e293b">`
+          + (head ? `<thead><tr>${head.map(v => cell(v, true)).join('')}</tr></thead>` : '')
+          + `<tbody>${body.map(r => `<tr>${r.map(v => cell(v, false)).join('')}</tr>`).join('')}</tbody>`
+          + `</table></div>`;
+      }).join('');
+    }
+    /** ป้ายเล็ก ๆ บอกว่าข้อนี้มีตารางข้อมูล (ใช้ในรายการที่พื้นที่น้อย) */
+    function _qtBadge(raw) {
+      const n = _qtParse(raw).length;
+      return n ? ` <span style="font-size:10px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 5px">📊 ${n} ตาราง</span>` : '';
+    }
+
+
+    // ══════════════════════════════════════════════════════════════
+    // 📊 ตัวแก้ตารางข้อมูลในฟอร์มข้อสอบ (ใช้ร่วมกันทั้งปรนัย 'eq' และอัตนัย 'esq')
+    //    กรอกในช่องได้ทีละช่อง และคัดลอกตารางจาก Excel/Word มาวางทีเดียวก็ได้
+    // ══════════════════════════════════════════════════════════════
+    const _qtState = { eq: [], esq: [] };
+
+    function qtLoad(pfx, raw) { _qtState[pfx] = _qtParse(raw).map(t => ({
+      c: t.c || '', h: t.h !== false,
+      r: (t.r || []).map(row => (Array.isArray(row) ? row : [row]).map(v => String(v == null ? '' : v)))
+    })); qtRender(pfx); }
+    function qtValue(pfx) { return _qtStringify(_qtState[pfx]); }
+
+    function qtAddTable(pfx) {
+      _qtState[pfx].push({ c: '', h: true, r: [['', ''], ['', '']] });
+      qtRender(pfx);
+    }
+    function qtDelTable(pfx, i) { _qtState[pfx].splice(i, 1); qtRender(pfx); }
+    function qtAddRow(pfx, i) {
+      const t = _qtState[pfx][i]; const w = Math.max(1, (t.r[0] || []).length);
+      t.r.push(new Array(w).fill('')); qtRender(pfx);
+    }
+    function qtDelRow(pfx, i) { const t = _qtState[pfx][i]; if (t.r.length > 1) t.r.pop(); qtRender(pfx); }
+    function qtAddCol(pfx, i) { _qtState[pfx][i].r.forEach(r => r.push('')); qtRender(pfx); }
+    function qtDelCol(pfx, i) {
+      const t = _qtState[pfx][i];
+      if ((t.r[0] || []).length > 1) t.r.forEach(r => r.pop());
+      qtRender(pfx);
+    }
+    function qtToggleHead(pfx, i, on) { _qtState[pfx][i].h = !!on; qtRender(pfx); }
+    function qtSetCaption(pfx, i, v) { _qtState[pfx][i].c = v; qtPreview(pfx, i); }
+    function qtSetCell(pfx, i, r, c, v) { _qtState[pfx][i].r[r][c] = v; qtPreview(pfx, i); }
+
+    /** วางตารางจาก Excel/Word — ขยายแถวและหลักให้พอดีกับที่วาง */
+    function qtCellPaste(pfx, i, r0, c0, ev) {
+      const cb = ev && (ev.clipboardData || window.clipboardData);
+      const txt = cb ? cb.getData('text/plain') : '';
+      if (!txt || (txt.indexOf('\t') < 0 && txt.indexOf('\n') < 0)) return;   // วางค่าเดียว ปล่อยให้เป็นปกติ
+      ev.preventDefault();
+      const grid = txt.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n+$/, '')
+        .split('\n').map(line => line.split('\t'));
+      const t = _qtState[pfx][i];
+      const needR = r0 + grid.length, needC = c0 + Math.max.apply(null, grid.map(g => g.length));
+      while (t.r.length < needR) t.r.push([]);
+      t.r.forEach(row => { while (row.length < Math.max(needC, (t.r[0] || []).length)) row.push(''); });
+      grid.forEach((row, ri) => row.forEach((v, ci) => { t.r[r0 + ri][c0 + ci] = String(v).trim(); }));
+      const w = Math.max.apply(null, t.r.map(row => row.length));
+      t.r.forEach(row => { while (row.length < w) row.push(''); });
+      qtRender(pfx);
+      showToast('📊 วางตาราง ' + grid.length + ' แถว × ' + (needC - c0) + ' หลัก แล้ว');
+    }
+
+    function qtPreview(pfx, i) {
+      const el = document.getElementById(pfx + '-tprev-' + i);
+      if (el) { el.innerHTML = _qtHtml([_qtState[pfx][i]], { small: true }); renderMathIn('#' + pfx + '-tprev-' + i); }
+    }
+
+    function qtRender(pfx) {
+      const box = document.getElementById(pfx + '-tables');
+      if (!box) return;
+      const list = _qtState[pfx];
+      box.innerHTML = list.map((t, i) => {
+        const w = Math.max.apply(null, t.r.map(r => r.length));
+        const rowsHtml = t.r.map((row, ri) => '<tr>' + (function () {
+          let cells = '';
+          for (let ci = 0; ci < w; ci++) {
+            const isHead = t.h && ri === 0;
+            cells += '<td style="padding:1px">'
+              + '<input value="' + escHtml(String(row[ci] == null ? '' : row[ci])) + '"'
+              + ' oninput="qtSetCell(\'' + pfx + '\',' + i + ',' + ri + ',' + ci + ',this.value)"'
+              + ' onpaste="qtCellPaste(\'' + pfx + '\',' + i + ',' + ri + ',' + ci + ',event)"'
+              + ' style="width:92px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;text-align:center'
+              + (isHead ? ';background:#f1f5f9;font-weight:700' : '') + '">'
+              + '</td>';
+          }
+          return cells;
+        })() + '</tr>').join('');
+        return '<div class="border-2 border-gray-200 rounded-lg p-2 mb-2 bg-white">'
+          + '<div class="flex items-center gap-2 mb-2 flex-wrap">'
+          +   '<span class="text-xs font-bold text-gray-600">ตารางที่ ' + (i + 1) + '</span>'
+          +   '<input value="' + escHtml(String(t.c || '')) + '" placeholder="ชื่อตาราง (ไม่ใส่ก็ได้)"'
+          +     ' oninput="qtSetCaption(\'' + pfx + '\',' + i + ',this.value)"'
+          +     ' class="flex-1 min-w-[140px] px-2 py-1 border-2 border-gray-200 rounded text-xs">'
+          +   '<label class="text-xs text-gray-600 flex items-center gap-1"><input type="checkbox" ' + (t.h ? 'checked' : '')
+          +     ' onchange="qtToggleHead(\'' + pfx + '\',' + i + ',this.checked)"> แถวแรกเป็นหัวตาราง</label>'
+          +   '<button type="button" onclick="qtDelTable(\'' + pfx + '\',' + i + ')" class="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-xs">🗑️ ลบตาราง</button>'
+          + '</div>'
+          + '<div style="overflow-x:auto"><table style="border-collapse:collapse">' + rowsHtml + '</table></div>'
+          + '<div class="flex gap-1 mt-2 flex-wrap">'
+          +   '<button type="button" onclick="qtAddRow(\'' + pfx + '\',' + i + ')" class="px-2 py-1 bg-gray-100 rounded text-xs">➕ แถว</button>'
+          +   '<button type="button" onclick="qtDelRow(\'' + pfx + '\',' + i + ')" class="px-2 py-1 bg-gray-100 rounded text-xs">➖ แถว</button>'
+          +   '<button type="button" onclick="qtAddCol(\'' + pfx + '\',' + i + ')" class="px-2 py-1 bg-gray-100 rounded text-xs">➕ หลัก</button>'
+          +   '<button type="button" onclick="qtDelCol(\'' + pfx + '\',' + i + ')" class="px-2 py-1 bg-gray-100 rounded text-xs">➖ หลัก</button>'
+          + '</div>'
+          + '<p class="text-[10px] text-gray-400 mt-2 mb-1">👁️ ตารางที่นักเรียนจะเห็น</p>'
+          + '<div id="' + pfx + '-tprev-' + i + '"></div>'
+          + '</div>';
+      }).join('');
+      list.forEach((t, i) => qtPreview(pfx, i));
     }
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
@@ -13102,6 +13327,7 @@ const supabaseDataSdk = {
           choices: (q.choices || []).map(function (c) { return c.text; }),
           answer: q.answer || '',
           img: (q.images && q.images.length) ? (_eiData.imgs[q.images[0].img] || '') : '',
+          tables: q.tables || [],
           issues: q.issues || [], notes: q.notes || [], drop: false
         });
       });
@@ -13109,6 +13335,7 @@ const supabaseDataSdk = {
         rows.push({
           kind: 'essay', no: q.no, text: q.text, choices: [], answer: '',
           img: (q.images && q.images.length) ? (_eiData.imgs[q.images[0]] || _eiData.imgs[q.images[0] && q.images[0].img] || '') : '',
+          tables: q.tables || [],
           issues: q.issues || [], notes: q.notes || [], drop: false, fromEssaySection: true
         });
       });
@@ -13184,7 +13411,12 @@ const supabaseDataSdk = {
               '<input type="file" accept="image/*" class="hidden" onchange="eiAttachImage(' + i + ', this)"></label>' +
             (r.img ? '<button onclick="eiClearImage(' + i + ')" class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">ลบรูป</button>' : '') +
           '</div>';
-        let body = stem + imgBox;
+        const tblBox = (r.tables && r.tables.length)
+          ? '<div class="mb-2"><p class="text-xs text-sky-700 font-semibold mb-1">📊 ตารางข้อมูลที่ดึงมาจากไฟล์ ' + r.tables.length + ' ตาราง'
+            + ' <button onclick="eiClearTables(' + i + ')" class="ml-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">ลบตาราง</button></p>'
+            + _qtHtml(r.tables, { small: true }) + '</div>'
+          : '';
+        let body = stem + imgBox + tblBox;
         if (r.kind === 'choice') {
           const labels = ['ก', 'ข', 'ค', 'ง', 'จ'];
           const slots = ['a', 'b', 'c', 'd', 'e'];
@@ -13231,6 +13463,7 @@ const supabaseDataSdk = {
       eiRender();
     }
     function eiClearImage(i) { if (_eiData) { _eiData.rows[i].img = ''; eiRender(); } }
+    function eiClearTables(i) { if (_eiData) { _eiData.rows[i].tables = []; eiRender(); } }
     let _eiPrevTimer = null;
     function _eiLivePrev() {
       clearTimeout(_eiPrevTimer);
@@ -13259,6 +13492,8 @@ const supabaseDataSdk = {
       const btn = document.getElementById('ei-save-btn');
       if (btn) { btn.disabled = true; }
       let okChoice = 0, okEssay = 0, draft = 0, fail = 0;
+      const failList = [];      // เลขข้อที่บันทึกไม่สำเร็จ
+      let failWhy = '';         // สาเหตุแรกที่ฐานข้อมูลตอบกลับ
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
         const iss = _eiRowIssues(r);
@@ -13269,6 +13504,7 @@ const supabaseDataSdk = {
           payload = {
             type: 'essay_question', subject_name: subject, chapter: chapter || null,
             question_text: r.text || '', question_image_url: r.img || null,
+            question_tables: _qtStringify(r.tables),
             score_per_question: score, answer_guideline: null, min_words: 0,
             question_number: r.no || null, is_draft: isDraft,
             import_note: isDraft ? iss.join(' · ') : null
@@ -13279,6 +13515,7 @@ const supabaseDataSdk = {
             type: 'exam_question', subject_name: subject, chapter: chapter || null,
             score_per_question: score, question_type: 'choice',
             question_text: r.text || '', question_image_url: r.img || null,
+            question_tables: _qtStringify(r.tables),
             choice_a: ch[0] || '', choice_b: ch[1] || '', choice_c: ch[2] || '',
             choice_d: ch[3] || '', choice_e: ch[4] || '',
             correct_answer: r.answer || null,
@@ -13291,15 +13528,34 @@ const supabaseDataSdk = {
           if (res && res.isOk) {
             if (isDraft) draft++;
             else if (r.kind === 'essay') okEssay++; else okChoice++;
-          } else fail++;
-        } catch (e) { fail++; }
+          } else {
+            fail++; failList.push(r.no);
+            if (!failWhy) failWhy = (res && res.error && res.error.message) || 'ฐานข้อมูลไม่ตอบรับ';
+          }
+        } catch (e) {
+          fail++; failList.push(r.no);
+          if (!failWhy) failWhy = e.message || 'ฐานข้อมูลไม่ตอบรับ';
+        }
       }
       const parts = [];
       if (okChoice) parts.push('ปรนัย ' + okChoice + ' ข้อ');
       if (okEssay) parts.push('อัตนัย ' + okEssay + ' ข้อ');
       if (draft) parts.push('เก็บไว้แก้ภายหลัง ' + draft + ' ข้อ');
-      if (fail) parts.push('บันทึกไม่สำเร็จ ' + fail + ' ข้อ');
-      showToast('✅ บันทึกแล้ว — ' + parts.join(' · '), fail ? 'error' : 'success');
+      if (fail) {
+        // ❗ ไม่ปิดแผง และไม่ลบข้อที่ยังไม่ผ่าน เพื่อให้ครูแก้แล้วกดบันทึกซ้ำได้ทันที
+        const st = document.getElementById('ei-status');
+        if (st) st.innerHTML = '<span style="color:#b91c1c;font-weight:700">❌ บันทึกไม่สำเร็จ ' + fail + ' ข้อ (ข้อ '
+          + failList.join(', ') + ')</span><br><span style="color:#b91c1c">สาเหตุ: ' + _eiEsc(failWhy) + '</span>';
+        // คงไว้แต่ข้อที่ยังไม่สำเร็จ เพื่อกดบันทึกซ้ำได้โดยไม่บันทึกซ้อนข้อที่ผ่านแล้ว
+        _eiData.rows.forEach(function (r) { if (!r.drop && failList.indexOf(r.no) < 0) r.drop = true; });
+        eiRender();
+        showToast('❌ บันทึกไม่สำเร็จ ' + fail + ' ข้อ — ' + failWhy, 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '💾 ลองบันทึกข้อที่ค้างอีกครั้ง'; }
+        if (typeof loadExamQuestionsTab === 'function') loadExamQuestionsTab();
+        if (typeof renderExamQuestionList === 'function') renderExamQuestionList();
+        return;
+      }
+      showToast('✅ บันทึกแล้ว — ' + parts.join(' · '), 'success');
       closeExamImportPanel();
       if (typeof loadExamQuestionsTab === 'function') loadExamQuestionsTab();
       if (typeof renderExamQuestionList === 'function') renderExamQuestionList();
@@ -13612,7 +13868,7 @@ const supabaseDataSdk = {
         <label class="flex items-start gap-2 p-2 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-50">
           <input type="checkbox" class="ea-question-check mt-1 w-4 h-4" value="${q.__backendId}" data-score="${q.score_per_question}" onchange="updateEaTotalScore()">
           <span class="text-sm">
-            <span class="text-gray-400">${idx+1}.</span> ${q.question_text}
+            <span class="text-gray-400">${idx+1}.</span> ${q.question_text}${_qtBadge(q.question_tables)}
             <span class="text-xs text-gray-400"> (${q.chapter||'ไม่ระบุบท'} · ${q.score_per_question} คะแนน · ${q.question_type==='choice'?'ปรนัย':'อัตนัย'})</span>
           </span>
         </label>
@@ -14284,7 +14540,7 @@ const supabaseDataSdk = {
         // แต่ถ้าการสุ่มตอนนั้นล้มเหลว (เน็ตหลุด/บันทึกไม่ผ่าน) กระดาษจะว่างเปล่าถาวร กู้คืนไม่ได้เลย
         // แก้โดยเก็บ "คลังข้อสอบที่ใช้สุ่ม" ไว้ที่ชุดสอบด้วย เป็นตัวสำรองให้กู้คืนได้เสมอ
         questionSnapshot = poolQuestions.map(q => ({
-          __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
           question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
           choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
           choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -14301,7 +14557,7 @@ const supabaseDataSdk = {
         // ถ้าภายหลังมีการแก้ไข/ลบข้อสอบต้นฉบับในคลัง จะไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย
         questionSnapshot = questionIds.map(id => {
           const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
-          return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
             question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
             choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
             choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -14414,7 +14670,7 @@ const supabaseDataSdk = {
         resetExamSetForm();
         renderExamSetList();
       } else {
-        showToast('บันทึกไม่สำเร็จ', 'error');
+        showToast('❌ บันทึกไม่สำเร็จ — ' + ((result && result.error && result.error.message) || 'ฐานข้อมูลไม่ตอบรับ'), 'error');
       }
     }
 
@@ -15287,6 +15543,7 @@ const supabaseDataSdk = {
               <p style="margin:0 0 6px;font-weight:700;color:#1e293b">ข้อ ${i + 1} <span style="font-weight:400;color:#b45309;font-size:12px">(${q.score_per_question || 0} คะแนน${minW ? ` · อย่างน้อย ${minW} คำ` : ''})</span></p>
               <p style="margin:0 0 10px;white-space:pre-wrap;color:#334155">${escHtml(q.question_text || '')}</p>
               ${q.question_image_url ? `<img src="${escHtml(q.question_image_url)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">` : ''}
+              ${_qtHtml(q.question_tables)}
               <textarea data-qid="${escHtml(qid)}" data-min="${minW}" oninput="_onEssayInput(this)" rows="7" placeholder="พิมพ์คำตอบที่นี่..."
                 style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;line-height:1.6;font-family:inherit">${escHtml(answers[qid] || '')}</textarea>
               <p class="essay-wc" data-qid="${escHtml(qid)}" style="margin:4px 0 0;font-size:11px;color:#64748b"></p>
@@ -15946,6 +16203,7 @@ const supabaseDataSdk = {
         <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-3 mb-2">
           <p class="text-sm font-bold text-gray-800">ข้อ ${qIdx + 1} <span class="font-normal text-amber-700">(เต็ม ${max} คะแนน${parseInt(q.min_words) ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''})</span></p>
           <p class="text-sm text-gray-700 whitespace-pre-wrap">${escHtml(q.question_text || '')}</p>
+          ${_qtHtml(q.question_tables, { small: true })}
           ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mt-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
         </div>
         <p class="text-[11px] text-gray-500 mb-1">💡 คะแนนที่ใส่ยังไม่บันทึก ระบบจำไว้ให้ — สลับข้อไปมาได้ ปุ่มบันทึกอยู่ท้ายชื่อในข้อสุดท้ายของแต่ละคน</p>
@@ -16097,6 +16355,7 @@ const supabaseDataSdk = {
           return `<div class="border rounded-xl p-3 mb-3">
             <p class="font-semibold text-sm text-gray-800">ข้อ ${i + 1} <span class="text-amber-700 font-normal">(เต็ม ${max})</span></p>
             <p class="text-sm text-gray-700 whitespace-pre-wrap mb-2">${escHtml(q.question_text || '')}</p>
+            ${_qtHtml(q.question_tables, { small: true })}
             ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mb-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
             <div class="bg-gray-50 border rounded p-2 text-sm whitespace-pre-wrap mb-2 min-h-[48px]">${escHtml(ans[qid] || '') || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</div>
             <p class="text-[11px] text-gray-500 mb-1">${_countWordsTh(ans[qid])} คำ${parseInt(q.min_words) ? ` / ขั้นต่ำ ${q.min_words}` : ''}</p>
@@ -16786,7 +17045,7 @@ function _examResultIdentityHtml(sub, set) {
           submissionSnapshot = orderedIds
             .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
             .filter(Boolean)
-            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
               question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
               choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
               choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -16821,7 +17080,7 @@ function _examResultIdentityHtml(sub, set) {
           picked.push(pool[Math.floor(Math.random() * pool.length)]);
         }
         orderedIds = picked.map(q => q.__backendId);
-        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
           question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
           choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
           choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -16835,7 +17094,7 @@ function _examResultIdentityHtml(sub, set) {
         submissionSnapshot = orderedIds
           .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
           .filter(Boolean)
-          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
             question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
             choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
             choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -16979,7 +17238,7 @@ function _examResultIdentityHtml(sub, set) {
         }
         orderedIds = picked.map(q => q.__backendId);
         // 📸 เก็บ snapshot ไว้ที่ submission เอง (ไม่ใช่ exam_set) เพราะแต่ละคนได้ข้อไม่เหมือนกัน
-        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
           question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
           choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
           choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -16993,7 +17252,7 @@ function _examResultIdentityHtml(sub, set) {
         submissionSnapshot = orderedIds
           .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
           .filter(Boolean)
-          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
             question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
             choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
             choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -17277,7 +17536,7 @@ function _examResultIdentityHtml(sub, set) {
           const fromBank = qids
             .map(id => allData.find(d => String(d.__backendId) === String(id) && d.type === 'exam_question'))
             .filter(Boolean)
-            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
               question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
               choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
               choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
@@ -18142,6 +18401,7 @@ function _examResultIdentityHtml(sub, set) {
             <p style="font-size:12px;color:#94a3b8;margin:0 0 8px">ข้อ ${idx+1} จาก ${orderedIds.length} · ${question.score_per_question} คะแนน</p>
             ${imgHtml}
             <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
+            ${_qtHtml(question.question_tables)}
             ${choicesHtml}
             <div id="exam-save-status" style="min-height:20px;margin:6px 0"></div>
             ${confirmBtnHtml}
@@ -18765,6 +19025,7 @@ function _examResultIdentityHtml(sub, set) {
               <div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px">
                 <p style="font-size:12px;color:#94a3b8;margin:0 0 4px">ข้อ ${idx+1} · เต็ม ${q.score_per_question} คะแนน</p>
                 <p style="font-size:13px;font-weight:600;color:#1e293b;margin:0 0 8px">${q.question_text}</p>
+                ${_qtHtml(q.question_tables, { small: true })}
                 <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;color:#334155">${(answers[q.__backendId]||'(ไม่ได้ตอบ)').replace(/</g,'&lt;')}</div>
                 <input type="number" class="eg-written-score" data-qid="${q.__backendId}" data-max="${q.score_per_question}" min="0" max="${q.score_per_question}" step="0.5" placeholder="ให้คะแนนข้อนี้ (0-${q.score_per_question})" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
               </div>
@@ -19374,7 +19635,7 @@ function _examResultIdentityHtml(sub, set) {
         buildDesktopSidebar();
         if (typeof mBuildNav === 'function') mBuildNav();
       } else {
-        showToast('บันทึกไม่สำเร็จ', 'error');
+        showToast('❌ บันทึกไม่สำเร็จ — ' + ((result && result.error && result.error.message) || 'ฐานข้อมูลไม่ตอบรับ'), 'error');
       }
     }
     async function resetMenuManagerConfig() {
