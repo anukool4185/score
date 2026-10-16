@@ -4147,7 +4147,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.07.231';
+    const APP_VERSION = 'SUPABASE-2026.10.16.232';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -20411,18 +20411,48 @@ function _examResultIdentityHtml(sub, set) {
      *  (เกิดได้เมื่อรหัสอ้างอิงไม่ตรงกัน เช่น หลังย้ายข้อมูลจากระบบเดิม) */
     function _findGradeRow(reg) {
       if (!reg) return null;
-      let g = allData.find(d => d.type === 'grade' && String(d.registration_id) === String(reg.__backendId));
+      // 1️⃣ ผูกด้วยรหัสการลงทะเบียนก่อน (ต้องมีรหัสจริง ไม่ใช่ค่าว่าง)
+      let g = allData.find(d => d.type === 'grade'
+        && String(d.registration_id == null ? '' : d.registration_id) !== ''
+        && String(d.registration_id) === String(reg.__backendId));
+      const _same = d => d.type === 'grade'
+        && String(d.student_id) === String(reg.student_id)
+        && _rN(d.class_name) === _rN(reg.class_name)
+        && _rRoom(d.room_number) === _rRoom(reg.room_number)
+        && _rN(d.subject_name) === _rN(reg.subject_name);
       if (!g) {
-        // 📅 ทางสำรอง (แถวคะแนนที่ยังไม่ผูกรหัสการลงทะเบียน) ต้องอยู่ "ปี/ภาคเดียวกัน" เท่านั้น
+        // 2️⃣ ทางสำรอง (แถวคะแนนที่ยังไม่ผูกรหัสการลงทะเบียน) ต้องอยู่ "ปี/ภาคเดียวกัน" เท่านั้น
         //    ถ้าไม่กรอง ภาคเรียนใหม่จะไปหยิบคะแนนของภาคเก่ามาคิดเกรด และกดบันทึกทับของภาคเก่าด้วย
-        g = allData.find(d => d.type === 'grade'
-          && String(d.student_id) === String(reg.student_id)
-          && d.class_name === reg.class_name
-          && String(d.room_number) === String(reg.room_number)
-          && d.subject_name === reg.subject_name
-          && _termKey(d) === _termKey(reg));
+        g = allData.find(d => _same(d) && _termKey(d) === _termKey(reg));
+      }
+      if (!g) {
+        // 3️⃣ 🩹 แถวคะแนนที่ "ยังไม่ระบุปี/ภาคเลย" — เกิดตอนครูกรอกคะแนนไว้ก่อนนักเรียนลงทะเบียน
+        //    แถวแบบนี้ไม่สังกัดเทอมใด จึงถือเป็นแถวของการลงทะเบียนนี้ได้ (กติกาเดียวกับคะแนนเต็ม)
+        //    ⚠️ เคยเป็นบั๊ก: หาไม่เจอ → หน้าให้คะแนนขึ้นช่องว่างเหมือนไม่มีคะแนน
+        //       และกดบันทึกก็ไปสร้างแถวใหม่ซ้อน ทำให้ดูเหมือนบันทึกไม่ได้
+        g = allData.find(d => _same(d) && _termKey(d) === '|');
       }
       return g || null;
+    }
+
+    /** 🩹 ค่าที่ต้องเติมให้แถวคะแนนเก่าที่ยังไม่ผูกรหัสลงทะเบียน/ยังไม่ระบุปี/ภาค
+     *  เรียกตอนกดบันทึก เพื่อให้แถวนั้นซ่อมตัวเองและครั้งต่อไปหาเจอด้วยรหัสตรง ๆ */
+    function _gradeLinkPatch(existing, reg) {
+      const out = {};
+      if (!existing || !reg) return out;
+      if (String(existing.registration_id == null ? '' : existing.registration_id) === ''
+          && !reg.__virtual && String(reg.__backendId == null ? '' : reg.__backendId) !== '') {
+        out.registration_id = reg.__backendId;
+      }
+      if (String(existing.academic_year == null ? '' : existing.academic_year).trim() === ''
+          && String(reg.academic_year == null ? '' : reg.academic_year).trim() !== '') {
+        out.academic_year = String(reg.academic_year);
+      }
+      if (String(existing.semester == null ? '' : existing.semester).trim() === ''
+          && String(reg.semester == null ? '' : reg.semester).trim() !== '') {
+        out.semester = String(reg.semester);
+      }
+      return out;
     }
 
     /** 📊 หาคะแนนเต็มของรายวิชา — หาด้วยรหัสรายวิชาก่อน ถ้าไม่เจอหาด้วยชั้น/ห้อง/วิชา
@@ -26131,7 +26161,7 @@ function _examResultIdentityHtml(sub, set) {
     /** บันทึกลงแถวคะแนน — ถ้ายังไม่มีแถวคะแนนของการลงทะเบียนนี้ ให้สร้างให้ */
     async function _subSaveGrade(reg, grade, patch) {
       if (grade) {
-        const r = await window.dataSdk.update({ ...grade, ...patch });
+        const r = await window.dataSdk.update({ ...grade, ..._gradeLinkPatch(grade, reg), ...patch });
         if (!r.isOk) showToast('บันทึกไม่สำเร็จ: ' + (r.error?.message || ''), 'error');
         return r;
       }
@@ -27701,6 +27731,7 @@ function _examResultIdentityHtml(sub, set) {
       const result = existing
         ? await window.dataSdk.update({
             ...existing,
+            ..._gradeLinkPatch(existing, reg),   // 🩹 เติมรหัสลงทะเบียนและปี/ภาคให้แถวเก่าที่ยังขาด
             pretest_scores,
             k_scores,
             p_scores,
