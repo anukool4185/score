@@ -2060,7 +2060,7 @@
     <div id="page-student-management" class="page p-4 md:p-8 flex flex-col hidden">
      <div class="max-w-4xl mx-auto w-full flex flex-col h-full">
       <div id="student-tabs" class="hidden">
-       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('homework')" id="tab-homework-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 การบ้าน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
+       <button onclick="showStudentTab('profile')" id="tab-profile" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">📝 แก้ไขข้อมูลส่วนตัว</button> <button onclick="showStudentTab('register')" id="tab-register" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📚 ลงทะเบียนเรียน</button> <button onclick="showStudentTab('courses')" id="tab-courses-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">🎒 หลักสูตรอบรม</button> <button onclick="showStudentTab('grades')" id="tab-grades" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button> <button onclick="showStudentTab('attendance')" id="tab-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button> <button onclick="showStudentTab('homework')" id="tab-homework-student" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 การบ้าน</button> <button onclick="showStudentTab('evaluate')" id="tab-evaluate" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📝 ประเมินการสอน</button>
       </div>
       <div id="student-content" class="flex-1"></div>
      </div>
@@ -2079,7 +2079,7 @@
      <div class="max-w-7xl mx-auto w-full p-4 md:p-8">
       <h2 class="text-2xl font-bold text-gray-800 mb-6">⚙️ แผงควบคุมแอดมิน</h2>
       <!-- 📅 แถบเดิมถูกย้ายแล้ว: ดรอปดาวน์เลือกดู → หัวเว็บ · การสร้าง/เปิดใช้งานปี-ภาค → เมนูนำเข้าข้อมูลวิชา -->
-      <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('collectscore')" id="tab-collectscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗃️ จัดเก็บคะแนน</button> <button onclick="showAdminTab('mergework')" id="tab-mergework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📦 รวบรวมงาน</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สัดส่วนเกรด</button> <button onclick="showAdminTab('gradedist')" id="tab-gradedist" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🥧 สรุปเกรด</button> <button onclick="showAdminTab('charread')" id="tab-charread" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⭐ คุณลักษณะ/อ่านคิดวิเคราะห์</button> <button onclick="showAdminTab('exportdata')" id="tab-exportdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 ส่งออกข้อมูล</button> <button onclick="showAdminTab('examimport')" id="tab-examimport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📥 นำเข้าข้อสอบ</button> <button onclick="showAdminTab('examquestions')" id="tab-examquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗂️ คลังข้อสอบ</button> <button onclick="showAdminTab('essayquestions')" id="tab-essayquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ คลังข้อสอบอัตนัย</button> <button onclick="showAdminTab('examassign')" id="tab-examassign" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดสอบ</button> <button onclick="showAdminTab('examgrading')" id="tab-examgrading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ ตรวจข้ออัตนัย</button> <button onclick="showAdminTab('retryrequest')" id="tab-retryrequest" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📨 คำขอสอบแก้ตัว</button> <button onclick="showAdminTab('menumanager')" id="tab-menumanager" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎨 จัดการเมนู</button>
+      <div id="admin-tab-buttons" class="flex flex-wrap gap-2 mb-6 border-b-2 border-gray-200 pb-4 overflow-x-auto"><button onclick="showAdminTab('import')" id="tab-import" class="px-4 py-2 bg-blue-500 text-white rounded-lg font-medium transition">📥 นำเข้า</button> <button onclick="showAdminTab('settings')" id="tab-settings" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⚙️ ตั้งค่า</button> <button onclick="showAdminTab('hours')" id="tab-hours" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏰ หน่วยกิต</button> <button onclick="showAdminTab('courses')" id="tab-courses" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎒 หลักสูตร</button> <button onclick="showAdminTab('courseprogress')" id="tab-courseprogress" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📈 ความคืบหน้าหลักสูตร</button> <button onclick="showAdminTab('scores')" id="tab-scores" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 คะแนนเต็ม</button> <button onclick="showAdminTab('collectscore')" id="tab-collectscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗃️ จัดเก็บคะแนน</button> <button onclick="showAdminTab('mergework')" id="tab-mergework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📦 รวบรวมงาน</button> <button onclick="showAdminTab('schedule')" id="tab-schedule" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📅 ตารางลงทะเบียน</button> <button onclick="showAdminTab('timekeeping')" id="tab-timekeeping" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⏱️ ลงเวลาเรียน</button> <button onclick="showAdminTab('homework')" id="tab-homework" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดการการบ้าน</button> <button onclick="showAdminTab('grading')" id="tab-grading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎓 ให้คะแนน</button> <button onclick="showAdminTab('uploadscore')" id="tab-uploadscore" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 อัพโหลดคะแนน</button> <button onclick="showAdminTab('admins')" id="tab-admins" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👥 ผู้ช่วยแอดมิน</button> <button onclick="showAdminTab('students')" id="tab-students" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">👨‍🎓 นักเรียน</button> <button onclick="showAdminTab('evaltopics')" id="tab-evaltopics" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📋 หัวข้อประเมินการสอน</button> <button onclick="showAdminTab('studentdata')" id="tab-studentdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📊 ตารางผลการเรียน/เวลาเรียน</button> <button onclick="showAdminTab('gradereport')" id="tab-gradereport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📑 สัดส่วนเกรด</button> <button onclick="showAdminTab('gradedist')" id="tab-gradedist" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🥧 สรุปเกรด</button> <button onclick="showAdminTab('charread')" id="tab-charread" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">⭐ คุณลักษณะ/อ่านคิดวิเคราะห์</button> <button onclick="showAdminTab('exportdata')" id="tab-exportdata" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📤 ส่งออกข้อมูล</button> <button onclick="showAdminTab('examimport')" id="tab-examimport" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📥 นำเข้าข้อสอบ</button> <button onclick="showAdminTab('examquestions')" id="tab-examquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🗂️ คลังข้อสอบ</button> <button onclick="showAdminTab('essayquestions')" id="tab-essayquestions" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ คลังข้อสอบอัตนัย</button> <button onclick="showAdminTab('examassign')" id="tab-examassign" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📝 จัดสอบ</button> <button onclick="showAdminTab('examgrading')" id="tab-examgrading" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">✍️ ตรวจข้ออัตนัย</button> <button onclick="showAdminTab('retryrequest')" id="tab-retryrequest" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">📨 คำขอสอบแก้ตัว</button> <button onclick="showAdminTab('menumanager')" id="tab-menumanager" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-400 transition">🎨 จัดการเมนู</button>
       </div><!-- 📥 นำเข้า -->
       <div id="admin-tab-import" class="hidden">
        <!-- 📅 สร้างปีการศึกษา/ภาคเรียน — สร้างล่วงหน้าได้หลายปีหลายภาค -->
@@ -2835,6 +2835,12 @@
                 <option value="manage">จัดการได้</option>
               </select>
             </label>
+            <label class="text-xs text-gray-600">🎒 หลักสูตรอบรม
+              <select id="new-admin-perm-course" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mt-1">
+                <option value="view">ดูอย่างเดียว</option>
+                <option value="manage">จัดการได้</option>
+              </select>
+            </label>
             <label class="text-xs text-gray-600">👨‍🎓 นักเรียน
               <select id="new-admin-perm-students" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mt-1">
                 <option value="view">ดูอย่างเดียว</option>
@@ -3533,6 +3539,49 @@
        </div>
       </div>
 
+      <!-- 🎒 จัดการหลักสูตรอบรม -->
+      <div id="admin-tab-courses" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
+         <div>
+          <h3 class="text-xl font-bold text-gray-800 mb-1">🎒 จัดการหลักสูตรอบรม</h3>
+          <p class="text-gray-500 text-sm">สร้างหลักสูตรและใส่เนื้อหาจากลิงก์ยูทูบ — หลักสูตรผูกกับ ปี/ภาค/วิชา ทุกห้องที่เรียนวิชานั้นเห็นหลักสูตรเดียวกัน</p>
+          <p id="co-term-note" class="text-xs text-blue-700 mt-1"></p>
+          <p class="text-xs text-emerald-700 mt-1">✅ แก้ ย้าย ลบ หลักสูตรหรือเนื้อหา ไม่กระทบคะแนนของนักเรียน เพราะเก็บแยกตารางกันทั้งหมด</p>
+         </div>
+         <button onclick="coAddCourse()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
+          ➕ สร้างหลักสูตร
+         </button>
+        </div>
+        <div class="flex items-end gap-3 flex-wrap mb-4">
+         <div>
+          <label class="block text-xs text-gray-600 mb-1">📖 กรองตามวิชา</label>
+          <select id="co-filter-subject" onchange="renderCourseList()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <option value="">ทุกวิชา</option>
+          </select>
+         </div>
+        </div>
+        <div id="co-list"></div>
+       </div>
+      </div>
+
+      <!-- 📈 ความคืบหน้าหลักสูตร -->
+      <div id="admin-tab-courseprogress" class="hidden">
+       <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-1">📈 ความคืบหน้าหลักสูตร</h3>
+        <p class="text-gray-500 text-sm mb-4">ดูว่านักเรียนแต่ละคนเรียนไปถึงไหนของแต่ละเนื้อหา</p>
+        <div class="flex items-end gap-3 flex-wrap mb-4">
+         <div>
+          <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตร</label>
+          <select id="cpg-course" onchange="renderCourseProgress()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <option value="">-- เลือกหลักสูตร --</option>
+          </select>
+         </div>
+        </div>
+        <div id="cpg-table"></div>
+       </div>
+      </div>
+
       <!-- 📥 นำเข้าข้อสอบจากไฟล์ Word (เมนูแยก อยู่ก่อนคลังข้อสอบ) -->
       <div id="admin-tab-examimport" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
@@ -4147,7 +4196,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.16.232';
+    const APP_VERSION = 'SUPABASE-2026.10.17.233';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4539,6 +4588,11 @@ const SB_TABLE_MAP = [
   { table: 'evaluations',           type: 'evaluation' },
   { table: 'registration_requests', type: 'registration_request' },
   { table: 'auto_login_tokens',     type: 'auto_login_token' },
+  // 🎒 ระบบหลักสูตรอบรม (แยกตารางจากคะแนนทั้งหมด แก้/ย้าย/ลบหลักสูตรจึงกระทบคะแนนไม่ได้)
+  { table: 'courses',               type: 'course' },
+  { table: 'course_lessons',        type: 'course_lesson' },
+  { table: 'course_enrollments',    type: 'course_enrollment' },
+  { table: 'course_progress',       type: 'course_progress' },
 ];
 
 // แปลงกลับ: type เดิม → ตาราง Supabase
@@ -4999,9 +5053,13 @@ const supabaseDataSdk = {
       const BOOL_FIELDS = ['is_random_mode', 'shuffle_enabled', 'needs_manual_grading',
         'manual_grading_done', 'imported_to_grade', 'is_retry_attempt', 'score_reversed',
         'score_overridden_by_admin', 'frozen', 'notification_acknowledged', 'is_hidden',
-        'perm_timekeeping', 'perm_grading', 'perm_students', 'perm_collectscore', 'is_read'];
+        'perm_timekeeping', 'perm_grading', 'perm_students', 'perm_collectscore', 'perm_course',
+        'is_read', 'is_open', 'completed'];
       if (BOOL_FIELDS.includes(k)) {
-        out[k] = (v === true || v === 'true' || v === 'TRUE' || v === 1 || v === '1');
+        // ⚠️ บั๊กที่พบและแก้แล้ว: ช่องสิทธิ์ผู้ช่วยแอดมินส่งค่ามาเป็นข้อความ 'manage'/'view'
+        //    แต่ตัวแปลงเดิมไม่รู้จัก 'manage' จึงแปลงเป็นเท็จทุกครั้ง
+        //    ผลคือติ๊ก "จัดการได้" ให้ผู้ช่วยแล้วไม่มีผล กลับเป็น "ดูอย่างเดียว" เสมอ
+        out[k] = (v === true || v === 'true' || v === 'TRUE' || v === 1 || v === '1' || v === 'manage');
         return;
       }
       // 📅 ฟิลด์วันเวลา — แปลงให้เป็นรูปแบบมาตรฐาน
@@ -7050,6 +7108,9 @@ const supabaseDataSdk = {
       //    (คลังข้อสอบไม่ต้องวาดใหม่ เพราะผูกกับชื่อวิชาเท่านั้น ไม่เกี่ยวกับปี/ภาค)
       run(typeof loadExamAssignTab === 'function' ? loadExamAssignTab : null);
       run(typeof loadEssayAssignTab === 'function' ? loadEssayAssignTab : null);
+      // 🎒 หลักสูตรอบรม ผูกกับ ปี/ภาค/วิชา จึงต้องวาดใหม่ตามเทอมที่เลือก
+      run(typeof loadCoursesTab === 'function' ? loadCoursesTab : null);
+      run(typeof loadCourseProgressTab === 'function' ? loadCourseProgressTab : null);
     }
 
     /** 🎯 ปี/ภาคที่ใช้ตัดสินว่า "ลงทะเบียนแล้วหรือยัง"
@@ -7831,6 +7892,8 @@ const supabaseDataSdk = {
         {id:'settings', icon:'⚙️', label:'ตั้งค่า',          section:'ข้อมูลพื้นฐาน'},
         {id:'hours',    icon:'🎯', label:'หน่วยกิต',         section:'ข้อมูลพื้นฐาน'},
         {id:'schedule', icon:'🗓️', label:'ตารางเรียน',       section:'ข้อมูลพื้นฐาน'},
+        {id:'courses',        icon:'🎒', label:'จัดการหลักสูตร',   section:'หลักสูตร'},
+        {id:'courseprogress', icon:'📈', label:'ความคืบหน้าหลักสูตร', section:'หลักสูตร'},
         {id:'scores',      icon:'📊', label:'คะแนนเต็ม',        section:'คะแนน'},
         {id:'collectscore',icon:'🗃️', label:'จัดเก็บคะแนน',      section:'คะแนน'},
         {id:'mergework',   icon:'📦', label:'รวบรวมงาน',         section:'คะแนน'},
@@ -7887,6 +7950,7 @@ const supabaseDataSdk = {
         import:"goToAdminTabDirect('import')", settings:"goToAdminTabDirect('settings')", hours:"goToAdminTabDirect('hours')", schedule:"goToAdminTabDirect('schedule')",
         scores:"goToAdminTabDirect('scores')", collectscore:"goToAdminTabDirect('collectscore')", mergework:"goToAdminTabDirect('mergework')", grading:"goToAdminTabDirect('grading')", uploadscore:"goToAdminTabDirect('uploadscore')",
         gradereport:"goToAdminTabDirect('gradereport')", gradedist:"goToAdminTabDirect('gradedist')", charread:"goToAdminTabDirect('charread')", exportdata:"goToAdminTabDirect('exportdata')", studentdata:"goToAdminTabDirect('studentdata')",
+        courses:"goToAdminTabDirect('courses')", courseprogress:"goToAdminTabDirect('courseprogress')",
         examimport:"goToAdminTabDirect('examimport')", examquestions:"goToAdminTabDirect('examquestions')", essayquestions:"goToAdminTabDirect('essayquestions')", essayassign:"goToAdminTabDirect('essayassign')", examcreate:"openCreateExamQuestionPopup()", examassign:"goToAdminTabDirect('examassign')", examgrading:"goToAdminTabDirect('examgrading')", retryrequest:"goToAdminTabDirect('retryrequest')", examcheat:"goToAdminTabDirect('examcheat')",
         admins:"goToAdminTabDirect('admins')", students:"goToAdminTabDirect('students')", evaltopics:"goToAdminTabDirect('evaltopics')",
         timekeeping:"goToAdminTabDirect('timekeeping')", homework:"goToAdminTabDirect('homework')", stunotif:"goToAdminTabDirect('stunotif')", marqueesettings:"goToAdminTabDirect('marqueesettings')", menumanager:"goToAdminTabDirect('menumanager')",
@@ -8545,7 +8609,9 @@ const supabaseDataSdk = {
     }
     function getSubAdminPermission(tabKey) {
       const record = _findSubAdminRecord();
-      return record?.[`perm_${tabKey}`] === 'manage' ? 'manage' : 'view';
+      const v = record ? record[`perm_${tabKey}`] : null;
+      // รับได้ทั้ง 'manage' (ค่าจากฟอร์ม) และ true (ค่าที่ฐานข้อมูลเก็บเป็นจริง/เท็จ)
+      return (v === 'manage' || v === true || v === 'true' || v === 1 || v === '1') ? 'manage' : 'view';
     }
     function renderSubAdminPage() {
       const content = document.getElementById('subadmin-content');
@@ -10149,7 +10215,7 @@ const supabaseDataSdk = {
       });
     }
     let isShowingAllTabs = false;
-    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'scores', 'collectscore', 'mergework', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'charread', 'exportdata', 'examimport', 'examquestions', 'essayquestions', 'examassign', 'essayassign', 'examgrading', 'retryrequest', 'examcheat', 'gradedist', 'menumanager', 'stunotif', 'marqueesettings'];
+    const ADMIN_TAB_NAMES = ['import', 'settings', 'hours', 'courses', 'courseprogress', 'scores', 'collectscore', 'mergework', 'schedule', 'timekeeping', 'homework', 'grading', 'uploadscore', 'admins', 'students', 'evaltopics', 'studentdata', 'gradereport', 'charread', 'exportdata', 'examimport', 'examquestions', 'essayquestions', 'examassign', 'essayassign', 'examgrading', 'retryrequest', 'examcheat', 'gradedist', 'menumanager', 'stunotif', 'marqueesettings'];
     function toggleAllAdminTabs() {
       isShowingAllTabs = !isShowingAllTabs;
       
@@ -13214,6 +13280,884 @@ const supabaseDataSdk = {
           + '</div>';
       }).join('');
       list.forEach((t, i) => qtPreview(pfx, i));
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // 🎒 ระบบหลักสูตรอบรม (วีดีโอยูทูบ)
+    //    หลักสูตรผูกกับ ปี/ภาค/วิชา — ทุกห้องที่เรียนวิชานั้นเห็นหลักสูตรเดียวกัน
+    //    ⚠️ แยกตารางจากคะแนนทั้งหมด การสร้าง/แก้/ย้าย/ลบ จึงกระทบคะแนนไม่ได้
+    // ══════════════════════════════════════════════════════════════
+    const COURSE_DONE_PERCENT = 90;     // ดูถึงกี่เปอร์เซ็นต์ถือว่าเรียนจบ
+    const COURSE_SEEK_TOL = 1.5;        // เผื่อความคลาดเคลื่อนของตัวเล่น (วินาที)
+
+    /** ถอดรหัสคลิปจากลิงก์ยูทูบทุกรูปแบบ — คืน null ถ้าไม่ใช่ลิงก์ยูทูบ */
+    function _ytId(url) {
+      const s = String(url == null ? '' : url).trim();
+      if (!s) return null;
+      if (/^[A-Za-z0-9_-]{11}$/.test(s)) return s;          // วางรหัสคลิปมาตรง ๆ
+      const pats = [
+        /[?&]v=([A-Za-z0-9_-]{11})/,
+        /youtu\.be\/([A-Za-z0-9_-]{11})/,
+        /\/embed\/([A-Za-z0-9_-]{11})/,
+        /\/shorts\/([A-Za-z0-9_-]{11})/,
+        /\/live\/([A-Za-z0-9_-]{11})/,
+        /\/v\/([A-Za-z0-9_-]{11})/
+      ];
+      for (let i = 0; i < pats.length; i++) {
+        const m = pats[i].exec(s);
+        if (m) return m[1];
+      }
+      return null;
+    }
+
+    /** สิทธิ์จัดการหลักสูตร — แอดมินได้เสมอ ผู้ช่วยได้เมื่อแอดมินติ๊กอนุญาต */
+    function _courseCanEdit() {
+      if (!currentUser) return false;
+      if (currentUser.user_type === 'admin') return true;
+      if (currentUser.user_type === 'subadmin') {
+        return (typeof getSubAdminPermission === 'function') && getSubAdminPermission('course') === 'manage';
+      }
+      return false;
+    }
+
+    function _allCourses() { return allData.filter(d => d.type === 'course'); }
+    /** หลักสูตรของปี/ภาคที่กำลังดู (ของเดิมที่ยังไม่ระบุปี/ภาค ให้เห็นไว้ ไม่ให้หายเงียบ) */
+    function _coursesInView() {
+      return _allCourses()
+        .filter(d => (String(d.academic_year == null ? '' : d.academic_year).trim() === ''
+                      && String(d.semester == null ? '' : d.semester).trim() === '')
+                     || ((typeof inTermView === 'function') ? inTermView(d) : true))
+        .sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0)
+          || String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
+    }
+    function _lessonsOf(courseId) {
+      return allData.filter(d => d.type === 'course_lesson' && String(d.course_id) === String(courseId))
+        .sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0)
+          || String(a.lesson_name || '').localeCompare(String(b.lesson_name || ''), 'th'));
+    }
+    function _courseById(id) { return _allCourses().find(d => String(d.__backendId) === String(id)) || null; }
+    function _lessonById(id) {
+      return allData.find(d => d.type === 'course_lesson' && String(d.__backendId) === String(id)) || null;
+    }
+    function _enrollRow(courseId, studentId) {
+      return allData.find(d => d.type === 'course_enrollment'
+        && String(d.course_id) === String(courseId)
+        && String(d.student_id) === String(studentId)) || null;
+    }
+    function _isEnrolled(courseId, studentId) {
+      const e = _enrollRow(courseId, studentId);
+      return !!e && String(e.status || 'active') === 'active';
+    }
+    function _enrollCount(courseId) {
+      return allData.filter(d => d.type === 'course_enrollment'
+        && String(d.course_id) === String(courseId)
+        && String(d.status || 'active') === 'active').length;
+    }
+    function _progRow(lessonId, studentId) {
+      return allData.find(d => d.type === 'course_progress'
+        && String(d.lesson_id) === String(lessonId)
+        && String(d.student_id) === String(studentId)) || null;
+    }
+    function _progPercent(lessonId, studentId) {
+      const p = _progRow(lessonId, studentId);
+      if (!p) return 0;
+      const v = parseFloat(p.percent);
+      return isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
+    }
+    function _progDone(lessonId, studentId) {
+      const p = _progRow(lessonId, studentId);
+      if (!p) return false;
+      return p.completed === true || p.completed === 'true'
+        || (parseFloat(p.percent) || 0) >= COURSE_DONE_PERCENT;
+    }
+
+    /** 🔒 เนื้อหาเปิดให้เรียนได้ไหม — อันแรก หรืออันก่อนหน้าเรียนจบ หรืออันนี้เคยเรียนจบแล้ว
+     *  ข้อสุดท้ายสำคัญ: ครูแทรกเนื้อหากลางหลักสูตรหรือสลับลำดับ จะไม่ล็อกย้อนหลังสิ่งที่เรียนเสร็จไปแล้ว */
+    function _lessonOpen(lessons, idx, studentId) {
+      if (idx <= 0) return true;
+      const me = lessons[idx];
+      if (me && _progDone(me.__backendId, studentId)) return true;
+      const prev = lessons[idx - 1];
+      return !!prev && _progDone(prev.__backendId, studentId);
+    }
+    /** ร้อยละรวมของหลักสูตร (เฉลี่ยทุกเนื้อหา) */
+    function _courseOverall(courseId, studentId) {
+      const ls = _lessonsOf(courseId);
+      if (!ls.length) return 0;
+      let sum = 0;
+      ls.forEach(l => { sum += _progPercent(l.__backendId, studentId); });
+      return Math.round(sum / ls.length);
+    }
+
+    /** 🚦 หัวใจของการกันเลื่อนข้าม — คิดจากเวลาที่เล่นอยู่ เทียบกับจุดไกลสุดที่ดูมาจริง
+     *  เลื่อนไปข้างหน้าเกินจุดนั้น = ดึงกลับ · ย้อนหลังทำได้อิสระ (ไม่ลดจุดไกลสุด) */
+    function _cpTick(maxSec, cur, tol) {
+      const t = Math.max(0, parseFloat(cur) || 0);
+      const m = Math.max(0, parseFloat(maxSec) || 0);
+      const k = (tol === undefined || tol === null) ? COURSE_SEEK_TOL : tol;
+      if (t > m + k) return { seekTo: m, maxSec: m, blocked: true };
+      return { seekTo: null, maxSec: Math.max(m, t), blocked: false };
+    }
+
+    /* ═════════════ ฝั่งครู: จัดการหลักสูตร ═════════════ */
+
+    function loadCoursesTab() {
+      const subjSel = document.getElementById('co-filter-subject');
+      if (subjSel) {
+        const keep = subjSel.value;
+        const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
+        subjSel.innerHTML = '<option value="">ทุกวิชา</option>'
+          + subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
+        if (keep) subjSel.value = keep;
+      }
+      const note = document.getElementById('co-term-note');
+      if (note) note.textContent = '📅 กำลังทำงานใน ' +
+        ((typeof workingTermLabel === 'function') ? workingTermLabel() : '');
+      renderCourseList();
+    }
+
+    function renderCourseList() {
+      const box = document.getElementById('co-list');
+      if (!box) return;
+      const fSubj = document.getElementById('co-filter-subject')?.value || '';
+      let list = _coursesInView();
+      if (fSubj) list = list.filter(c => _rN(c.subject_name) === _rN(fSubj));
+      const canEdit = _courseCanEdit();
+
+      if (!list.length) {
+        box.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีหลักสูตรใน'
+          + escHtml((typeof workingTermLabel === 'function') ? workingTermLabel() : '') + '</p>';
+        return;
+      }
+      box.innerHTML = list.map((c, ci) => {
+        const ls = _lessonsOf(c.__backendId);
+        const open = c.is_open === true || c.is_open === 'true';
+        const lessonsHtml = ls.length
+          ? ls.map((l, li) => `
+            <div class="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0 flex-wrap">
+              <span class="text-xs text-gray-400 w-5 text-right">${li + 1}.</span>
+              ${l.youtube_id ? `<img src="https://i.ytimg.com/vi/${escHtml(l.youtube_id)}/default.jpg" class="w-16 h-9 object-cover rounded" alt="">` : '<span class="w-16 h-9 bg-gray-100 rounded"></span>'}
+              <span class="flex-1 min-w-[120px] text-sm text-gray-800">${escHtml(l.lesson_name || '')}</span>
+              ${canEdit ? `<span class="flex gap-1">
+                <button onclick="coMoveLesson('${l.__backendId}',-1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนขึ้น">▲</button>
+                <button onclick="coMoveLesson('${l.__backendId}',1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
+                <button onclick="coEditLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">✏️</button>
+                <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น">🔀</button>
+                <button onclick="coDeleteLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">🗑️</button>
+              </span>` : ''}
+            </div>`).join('')
+          : '<p class="text-xs text-gray-400 py-2">ยังไม่มีเนื้อหาในหลักสูตรนี้</p>';
+        return `
+          <div class="border-2 ${open ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-200 bg-white'} rounded-xl p-4 mb-3">
+            <div class="flex items-start justify-between gap-2 flex-wrap mb-2">
+              <div class="flex-1 min-w-[180px]">
+                <p class="font-bold text-gray-800">${ci + 1}. ${escHtml(c.course_name || '')}
+                  <span class="text-xs font-normal ${open ? 'text-emerald-700' : 'text-gray-400'}">${open ? '🟢 เปิดให้นักเรียนเห็น' : '⚫ ปิดอยู่'}</span></p>
+                <p class="text-xs text-gray-500 mt-0.5">📖 ${escHtml(c.subject_name || 'ไม่ระบุวิชา')}
+                  · 📅 ${escHtml(termLabel(c.academic_year, c.semester))}
+                  · 🎬 ${ls.length} เนื้อหา · 🙋 ${_enrollCount(c.__backendId)} คนสมัคร</p>
+                ${c.description ? `<p class="text-xs text-gray-600 mt-1">${escHtml(c.description)}</p>` : ''}
+              </div>
+              ${canEdit ? `<div class="flex gap-1 flex-wrap">
+                <button onclick="coMoveCourse('${c.__backendId}',-1)" class="px-2 py-1 bg-gray-100 rounded text-xs" title="เลื่อนขึ้น">▲</button>
+                <button onclick="coMoveCourse('${c.__backendId}',1)" class="px-2 py-1 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
+                <button onclick="coToggleOpen('${c.__backendId}')" class="px-2 py-1 ${open ? 'bg-gray-200 text-gray-700' : 'bg-emerald-500 text-white'} rounded text-xs font-semibold">${open ? 'ปิด' : 'เปิด'}</button>
+                <button onclick="coEditCourse('${c.__backendId}')" class="px-2 py-1 bg-blue-500 text-white rounded text-xs">✏️ แก้ไข</button>
+                <button onclick="coMoveCourseTo('${c.__backendId}')" class="px-2 py-1 bg-amber-500 text-white rounded text-xs" title="ย้ายปี/ภาค/วิชา">🔀 ย้าย</button>
+                <button onclick="coDeleteCourse('${c.__backendId}')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">🗑️</button>
+              </div>` : ''}
+            </div>
+            <div class="bg-white border border-gray-200 rounded-lg px-3 py-2">${lessonsHtml}</div>
+            ${canEdit ? `<button onclick="coAddLesson('${c.__backendId}')" class="mt-2 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มเนื้อหา</button>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    /** กล่องกรอกข้อมูลกลาง ใช้ซ้ำทุกหน้าต่างของระบบหลักสูตร */
+    function _coModal(title, bodyHtml, onOkJs, okLabel) {
+      document.getElementById('co-modal')?.remove();
+      const d = document.createElement('div');
+      d.id = 'co-modal';
+      d.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100000] p-4';
+      d.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 max-w-lg w-full max-h-[92vh] overflow-y-auto">
+          <h3 class="text-lg font-bold text-gray-800 mb-3">${title}</h3>
+          ${bodyHtml}
+          <div class="flex gap-2 mt-4">
+            <button onclick="document.getElementById('co-modal')?.remove()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+            <button onclick="${onOkJs}" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold">${okLabel || '✅ บันทึก'}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+    }
+    const _coInp = (id, label, value, ph) =>
+      `<label class="block text-xs text-gray-600 mb-1">${label}</label>
+       <input id="${id}" value="${escHtml(String(value == null ? '' : value))}" placeholder="${ph || ''}"
+         class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3 focus:border-blue-500 focus:outline-none">`;
+
+    function coAddCourse() {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
+      if (!subs.length) { showToast('ยังไม่มีรายวิชาในปี/ภาคนี้ — เพิ่มรายวิชาก่อน', 'error'); return; }
+      _coModal('➕ สร้างหลักสูตรใหม่',
+        _coInp('co-f-name', '🎒 ชื่อหลักสูตร', '', 'เช่น อบรมพื้นฐานแคลคูลัส')
+        + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา (ทุกห้องที่เรียนวิชานี้จะเห็น)</label>
+           <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+             ${subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')}
+           </select>`
+        + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
+           <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-1"></textarea>`
+        + `<p class="text-xs text-gray-500">สร้างแล้วหลักสูตรยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>`,
+        'coSaveCourse()');
+    }
+    async function coSaveCourse(editId) {
+      const name = document.getElementById('co-f-name')?.value.trim();
+      const subject = document.getElementById('co-f-subject')?.value || '';
+      const desc = document.getElementById('co-f-desc')?.value.trim() || '';
+      if (!name) { showToast('กรุณาใส่ชื่อหลักสูตร', 'error'); return; }
+      const [y, sm] = ((typeof workingTermKey === 'function') ? workingTermKey() : '|').split('|');
+      let r;
+      if (editId) {
+        const ex = _courseById(editId);
+        if (!ex) { showToast('ไม่พบหลักสูตรนี้', 'error'); return; }
+        r = await window.dataSdk.update({ ...ex, course_name: name, subject_name: subject, description: desc });
+      } else {
+        const sibs = _coursesInView();
+        r = await window.dataSdk.create({
+          type: 'course', course_name: name, subject_name: subject, description: desc,
+          academic_year: y, semester: sm, is_open: false,
+          sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
+          created_at: new Date().toISOString()
+        });
+      }
+      if (r && r.isOk) {
+        showToast(editId ? '✅ แก้ไขหลักสูตรแล้ว' : '✅ สร้างหลักสูตรแล้ว');
+        document.getElementById('co-modal')?.remove();
+        renderCourseList();
+      } else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || 'ฐานข้อมูลไม่ตอบรับ'), 'error');
+    }
+    function coEditCourse(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const c = _courseById(id);
+      if (!c) return;
+      const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
+      const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
+      _coModal('✏️ แก้ไขหลักสูตร',
+        _coInp('co-f-name', '🎒 ชื่อหลักสูตร', c.course_name)
+        + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
+           <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
+           </select>`
+        + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย</label>
+           <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml(c.description || '')}</textarea>`,
+        `coSaveCourse('${id}')`);
+    }
+    async function coToggleOpen(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const c = _courseById(id);
+      if (!c) return;
+      const open = !(c.is_open === true || c.is_open === 'true');
+      const r = await window.dataSdk.update({ ...c, is_open: open });
+      if (r && r.isOk) { showToast(open ? '🟢 เปิดหลักสูตรให้นักเรียนเห็นแล้ว' : '⚫ ปิดหลักสูตรแล้ว (ของเดิมไม่หาย)'); renderCourseList(); }
+      else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    /** เลื่อนลำดับ — สลับเลขลำดับกับเพื่อนบ้าน */
+    async function _coSwapOrder(list, id, dir) {
+      const i = list.findIndex(x => String(x.__backendId) === String(id));
+      const j = i + (dir < 0 ? -1 : 1);
+      if (i < 0 || j < 0 || j >= list.length) return false;
+      const a = list[i], b = list[j];
+      const oa = parseInt(a.sort_order) || (i + 1), ob = parseInt(b.sort_order) || (j + 1);
+      const ra = await window.dataSdk.update({ ...a, sort_order: (oa === ob ? j + 1 : ob) });
+      const rb = await window.dataSdk.update({ ...b, sort_order: (oa === ob ? i + 1 : oa) });
+      return !!(ra && ra.isOk && rb && rb.isOk);
+    }
+    async function coMoveCourse(id, dir) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const ok = await _coSwapOrder(_coursesInView(), id, dir);
+      if (ok) renderCourseList();
+    }
+    async function coMoveLesson(id, dir) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const l = _lessonById(id);
+      if (!l) return;
+      const ok = await _coSwapOrder(_lessonsOf(l.course_id), id, dir);
+      if (ok) renderCourseList();
+    }
+    function coDeleteCourse(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const c = _courseById(id);
+      if (!c) return;
+      const ls = _lessonsOf(id), en = _enrollCount(id);
+      _coModal('🗑️ ลบหลักสูตร',
+        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(c.course_name || '')}</b> ?</p>
+         <p class="text-xs text-gray-600 mb-2">เนื้อหาในหลักสูตร ${ls.length} รายการจะถูกลบไปด้วย และผู้สมัคร ${en} คนจะไม่เห็นหลักสูตรนี้อีก</p>
+         <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">✅ คะแนนของนักเรียนไม่ได้รับผลกระทบ หลักสูตรเก็บแยกจากตารางคะแนนทั้งหมด</p>`,
+        `coConfirmDeleteCourse('${id}')`, '🗑️ ยืนยันลบ');
+    }
+    async function coConfirmDeleteCourse(id) {
+      const c = _courseById(id);
+      if (!c) return;
+      for (const l of _lessonsOf(id)) await window.dataSdk.delete(l);
+      const r = await window.dataSdk.delete(c);
+      document.getElementById('co-modal')?.remove();
+      if (r && r.isOk) { showToast('🗑️ ลบหลักสูตรแล้ว'); renderCourseList(); }
+      else showToast('ลบไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    /** ย้ายหลักสูตรข้ามปี/ภาค/วิชา */
+    function coMoveCourseTo(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const c = _courseById(id);
+      if (!c) return;
+      const terms = (typeof allTermKeys === 'function') ? allTermKeys() : [];
+      const subjAll = (typeof _allSubjectNames === 'function') ? _allSubjectNames() : [];
+      _coModal('🔀 ย้ายหลักสูตร',
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(c.course_name || '')}</b> ไปปี/ภาค/วิชาอื่น — เนื้อหาและความคืบหน้าของนักเรียนตามไปด้วยทั้งหมด</p>
+         <label class="block text-xs text-gray-600 mb-1">📅 ปี/ภาคปลายทาง</label>
+         <select id="co-mv-term" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+           ${terms.map(k => { const [y, sm] = String(k).split('|');
+             return `<option value="${escHtml(k)}" ${_termKey(c) === k ? 'selected' : ''}>${escHtml(termLabel(y, sm))}</option>`; }).join('')}
+         </select>
+         <label class="block text-xs text-gray-600 mb-1">📖 วิชาปลายทาง</label>
+         <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+           ${subjAll.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
+         </select>`,
+        `coConfirmMoveCourse('${id}')`, '🔀 ย้าย');
+    }
+    async function coConfirmMoveCourse(id) {
+      const c = _courseById(id);
+      if (!c) return;
+      const [y, sm] = String(document.getElementById('co-mv-term')?.value || '|').split('|');
+      const subject = document.getElementById('co-mv-subject')?.value || c.subject_name;
+      const r = await window.dataSdk.update({ ...c, academic_year: y, semester: sm, subject_name: subject });
+      document.getElementById('co-modal')?.remove();
+      if (r && r.isOk) { showToast('🔀 ย้ายหลักสูตรแล้ว — คะแนนไม่ได้รับผลกระทบ'); loadCoursesTab(); }
+      else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+
+    /* ── เนื้อหาในหลักสูตร ── */
+    function coAddLesson(courseId) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      _coModal('➕ เพิ่มเนื้อหา',
+        _coInp('co-l-name', '🎬 ชื่อเนื้อหา', '', 'เช่น ความหมายของลิมิต')
+        + _coInp('co-l-url', '🔗 ลิงก์ยูทูบ', '', 'วางลิงก์จากยูทูบได้ทุกรูปแบบ')
+        + `<p class="text-xs text-gray-500 mb-2">รับได้ทั้ง youtube.com/watch?v=… · youtu.be/… · /shorts/… · /live/… หรือวางรหัสคลิป 11 ตัวอักษรก็ได้</p>
+           <div id="co-l-preview" class="mb-2"></div>`
+        + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
+           <textarea id="co-l-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"></textarea>`,
+        `coSaveLesson('${courseId}')`);
+      const u = document.getElementById('co-l-url');
+      if (u) u.oninput = _coPreviewYt;
+    }
+    function _coPreviewYt() {
+      const box = document.getElementById('co-l-preview');
+      const id = _ytId(document.getElementById('co-l-url')?.value);
+      if (!box) return;
+      box.innerHTML = id
+        ? `<div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded p-2">
+             <img src="https://i.ytimg.com/vi/${escHtml(id)}/default.jpg" class="w-20 h-11 object-cover rounded" alt="">
+             <span class="text-xs text-emerald-800">✅ อ่านลิงก์ได้ รหัสคลิป ${escHtml(id)}</span></div>`
+        : (document.getElementById('co-l-url')?.value.trim()
+            ? '<p class="text-xs text-red-600">❌ อ่านลิงก์ยูทูบไม่ได้ ตรวจลิงก์อีกครั้ง</p>' : '');
+    }
+    async function coSaveLesson(courseId, editId) {
+      const name = document.getElementById('co-l-name')?.value.trim();
+      const url = document.getElementById('co-l-url')?.value.trim();
+      const desc = document.getElementById('co-l-desc')?.value.trim() || '';
+      const yid = _ytId(url);
+      if (!name) { showToast('กรุณาใส่ชื่อเนื้อหา', 'error'); return; }
+      if (!yid) { showToast('ลิงก์ยูทูบไม่ถูกต้อง — ตรวจลิงก์อีกครั้ง', 'error'); return; }
+      let r;
+      if (editId) {
+        const ex = _lessonById(editId);
+        if (!ex) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
+        r = await window.dataSdk.update({ ...ex, lesson_name: name, youtube_id: yid, youtube_url: url, description: desc });
+      } else {
+        const sibs = _lessonsOf(courseId);
+        r = await window.dataSdk.create({
+          type: 'course_lesson', course_id: courseId, lesson_name: name,
+          youtube_id: yid, youtube_url: url, description: desc, duration_sec: 0,
+          sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
+          created_at: new Date().toISOString()
+        });
+      }
+      if (r && r.isOk) {
+        showToast(editId ? '✅ แก้ไขเนื้อหาแล้ว' : '✅ เพิ่มเนื้อหาแล้ว');
+        document.getElementById('co-modal')?.remove();
+        renderCourseList();
+      } else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    function coEditLesson(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const l = _lessonById(id);
+      if (!l) return;
+      _coModal('✏️ แก้ไขเนื้อหา',
+        _coInp('co-l-name', '🎬 ชื่อเนื้อหา', l.lesson_name)
+        + _coInp('co-l-url', '🔗 ลิงก์ยูทูบ', l.youtube_url || l.youtube_id)
+        + '<div id="co-l-preview" class="mb-2"></div>'
+        + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย</label>
+           <textarea id="co-l-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml(l.description || '')}</textarea>`,
+        `coSaveLesson('${l.course_id}','${id}')`);
+      const u = document.getElementById('co-l-url');
+      if (u) u.oninput = _coPreviewYt;
+      _coPreviewYt();
+    }
+    function coMoveLessonTo(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const l = _lessonById(id);
+      if (!l) return;
+      const all = _allCourses().sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
+      _coModal('🔀 ย้ายเนื้อหาไปหลักสูตรอื่น',
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(l.lesson_name || '')}</b> — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
+         <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตรปลายทาง</label>
+         <select id="co-mv-course" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+           ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(termLabel(c.academic_year, c.semester))}</option>`).join('')}
+         </select>`,
+        `coConfirmMoveLesson('${id}')`, '🔀 ย้าย');
+    }
+    async function coConfirmMoveLesson(id) {
+      const l = _lessonById(id);
+      if (!l) return;
+      const to = document.getElementById('co-mv-course')?.value;
+      if (!to) return;
+      const sibs = _lessonsOf(to);
+      const r = await window.dataSdk.update({ ...l, course_id: to,
+        sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1 });
+      document.getElementById('co-modal')?.remove();
+      if (r && r.isOk) { showToast('🔀 ย้ายเนื้อหาแล้ว'); renderCourseList(); }
+      else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    function coDeleteLesson(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const l = _lessonById(id);
+      if (!l) return;
+      _coModal('🗑️ ลบเนื้อหา',
+        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(l.lesson_name || '')}</b> ?</p>
+         <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">✅ คะแนนของนักเรียนไม่ได้รับผลกระทบ</p>`,
+        `coConfirmDeleteLesson('${id}')`, '🗑️ ยืนยันลบ');
+    }
+    async function coConfirmDeleteLesson(id) {
+      const l = _lessonById(id);
+      if (!l) return;
+      const r = await window.dataSdk.delete(l);
+      document.getElementById('co-modal')?.remove();
+      if (r && r.isOk) { showToast('🗑️ ลบเนื้อหาแล้ว'); renderCourseList(); }
+      else showToast('ลบไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+
+    /* ═════════════ ฝั่งครู: ความคืบหน้าหลักสูตร ═════════════ */
+
+    function loadCourseProgressTab() {
+      const sel = document.getElementById('cpg-course');
+      if (sel) {
+        const keep = sel.value;
+        const list = _coursesInView();
+        sel.innerHTML = '<option value="">-- เลือกหลักสูตร --</option>'
+          + list.map(c => `<option value="${escHtml(c.__backendId)}">${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')}</option>`).join('');
+        if (keep) sel.value = keep;
+      }
+      renderCourseProgress();
+    }
+    function renderCourseProgress() {
+      const box = document.getElementById('cpg-table');
+      if (!box) return;
+      const cid = document.getElementById('cpg-course')?.value || '';
+      if (!cid) { box.innerHTML = '<p class="text-gray-400 text-center py-8">เลือกหลักสูตรก่อน</p>'; return; }
+      const c = _courseById(cid);
+      const ls = _lessonsOf(cid);
+      const ens = allData.filter(d => d.type === 'course_enrollment' && String(d.course_id) === String(cid))
+        .sort((a, b) => String(a.class_name || '').localeCompare(String(b.class_name || ''), 'th')
+          || String(a.room_number || '').localeCompare(String(b.room_number || ''), 'th', { numeric: true })
+          || String(a.student_id || '').localeCompare(String(b.student_id || '')));
+      if (!ens.length) { box.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีนักเรียนสมัครอบรมหลักสูตรนี้</p>'; return; }
+      if (!ls.length) { box.innerHTML = '<p class="text-gray-400 text-center py-8">หลักสูตรนี้ยังไม่มีเนื้อหา</p>'; return; }
+
+      const done = ens.filter(e => ls.every(l => _progDone(l.__backendId, e.student_id))).length;
+      const cell = (p, ok) => {
+        const col = ok ? 'bg-emerald-100 text-emerald-800' : p > 0 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-400';
+        return `<td class="border border-gray-200 px-2 py-1 text-center text-xs ${col}">${ok ? '✅ ' : ''}${p}%</td>`;
+      };
+      box.innerHTML = `
+        <div class="flex gap-2 flex-wrap mb-2 text-xs">
+          <span class="px-2 py-1 bg-gray-100 rounded">🎒 ${escHtml(c ? c.course_name : '')}</span>
+          <span class="px-2 py-1 bg-gray-100 rounded">🙋 สมัคร ${ens.length} คน</span>
+          <span class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded">🏁 เรียนจบทั้งหลักสูตร ${done} คน</span>
+          <button onclick="cpgExport()" class="px-2 py-1 bg-blue-500 text-white rounded">📤 ส่งออก Excel</button>
+        </div>
+        <div style="overflow-x:auto">
+        <table class="border-collapse text-xs">
+          <thead><tr>
+            <th class="border border-gray-200 px-2 py-1 bg-gray-50 sticky left-0">นักเรียน</th>
+            <th class="border border-gray-200 px-2 py-1 bg-gray-50">ชั้น/ห้อง</th>
+            ${ls.map((l, i) => `<th class="border border-gray-200 px-2 py-1 bg-gray-50" title="${escHtml(l.lesson_name || '')}">${i + 1}</th>`).join('')}
+            <th class="border border-gray-200 px-2 py-1 bg-gray-50">รวม</th>
+            <th class="border border-gray-200 px-2 py-1 bg-gray-50">สถานะ</th>
+          </tr></thead>
+          <tbody>
+            ${ens.map(e => {
+              const all = _courseOverall(cid, e.student_id);
+              const fin = ls.every(l => _progDone(l.__backendId, e.student_id));
+              const cancelled = String(e.status || 'active') !== 'active';
+              return `<tr>
+                <td class="border border-gray-200 px-2 py-1 bg-white sticky left-0">${escHtml(e.student_name || e.student_id || '')}</td>
+                <td class="border border-gray-200 px-2 py-1 text-center">${escHtml(String(e.class_name || ''))}/${escHtml(String(e.room_number || ''))}</td>
+                ${ls.map(l => cell(_progPercent(l.__backendId, e.student_id), _progDone(l.__backendId, e.student_id))).join('')}
+                <td class="border border-gray-200 px-2 py-1 text-center font-bold">${all}%</td>
+                <td class="border border-gray-200 px-2 py-1 text-center">${cancelled ? '<span class="text-gray-400">ยกเลิกแล้ว</span>' : fin ? '<span class="text-emerald-700">เรียนจบ</span>' : all > 0 ? 'กำลังเรียน' : '<span class="text-gray-400">ยังไม่เริ่ม</span>'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+        <p class="text-xs text-gray-500 mt-2">เลขหัวตารางคือลำดับเนื้อหา วางเมาส์เพื่อดูชื่อ · นับว่าเรียนจบเมื่อดูถึง ${COURSE_DONE_PERCENT}%</p>`;
+    }
+    function cpgExport() {
+      const cid = document.getElementById('cpg-course')?.value || '';
+      const c = _courseById(cid);
+      if (!c || typeof XLSX === 'undefined') { showToast('ส่งออกไม่ได้ในขณะนี้', 'error'); return; }
+      const ls = _lessonsOf(cid);
+      const ens = allData.filter(d => d.type === 'course_enrollment' && String(d.course_id) === String(cid));
+      const rows = [['รหัสนักเรียน', 'ชื่อ', 'ชั้น', 'ห้อง'].concat(ls.map((l, i) => (i + 1) + '. ' + (l.lesson_name || '')), ['รวม %', 'สถานะ'])];
+      ens.forEach(e => {
+        const fin = ls.every(l => _progDone(l.__backendId, e.student_id));
+        rows.push([e.student_id, e.student_name || '', e.class_name || '', e.room_number || '']
+          .concat(ls.map(l => _progPercent(l.__backendId, e.student_id)),
+            [_courseOverall(cid, e.student_id), String(e.status || 'active') !== 'active' ? 'ยกเลิกแล้ว' : fin ? 'เรียนจบ' : 'กำลังเรียน']));
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'ความคืบหน้า');
+      XLSX.writeFile(wb, 'ความคืบหน้าหลักสูตร-' + (c.course_name || '') + '.xlsx');
+    }
+
+    /* ═════════════ ฝั่งนักเรียน ═════════════ */
+
+    /** หลักสูตรที่นักเรียนคนนี้มีสิทธิ์เห็น — เปิดอยู่ และตรงปี/ภาค/วิชาที่ตัวเองลงทะเบียนไว้ */
+    function _coursesForStudent(studentId) {
+      const regs = allData.filter(d => d.type === 'student_registration'
+        && String(d.student_id) === String(studentId));
+      return _allCourses().filter(c => {
+        if (!(c.is_open === true || c.is_open === 'true')) return false;
+        return regs.some(r => _rN(r.subject_name) === _rN(c.subject_name)
+          && _termKey(r) === _termKey(c));
+      }).sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0));
+    }
+
+    /** 🎒 หน้าหลักสูตรอบรมของนักเรียน — เขียนลงกล่องเนื้อหาเดียวของฝั่งนักเรียน */
+    function showStudentCourses() {
+      const content = document.getElementById('student-content');
+      if (!content) return;
+      content.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 fade-in">
+          <h2 class="text-2xl font-bold text-gray-800 mb-1">🎒 หลักสูตรอบรม</h2>
+          <p class="text-gray-500 text-sm mb-4">หลักสูตรของวิชาที่ลงทะเบียนเรียนไว้ — สมัครอบรมแล้วเข้าเรียนได้ทีละเนื้อหา ยกเลิกได้ภายหลังโดยความคืบหน้าไม่หาย</p>
+          <div id="stu-course-list"></div>
+        </div>`;
+      renderStudentCourses();
+    }
+    /** วาดรายการหลักสูตรใหม่ (ใช้ซ้ำหลังสมัคร/ยกเลิก/ดูวีดีโอจบ) */
+    function renderStudentCourses() {
+      const box = document.getElementById('stu-course-list');
+      if (!box) return;
+      const sid = currentUser?.student_id;
+      if (!sid) { box.innerHTML = '<p class="text-gray-400 text-center py-8">กรุณาเข้าสู่ระบบ</p>'; return; }
+      const list = _coursesForStudent(sid);
+      if (!list.length) {
+        box.innerHTML = `<div class="text-center py-10 text-gray-400">
+          <p class="text-4xl mb-2">🎒</p>
+          <p>ยังไม่มีหลักสูตรอบรมที่เปิดให้วิชาที่ลงทะเบียนไว้</p>
+          <p class="text-xs mt-1">ต้องลงทะเบียนเรียนวิชานั้นก่อน จึงจะเห็นหลักสูตรของวิชานั้น</p></div>`;
+        return;
+      }
+      box.innerHTML = list.map(c => {
+        const enrolled = _isEnrolled(c.__backendId, sid);
+        const ls = _lessonsOf(c.__backendId);
+        const all = _courseOverall(c.__backendId, sid);
+        const fin = ls.length > 0 && ls.every(l => _progDone(l.__backendId, sid));
+        const lessonsHtml = !enrolled ? '' : (ls.length ? ls.map((l, i) => {
+          const open = _lessonOpen(ls, i, sid);
+          const p = _progPercent(l.__backendId, sid);
+          const done = _progDone(l.__backendId, sid);
+          return `
+            <div class="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0 flex-wrap">
+              <span class="text-xs text-gray-400 w-5 text-right">${i + 1}.</span>
+              ${l.youtube_id ? `<img src="https://i.ytimg.com/vi/${escHtml(l.youtube_id)}/default.jpg" class="w-20 h-11 object-cover rounded ${open ? '' : 'opacity-40'}" alt="">` : ''}
+              <div class="flex-1 min-w-[140px]">
+                <p class="text-sm ${open ? 'text-gray-800' : 'text-gray-400'}">${escHtml(l.lesson_name || '')}</p>
+                <div class="h-1.5 bg-gray-200 rounded mt-1 overflow-hidden" style="max-width:220px">
+                  <div class="h-full ${done ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${p}%"></div>
+                </div>
+                <p class="text-[11px] text-gray-500 mt-0.5">${done ? '✅ เรียนจบแล้ว' : p > 0 ? 'ดูไปแล้ว ' + p + '%' : 'ยังไม่เริ่ม'}</p>
+              </div>
+              ${open
+                ? `<button onclick="cpOpenPlayer('${l.__backendId}')" class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-semibold">${p > 0 && !done ? '▶ เรียนต่อ' : done ? '🔁 ดูซ้ำ' : '▶ เริ่มเรียน'}</button>`
+                : '<span class="px-3 py-1.5 bg-gray-100 text-gray-400 rounded-lg text-xs">🔒 ต้องเรียนอันก่อนให้จบ</span>'}
+            </div>`;
+        }).join('') : '<p class="text-xs text-gray-400 py-2">หลักสูตรนี้ยังไม่มีเนื้อหา</p>');
+        return `
+          <div class="border-2 ${enrolled ? 'border-blue-200' : 'border-gray-200'} rounded-xl p-4 mb-3 bg-white">
+            <div class="flex items-start justify-between gap-2 flex-wrap mb-2">
+              <div class="flex-1 min-w-[160px]">
+                <p class="font-bold text-gray-800">🎒 ${escHtml(c.course_name || '')}</p>
+                <p class="text-xs text-gray-500 mt-0.5">📖 ${escHtml(c.subject_name || '')} · 🎬 ${ls.length} เนื้อหา${enrolled ? ' · ความคืบหน้า ' + all + '%' : ''}</p>
+                ${c.description ? `<p class="text-xs text-gray-600 mt-1">${escHtml(c.description)}</p>` : ''}
+                ${fin ? '<p class="text-xs text-emerald-700 font-semibold mt-1">🏁 เรียนจบทั้งหลักสูตรแล้ว</p>' : ''}
+              </div>
+              ${enrolled
+                ? `<button onclick="cpCancelEnroll('${c.__backendId}')" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs">ยกเลิกการอบรม</button>`
+                : `<button onclick="cpEnroll('${c.__backendId}')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold">🙋 สมัครอบรมหลักสูตร</button>`}
+            </div>
+            ${enrolled ? `<div class="bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">${lessonsHtml}</div>` : ''}
+          </div>`;
+      }).join('');
+    }
+
+    async function cpEnroll(courseId) {
+      const sid = currentUser?.student_id;
+      if (!sid) return;
+      const c = _courseById(courseId);
+      if (!c) return;
+      const ex = _enrollRow(courseId, sid);
+      let r;
+      if (ex) {
+        r = await window.dataSdk.update({ ...ex, status: 'active' });   // สมัครใหม่ ความคืบหน้าเดิมยังอยู่
+      } else {
+        const st = allData.find(d => d.type === 'student' && String(d.student_id) === String(sid));
+        const reg = allData.filter(d => d.type === 'student_registration'
+          && String(d.student_id) === String(sid)
+          && _rN(d.subject_name) === _rN(c.subject_name)
+          && _termKey(d) === _termKey(c))[0];
+        r = await window.dataSdk.create({
+          type: 'course_enrollment', course_id: courseId, student_id: sid,
+          student_name: st ? `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim() : '',
+          class_name: (reg && reg.class_name) || (st && st.class_name) || '',
+          room_number: (reg && reg.room_number) || (st && st.room_number) || '',
+          subject_name: c.subject_name, academic_year: c.academic_year, semester: c.semester,
+          status: 'active', enrolled_at: new Date().toISOString(), created_at: new Date().toISOString()
+        });
+      }
+      if (r && r.isOk) { showToast('🙋 สมัครอบรมหลักสูตรแล้ว'); renderStudentCourses(); }
+      else showToast('สมัครไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    async function cpCancelEnroll(courseId) {
+      const sid = currentUser?.student_id;
+      const ex = _enrollRow(courseId, sid);
+      if (!ex) return;
+      const r = await window.dataSdk.update({ ...ex, status: 'cancelled' });
+      if (r && r.isOk) { showToast('ยกเลิกการอบรมแล้ว — ความคืบหน้าที่เรียนไว้ยังอยู่ สมัครใหม่เรียนต่อได้'); renderStudentCourses(); }
+      else showToast('ยกเลิกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+
+    /* ═════════════ ตัวเล่นวีดีโอกันเลื่อนไปข้างหน้า ═════════════ */
+
+    let _cp = null;   // { lessonId, player, maxSec, lastSec, dur, timer, saveAt, row }
+
+    /** โหลดสคริปต์ตัวเล่นของยูทูบครั้งแรกที่ใช้ */
+    function _cpLoadApi() {
+      return new Promise((resolve, reject) => {
+        if (window.YT && window.YT.Player) return resolve();
+        if (!window._cpApiWaiters) {
+          window._cpApiWaiters = [];
+          window.onYouTubeIframeAPIReady = function () {
+            (window._cpApiWaiters || []).forEach(f => { try { f(); } catch (e) {} });
+            window._cpApiWaiters = [];
+          };
+          const t = document.createElement('script');
+          t.src = 'https://www.youtube.com/iframe_api';
+          t.onerror = () => reject(new Error('โหลดตัวเล่นวีดีโอไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง'));
+          document.head.appendChild(t);
+        }
+        window._cpApiWaiters.push(resolve);
+        setTimeout(() => { if (!(window.YT && window.YT.Player)) reject(new Error('โหลดตัวเล่นวีดีโอไม่ทัน ลองอีกครั้ง')); }, 12000);
+      });
+    }
+
+    async function cpOpenPlayer(lessonId) {
+      const sid = currentUser?.student_id;
+      const l = _lessonById(lessonId);
+      if (!l || !sid) return;
+      const ls = _lessonsOf(l.course_id);
+      const idx = ls.findIndex(x => String(x.__backendId) === String(lessonId));
+      if (!_lessonOpen(ls, idx, sid)) { showToast('ต้องเรียนเนื้อหาอันก่อนให้จบก่อน', 'error'); return; }
+
+      const row = _progRow(lessonId, sid);
+      const maxSec = row ? (parseFloat(row.max_sec) || 0) : 0;
+      const lastSec = row ? (parseFloat(row.last_sec) || 0) : 0;
+      _cp = { lessonId, courseId: l.course_id, studentId: sid, row, maxSec, lastSec,
+              dur: parseFloat(l.duration_sec) || 0, player: null, timer: null, saveAt: 0, dirty: false };
+
+      document.getElementById('cp-modal')?.remove();
+      const d = document.createElement('div');
+      d.id = 'cp-modal';
+      d.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-[100001] p-3';
+      d.innerHTML = `
+        <div class="bg-white rounded-2xl w-full max-w-3xl overflow-hidden" oncontextmenu="return false">
+          <div class="flex items-center justify-between gap-2 px-4 py-3 border-b">
+            <p class="font-bold text-gray-800 text-sm flex-1">🎬 ${escHtml(l.lesson_name || '')}</p>
+            <button onclick="cpClosePlayer()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">ปิด</button>
+          </div>
+          <div class="bg-black" style="position:relative;padding-top:56.25%">
+            <div id="cp-yt" style="position:absolute;inset:0"></div>
+            <div id="cp-shield" style="position:absolute;left:0;right:0;bottom:0;height:46px;background:transparent"></div>
+          </div>
+          <div class="px-4 py-3">
+            <div id="cp-bar" onclick="cpBarClick(event)" class="h-3 bg-gray-200 rounded cursor-pointer relative overflow-hidden" title="คลิกเพื่อย้อนกลับไปดูซ้ำ (เลื่อนไปข้างหน้าไม่ได้)">
+              <div id="cp-bar-max" class="absolute inset-y-0 left-0 bg-blue-200"></div>
+              <div id="cp-bar-cur" class="absolute inset-y-0 left-0 bg-blue-600"></div>
+            </div>
+            <div class="flex items-center gap-2 mt-2 flex-wrap">
+              <button id="cp-play" onclick="cpTogglePlay()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold">▶ เล่น</button>
+              <button onclick="cpRewind(10)" class="px-3 py-2 bg-gray-200 rounded-lg text-xs">⏪ ย้อน 10 วิ</button>
+              <span id="cp-time" class="text-xs text-gray-600 font-mono"></span>
+              <span id="cp-pct" class="text-xs font-semibold text-blue-700 ml-auto"></span>
+            </div>
+            <p id="cp-msg" class="text-xs text-amber-700 mt-1"></p>
+            <p class="text-[11px] text-gray-500 mt-1">เลื่อนไปข้างหน้าไม่ได้ แต่ย้อนกลับดูซ้ำได้ตลอด และระบบจำตำแหน่งล่าสุดไว้ให้เรียนต่อ</p>
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+
+      try { await _cpLoadApi(); } catch (e) { showToast(e.message, 'error'); return; }
+      if (!document.getElementById('cp-yt')) return;   // ปิดไปก่อนโหลดเสร็จ
+      _cp.player = new YT.Player('cp-yt', {
+        videoId: l.youtube_id,
+        playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, fs: 0, playsinline: 1, iv_load_policy: 3 },
+        events: {
+          onReady: () => {
+            try {
+              _cp.dur = _cp.player.getDuration() || _cp.dur;
+              const start = Math.min(_cp.lastSec, Math.max(0, _cp.maxSec));
+              if (start > 1) _cp.player.seekTo(start, true);
+            } catch (e) {}
+            _cpStartTimer();
+            _cpPaint();
+          },
+          onStateChange: (ev) => {
+            const st = ev && ev.data;
+            if (st === 1) { _cpSetPlayLabel(true); }
+            else { _cpSetPlayLabel(false); if (st === 2 || st === 0) _cpSave(true); }
+            if (st === 0) _cpPaint();
+          }
+        }
+      });
+    }
+    function _cpSetPlayLabel(playing) {
+      const b = document.getElementById('cp-play');
+      if (b) b.textContent = playing ? '⏸ หยุด' : '▶ เล่น';
+    }
+    function _cpStartTimer() {
+      if (_cp && _cp.timer) clearInterval(_cp.timer);
+      if (!_cp) return;
+      _cp.timer = setInterval(_cpLoop, 250);
+    }
+    function _cpLoop() {
+      if (!_cp || !_cp.player || !_cp.player.getCurrentTime) return;
+      let cur = 0;
+      try { cur = _cp.player.getCurrentTime() || 0; } catch (e) { return; }
+      const res = _cpTick(_cp.maxSec, cur);
+      if (res.blocked) {
+        _cp.maxSec = res.maxSec;
+        try { _cp.player.seekTo(res.seekTo, true); } catch (e) {}
+        const m = document.getElementById('cp-msg');
+        if (m) { m.textContent = '⛔ เลื่อนข้ามไปข้างหน้าไม่ได้ — ระบบพากลับมาที่เดิมให้'; setTimeout(() => { if (m) m.textContent = ''; }, 2500); }
+      } else {
+        _cp.maxSec = res.maxSec;
+      }
+      _cp.lastSec = cur;
+      if (!_cp.dur) { try { _cp.dur = _cp.player.getDuration() || 0; } catch (e) {} }
+      _cpPaint();
+      const now = Date.now();
+      if (now - (_cp.saveAt || 0) > 10000) _cpSave(false);
+    }
+    function _cpFmt(s) {
+      const n = Math.max(0, Math.floor(parseFloat(s) || 0));
+      const m = Math.floor(n / 60), x = n % 60;
+      return m + ':' + (x < 10 ? '0' : '') + x;
+    }
+    function _cpPaint() {
+      if (!_cp) return;
+      const dur = _cp.dur || 0;
+      const pct = dur > 0 ? Math.min(100, Math.round((_cp.maxSec / dur) * 100)) : 0;
+      const curPct = dur > 0 ? Math.min(100, (_cp.lastSec / dur) * 100) : 0;
+      const bm = document.getElementById('cp-bar-max'), bc = document.getElementById('cp-bar-cur');
+      if (bm) bm.style.width = pct + '%';
+      if (bc) bc.style.width = curPct + '%';
+      const t = document.getElementById('cp-time');
+      if (t) t.textContent = _cpFmt(_cp.lastSec) + ' / ' + _cpFmt(dur);
+      const p = document.getElementById('cp-pct');
+      if (p) p.textContent = 'ดูไปแล้ว ' + pct + '%' + (pct >= COURSE_DONE_PERCENT ? ' ✅ ครบแล้ว' : '');
+    }
+    function cpTogglePlay() {
+      if (!_cp || !_cp.player) return;
+      try {
+        const st = _cp.player.getPlayerState ? _cp.player.getPlayerState() : -1;
+        if (st === 1) _cp.player.pauseVideo(); else _cp.player.playVideo();
+      } catch (e) {}
+    }
+    function cpRewind(sec) {
+      if (!_cp || !_cp.player) return;
+      const to = Math.max(0, (_cp.lastSec || 0) - (sec || 10));
+      try { _cp.player.seekTo(to, true); } catch (e) {}
+      _cp.lastSec = to;
+      _cpPaint();
+    }
+    /** คลิกแถบเวลา — ย้อนกลับได้เฉพาะในช่วงที่ดูมาแล้ว */
+    function cpBarClick(ev) {
+      if (!_cp || !_cp.player || !_cp.dur) return;
+      const bar = document.getElementById('cp-bar');
+      if (!bar || !bar.getBoundingClientRect) return;
+      const r = bar.getBoundingClientRect();
+      const ratio = r.width ? Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) : 0;
+      const want = ratio * _cp.dur;
+      if (want > _cp.maxSec + COURSE_SEEK_TOL) {
+        const m = document.getElementById('cp-msg');
+        if (m) { m.textContent = '⛔ ข้ามไปข้างหน้าไม่ได้ — ดูได้ถึงนาทีที่ ' + _cpFmt(_cp.maxSec) + ' เท่านั้น'; setTimeout(() => { if (m) m.textContent = ''; }, 2500); }
+        return;
+      }
+      try { _cp.player.seekTo(want, true); } catch (e) {}
+      _cp.lastSec = want;
+      _cpPaint();
+    }
+    /** บันทึกความคืบหน้าลงฐานข้อมูล */
+    async function _cpSave(force) {
+      if (!_cp) return;
+      const dur = _cp.dur || 0;
+      const pct = dur > 0 ? Math.min(100, Math.round((_cp.maxSec / dur) * 100)) : 0;
+      const done = pct >= COURSE_DONE_PERCENT;
+      _cp.saveAt = Date.now();
+      const base = {
+        max_sec: Math.round(_cp.maxSec * 10) / 10,
+        last_sec: Math.round(_cp.lastSec * 10) / 10,
+        duration_sec: Math.round(dur), percent: pct, completed: done,
+        completed_at: done ? new Date().toISOString() : null
+      };
+      const row = _progRow(_cp.lessonId, _cp.studentId);
+      let r;
+      if (row) {
+        if (!force && (parseFloat(row.percent) || 0) === pct && !done) return;
+        r = await window.dataSdk.update({ ...row, ...base });
+      } else {
+        r = await window.dataSdk.create({
+          type: 'course_progress', lesson_id: _cp.lessonId, course_id: _cp.courseId,
+          student_id: _cp.studentId, created_at: new Date().toISOString(), ...base
+        });
+      }
+      // เก็บความยาวคลิปไว้ที่เนื้อหา ครั้งต่อไปคิดร้อยละได้ก่อนวีดีโอโหลดเสร็จ
+      const l = _lessonById(_cp.lessonId);
+      if (l && dur > 0 && (parseFloat(l.duration_sec) || 0) === 0) {
+        try { await window.dataSdk.update({ ...l, duration_sec: Math.round(dur) }); } catch (e) {}
+      }
+      if (r && !r.isOk) showToast('บันทึกความคืบหน้าไม่สำเร็จ — ' + ((r.error && r.error.message) || ''), 'error');
+      return r;
+    }
+    async function cpClosePlayer() {
+      if (_cp) {
+        if (_cp.timer) clearInterval(_cp.timer);
+        try { if (_cp.player && _cp.player.pauseVideo) _cp.player.pauseVideo(); } catch (e) {}
+        await _cpSave(true);
+        try { if (_cp.player && _cp.player.destroy) _cp.player.destroy(); } catch (e) {}
+        _cp = null;
+      }
+      document.getElementById('cp-modal')?.remove();
+      if (typeof renderStudentCourses === 'function') renderStudentCourses();
     }
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
@@ -21376,6 +22320,10 @@ function _examResultIdentityHtml(sub, set) {
         loadExportDataTab();
       } else if (tabName === 'menumanager') {
         loadMenuManagerTab();
+      } else if (tabName === 'courses') {
+        loadCoursesTab();          // 🎒 จัดการหลักสูตรอบรม
+      } else if (tabName === 'courseprogress') {
+        loadCourseProgressTab();   // 📈 ความคืบหน้าหลักสูตร
       } else if (tabName === 'examimport') {
         loadExamImportTab();     // 📥 นำเข้าข้อสอบ (แยกปรนัย/อัตนัยให้เอง)
       } else if (tabName === 'examquestions') {
@@ -21754,6 +22702,7 @@ function _examResultIdentityHtml(sub, set) {
            <label class="text-xs text-gray-600">⏱️ ลงเวลาเรียน<select id="appoint-perm-timekeeping" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_timekeeping === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
            <label class="text-xs text-gray-600">🎓 ให้คะแนน<select id="appoint-perm-grading" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_grading === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
            <label class="text-xs text-gray-600">🗃️ จัดเก็บคะแนน<select id="appoint-perm-collectscore" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_collectscore === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
+           <label class="text-xs text-gray-600">🎒 หลักสูตรอบรม<select id="appoint-perm-course" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_course === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
            <label class="text-xs text-gray-600">👨‍🎓 นักเรียน<select id="appoint-perm-students" class="w-full mt-1 px-2 py-1 border-2 border-gray-200 rounded text-xs"><option value="view">ดูอย่างเดียว</option><option value="manage" ${existingAdmin?.perm_students === 'manage' ? 'selected' : ''}>จัดการได้</option></select></label>
           </div>
           <p id="appoint-error" class="text-red-500 text-sm mb-2 hidden"></p>
@@ -21800,7 +22749,8 @@ function _examResultIdentityHtml(sub, set) {
       if (!username || !password) { errorEl.textContent = 'กรุณากรอก Username/Password'; errorEl.classList.remove('hidden'); return; }
       if (!scopeClass || !scopeRoom || !scopeSubject) { errorEl.textContent = 'กรุณาเลือกชั้น ห้อง วิชา'; errorEl.classList.remove('hidden'); return; }
       const record = { type: 'admin', user_type: 'subadmin', username, password, phone_number: student.phone_number, linked_student_id: studentBackendId, scope_class_name: scopeClass, scope_room_number: scopeRoom, scope_subject_name: scopeSubject, perm_timekeeping: permT, perm_grading: permG, perm_students: permS,
-        perm_collectscore: document.getElementById('appoint-perm-collectscore')?.value || 'view' };
+        perm_collectscore: document.getElementById('appoint-perm-collectscore')?.value || 'view',
+        perm_course: document.getElementById('appoint-perm-course')?.value || 'view' };
       let result, adminId;
       if (existingAdminId) {
         const existing = allData.find(d => d.__backendId === existingAdminId);
@@ -21866,6 +22816,7 @@ function _examResultIdentityHtml(sub, set) {
             perm_timekeeping: document.getElementById('new-admin-perm-timekeeping').value,
             perm_grading: document.getElementById('new-admin-perm-grading').value,
             perm_collectscore: document.getElementById('new-admin-perm-collectscore')?.value || 'view',
+            perm_course: document.getElementById('new-admin-perm-course')?.value || 'view',
             perm_students: document.getElementById('new-admin-perm-students').value,
             created_at: new Date().toISOString()
           });
@@ -21940,6 +22891,13 @@ function _examResultIdentityHtml(sub, set) {
               </select>
             </div>
             <div>
+              <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตรอบรม</label>
+              <select id="edit-admin-perm-course" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg">
+                <option value="view" ${admin.perm_course !== 'manage' ? 'selected' : ''}>ดูอย่างเดียว</option>
+                <option value="manage" ${admin.perm_course === 'manage' ? 'selected' : ''}>จัดการได้</option>
+              </select>
+            </div>
+            <div>
               <label class="block text-xs text-gray-600 mb-1">👨‍🎓 นักเรียน</label>
               <select id="edit-admin-perm-students" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg">
                 <option value="view" ${admin.perm_students !== 'manage' ? 'selected' : ''}>ดูอย่างเดียว</option>
@@ -22010,6 +22968,7 @@ function _examResultIdentityHtml(sub, set) {
         perm_timekeeping: document.getElementById('edit-admin-perm-timekeeping').value,
         perm_grading: document.getElementById('edit-admin-perm-grading').value,
         perm_collectscore: document.getElementById('edit-admin-perm-collectscore')?.value || 'view',
+        perm_course: document.getElementById('edit-admin-perm-course')?.value || 'view',
         perm_students: document.getElementById('edit-admin-perm-students').value
       });
       if (result.isOk) {
@@ -28690,7 +29649,7 @@ function _examResultIdentityHtml(sub, set) {
       // 🏷️ ออกจากหน้าคะแนนไปหน้าอื่น → ป้าย "ส่งแล้ว" ของการสอบที่เพิ่งจบจะไม่แสดงอีก (คะแนนยังอยู่ในช่อง K/C)
       if (tabName !== 'grades' && window._justSubmittedIds) window._justSubmittedIds.clear();
       currentStudentTab = tabName;
-      const allTabIds = ['tab-profile', 'tab-notif', 'tab-register', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
+      const allTabIds = ['tab-profile', 'tab-notif', 'tab-register', 'tab-courses-student', 'tab-grades', 'tab-attendance', 'tab-homework-student', 'tab-evaluate'];
       allTabIds.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -28699,7 +29658,9 @@ function _examResultIdentityHtml(sub, set) {
         }
       });
       // ปุ่ม "การบ้าน" ของนักเรียนใช้ id พิเศษ tab-homework-student (กันชนกับ tab-homework ของแอดมิน)
-      const activeBtnId = tabName === 'homework' ? 'tab-homework-student' : 'tab-' + tabName;
+      const activeBtnId = tabName === 'homework' ? 'tab-homework-student'
+        : tabName === 'courses' ? 'tab-courses-student'       // 🎒 กันชนกับปุ่ม tab-courses ของแอดมิน
+        : 'tab-' + tabName;
       const activeBtn = document.getElementById(activeBtnId);
       if (activeBtn) {
         activeBtn.classList.remove('bg-gray-300', 'text-gray-700');
@@ -28718,6 +29679,8 @@ function _examResultIdentityHtml(sub, set) {
         showStudentAttendance();
       } else if (tabName === 'homework') {
         showStudentHomework();
+      } else if (tabName === 'courses') {
+        showStudentCourses();      // 🎒 หลักสูตรอบรม
       } else if (tabName === 'evaluate') {
         showStudentEvaluation();
       }
@@ -32256,6 +33219,8 @@ function _examResultIdentityHtml(sub, set) {
     ],
     'mn-exam': [
       {id:'examcreate',icon:'➕',label:'สร้างข้อสอบ',fn:"openCreateExamQuestionPopup()"},
+      {id:'courses',icon:'🎒',label:'จัดการหลักสูตร',fn:"mShowDesktopAdminTab('courses','🎒 จัดการหลักสูตร')"},
+      {id:'courseprogress',icon:'📈',label:'ความคืบหน้าหลักสูตร',fn:"mShowDesktopAdminTab('courseprogress','📈 ความคืบหน้าหลักสูตร')"},
       {id:'examimport',icon:'📥',label:'นำเข้าข้อสอบ',fn:"mShowDesktopAdminTab('examimport','📥 นำเข้าข้อสอบ')"},
       {id:'examquestions',icon:'🗂️',label:'คลังข้อสอบ',fn:"mShowDesktopAdminTab('examquestions','🗂️ คลังข้อสอบ')"},
       {id:'essayquestions',icon:'✍️',label:'คลังข้อสอบอัตนัย',fn:"mShowDesktopAdminTab('essayquestions','✍️ คลังข้อสอบอัตนัย')"},
