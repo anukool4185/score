@@ -3545,9 +3545,10 @@
         <div class="flex items-start justify-between gap-3 mb-4 flex-wrap">
          <div>
           <h3 class="text-xl font-bold text-gray-800 mb-1">🎒 จัดการหลักสูตรอบรม</h3>
-          <p class="text-gray-500 text-sm">สร้างหลักสูตรและใส่เนื้อหาจากลิงก์ยูทูบ — หลักสูตรผูกกับ ปี/ภาค/วิชา ทุกห้องที่เรียนวิชานั้นเห็นหลักสูตรเดียวกัน</p>
+          <p class="text-gray-500 text-sm">สร้างหลักสูตรและใส่เนื้อหาจากลิงก์ยูทูบ — หลักสูตรผูกกับ ภาคเรียน/วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี และทุกห้องที่เรียนวิชานั้นเห็นหลักสูตรเดียวกัน</p>
           <p id="co-term-note" class="text-xs text-blue-700 mt-1"></p>
           <p class="text-xs text-emerald-700 mt-1">✅ แก้ ย้าย ลบ หลักสูตรหรือเนื้อหา ไม่กระทบคะแนนของนักเรียน เพราะเก็บแยกตารางกันทั้งหมด</p>
+          <p class="text-xs text-amber-700 mt-1">🔀 ปุ่มย้าย: ย้ายทั้งหลักสูตรข้ามภาค/ข้ามวิชา หรือเลือกย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ที่ตั้งชื่อตอนย้ายก็ได้</p>
          </div>
          <button onclick="coAddCourse()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
           ➕ สร้างหลักสูตร
@@ -4196,7 +4197,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.17.233';
+    const APP_VERSION = 'SUPABASE-2026.10.18.234';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13284,7 +13285,8 @@ const supabaseDataSdk = {
 
     // ══════════════════════════════════════════════════════════════
     // 🎒 ระบบหลักสูตรอบรม (วีดีโอยูทูบ)
-    //    หลักสูตรผูกกับ ปี/ภาค/วิชา — ทุกห้องที่เรียนวิชานั้นเห็นหลักสูตรเดียวกัน
+    //    หลักสูตรผูกกับ ภาคเรียน/วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี
+    //    ย้ายหลักสูตรข้ามภาค/ข้ามวิชาได้ และย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ได้
     //    ⚠️ แยกตารางจากคะแนนทั้งหมด การสร้าง/แก้/ย้าย/ลบ จึงกระทบคะแนนไม่ได้
     // ══════════════════════════════════════════════════════════════
     const COURSE_DONE_PERCENT = 90;     // ดูถึงกี่เปอร์เซ็นต์ถือว่าเรียนจบ
@@ -13321,14 +13323,93 @@ const supabaseDataSdk = {
     }
 
     function _allCourses() { return allData.filter(d => d.type === 'course'); }
-    /** หลักสูตรของปี/ภาคที่กำลังดู (ของเดิมที่ยังไม่ระบุปี/ภาค ให้เห็นไว้ ไม่ให้หายเงียบ) */
+    /* ── ขอบเขตของหลักสูตร: ภาคเรียน + วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี ── */
+
+    /** ภาคเรียนที่กำลังทำงานอยู่ (เอาแค่ส่วนภาค ไม่เอาปี) */
+    function _coWorkingSem() {
+      const k = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      return String(String(k).split('|')[1] || '').trim();
+    }
+    /** ภาคตรงกันไหม — ฝั่งใดไม่ระบุภาค ถือว่าใช้ได้ทุกภาค */
+    function _coSemMatch(a, b) {
+      const x = String(a == null ? '' : a).trim(), y = String(b == null ? '' : b).trim();
+      return x === '' || y === '' || x === y;
+    }
+    /** ป้ายภาคเรียน */
+    function _coSemLabel(sm) {
+      const v = String(sm == null ? '' : sm).trim();
+      return v ? ('ภาคเรียนที่ ' + v) : 'ทุกภาคเรียน';
+    }
+    /** ภาคเรียนทั้งหมดที่ระบบรู้จัก */
+    function _coSemesters() {
+      const set = {};
+      allData.forEach(d => {
+        if (d.type !== 'academic_term' && d.type !== 'class_subject' && d.type !== 'course') return;
+        const v = String(d.semester == null ? '' : d.semester).trim();
+        if (v) set[v] = 1;
+      });
+      let out = Object.keys(set);
+      if (!out.length) out = ['1', '2'];
+      return out.sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+    }
+    /** วิชาทั้งหมดทุกปีทุกภาค — ใช้ตอนย้ายข้ามวิชา */
+    function _coSubjects() {
+      const set = {};
+      allData.forEach(d => {
+        if ((d.type === 'class_subject' || d.type === 'course') && d.subject_name) set[String(d.subject_name)] = 1;
+      });
+      return Object.keys(set).sort((a, b) => String(a).localeCompare(String(b), 'th'));
+    }
+    /** วิชาที่ควรเห็นในภาคที่กำลังทำงาน (ทุกปีที่เคยเปิดวิชานี้ในภาคนี้) */
+    function _coSubjectsInView() {
+      const sm = _coWorkingSem();
+      const set = {};
+      allData.forEach(d => {
+        if (d.type !== 'class_subject' || !d.subject_name) return;
+        if (_coSemMatch(d.semester, sm)) set[String(d.subject_name)] = 1;
+      });
+      _coursesInView().forEach(c => { if (c.subject_name) set[String(c.subject_name)] = 1; });
+      const out = Object.keys(set).sort((a, b) => String(a).localeCompare(String(b), 'th'));
+      return out.length ? out : _coSubjects();
+    }
+    /** ป้ายขอบเขตของหลักสูตรหนึ่ง ๆ */
+    function _coScope(c) {
+      return '📖 ' + (c && c.subject_name ? c.subject_name : 'ไม่ระบุวิชา')
+        + ' · 📅 ' + _coSemLabel(c && c.semester);
+    }
+    /** หลักสูตรของภาคที่กำลังดู — ไม่กรองด้วยปีการศึกษา */
     function _coursesInView() {
+      const sm = _coWorkingSem();
       return _allCourses()
-        .filter(d => (String(d.academic_year == null ? '' : d.academic_year).trim() === ''
-                      && String(d.semester == null ? '' : d.semester).trim() === '')
-                     || ((typeof inTermView === 'function') ? inTermView(d) : true))
+        .filter(d => _coSemMatch(d.semester, sm))
         .sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0)
           || String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
+    }
+    /** หารหัสหลักสูตรที่เพิ่งสร้าง เผื่อฐานข้อมูลไม่ส่งรหัสกลับมา */
+    function _coNewestCourseId(name, subject, sem) {
+      const m = _allCourses().filter(c => String(c.course_name || '') === String(name)
+        && _rN(c.subject_name) === _rN(subject)
+        && String(c.semester == null ? '' : c.semester) === String(sem == null ? '' : sem));
+      if (!m.length) return null;
+      m.sort((a, b) => (parseInt(b.__backendId) || 0) - (parseInt(a.__backendId) || 0));
+      return m[0].__backendId;
+    }
+    /** สร้างหลักสูตรใหม่แล้วคืนรหัส — ใช้ตอนย้ายเนื้อหาไปหลักสูตรที่ยังไม่มี */
+    async function _coCreateCourseFor(name, subject, sem, desc) {
+      const sibs = _allCourses();
+      const cr = await window.dataSdk.create({
+        type: 'course', course_name: name, subject_name: subject, description: desc || '',
+        academic_year: null, semester: sem, is_open: false,
+        sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
+        created_at: new Date().toISOString()
+      });
+      if (!(cr && cr.isOk)) {
+        showToast('สร้างหลักสูตรใหม่ไม่สำเร็จ — ' + ((cr && cr.error && cr.error.message) || ''), 'error');
+        return null;
+      }
+      const id = (cr.data && cr.data.__backendId) || _coNewestCourseId(name, subject, sem);
+      if (!id) showToast('สร้างหลักสูตรใหม่แล้ว แต่หารหัสหลักสูตรไม่พบ — ลองย้ายอีกครั้ง', 'error');
+      return id || null;
     }
     function _lessonsOf(courseId) {
       return allData.filter(d => d.type === 'course_lesson' && String(d.course_id) === String(courseId))
@@ -13405,14 +13486,14 @@ const supabaseDataSdk = {
       const subjSel = document.getElementById('co-filter-subject');
       if (subjSel) {
         const keep = subjSel.value;
-        const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
+        const subs = _coSubjectsInView();
         subjSel.innerHTML = '<option value="">ทุกวิชา</option>'
           + subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('');
         if (keep) subjSel.value = keep;
       }
       const note = document.getElementById('co-term-note');
-      if (note) note.textContent = '📅 กำลังทำงานใน ' +
-        ((typeof workingTermLabel === 'function') ? workingTermLabel() : '');
+      if (note) note.textContent = '📅 กำลังดูหลักสูตรของ ' + _coSemLabel(_coWorkingSem())
+        + ' — หลักสูตรไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี';
       renderCourseList();
     }
 
@@ -13426,7 +13507,7 @@ const supabaseDataSdk = {
 
       if (!list.length) {
         box.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีหลักสูตรใน'
-          + escHtml((typeof workingTermLabel === 'function') ? workingTermLabel() : '') + '</p>';
+          + escHtml(_coSemLabel(_coWorkingSem())) + '</p>';
         return;
       }
       box.innerHTML = list.map((c, ci) => {
@@ -13442,7 +13523,7 @@ const supabaseDataSdk = {
                 <button onclick="coMoveLesson('${l.__backendId}',-1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนขึ้น">▲</button>
                 <button onclick="coMoveLesson('${l.__backendId}',1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
                 <button onclick="coEditLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">✏️</button>
-                <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น">🔀</button>
+                <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น ข้ามวิชา ข้ามภาค">🔀</button>
                 <button onclick="coDeleteLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">🗑️</button>
               </span>` : ''}
             </div>`).join('')
@@ -13453,8 +13534,7 @@ const supabaseDataSdk = {
               <div class="flex-1 min-w-[180px]">
                 <p class="font-bold text-gray-800">${ci + 1}. ${escHtml(c.course_name || '')}
                   <span class="text-xs font-normal ${open ? 'text-emerald-700' : 'text-gray-400'}">${open ? '🟢 เปิดให้นักเรียนเห็น' : '⚫ ปิดอยู่'}</span></p>
-                <p class="text-xs text-gray-500 mt-0.5">📖 ${escHtml(c.subject_name || 'ไม่ระบุวิชา')}
-                  · 📅 ${escHtml(termLabel(c.academic_year, c.semester))}
+                <p class="text-xs text-gray-500 mt-0.5">${escHtml(_coScope(c))}
                   · 🎬 ${ls.length} เนื้อหา · 🙋 ${_enrollCount(c.__backendId)} คนสมัคร</p>
                 ${c.description ? `<p class="text-xs text-gray-600 mt-1">${escHtml(c.description)}</p>` : ''}
               </div>
@@ -13463,7 +13543,7 @@ const supabaseDataSdk = {
                 <button onclick="coMoveCourse('${c.__backendId}',1)" class="px-2 py-1 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
                 <button onclick="coToggleOpen('${c.__backendId}')" class="px-2 py-1 ${open ? 'bg-gray-200 text-gray-700' : 'bg-emerald-500 text-white'} rounded text-xs font-semibold">${open ? 'ปิด' : 'เปิด'}</button>
                 <button onclick="coEditCourse('${c.__backendId}')" class="px-2 py-1 bg-blue-500 text-white rounded text-xs">✏️ แก้ไข</button>
-                <button onclick="coMoveCourseTo('${c.__backendId}')" class="px-2 py-1 bg-amber-500 text-white rounded text-xs" title="ย้ายปี/ภาค/วิชา">🔀 ย้าย</button>
+                <button onclick="coMoveCourseTo('${c.__backendId}')" class="px-2 py-1 bg-amber-500 text-white rounded text-xs" title="ย้ายภาค/วิชา หรือย้ายบางเนื้อหา">🔀 ย้าย</button>
                 <button onclick="coDeleteCourse('${c.__backendId}')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">🗑️</button>
               </div>` : ''}
             </div>
@@ -13497,35 +13577,49 @@ const supabaseDataSdk = {
 
     function coAddCourse() {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
-      const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
-      if (!subs.length) { showToast('ยังไม่มีรายวิชาในปี/ภาคนี้ — เพิ่มรายวิชาก่อน', 'error'); return; }
+      const subs = _coSubjectsInView();
+      if (!subs.length) { showToast('ยังไม่มีรายวิชาในระบบ — เพิ่มรายวิชาก่อน', 'error'); return; }
       _coModal('➕ สร้างหลักสูตรใหม่',
         _coInp('co-f-name', '🎒 ชื่อหลักสูตร', '', 'เช่น อบรมพื้นฐานแคลคูลัส')
         + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา (ทุกห้องที่เรียนวิชานี้จะเห็น)</label>
            <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
              ${subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')}
            </select>`
+        + _coSemSelect('co-f-sem', _coWorkingSem())
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
            <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-1"></textarea>`
-        + `<p class="text-xs text-gray-500">สร้างแล้วหลักสูตรยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>`,
+        + `<p class="text-xs text-gray-500">สร้างแล้วหลักสูตรยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>
+           <p class="text-xs text-gray-500 mt-1">หลักสูตรไม่ผูกกับปีการศึกษา ใช้ซ้ำได้ทุกปี และย้ายข้ามภาค/ข้ามวิชาได้ภายหลัง</p>`,
         'coSaveCourse()');
+    }
+    /** ช่องเลือกภาคเรียน ใช้ซ้ำทุกหน้าต่าง */
+    function _coSemSelect(id, cur, label) {
+      const sems = _coSemesters();
+      const v = String(cur == null ? '' : cur).trim();
+      return `<label class="block text-xs text-gray-600 mb-1">${label || '📅 ภาคเรียน'}</label>
+         <select id="${id}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+           ${sems.map(sm => `<option value="${escHtml(sm)}" ${v === String(sm) ? 'selected' : ''}>${escHtml(_coSemLabel(sm))}</option>`).join('')}
+           <option value="" ${v === '' ? 'selected' : ''}>ทุกภาคเรียน (ไม่ระบุภาค)</option>
+         </select>`;
     }
     async function coSaveCourse(editId) {
       const name = document.getElementById('co-f-name')?.value.trim();
       const subject = document.getElementById('co-f-subject')?.value || '';
       const desc = document.getElementById('co-f-desc')?.value.trim() || '';
       if (!name) { showToast('กรุณาใส่ชื่อหลักสูตร', 'error'); return; }
-      const [y, sm] = ((typeof workingTermKey === 'function') ? workingTermKey() : '|').split('|');
+      const semEl = document.getElementById('co-f-sem');
+      const sm = semEl ? semEl.value : _coWorkingSem();
       let r;
       if (editId) {
         const ex = _courseById(editId);
         if (!ex) { showToast('ไม่พบหลักสูตรนี้', 'error'); return; }
-        r = await window.dataSdk.update({ ...ex, course_name: name, subject_name: subject, description: desc });
+        r = await window.dataSdk.update({ ...ex, course_name: name, subject_name: subject,
+          description: desc, academic_year: null, semester: sm });
       } else {
         const sibs = _coursesInView();
         r = await window.dataSdk.create({
           type: 'course', course_name: name, subject_name: subject, description: desc,
-          academic_year: y, semester: sm, is_open: false,
+          academic_year: null, semester: sm, is_open: false,
           sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
           created_at: new Date().toISOString()
         });
@@ -13540,7 +13634,7 @@ const supabaseDataSdk = {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
       const c = _courseById(id);
       if (!c) return;
-      const subs = (typeof _subjectsWorkingTermOnly === 'function') ? _subjectsWorkingTermOnly() : [];
+      const subs = _coSubjects();
       const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
       _coModal('✏️ แก้ไขหลักสูตร',
         _coInp('co-f-name', '🎒 ชื่อหลักสูตร', c.course_name)
@@ -13548,6 +13642,7 @@ const supabaseDataSdk = {
            <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
              ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
            </select>`
+        + _coSemSelect('co-f-sem', c.semester)
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย</label>
            <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml(c.description || '')}</textarea>`,
         `coSaveCourse('${id}')`);
@@ -13604,35 +13699,129 @@ const supabaseDataSdk = {
       if (r && r.isOk) { showToast('🗑️ ลบหลักสูตรแล้ว'); renderCourseList(); }
       else showToast('ลบไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
-    /** ย้ายหลักสูตรข้ามปี/ภาค/วิชา */
+    /** 🔀 ย้ายหลักสูตร — ข้ามภาค ข้ามวิชา และเลือกย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ได้ */
     function coMoveCourseTo(id) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
       const c = _courseById(id);
       if (!c) return;
-      const terms = (typeof allTermKeys === 'function') ? allTermKeys() : [];
-      const subjAll = (typeof _allSubjectNames === 'function') ? _allSubjectNames() : [];
+      const ls = _lessonsOf(id);
+      const subs = _coSubjects();
+      const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
+      const others = _allCourses().filter(x => String(x.__backendId) !== String(id))
+        .sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
       _coModal('🔀 ย้ายหลักสูตร',
-        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(c.course_name || '')}</b> ไปปี/ภาค/วิชาอื่น — เนื้อหาและความคืบหน้าของนักเรียนตามไปด้วยทั้งหมด</p>
-         <label class="block text-xs text-gray-600 mb-1">📅 ปี/ภาคปลายทาง</label>
-         <select id="co-mv-term" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
-           ${terms.map(k => { const [y, sm] = String(k).split('|');
-             return `<option value="${escHtml(k)}" ${_termKey(c) === k ? 'selected' : ''}>${escHtml(termLabel(y, sm))}</option>`; }).join('')}
-         </select>
-         <label class="block text-xs text-gray-600 mb-1">📖 วิชาปลายทาง</label>
-         <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-           ${subjAll.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-         </select>`,
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(c.course_name || '')}</b> — หลักสูตรไม่ผูกกับปีการศึกษา ย้ายได้ทั้งข้ามภาคและข้ามวิชา</p>
+         <div class="border-2 border-gray-200 rounded-lg p-3 mb-3">
+           <label class="flex items-start gap-2 mb-2 cursor-pointer">
+             <input type="radio" name="co-mv-mode" value="all" checked onchange="_coMvSync()" class="mt-1">
+             <span class="text-sm text-gray-800">ย้ายทั้งหลักสูตร
+               <span class="block text-xs text-gray-500">เนื้อหาทั้ง ${ls.length} รายการและความคืบหน้าของนักเรียนตามไปด้วย</span></span>
+           </label>
+           <label class="flex items-start gap-2 cursor-pointer">
+             <input type="radio" name="co-mv-mode" value="some" onchange="_coMvSync()" class="mt-1">
+             <span class="text-sm text-gray-800">ย้ายเฉพาะบางเนื้อหา
+               <span class="block text-xs text-gray-500">เลือกว่าเนื้อหาไหนย้าย ที่เหลืออยู่ในหลักสูตรเดิมตามเดิม</span></span>
+           </label>
+         </div>
+         <div id="co-mv-pick" style="display:none" class="border-2 border-amber-200 bg-amber-50/50 rounded-lg p-3 mb-3">
+           <p class="text-xs text-gray-700 font-semibold mb-1">🎬 เลือกเนื้อหาที่จะย้าย</p>
+           ${ls.length ? ls.map((l, i) => `
+             <label class="flex items-center gap-2 py-0.5 cursor-pointer">
+               <input type="checkbox" class="co-mv-les" value="${escHtml(l.__backendId)}">
+               <span class="text-xs text-gray-800">${i + 1}. ${escHtml(l.lesson_name || '')}</span>
+             </label>`).join('') : '<p class="text-xs text-gray-400">หลักสูตรนี้ยังไม่มีเนื้อหา</p>'}
+           <p class="text-xs text-gray-700 font-semibold mt-3 mb-1">🎒 เนื้อหาที่เลือกจะไปอยู่ที่</p>
+           <label class="flex items-center gap-2 py-0.5 cursor-pointer">
+             <input type="radio" name="co-mv-dest" value="new" checked onchange="_coMvSync()">
+             <span class="text-xs text-gray-800">หลักสูตรใหม่ (ตั้งชื่อใหม่ได้เลย)</span>
+           </label>
+           <label class="flex items-center gap-2 py-0.5 cursor-pointer">
+             <input type="radio" name="co-mv-dest" value="exist" onchange="_coMvSync()" ${others.length ? '' : 'disabled'}>
+             <span class="text-xs ${others.length ? 'text-gray-800' : 'text-gray-400'}">หลักสูตรที่มีอยู่แล้ว</span>
+           </label>
+           <div id="co-mv-newname" class="mt-2">
+             <input id="co-mv-name" value="${escHtml((c.course_name || '') + ' (ชุดที่ 2)')}" placeholder="ชื่อหลักสูตรใหม่"
+               class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+           </div>
+           <div id="co-mv-existbox" style="display:none" class="mt-2">
+             <select id="co-mv-course2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+               ${others.map(x => `<option value="${escHtml(x.__backendId)}">${escHtml(x.course_name || '')} — ${escHtml(x.subject_name || '')} · ${escHtml(_coSemLabel(x.semester))}</option>`).join('')}
+             </select>
+             <p class="text-xs text-gray-500 mt-1">ใช้ภาค/วิชาของหลักสูตรปลายทางที่เลือกไว้</p>
+           </div>
+         </div>
+         <div id="co-mv-scope">
+           ${_coSemSelect('co-mv-sem', c.semester, '📅 ภาคเรียนปลายทาง')}
+           <label class="block text-xs text-gray-600 mb-1">📖 วิชาปลายทาง</label>
+           <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
+           </select>
+         </div>
+         <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2 mt-3">✅ ย้ายอย่างไรก็ไม่กระทบคะแนนของนักเรียน และความคืบหน้าที่เรียนไว้ยังอยู่ครบ</p>`,
         `coConfirmMoveCourse('${id}')`, '🔀 ย้าย');
+      _coMvSync();
+    }
+    /** เปิด/ปิดช่องในหน้าต่างย้ายให้ตรงกับตัวเลือกที่กด */
+    function _coMvSync() {
+      const mode = (document.querySelector('input[name="co-mv-mode"]:checked') || {}).value || 'all';
+      const dest = (document.querySelector('input[name="co-mv-dest"]:checked') || {}).value || 'new';
+      const show = (id, on) => { const e = document.getElementById(id); if (e) e.style.display = on ? '' : 'none'; };
+      show('co-mv-pick', mode === 'some');
+      show('co-mv-newname', mode === 'some' && dest === 'new');
+      show('co-mv-existbox', mode === 'some' && dest === 'exist');
+      show('co-mv-scope', !(mode === 'some' && dest === 'exist'));
     }
     async function coConfirmMoveCourse(id) {
       const c = _courseById(id);
-      if (!c) return;
-      const [y, sm] = String(document.getElementById('co-mv-term')?.value || '|').split('|');
+      if (!c) { showToast('ไม่พบหลักสูตรนี้', 'error'); return; }
+      const mode = (document.querySelector('input[name="co-mv-mode"]:checked') || {}).value || 'all';
+      const dest = (document.querySelector('input[name="co-mv-dest"]:checked') || {}).value || 'new';
+      const semEl = document.getElementById('co-mv-sem');
+      const sm = semEl ? semEl.value : c.semester;
       const subject = document.getElementById('co-mv-subject')?.value || c.subject_name;
-      const r = await window.dataSdk.update({ ...c, academic_year: y, semester: sm, subject_name: subject });
+
+      // ── ย้ายทั้งหลักสูตร: เนื้อหาตามไปทั้งหมดเพราะผูกกับหลักสูตร ──
+      if (mode !== 'some') {
+        const r = await window.dataSdk.update({ ...c, academic_year: null, semester: sm, subject_name: subject });
+        document.getElementById('co-modal')?.remove();
+        if (r && r.isOk) { showToast('🔀 ย้ายหลักสูตรแล้ว — เนื้อหาและความคืบหน้าตามไปด้วย คะแนนไม่กระทบ'); loadCoursesTab(); }
+        else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+        return;
+      }
+
+      // ── ย้ายบางเนื้อหา: ที่เหลือคงอยู่ในหลักสูตรเดิม ──
+      const ids = Array.prototype.slice.call(document.querySelectorAll('input.co-mv-les'))
+        .filter(x => x.checked).map(x => x.value);
+      if (!ids.length) { showToast('เลือกเนื้อหาที่จะย้ายก่อน', 'error'); return; }
+
+      let toId = null;
+      if (dest === 'exist') {
+        toId = document.getElementById('co-mv-course2')?.value || '';
+        if (!toId) { showToast('เลือกหลักสูตรปลายทางก่อน', 'error'); return; }
+      } else {
+        const name = document.getElementById('co-mv-name')?.value.trim();
+        if (!name) { showToast('ใส่ชื่อหลักสูตรใหม่ก่อน', 'error'); return; }
+        toId = await _coCreateCourseFor(name, subject, sm, c.description);
+        if (!toId) return;
+      }
+
+      const base = _lessonsOf(toId);
+      let next = base.length ? Math.max.apply(null, base.map(x => parseInt(x.sort_order) || 0)) + 1 : 1;
+      let ok = 0, fail = 0;
+      for (const lid of ids) {
+        const l = _lessonById(lid);
+        if (!l) { fail++; continue; }
+        const r = await window.dataSdk.update({ ...l, course_id: toId, sort_order: next++ });
+        if (r && r.isOk) ok++; else fail++;
+      }
       document.getElementById('co-modal')?.remove();
-      if (r && r.isOk) { showToast('🔀 ย้ายหลักสูตรแล้ว — คะแนนไม่ได้รับผลกระทบ'); loadCoursesTab(); }
-      else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+      const left = _lessonsOf(id).length;
+      if (ok) {
+        showToast('🔀 ย้ายเนื้อหา ' + ok + ' รายการแล้ว'
+          + (left ? ' — หลักสูตรเดิมยังเหลือ ' + left + ' รายการ' : ' — หลักสูตรเดิมไม่เหลือเนื้อหาแล้ว')
+          + (fail ? ' (ย้ายไม่ได้ ' + fail + ' รายการ)' : ''));
+      } else showToast('ย้ายไม่สำเร็จ — ' + fail + ' รายการย้ายไม่ได้', 'error');
+      loadCoursesTab();
     }
 
     /* ── เนื้อหาในหลักสูตร ── */
@@ -13706,25 +13895,55 @@ const supabaseDataSdk = {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
       const l = _lessonById(id);
       if (!l) return;
+      const cur = _courseById(l.course_id);
       const all = _allCourses().sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
+      const subs = _coSubjects();
+      const curSubj = cur ? cur.subject_name : '';
+      const opts = subs.indexOf(curSubj) < 0 && curSubj ? [curSubj].concat(subs) : subs;
       _coModal('🔀 ย้ายเนื้อหาไปหลักสูตรอื่น',
-        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(l.lesson_name || '')}</b> — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(l.lesson_name || '')}</b> ข้ามหลักสูตร ข้ามวิชา หรือข้ามภาคก็ได้ — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
          <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตรปลายทาง</label>
-         <select id="co-mv-course" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-           ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(termLabel(c.academic_year, c.semester))}</option>`).join('')}
-         </select>`,
+         <select id="co-mv-course" onchange="_coMvLesSync()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+           ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('')}
+           <option value="__new__">➕ สร้างหลักสูตรใหม่สำหรับเนื้อหานี้</option>
+         </select>
+         <div id="co-mv-newbox" style="display:none" class="mt-3 border-2 border-amber-200 bg-amber-50/50 rounded-lg p-3">
+           ${_coInp('co-mv-name', '🎒 ชื่อหลักสูตรใหม่', (cur && cur.course_name ? cur.course_name + ' (ต่อ)' : ''), 'เช่น อบรมเสริมเรื่องอนุพันธ์')}
+           ${_coSemSelect('co-mv-sem', cur ? cur.semester : _coWorkingSem(), '📅 ภาคเรียนของหลักสูตรใหม่')}
+           <label class="block text-xs text-gray-600 mb-1">📖 วิชาของหลักสูตรใหม่</label>
+           <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(curSubj) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
+           </select>
+           <p class="text-xs text-gray-500 mt-2">หลักสูตรใหม่จะยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>
+         </div>`,
         `coConfirmMoveLesson('${id}')`, '🔀 ย้าย');
+      _coMvLesSync();
+    }
+    /** เปิดช่องตั้งชื่อหลักสูตรใหม่เมื่อเลือกปลายทางเป็นหลักสูตรใหม่ */
+    function _coMvLesSync() {
+      const v = document.getElementById('co-mv-course')?.value || '';
+      const b = document.getElementById('co-mv-newbox');
+      if (b) b.style.display = (v === '__new__') ? '' : 'none';
     }
     async function coConfirmMoveLesson(id) {
       const l = _lessonById(id);
-      if (!l) return;
-      const to = document.getElementById('co-mv-course')?.value;
+      if (!l) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
+      let to = document.getElementById('co-mv-course')?.value || '';
       if (!to) return;
+      if (to === '__new__') {
+        const name = document.getElementById('co-mv-name')?.value.trim();
+        const semEl = document.getElementById('co-mv-sem');
+        const sm = semEl ? semEl.value : _coWorkingSem();
+        const subject = document.getElementById('co-mv-subject')?.value || '';
+        if (!name) { showToast('ใส่ชื่อหลักสูตรใหม่ก่อน', 'error'); return; }
+        to = await _coCreateCourseFor(name, subject, sm, '');
+        if (!to) return;
+      }
       const sibs = _lessonsOf(to);
       const r = await window.dataSdk.update({ ...l, course_id: to,
         sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1 });
       document.getElementById('co-modal')?.remove();
-      if (r && r.isOk) { showToast('🔀 ย้ายเนื้อหาแล้ว'); renderCourseList(); }
+      if (r && r.isOk) { showToast('🔀 ย้ายเนื้อหาแล้ว — ความคืบหน้าของนักเรียนตามไปด้วย'); loadCoursesTab(); }
       else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
     function coDeleteLesson(id) {
@@ -13753,7 +13972,7 @@ const supabaseDataSdk = {
         const keep = sel.value;
         const list = _coursesInView();
         sel.innerHTML = '<option value="">-- เลือกหลักสูตร --</option>'
-          + list.map(c => `<option value="${escHtml(c.__backendId)}">${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')}</option>`).join('');
+          + list.map(c => `<option value="${escHtml(c.__backendId)}">${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('');
         if (keep) sel.value = keep;
       }
       renderCourseProgress();
@@ -13830,14 +14049,14 @@ const supabaseDataSdk = {
 
     /* ═════════════ ฝั่งนักเรียน ═════════════ */
 
-    /** หลักสูตรที่นักเรียนคนนี้มีสิทธิ์เห็น — เปิดอยู่ และตรงปี/ภาค/วิชาที่ตัวเองลงทะเบียนไว้ */
+    /** หลักสูตรที่นักเรียนคนนี้มีสิทธิ์เห็น — เปิดอยู่ · วิชาที่ตัวเองลงทะเบียนไว้ · ภาคตรงกัน (ไม่ผูกกับปี) */
     function _coursesForStudent(studentId) {
       const regs = allData.filter(d => d.type === 'student_registration'
         && String(d.student_id) === String(studentId));
       return _allCourses().filter(c => {
         if (!(c.is_open === true || c.is_open === 'true')) return false;
         return regs.some(r => _rN(r.subject_name) === _rN(c.subject_name)
-          && _termKey(r) === _termKey(c));
+          && _coSemMatch(r.semester, c.semester));
       }).sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0));
     }
 
@@ -13924,13 +14143,15 @@ const supabaseDataSdk = {
         const reg = allData.filter(d => d.type === 'student_registration'
           && String(d.student_id) === String(sid)
           && _rN(d.subject_name) === _rN(c.subject_name)
-          && _termKey(d) === _termKey(c))[0];
+          && _coSemMatch(d.semester, c.semester))[0];
         r = await window.dataSdk.create({
           type: 'course_enrollment', course_id: courseId, student_id: sid,
           student_name: st ? `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim() : '',
           class_name: (reg && reg.class_name) || (st && st.class_name) || '',
           room_number: (reg && reg.room_number) || (st && st.room_number) || '',
-          subject_name: c.subject_name, academic_year: c.academic_year, semester: c.semester,
+          subject_name: c.subject_name,
+          academic_year: (reg && reg.academic_year) || (st && st.academic_year) || '',
+          semester: (reg && reg.semester) || c.semester || '',
           status: 'active', enrolled_at: new Date().toISOString(), created_at: new Date().toISOString()
         });
       }
