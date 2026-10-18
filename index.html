@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.18.236';
+    const APP_VERSION = 'SUPABASE-2026.10.19.237';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13284,7 +13284,7 @@ const supabaseDataSdk = {
       list.forEach((t, i) => qtPreview(pfx, i));
     }
 
-// ══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // 🎒 ระบบหลักสูตรอบรม (วีดีโอยูทูบ)
     //    หลักสูตรผูกกับ ภาคเรียน/วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี
     //    ย้ายหลักสูตรข้ามภาค/ข้ามวิชาได้ และย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ได้
@@ -13377,8 +13377,8 @@ const supabaseDataSdk = {
       return Object.keys(set).sort((a, b) => String(a).localeCompare(String(b), 'th'));
     }
     /** 🔁 เติมตัวเลือกวิชาให้ตรงกับภาคที่เลือกอยู่
-     *  วิชาเดิมของหลักสูตรจะไม่หายไปจากตัวเลือก แต่ติดป้ายไว้ว่าไม่มีในภาคนั้น
-     *  ค่าที่ต้องคงไว้อ่านจากช่องซ่อน "<selId>-keep" จึงไม่ต้องยัดข้อความชื่อวิชาลงใน onchange */
+     *  แสดงเฉพาะรายวิชาที่เปิดสอนในภาคนั้นจริง ๆ — วิชาของภาคอื่นไม่เอามาปน
+     *  วิชาเดิมของหลักสูตร (ช่องซ่อน "<selId>-keep") ใช้แค่บอกเตือนใต้ช่อง ไม่ใส่ในตัวเลือก */
     function _coFillSubjects(selId, semId) {
       const sel = document.getElementById(selId);
       if (!sel) return;
@@ -13386,19 +13386,23 @@ const supabaseDataSdk = {
       const sm = semEl ? semEl.value : '';
       const keepEl = document.getElementById(selId + '-keep');
       const keep = keepEl ? String(keepEl.value || '').trim() : '';
-      const want = String(sel.value || keep || '').trim();
-      const inSem = _coSubjectsOfSem(sm);
-      let list = inSem.slice();
-      if (keep && list.indexOf(keep) < 0) list = [keep].concat(list);
-      if (want && want !== keep && list.indexOf(want) < 0) list = list.concat([want]);
+      const list = _coSubjectsOfSem(sm);
+      const cur = String(sel.value || keep || '').trim();
+      // คงค่าที่เลือกไว้ได้เฉพาะเมื่อภาคนี้เปิดสอนวิชานั้นจริง
+      const want = list.some(v => _rN(v) === _rN(cur)) ? cur : '';
       sel.innerHTML = '<option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>'
-        + list.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(want) ? 'selected' : ''}>${escHtml(v)}${inSem.indexOf(v) < 0 ? ' (ไม่มีในภาคนี้)' : ''}</option>`).join('');
-      if (want) sel.value = want;
+        + list.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(want) ? 'selected' : ''}>${escHtml(v)}</option>`).join('');
+      sel.value = want;
       const note = document.getElementById(selId + '-note');
       if (note) {
-        note.textContent = inSem.length
-          ? ('มีรายวิชาใน' + _coSemLabel(sm) + ' ' + inSem.length + ' วิชา')
-          : ('ยังไม่มีรายวิชาที่เปิดสอนใน' + _coSemLabel(sm) + ' — เลือก "ยังไม่ระบุ" ไว้ก่อนแล้วกลับมาเติมได้');
+        if (!list.length) {
+          note.textContent = 'ยังไม่มีรายวิชาที่เปิดสอนใน' + _coSemLabel(sm)
+            + ' — เลือก "ยังไม่ระบุ" ไว้ก่อนแล้วกลับมาเติมได้';
+        } else if (keep && !list.some(v => _rN(v) === _rN(keep))) {
+          note.textContent = _coSemLabel(sm) + ' ไม่ได้เปิดสอนวิชา ' + keep + ' — เลือกวิชาที่เปิดสอนในภาคนี้แทน';
+        } else {
+          note.textContent = 'รายวิชาที่เปิดสอนใน' + _coSemLabel(sm) + ' ' + list.length + ' วิชา';
+        }
       }
     }
     /** ช่องเลือกวิชาที่ผูกกับช่องภาค — เปลี่ยนภาคแล้วรายวิชาเปลี่ยนตาม */
