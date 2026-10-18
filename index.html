@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.18.235';
+    const APP_VERSION = 'SUPABASE-2026.10.18.236';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13341,10 +13341,15 @@ const supabaseDataSdk = {
       const v = String(sm == null ? '' : sm).trim();
       return v ? ('ภาคเรียนที่ ' + v) : 'ทุกภาคเรียน';
     }
+    /** ชุดข้อมูลเต็มที่ยังไม่ถูกคัดตามปี/ภาคที่กำลังดู
+     *  ⚠️ allData คัด class_subject ให้เหลือแต่ของเทอมที่เปิดดูอยู่
+     *     งานหลักสูตรต้องเห็นรายวิชาข้ามภาคข้ามปี จึงต้องอ่านจากชุดเต็มนี้ */
+    function _coAll() { return (typeof window !== 'undefined' && Array.isArray(window.__allRaw)) ? window.__allRaw : allData; }
+
     /** ภาคเรียนทั้งหมดที่ระบบรู้จัก */
     function _coSemesters() {
       const set = {};
-      allData.forEach(d => {
+      _coAll().forEach(d => {
         if (d.type !== 'academic_term' && d.type !== 'class_subject' && d.type !== 'course') return;
         const v = String(d.semester == null ? '' : d.semester).trim();
         if (v) set[v] = 1;
@@ -13356,16 +13361,59 @@ const supabaseDataSdk = {
     /** วิชาทั้งหมดทุกปีทุกภาค — ใช้ตอนย้ายข้ามวิชา */
     function _coSubjects() {
       const set = {};
-      allData.forEach(d => {
+      _coAll().forEach(d => {
         if ((d.type === 'class_subject' || d.type === 'course') && d.subject_name) set[String(d.subject_name)] = 1;
       });
       return Object.keys(set).sort((a, b) => String(a).localeCompare(String(b), 'th'));
     }
+    /** รายวิชาที่เปิดสอนในภาคเรียนที่ระบุ (ทุกปีการศึกษารวมกัน) — ภาคว่าง = ทุกวิชา */
+    function _coSubjectsOfSem(sm) {
+      const v = String(sm == null ? '' : sm).trim();
+      const set = {};
+      _coAll().forEach(d => {
+        if (d.type !== 'class_subject' || !d.subject_name) return;
+        if (v === '' || _coSemMatch(d.semester, v)) set[String(d.subject_name)] = 1;
+      });
+      return Object.keys(set).sort((a, b) => String(a).localeCompare(String(b), 'th'));
+    }
+    /** 🔁 เติมตัวเลือกวิชาให้ตรงกับภาคที่เลือกอยู่
+     *  วิชาเดิมของหลักสูตรจะไม่หายไปจากตัวเลือก แต่ติดป้ายไว้ว่าไม่มีในภาคนั้น
+     *  ค่าที่ต้องคงไว้อ่านจากช่องซ่อน "<selId>-keep" จึงไม่ต้องยัดข้อความชื่อวิชาลงใน onchange */
+    function _coFillSubjects(selId, semId) {
+      const sel = document.getElementById(selId);
+      if (!sel) return;
+      const semEl = document.getElementById(semId);
+      const sm = semEl ? semEl.value : '';
+      const keepEl = document.getElementById(selId + '-keep');
+      const keep = keepEl ? String(keepEl.value || '').trim() : '';
+      const want = String(sel.value || keep || '').trim();
+      const inSem = _coSubjectsOfSem(sm);
+      let list = inSem.slice();
+      if (keep && list.indexOf(keep) < 0) list = [keep].concat(list);
+      if (want && want !== keep && list.indexOf(want) < 0) list = list.concat([want]);
+      sel.innerHTML = '<option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>'
+        + list.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(want) ? 'selected' : ''}>${escHtml(v)}${inSem.indexOf(v) < 0 ? ' (ไม่มีในภาคนี้)' : ''}</option>`).join('');
+      if (want) sel.value = want;
+      const note = document.getElementById(selId + '-note');
+      if (note) {
+        note.textContent = inSem.length
+          ? ('มีรายวิชาใน' + _coSemLabel(sm) + ' ' + inSem.length + ' วิชา')
+          : ('ยังไม่มีรายวิชาที่เปิดสอนใน' + _coSemLabel(sm) + ' — เลือก "ยังไม่ระบุ" ไว้ก่อนแล้วกลับมาเติมได้');
+      }
+    }
+    /** ช่องเลือกวิชาที่ผูกกับช่องภาค — เปลี่ยนภาคแล้วรายวิชาเปลี่ยนตาม */
+    function _coSubjectSelect(selId, semId, cur, label) {
+      return `<label class="block text-xs text-gray-600 mb-1">${label || '📖 วิชา'}</label>
+         <input type="hidden" id="${selId}-keep" value="${escHtml(String(cur == null ? '' : cur))}">
+         <select id="${selId}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"></select>
+         <p id="${selId}-note" class="text-xs text-gray-500 mt-1 mb-3"></p>`;
+    }
+
     /** วิชาที่ควรเห็นในภาคที่กำลังทำงาน (ทุกปีที่เคยเปิดวิชานี้ในภาคนี้) */
     function _coSubjectsInView() {
       const sm = _coWorkingSem();
       const set = {};
-      allData.forEach(d => {
+      _coAll().forEach(d => {
         if (d.type !== 'class_subject' || !d.subject_name) return;
         if (_coSemMatch(d.semester, sm)) set[String(d.subject_name)] = 1;
       });
@@ -13624,28 +13672,24 @@ const supabaseDataSdk = {
 
     function coAddCourse() {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
-      const subs = _coSubjectsInView();
       _coModal('➕ สร้างหลักสูตรใหม่',
         _coInp('co-f-name', '🎒 ชื่อหลักสูตร', '', 'เช่น อบรมพื้นฐานแคลคูลัส')
-        + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา (ทุกห้องที่เรียนวิชานี้จะเห็น)</label>
-           <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
-             <option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>
-             ${subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')}
-           </select>`
-        + _coSemSelect('co-f-sem', _coWorkingSem())
+        + _coSemSelect('co-f-sem', _coWorkingSem(), '📅 ภาคเรียน', "_coFillSubjects('co-f-subject','co-f-sem')")
+        + _coSubjectSelect('co-f-subject', 'co-f-sem', '', '📖 วิชา (ทุกห้องที่เรียนวิชานี้จะเห็น)')
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
            <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-1"></textarea>`
         + `<p class="text-xs text-gray-500">สร้างแล้วหลักสูตรยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>
            <p class="text-xs text-gray-500 mt-1">หลักสูตรไม่ผูกกับปีการศึกษา ใช้ซ้ำได้ทุกปี และย้ายข้ามภาค/ข้ามวิชาได้ภายหลัง</p>
            <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-2">💾 กรอกไม่ครบก็กดบันทึกได้ ระบบเก็บไว้เป็นร่างให้ กลับมาเติมภายหลังได้ทุกช่อง</p>`,
         'coSaveCourse()');
+      _coFillSubjects('co-f-subject', 'co-f-sem');
     }
     /** ช่องเลือกภาคเรียน ใช้ซ้ำทุกหน้าต่าง */
-    function _coSemSelect(id, cur, label) {
+    function _coSemSelect(id, cur, label, onchangeJs) {
       const sems = _coSemesters();
       const v = String(cur == null ? '' : cur).trim();
       return `<label class="block text-xs text-gray-600 mb-1">${label || '📅 ภาคเรียน'}</label>
-         <select id="${id}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+         <select id="${id}" ${onchangeJs ? `onchange="${onchangeJs}"` : ''} class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
            ${sems.map(sm => `<option value="${escHtml(sm)}" ${v === String(sm) ? 'selected' : ''}>${escHtml(_coSemLabel(sm))}</option>`).join('')}
            <option value="" ${v === '' ? 'selected' : ''}>ทุกภาคเรียน (ไม่ระบุภาค)</option>
          </select>`;
@@ -13684,21 +13728,16 @@ const supabaseDataSdk = {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
       const c = _courseById(id);
       if (!c) return;
-      const subs = _coSubjects();
-      const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
       const miss = _coMissing(c);
       _coModal('✏️ แก้ไขหลักสูตร',
         (miss.length ? `<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mb-3">⚠️ หลักสูตรนี้ยังขาด ${escHtml(miss.join(' · '))} — เติมให้ครบแล้วจึงเปิดให้นักเรียนเห็นได้</p>` : '')
         + _coInp('co-f-name', '🎒 ชื่อหลักสูตร', c.course_name)
-        + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
-           <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
-             <option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>
-             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-           </select>`
-        + _coSemSelect('co-f-sem', c.semester)
+        + _coSemSelect('co-f-sem', c.semester, '📅 ภาคเรียน', "_coFillSubjects('co-f-subject','co-f-sem')")
+        + _coSubjectSelect('co-f-subject', 'co-f-sem', c.subject_name, '📖 วิชา')
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย</label>
            <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml(c.description || '')}</textarea>`,
         `coSaveCourse('${id}')`);
+      _coFillSubjects('co-f-subject', 'co-f-sem');
     }
     async function coToggleOpen(id) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
@@ -13769,8 +13808,6 @@ const supabaseDataSdk = {
       const c = _courseById(id);
       if (!c) return;
       const ls = _lessonsOf(id);
-      const subs = _coSubjects();
-      const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
       const others = _allCourses().filter(x => String(x.__backendId) !== String(id))
         .sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
       _coModal('🔀 ย้ายหลักสูตร',
@@ -13815,14 +13852,12 @@ const supabaseDataSdk = {
            </div>
          </div>
          <div id="co-mv-scope">
-           ${_coSemSelect('co-mv-sem', c.semester, '📅 ภาคเรียนปลายทาง')}
-           <label class="block text-xs text-gray-600 mb-1">📖 วิชาปลายทาง</label>
-           <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-           </select>
+           ${_coSemSelect('co-mv-sem', c.semester, '📅 ภาคเรียนปลายทาง', "_coFillSubjects('co-mv-subject','co-mv-sem')")}
+           ${_coSubjectSelect('co-mv-subject', 'co-mv-sem', c.subject_name, '📖 วิชาปลายทาง')}
          </div>
          <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2 mt-3">✅ ย้ายอย่างไรก็ไม่กระทบคะแนนของนักเรียน และความคืบหน้าที่เรียนไว้ยังอยู่ครบ</p>`,
         `coConfirmMoveCourse('${id}')`, '🔀 ย้าย');
+      _coFillSubjects('co-mv-subject', 'co-mv-sem');
       _coMvSync();
     }
     /** เปิด/ปิดช่องในหน้าต่างย้ายให้ตรงกับตัวเลือกที่กด */
@@ -13967,9 +14002,7 @@ const supabaseDataSdk = {
       if (!l) return;
       const cur = _courseById(l.course_id);
       const all = _allCourses().sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
-      const subs = _coSubjects();
       const curSubj = cur ? cur.subject_name : '';
-      const opts = subs.indexOf(curSubj) < 0 && curSubj ? [curSubj].concat(subs) : subs;
       _coModal('🔀 ย้ายเนื้อหาไปหลักสูตรอื่น',
         `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(_coLesName(l))}</b> ข้ามหลักสูตร ข้ามวิชา หรือข้ามภาคก็ได้ — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
          <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตรปลายทาง</label>
@@ -13979,14 +14012,12 @@ const supabaseDataSdk = {
          </select>
          <div id="co-mv-newbox" style="display:none" class="mt-3 border-2 border-amber-200 bg-amber-50/50 rounded-lg p-3">
            ${_coInp('co-mv-name', '🎒 ชื่อหลักสูตรใหม่', (cur && cur.course_name ? cur.course_name + ' (ต่อ)' : ''), 'เช่น อบรมเสริมเรื่องอนุพันธ์')}
-           ${_coSemSelect('co-mv-sem', cur ? cur.semester : _coWorkingSem(), '📅 ภาคเรียนของหลักสูตรใหม่')}
-           <label class="block text-xs text-gray-600 mb-1">📖 วิชาของหลักสูตรใหม่</label>
-           <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-             ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(curSubj) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
-           </select>
+           ${_coSemSelect('co-mv-sem', cur ? cur.semester : _coWorkingSem(), '📅 ภาคเรียนของหลักสูตรใหม่', "_coFillSubjects('co-mv-subject','co-mv-sem')")}
+           ${_coSubjectSelect('co-mv-subject', 'co-mv-sem', curSubj, '📖 วิชาของหลักสูตรใหม่')}
            <p class="text-xs text-gray-500 mt-2">หลักสูตรใหม่จะยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น · ยังไม่ตั้งชื่อก็ได้ กลับมาเติมภายหลังได้</p>
          </div>`,
         `coConfirmMoveLesson('${id}')`, '🔀 ย้าย');
+      _coFillSubjects('co-mv-subject', 'co-mv-sem');
       _coMvLesSync();
     }
     /** เปิดช่องตั้งชื่อหลักสูตรใหม่เมื่อเลือกปลายทางเป็นหลักสูตรใหม่ */
