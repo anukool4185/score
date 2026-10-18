@@ -3549,6 +3549,7 @@
           <p id="co-term-note" class="text-xs text-blue-700 mt-1"></p>
           <p class="text-xs text-emerald-700 mt-1">✅ แก้ ย้าย ลบ หลักสูตรหรือเนื้อหา ไม่กระทบคะแนนของนักเรียน เพราะเก็บแยกตารางกันทั้งหมด</p>
           <p class="text-xs text-amber-700 mt-1">🔀 ปุ่มย้าย: ย้ายทั้งหลักสูตรข้ามภาค/ข้ามวิชา หรือเลือกย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ที่ตั้งชื่อตอนย้ายก็ได้</p>
+          <p class="text-xs text-amber-700 mt-1">💾 กรอกไม่ครบก็กดบันทึกไว้ก่อนได้ทั้งหลักสูตรและเนื้อหา กลับมาเติมภายหลังได้ ส่วนที่ยังไม่ครบจะยังไม่แสดงให้นักเรียน</p>
          </div>
          <button onclick="coAddCourse()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
           ➕ สร้างหลักสูตร
@@ -4197,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.18.234';
+    const APP_VERSION = 'SUPABASE-2026.10.18.235';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13283,7 +13284,7 @@ const supabaseDataSdk = {
       list.forEach((t, i) => qtPreview(pfx, i));
     }
 
-    // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
     // 🎒 ระบบหลักสูตรอบรม (วีดีโอยูทูบ)
     //    หลักสูตรผูกกับ ภาคเรียน/วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี
     //    ย้ายหลักสูตรข้ามภาค/ข้ามวิชาได้ และย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ได้
@@ -13411,11 +13412,49 @@ const supabaseDataSdk = {
       if (!id) showToast('สร้างหลักสูตรใหม่แล้ว แต่หารหัสหลักสูตรไม่พบ — ลองย้ายอีกครั้ง', 'error');
       return id || null;
     }
+    /* ── 📝 กรอกไม่ครบก็บันทึกไว้ก่อนได้ กลับมาเติมภายหลัง ──
+       หลักสูตรหรือเนื้อหาที่ยังไม่ครบ จะถูกกันไม่ให้ไปถึงนักเรียนจนกว่าจะเติมครบ */
+
+    /** หลักสูตรนี้ยังขาดอะไร — คืนรายชื่อช่องที่ยังว่าง */
+    function _coMissing(c) {
+      const m = [];
+      if (!c) return m;
+      if (!String(c.course_name == null ? '' : c.course_name).trim()) m.push('ชื่อหลักสูตร');
+      if (!String(c.subject_name == null ? '' : c.subject_name).trim()) m.push('วิชา');
+      return m;
+    }
+    /** เนื้อหานี้ยังขาดอะไร */
+    function _coLesMissing(l) {
+      const m = [];
+      if (!l) return m;
+      if (!String(l.lesson_name == null ? '' : l.lesson_name).trim()) m.push('ชื่อเนื้อหา');
+      if (!String(l.youtube_id == null ? '' : l.youtube_id).trim()) m.push('ลิงก์ยูทูบ');
+      return m;
+    }
+    function _coReady(c) { return _coMissing(c).length === 0; }
+    function _coLesReady(l) { return _coLesMissing(l).length === 0; }
+    /** ชื่อที่เอาไปแสดงได้แม้ยังไม่ได้ตั้งชื่อ */
+    function _coName(c) {
+      const v = String(c && c.course_name != null ? c.course_name : '').trim();
+      return v || '(ยังไม่ได้ตั้งชื่อหลักสูตร)';
+    }
+    function _coLesName(l) {
+      const v = String(l && l.lesson_name != null ? l.lesson_name : '').trim();
+      return v || '(ยังไม่ได้ตั้งชื่อเนื้อหา)';
+    }
+    /** ป้ายเตือนว่ายังกรอกไม่ครบ */
+    function _coDraftBadge(miss) {
+      if (!miss.length) return '';
+      return `<span class="text-xs font-normal text-amber-700 bg-amber-100 border border-amber-200 rounded px-1.5 py-0.5">⚠️ ยังขาด ${escHtml(miss.join(' · '))}</span>`;
+    }
+
     function _lessonsOf(courseId) {
       return allData.filter(d => d.type === 'course_lesson' && String(d.course_id) === String(courseId))
         .sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0)
           || String(a.lesson_name || '').localeCompare(String(b.lesson_name || ''), 'th'));
     }
+    /** เนื้อหาที่กรอกครบแล้ว — ใช้ฝั่งนักเรียนและการคิดร้อยละ เพื่อไม่ให้ร่างที่ยังไม่เสร็จขวางทาง */
+    function _lessonsReadyOf(courseId) { return _lessonsOf(courseId).filter(_coLesReady); }
     function _courseById(id) { return _allCourses().find(d => String(d.__backendId) === String(id)) || null; }
     function _lessonById(id) {
       return allData.find(d => d.type === 'course_lesson' && String(d.__backendId) === String(id)) || null;
@@ -13463,7 +13502,7 @@ const supabaseDataSdk = {
     }
     /** ร้อยละรวมของหลักสูตร (เฉลี่ยทุกเนื้อหา) */
     function _courseOverall(courseId, studentId) {
-      const ls = _lessonsOf(courseId);
+      const ls = _lessonsReadyOf(courseId);
       if (!ls.length) return 0;
       let sum = 0;
       ls.forEach(l => { sum += _progPercent(l.__backendId, studentId); });
@@ -13512,13 +13551,18 @@ const supabaseDataSdk = {
       }
       box.innerHTML = list.map((c, ci) => {
         const ls = _lessonsOf(c.__backendId);
+        const ready = _lessonsReadyOf(c.__backendId);
+        const cMiss = _coMissing(c);
         const open = c.is_open === true || c.is_open === 'true';
         const lessonsHtml = ls.length
-          ? ls.map((l, li) => `
-            <div class="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0 flex-wrap">
+          ? ls.map((l, li) => {
+            const lMiss = _coLesMissing(l);
+            return `
+            <div class="flex items-center gap-2 py-1.5 border-b border-gray-100 last:border-0 flex-wrap ${lMiss.length ? 'bg-amber-50/60' : ''}">
               <span class="text-xs text-gray-400 w-5 text-right">${li + 1}.</span>
-              ${l.youtube_id ? `<img src="https://i.ytimg.com/vi/${escHtml(l.youtube_id)}/default.jpg" class="w-16 h-9 object-cover rounded" alt="">` : '<span class="w-16 h-9 bg-gray-100 rounded"></span>'}
-              <span class="flex-1 min-w-[120px] text-sm text-gray-800">${escHtml(l.lesson_name || '')}</span>
+              ${l.youtube_id ? `<img src="https://i.ytimg.com/vi/${escHtml(l.youtube_id)}/default.jpg" class="w-16 h-9 object-cover rounded" alt="">` : '<span class="w-16 h-9 bg-gray-100 rounded flex items-center justify-center text-[10px] text-gray-400">ไม่มีคลิป</span>'}
+              <span class="flex-1 min-w-[120px] text-sm ${lMiss.length ? 'text-gray-500' : 'text-gray-800'}">${escHtml(_coLesName(l))}
+                ${_coDraftBadge(lMiss)}</span>
               ${canEdit ? `<span class="flex gap-1">
                 <button onclick="coMoveLesson('${l.__backendId}',-1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนขึ้น">▲</button>
                 <button onclick="coMoveLesson('${l.__backendId}',1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
@@ -13526,16 +13570,19 @@ const supabaseDataSdk = {
                 <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น ข้ามวิชา ข้ามภาค">🔀</button>
                 <button onclick="coDeleteLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">🗑️</button>
               </span>` : ''}
-            </div>`).join('')
+            </div>`; }).join('')
           : '<p class="text-xs text-gray-400 py-2">ยังไม่มีเนื้อหาในหลักสูตรนี้</p>';
         return `
           <div class="border-2 ${open ? 'border-emerald-200 bg-emerald-50/40' : 'border-gray-200 bg-white'} rounded-xl p-4 mb-3">
             <div class="flex items-start justify-between gap-2 flex-wrap mb-2">
               <div class="flex-1 min-w-[180px]">
-                <p class="font-bold text-gray-800">${ci + 1}. ${escHtml(c.course_name || '')}
-                  <span class="text-xs font-normal ${open ? 'text-emerald-700' : 'text-gray-400'}">${open ? '🟢 เปิดให้นักเรียนเห็น' : '⚫ ปิดอยู่'}</span></p>
+                <p class="font-bold ${cMiss.length ? 'text-gray-600' : 'text-gray-800'}">${ci + 1}. ${escHtml(_coName(c))}
+                  <span class="text-xs font-normal ${open ? 'text-emerald-700' : 'text-gray-400'}">${open ? '🟢 เปิดให้นักเรียนเห็น' : '⚫ ปิดอยู่'}</span>
+                  ${_coDraftBadge(cMiss)}</p>
                 <p class="text-xs text-gray-500 mt-0.5">${escHtml(_coScope(c))}
-                  · 🎬 ${ls.length} เนื้อหา · 🙋 ${_enrollCount(c.__backendId)} คนสมัคร</p>
+                  · 🎬 ${ls.length} เนื้อหา${ls.length > ready.length ? ' (พร้อมใช้ ' + ready.length + ')' : ''}
+                  · 🙋 ${_enrollCount(c.__backendId)} คนสมัคร</p>
+                ${(cMiss.length || ls.length > ready.length) && !open ? `<p class="text-xs text-amber-700 mt-1">💾 เก็บไว้เป็นร่าง กลับมาเติมภายหลังได้ ส่วนที่ยังไม่ครบจะไม่แสดงให้นักเรียน</p>` : ''}
                 ${c.description ? `<p class="text-xs text-gray-600 mt-1">${escHtml(c.description)}</p>` : ''}
               </div>
               ${canEdit ? `<div class="flex gap-1 flex-wrap">
@@ -13578,18 +13625,19 @@ const supabaseDataSdk = {
     function coAddCourse() {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
       const subs = _coSubjectsInView();
-      if (!subs.length) { showToast('ยังไม่มีรายวิชาในระบบ — เพิ่มรายวิชาก่อน', 'error'); return; }
       _coModal('➕ สร้างหลักสูตรใหม่',
         _coInp('co-f-name', '🎒 ชื่อหลักสูตร', '', 'เช่น อบรมพื้นฐานแคลคูลัส')
         + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา (ทุกห้องที่เรียนวิชานี้จะเห็น)</label>
            <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+             <option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>
              ${subs.map(v => `<option value="${escHtml(v)}">${escHtml(v)}</option>`).join('')}
            </select>`
         + _coSemSelect('co-f-sem', _coWorkingSem())
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
            <textarea id="co-f-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-1"></textarea>`
         + `<p class="text-xs text-gray-500">สร้างแล้วหลักสูตรยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>
-           <p class="text-xs text-gray-500 mt-1">หลักสูตรไม่ผูกกับปีการศึกษา ใช้ซ้ำได้ทุกปี และย้ายข้ามภาค/ข้ามวิชาได้ภายหลัง</p>`,
+           <p class="text-xs text-gray-500 mt-1">หลักสูตรไม่ผูกกับปีการศึกษา ใช้ซ้ำได้ทุกปี และย้ายข้ามภาค/ข้ามวิชาได้ภายหลัง</p>
+           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-2">💾 กรอกไม่ครบก็กดบันทึกได้ ระบบเก็บไว้เป็นร่างให้ กลับมาเติมภายหลังได้ทุกช่อง</p>`,
         'coSaveCourse()');
     }
     /** ช่องเลือกภาคเรียน ใช้ซ้ำทุกหน้าต่าง */
@@ -13606,7 +13654,6 @@ const supabaseDataSdk = {
       const name = document.getElementById('co-f-name')?.value.trim();
       const subject = document.getElementById('co-f-subject')?.value || '';
       const desc = document.getElementById('co-f-desc')?.value.trim() || '';
-      if (!name) { showToast('กรุณาใส่ชื่อหลักสูตร', 'error'); return; }
       const semEl = document.getElementById('co-f-sem');
       const sm = semEl ? semEl.value : _coWorkingSem();
       let r;
@@ -13625,7 +13672,10 @@ const supabaseDataSdk = {
         });
       }
       if (r && r.isOk) {
-        showToast(editId ? '✅ แก้ไขหลักสูตรแล้ว' : '✅ สร้างหลักสูตรแล้ว');
+        const miss = _coMissing({ course_name: name, subject_name: subject });
+        showToast(miss.length
+          ? '💾 บันทึกไว้เป็นร่างแล้ว — ยังขาด ' + miss.join(' · ') + ' กลับมาเติมภายหลังได้ (ยังเปิดให้นักเรียนเห็นไม่ได้)'
+          : (editId ? '✅ แก้ไขหลักสูตรแล้ว' : '✅ สร้างหลักสูตรแล้ว'));
         document.getElementById('co-modal')?.remove();
         renderCourseList();
       } else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || 'ฐานข้อมูลไม่ตอบรับ'), 'error');
@@ -13636,10 +13686,13 @@ const supabaseDataSdk = {
       if (!c) return;
       const subs = _coSubjects();
       const opts = subs.indexOf(c.subject_name) < 0 && c.subject_name ? [c.subject_name].concat(subs) : subs;
+      const miss = _coMissing(c);
       _coModal('✏️ แก้ไขหลักสูตร',
-        _coInp('co-f-name', '🎒 ชื่อหลักสูตร', c.course_name)
+        (miss.length ? `<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mb-3">⚠️ หลักสูตรนี้ยังขาด ${escHtml(miss.join(' · '))} — เติมให้ครบแล้วจึงเปิดให้นักเรียนเห็นได้</p>` : '')
+        + _coInp('co-f-name', '🎒 ชื่อหลักสูตร', c.course_name)
         + `<label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
            <select id="co-f-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3">
+             <option value="">— ยังไม่ระบุ เติมภายหลังได้ —</option>
              ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(c.subject_name) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
            </select>`
         + _coSemSelect('co-f-sem', c.semester)
@@ -13652,6 +13705,17 @@ const supabaseDataSdk = {
       const c = _courseById(id);
       if (!c) return;
       const open = !(c.is_open === true || c.is_open === 'true');
+      if (open) {
+        const miss = _coMissing(c);
+        if (miss.length) {
+          showToast('ยังเปิดไม่ได้ — หลักสูตรนี้ยังขาด ' + miss.join(' · ') + ' กดแก้ไขเพื่อเติมให้ครบก่อน', 'error');
+          return;
+        }
+        if (!_lessonsReadyOf(id).length) {
+          showToast('ยังเปิดไม่ได้ — ต้องมีเนื้อหาที่กรอกครบ (มีชื่อและลิงก์ยูทูบ) อย่างน้อยหนึ่งรายการก่อน', 'error');
+          return;
+        }
+      }
       const r = await window.dataSdk.update({ ...c, is_open: open });
       if (r && r.isOk) { showToast(open ? '🟢 เปิดหลักสูตรให้นักเรียนเห็นแล้ว' : '⚫ ปิดหลักสูตรแล้ว (ของเดิมไม่หาย)'); renderCourseList(); }
       else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
@@ -13685,7 +13749,7 @@ const supabaseDataSdk = {
       if (!c) return;
       const ls = _lessonsOf(id), en = _enrollCount(id);
       _coModal('🗑️ ลบหลักสูตร',
-        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(c.course_name || '')}</b> ?</p>
+        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(_coName(c))}</b> ?</p>
          <p class="text-xs text-gray-600 mb-2">เนื้อหาในหลักสูตร ${ls.length} รายการจะถูกลบไปด้วย และผู้สมัคร ${en} คนจะไม่เห็นหลักสูตรนี้อีก</p>
          <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">✅ คะแนนของนักเรียนไม่ได้รับผลกระทบ หลักสูตรเก็บแยกจากตารางคะแนนทั้งหมด</p>`,
         `coConfirmDeleteCourse('${id}')`, '🗑️ ยืนยันลบ');
@@ -13710,7 +13774,7 @@ const supabaseDataSdk = {
       const others = _allCourses().filter(x => String(x.__backendId) !== String(id))
         .sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
       _coModal('🔀 ย้ายหลักสูตร',
-        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(c.course_name || '')}</b> — หลักสูตรไม่ผูกกับปีการศึกษา ย้ายได้ทั้งข้ามภาคและข้ามวิชา</p>
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(_coName(c))}</b> — หลักสูตรไม่ผูกกับปีการศึกษา ย้ายได้ทั้งข้ามภาคและข้ามวิชา</p>
          <div class="border-2 border-gray-200 rounded-lg p-3 mb-3">
            <label class="flex items-start gap-2 mb-2 cursor-pointer">
              <input type="radio" name="co-mv-mode" value="all" checked onchange="_coMvSync()" class="mt-1">
@@ -13728,7 +13792,7 @@ const supabaseDataSdk = {
            ${ls.length ? ls.map((l, i) => `
              <label class="flex items-center gap-2 py-0.5 cursor-pointer">
                <input type="checkbox" class="co-mv-les" value="${escHtml(l.__backendId)}">
-               <span class="text-xs text-gray-800">${i + 1}. ${escHtml(l.lesson_name || '')}</span>
+               <span class="text-xs text-gray-800">${i + 1}. ${escHtml(_coLesName(l))}${_coLesMissing(l).length ? ' ⚠️' : ''}</span>
              </label>`).join('') : '<p class="text-xs text-gray-400">หลักสูตรนี้ยังไม่มีเนื้อหา</p>'}
            <p class="text-xs text-gray-700 font-semibold mt-3 mb-1">🎒 เนื้อหาที่เลือกจะไปอยู่ที่</p>
            <label class="flex items-center gap-2 py-0.5 cursor-pointer">
@@ -13745,7 +13809,7 @@ const supabaseDataSdk = {
            </div>
            <div id="co-mv-existbox" style="display:none" class="mt-2">
              <select id="co-mv-course2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-               ${others.map(x => `<option value="${escHtml(x.__backendId)}">${escHtml(x.course_name || '')} — ${escHtml(x.subject_name || '')} · ${escHtml(_coSemLabel(x.semester))}</option>`).join('')}
+               ${others.map(x => `<option value="${escHtml(x.__backendId)}">${escHtml(_coName(x))} — ${escHtml(x.subject_name || 'ยังไม่ระบุวิชา')} · ${escHtml(_coSemLabel(x.semester))}</option>`).join('')}
              </select>
              <p class="text-xs text-gray-500 mt-1">ใช้ภาค/วิชาของหลักสูตรปลายทางที่เลือกไว้</p>
            </div>
@@ -13800,8 +13864,7 @@ const supabaseDataSdk = {
         if (!toId) { showToast('เลือกหลักสูตรปลายทางก่อน', 'error'); return; }
       } else {
         const name = document.getElementById('co-mv-name')?.value.trim();
-        if (!name) { showToast('ใส่ชื่อหลักสูตรใหม่ก่อน', 'error'); return; }
-        toId = await _coCreateCourseFor(name, subject, sm, c.description);
+        toId = await _coCreateCourseFor(name, subject, sm, c.description);   // ไม่ใส่ชื่อก็ได้ เก็บเป็นร่างไว้เติมภายหลัง
         if (!toId) return;
       }
 
@@ -13833,7 +13896,8 @@ const supabaseDataSdk = {
         + `<p class="text-xs text-gray-500 mb-2">รับได้ทั้ง youtube.com/watch?v=… · youtu.be/… · /shorts/… · /live/… หรือวางรหัสคลิป 11 ตัวอักษรก็ได้</p>
            <div id="co-l-preview" class="mb-2"></div>`
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย (ไม่ใส่ก็ได้)</label>
-           <textarea id="co-l-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm"></textarea>`,
+           <textarea id="co-l-desc" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-1"></textarea>`
+        + `<p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-2">💾 ยังไม่มีลิงก์หรือยังไม่ได้ตั้งชื่อ ก็กดบันทึกไว้ก่อนได้ ระบบเก็บเป็นร่างและยังไม่แสดงให้นักเรียนจนกว่าจะเติมครบ</p>`,
         `coSaveLesson('${courseId}')`);
       const u = document.getElementById('co-l-url');
       if (u) u.oninput = _coPreviewYt;
@@ -13854,24 +13918,29 @@ const supabaseDataSdk = {
       const url = document.getElementById('co-l-url')?.value.trim();
       const desc = document.getElementById('co-l-desc')?.value.trim() || '';
       const yid = _ytId(url);
-      if (!name) { showToast('กรุณาใส่ชื่อเนื้อหา', 'error'); return; }
-      if (!yid) { showToast('ลิงก์ยูทูบไม่ถูกต้อง — ตรวจลิงก์อีกครั้ง', 'error'); return; }
+      // 💾 กรอกไม่ครบก็บันทึกไว้ก่อนได้ — เก็บลิงก์ที่พิมพ์ไว้ตามเดิมเพื่อกลับมาแก้
+      const badUrl = !!url && !yid;
       let r;
       if (editId) {
         const ex = _lessonById(editId);
         if (!ex) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
-        r = await window.dataSdk.update({ ...ex, lesson_name: name, youtube_id: yid, youtube_url: url, description: desc });
+        r = await window.dataSdk.update({ ...ex, lesson_name: name, youtube_id: yid || '', youtube_url: url, description: desc });
       } else {
         const sibs = _lessonsOf(courseId);
         r = await window.dataSdk.create({
           type: 'course_lesson', course_id: courseId, lesson_name: name,
-          youtube_id: yid, youtube_url: url, description: desc, duration_sec: 0,
+          youtube_id: yid || '', youtube_url: url, description: desc, duration_sec: 0,
           sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
           created_at: new Date().toISOString()
         });
       }
       if (r && r.isOk) {
-        showToast(editId ? '✅ แก้ไขเนื้อหาแล้ว' : '✅ เพิ่มเนื้อหาแล้ว');
+        const miss = _coLesMissing({ lesson_name: name, youtube_id: yid });
+        if (miss.length) {
+          showToast('💾 บันทึกไว้เป็นร่างแล้ว — ยังขาด ' + miss.join(' · ')
+            + (badUrl ? ' (อ่านลิงก์ที่ใส่ไว้ไม่ได้ แต่เก็บข้อความไว้ให้แก้)' : '')
+            + ' กลับมาเติมภายหลังได้ ยังไม่แสดงให้นักเรียน');
+        } else showToast(editId ? '✅ แก้ไขเนื้อหาแล้ว' : '✅ เพิ่มเนื้อหาแล้ว');
         document.getElementById('co-modal')?.remove();
         renderCourseList();
       } else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
@@ -13881,7 +13950,8 @@ const supabaseDataSdk = {
       const l = _lessonById(id);
       if (!l) return;
       _coModal('✏️ แก้ไขเนื้อหา',
-        _coInp('co-l-name', '🎬 ชื่อเนื้อหา', l.lesson_name)
+        (_coLesMissing(l).length ? `<p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 mb-3">⚠️ เนื้อหานี้ยังขาด ${escHtml(_coLesMissing(l).join(' · '))} — เติมให้ครบแล้วนักเรียนจึงเห็น</p>` : '')
+        + _coInp('co-l-name', '🎬 ชื่อเนื้อหา', l.lesson_name)
         + _coInp('co-l-url', '🔗 ลิงก์ยูทูบ', l.youtube_url || l.youtube_id)
         + '<div id="co-l-preview" class="mb-2"></div>'
         + `<label class="block text-xs text-gray-600 mb-1">📝 คำอธิบาย</label>
@@ -13901,10 +13971,10 @@ const supabaseDataSdk = {
       const curSubj = cur ? cur.subject_name : '';
       const opts = subs.indexOf(curSubj) < 0 && curSubj ? [curSubj].concat(subs) : subs;
       _coModal('🔀 ย้ายเนื้อหาไปหลักสูตรอื่น',
-        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(l.lesson_name || '')}</b> ข้ามหลักสูตร ข้ามวิชา หรือข้ามภาคก็ได้ — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
+        `<p class="text-sm text-gray-600 mb-3">ย้าย <b>${escHtml(_coLesName(l))}</b> ข้ามหลักสูตร ข้ามวิชา หรือข้ามภาคก็ได้ — ความคืบหน้าการดูของนักเรียนตามไปด้วย เพราะผูกกับรหัสเนื้อหา ไม่ใช่หลักสูตร</p>
          <label class="block text-xs text-gray-600 mb-1">🎒 หลักสูตรปลายทาง</label>
          <select id="co-mv-course" onchange="_coMvLesSync()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-           ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('')}
+           ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(_coName(c))} — ${escHtml(c.subject_name || 'ยังไม่ระบุวิชา')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('')}
            <option value="__new__">➕ สร้างหลักสูตรใหม่สำหรับเนื้อหานี้</option>
          </select>
          <div id="co-mv-newbox" style="display:none" class="mt-3 border-2 border-amber-200 bg-amber-50/50 rounded-lg p-3">
@@ -13914,7 +13984,7 @@ const supabaseDataSdk = {
            <select id="co-mv-subject" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
              ${opts.map(v => `<option value="${escHtml(v)}" ${_rN(v) === _rN(curSubj) ? 'selected' : ''}>${escHtml(v)}</option>`).join('')}
            </select>
-           <p class="text-xs text-gray-500 mt-2">หลักสูตรใหม่จะยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น</p>
+           <p class="text-xs text-gray-500 mt-2">หลักสูตรใหม่จะยังปิดอยู่ กดปุ่ม "เปิด" เมื่อพร้อมให้นักเรียนเห็น · ยังไม่ตั้งชื่อก็ได้ กลับมาเติมภายหลังได้</p>
          </div>`,
         `coConfirmMoveLesson('${id}')`, '🔀 ย้าย');
       _coMvLesSync();
@@ -13935,8 +14005,7 @@ const supabaseDataSdk = {
         const semEl = document.getElementById('co-mv-sem');
         const sm = semEl ? semEl.value : _coWorkingSem();
         const subject = document.getElementById('co-mv-subject')?.value || '';
-        if (!name) { showToast('ใส่ชื่อหลักสูตรใหม่ก่อน', 'error'); return; }
-        to = await _coCreateCourseFor(name, subject, sm, '');
+        to = await _coCreateCourseFor(name, subject, sm, '');   // ไม่ใส่ชื่อก็ได้ เก็บเป็นร่างไว้เติมภายหลัง
         if (!to) return;
       }
       const sibs = _lessonsOf(to);
@@ -13951,7 +14020,7 @@ const supabaseDataSdk = {
       const l = _lessonById(id);
       if (!l) return;
       _coModal('🗑️ ลบเนื้อหา',
-        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(l.lesson_name || '')}</b> ?</p>
+        `<p class="text-sm text-gray-700 mb-2">ลบ <b>${escHtml(_coLesName(l))}</b> ?</p>
          <p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">✅ คะแนนของนักเรียนไม่ได้รับผลกระทบ</p>`,
         `coConfirmDeleteLesson('${id}')`, '🗑️ ยืนยันลบ');
     }
@@ -13972,7 +14041,7 @@ const supabaseDataSdk = {
         const keep = sel.value;
         const list = _coursesInView();
         sel.innerHTML = '<option value="">-- เลือกหลักสูตร --</option>'
-          + list.map(c => `<option value="${escHtml(c.__backendId)}">${escHtml(c.course_name || '')} — ${escHtml(c.subject_name || '')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('');
+          + list.map(c => `<option value="${escHtml(c.__backendId)}">${escHtml(_coName(c))} — ${escHtml(c.subject_name || 'ยังไม่ระบุวิชา')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('');
         if (keep) sel.value = keep;
       }
       renderCourseProgress();
@@ -13983,13 +14052,13 @@ const supabaseDataSdk = {
       const cid = document.getElementById('cpg-course')?.value || '';
       if (!cid) { box.innerHTML = '<p class="text-gray-400 text-center py-8">เลือกหลักสูตรก่อน</p>'; return; }
       const c = _courseById(cid);
-      const ls = _lessonsOf(cid);
+      const ls = _lessonsReadyOf(cid);
       const ens = allData.filter(d => d.type === 'course_enrollment' && String(d.course_id) === String(cid))
         .sort((a, b) => String(a.class_name || '').localeCompare(String(b.class_name || ''), 'th')
           || String(a.room_number || '').localeCompare(String(b.room_number || ''), 'th', { numeric: true })
           || String(a.student_id || '').localeCompare(String(b.student_id || '')));
       if (!ens.length) { box.innerHTML = '<p class="text-gray-400 text-center py-8">ยังไม่มีนักเรียนสมัครอบรมหลักสูตรนี้</p>'; return; }
-      if (!ls.length) { box.innerHTML = '<p class="text-gray-400 text-center py-8">หลักสูตรนี้ยังไม่มีเนื้อหา</p>'; return; }
+      if (!ls.length) { box.innerHTML = '<p class="text-gray-400 text-center py-8">หลักสูตรนี้ยังไม่มีเนื้อหาที่กรอกครบ (ต้องมีชื่อและลิงก์ยูทูบ)</p>'; return; }
 
       const done = ens.filter(e => ls.every(l => _progDone(l.__backendId, e.student_id))).length;
       const cell = (p, ok) => {
@@ -13998,7 +14067,7 @@ const supabaseDataSdk = {
       };
       box.innerHTML = `
         <div class="flex gap-2 flex-wrap mb-2 text-xs">
-          <span class="px-2 py-1 bg-gray-100 rounded">🎒 ${escHtml(c ? c.course_name : '')}</span>
+          <span class="px-2 py-1 bg-gray-100 rounded">🎒 ${escHtml(c ? _coName(c) : '')}</span>
           <span class="px-2 py-1 bg-gray-100 rounded">🙋 สมัคร ${ens.length} คน</span>
           <span class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded">🏁 เรียนจบทั้งหลักสูตร ${done} คน</span>
           <button onclick="cpgExport()" class="px-2 py-1 bg-blue-500 text-white rounded">📤 ส่งออก Excel</button>
@@ -14008,7 +14077,7 @@ const supabaseDataSdk = {
           <thead><tr>
             <th class="border border-gray-200 px-2 py-1 bg-gray-50 sticky left-0">นักเรียน</th>
             <th class="border border-gray-200 px-2 py-1 bg-gray-50">ชั้น/ห้อง</th>
-            ${ls.map((l, i) => `<th class="border border-gray-200 px-2 py-1 bg-gray-50" title="${escHtml(l.lesson_name || '')}">${i + 1}</th>`).join('')}
+            ${ls.map((l, i) => `<th class="border border-gray-200 px-2 py-1 bg-gray-50" title="${escHtml(_coLesName(l))}">${i + 1}</th>`).join('')}
             <th class="border border-gray-200 px-2 py-1 bg-gray-50">รวม</th>
             <th class="border border-gray-200 px-2 py-1 bg-gray-50">สถานะ</th>
           </tr></thead>
@@ -14033,9 +14102,9 @@ const supabaseDataSdk = {
       const cid = document.getElementById('cpg-course')?.value || '';
       const c = _courseById(cid);
       if (!c || typeof XLSX === 'undefined') { showToast('ส่งออกไม่ได้ในขณะนี้', 'error'); return; }
-      const ls = _lessonsOf(cid);
+      const ls = _lessonsReadyOf(cid);
       const ens = allData.filter(d => d.type === 'course_enrollment' && String(d.course_id) === String(cid));
-      const rows = [['รหัสนักเรียน', 'ชื่อ', 'ชั้น', 'ห้อง'].concat(ls.map((l, i) => (i + 1) + '. ' + (l.lesson_name || '')), ['รวม %', 'สถานะ'])];
+      const rows = [['รหัสนักเรียน', 'ชื่อ', 'ชั้น', 'ห้อง'].concat(ls.map((l, i) => (i + 1) + '. ' + _coLesName(l)), ['รวม %', 'สถานะ'])];
       ens.forEach(e => {
         const fin = ls.every(l => _progDone(l.__backendId, e.student_id));
         rows.push([e.student_id, e.student_name || '', e.class_name || '', e.room_number || '']
@@ -14044,7 +14113,7 @@ const supabaseDataSdk = {
       });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'ความคืบหน้า');
-      XLSX.writeFile(wb, 'ความคืบหน้าหลักสูตร-' + (c.course_name || '') + '.xlsx');
+      XLSX.writeFile(wb, 'ความคืบหน้าหลักสูตร-' + (String(c.course_name || '').trim() || 'ยังไม่ตั้งชื่อ') + '.xlsx');
     }
 
     /* ═════════════ ฝั่งนักเรียน ═════════════ */
@@ -14055,6 +14124,7 @@ const supabaseDataSdk = {
         && String(d.student_id) === String(studentId));
       return _allCourses().filter(c => {
         if (!(c.is_open === true || c.is_open === 'true')) return false;
+        if (!_coReady(c)) return false;                       // ร่างที่ยังกรอกไม่ครบ ไม่ถึงนักเรียน
         return regs.some(r => _rN(r.subject_name) === _rN(c.subject_name)
           && _coSemMatch(r.semester, c.semester));
       }).sort((a, b) => (parseInt(a.sort_order) || 0) - (parseInt(b.sort_order) || 0));
@@ -14088,7 +14158,7 @@ const supabaseDataSdk = {
       }
       box.innerHTML = list.map(c => {
         const enrolled = _isEnrolled(c.__backendId, sid);
-        const ls = _lessonsOf(c.__backendId);
+        const ls = _lessonsReadyOf(c.__backendId);            // เฉพาะเนื้อหาที่ครูกรอกครบแล้ว
         const all = _courseOverall(c.__backendId, sid);
         const fin = ls.length > 0 && ls.every(l => _progDone(l.__backendId, sid));
         const lessonsHtml = !enrolled ? '' : (ls.length ? ls.map((l, i) => {
@@ -14100,7 +14170,7 @@ const supabaseDataSdk = {
               <span class="text-xs text-gray-400 w-5 text-right">${i + 1}.</span>
               ${l.youtube_id ? `<img src="https://i.ytimg.com/vi/${escHtml(l.youtube_id)}/default.jpg" class="w-20 h-11 object-cover rounded ${open ? '' : 'opacity-40'}" alt="">` : ''}
               <div class="flex-1 min-w-[140px]">
-                <p class="text-sm ${open ? 'text-gray-800' : 'text-gray-400'}">${escHtml(l.lesson_name || '')}</p>
+                <p class="text-sm ${open ? 'text-gray-800' : 'text-gray-400'}">${escHtml(_coLesName(l))}</p>
                 <div class="h-1.5 bg-gray-200 rounded mt-1 overflow-hidden" style="max-width:220px">
                   <div class="h-full ${done ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${p}%"></div>
                 </div>
@@ -14115,7 +14185,7 @@ const supabaseDataSdk = {
           <div class="border-2 ${enrolled ? 'border-blue-200' : 'border-gray-200'} rounded-xl p-4 mb-3 bg-white">
             <div class="flex items-start justify-between gap-2 flex-wrap mb-2">
               <div class="flex-1 min-w-[160px]">
-                <p class="font-bold text-gray-800">🎒 ${escHtml(c.course_name || '')}</p>
+                <p class="font-bold text-gray-800">🎒 ${escHtml(_coName(c))}</p>
                 <p class="text-xs text-gray-500 mt-0.5">📖 ${escHtml(c.subject_name || '')} · 🎬 ${ls.length} เนื้อหา${enrolled ? ' · ความคืบหน้า ' + all + '%' : ''}</p>
                 ${c.description ? `<p class="text-xs text-gray-600 mt-1">${escHtml(c.description)}</p>` : ''}
                 ${fin ? '<p class="text-xs text-emerald-700 font-semibold mt-1">🏁 เรียนจบทั้งหลักสูตรแล้ว</p>' : ''}
@@ -14195,7 +14265,8 @@ const supabaseDataSdk = {
       const sid = currentUser?.student_id;
       const l = _lessonById(lessonId);
       if (!l || !sid) return;
-      const ls = _lessonsOf(l.course_id);
+      if (!_coLesReady(l)) { showToast('เนื้อหานี้ครูยังจัดเตรียมไม่เสร็จ ยังเข้าเรียนไม่ได้', 'error'); return; }
+      const ls = _lessonsReadyOf(l.course_id);
       const idx = ls.findIndex(x => String(x.__backendId) === String(lessonId));
       if (!_lessonOpen(ls, idx, sid)) { showToast('ต้องเรียนเนื้อหาอันก่อนให้จบก่อน', 'error'); return; }
 
