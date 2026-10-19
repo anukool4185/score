@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.239';
+    const APP_VERSION = 'SUPABASE-2026.10.19.240';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13324,6 +13324,15 @@ const supabaseDataSdk = {
       return false;
     }
 
+    /* ── ⏱️ ประทับเวลาแก้ไขทุกครั้งที่เขียน ──
+       ระบบซิงก์ข้อมูลแบบ "ดึงเฉพาะแถวที่เปลี่ยน" โดยดูจากคอลัมน์ updated_at
+       ถ้าแก้ไขแล้วเวลาไม่ขยับ เครื่องอื่น (เช่นเครื่องนักเรียน) จะไม่ได้รับการแก้ไขนั้นเลย
+       — อาการจริงที่พบ: ครูย้ายหลักสูตรมาภาค 1 และกดเปิดแล้ว แต่ฝั่งนักเรียนไม่เห็นหลักสูตร
+       ไฟล์ add_course_system.sql มีตัวประทับเวลาฝั่งฐานข้อมูลให้ด้วย ตรงนี้คือเกราะชั้นที่สอง */
+    function _coStamp(rec) { return { ...rec, updated_at: new Date().toISOString() }; }
+    function _coUpd(rec) { return window.dataSdk.update(_coStamp(rec)); }
+    function _coIns(rec) { return window.dataSdk.create(_coStamp(rec)); }
+
     function _allCourses() { return allData.filter(d => d.type === 'course'); }
     /* ── ขอบเขตของหลักสูตร: ภาคเรียน + วิชา เท่านั้น ไม่ผูกกับปีการศึกษา จึงใช้ซ้ำได้ทุกปี ── */
 
@@ -13451,7 +13460,7 @@ const supabaseDataSdk = {
     /** สร้างหลักสูตรใหม่แล้วคืนรหัส — ใช้ตอนย้ายเนื้อหาไปหลักสูตรที่ยังไม่มี */
     async function _coCreateCourseFor(name, subject, sem, desc) {
       const sibs = _allCourses();
-      const cr = await window.dataSdk.create({
+      const cr = await _coIns({
         type: 'course', course_name: name, subject_name: subject, description: desc || '',
         academic_year: null, semester: sem, is_open: false,
         sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
@@ -13709,11 +13718,11 @@ const supabaseDataSdk = {
       if (editId) {
         const ex = _courseById(editId);
         if (!ex) { showToast('ไม่พบหลักสูตรนี้', 'error'); return; }
-        r = await window.dataSdk.update({ ...ex, course_name: name, subject_name: subject,
+        r = await _coUpd({ ...ex, course_name: name, subject_name: subject,
           description: desc, academic_year: null, semester: sm });
       } else {
         const sibs = _coursesInView();
-        r = await window.dataSdk.create({
+        r = await _coIns({
           type: 'course', course_name: name, subject_name: subject, description: desc,
           academic_year: null, semester: sm, is_open: false,
           sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
@@ -13760,7 +13769,7 @@ const supabaseDataSdk = {
           return;
         }
       }
-      const r = await window.dataSdk.update({ ...c, is_open: open });
+      const r = await _coUpd({ ...c, is_open: open });
       if (r && r.isOk) { showToast(open ? '🟢 เปิดหลักสูตรให้นักเรียนเห็นแล้ว' : '⚫ ปิดหลักสูตรแล้ว (ของเดิมไม่หาย)'); renderCourseList(); }
       else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
@@ -13771,8 +13780,8 @@ const supabaseDataSdk = {
       if (i < 0 || j < 0 || j >= list.length) return false;
       const a = list[i], b = list[j];
       const oa = parseInt(a.sort_order) || (i + 1), ob = parseInt(b.sort_order) || (j + 1);
-      const ra = await window.dataSdk.update({ ...a, sort_order: (oa === ob ? j + 1 : ob) });
-      const rb = await window.dataSdk.update({ ...b, sort_order: (oa === ob ? i + 1 : oa) });
+      const ra = await _coUpd({ ...a, sort_order: (oa === ob ? j + 1 : ob) });
+      const rb = await _coUpd({ ...b, sort_order: (oa === ob ? i + 1 : oa) });
       return !!(ra && ra.isOk && rb && rb.isOk);
     }
     async function coMoveCourse(id, dir) {
@@ -13886,7 +13895,7 @@ const supabaseDataSdk = {
 
       // ── ย้ายทั้งหลักสูตร: เนื้อหาตามไปทั้งหมดเพราะผูกกับหลักสูตร ──
       if (mode !== 'some') {
-        const r = await window.dataSdk.update({ ...c, academic_year: null, semester: sm, subject_name: subject });
+        const r = await _coUpd({ ...c, academic_year: null, semester: sm, subject_name: subject });
         document.getElementById('co-modal')?.remove();
         if (r && r.isOk) { showToast('🔀 ย้ายหลักสูตรแล้ว — เนื้อหาและความคืบหน้าตามไปด้วย คะแนนไม่กระทบ'); loadCoursesTab(); }
         else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
@@ -13914,7 +13923,7 @@ const supabaseDataSdk = {
       for (const lid of ids) {
         const l = _lessonById(lid);
         if (!l) { fail++; continue; }
-        const r = await window.dataSdk.update({ ...l, course_id: toId, sort_order: next++ });
+        const r = await _coUpd({ ...l, course_id: toId, sort_order: next++ });
         if (r && r.isOk) ok++; else fail++;
       }
       document.getElementById('co-modal')?.remove();
@@ -13964,10 +13973,10 @@ const supabaseDataSdk = {
       if (editId) {
         const ex = _lessonById(editId);
         if (!ex) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
-        r = await window.dataSdk.update({ ...ex, lesson_name: name, youtube_id: yid || '', youtube_url: url, description: desc });
+        r = await _coUpd({ ...ex, lesson_name: name, youtube_id: yid || '', youtube_url: url, description: desc });
       } else {
         const sibs = _lessonsOf(courseId);
-        r = await window.dataSdk.create({
+        r = await _coIns({
           type: 'course_lesson', course_id: courseId, lesson_name: name,
           youtube_id: yid || '', youtube_url: url, description: desc, duration_sec: 0,
           sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
@@ -14045,7 +14054,7 @@ const supabaseDataSdk = {
         if (!to) return;
       }
       const sibs = _lessonsOf(to);
-      const r = await window.dataSdk.update({ ...l, course_id: to,
+      const r = await _coUpd({ ...l, course_id: to,
         sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1 });
       document.getElementById('co-modal')?.remove();
       if (r && r.isOk) { showToast('🔀 ย้ายเนื้อหาแล้ว — ความคืบหน้าของนักเรียนตามไปด้วย'); loadCoursesTab(); }
@@ -14243,14 +14252,14 @@ const supabaseDataSdk = {
       const ex = _enrollRow(courseId, sid);
       let r;
       if (ex) {
-        r = await window.dataSdk.update({ ...ex, status: 'active' });   // สมัครใหม่ ความคืบหน้าเดิมยังอยู่
+        r = await _coUpd({ ...ex, status: 'active' });   // สมัครใหม่ ความคืบหน้าเดิมยังอยู่
       } else {
         const st = allData.find(d => d.type === 'student' && String(d.student_id) === String(sid));
         const reg = allData.filter(d => d.type === 'student_registration'
           && String(d.student_id) === String(sid)
           && _rN(d.subject_name) === _rN(c.subject_name)
           && _coSemMatch(d.semester, c.semester))[0];
-        r = await window.dataSdk.create({
+        r = await _coIns({
           type: 'course_enrollment', course_id: courseId, student_id: sid,
           student_name: st ? `${st.prefix || ''}${st.first_name || ''} ${st.last_name || ''}`.trim() : '',
           class_name: (reg && reg.class_name) || (st && st.class_name) || '',
@@ -14268,7 +14277,7 @@ const supabaseDataSdk = {
       const sid = currentUser?.student_id;
       const ex = _enrollRow(courseId, sid);
       if (!ex) return;
-      const r = await window.dataSdk.update({ ...ex, status: 'cancelled' });
+      const r = await _coUpd({ ...ex, status: 'cancelled' });
       if (r && r.isOk) { showToast('ยกเลิกการอบรมแล้ว — ความคืบหน้าที่เรียนไว้ยังอยู่ สมัครใหม่เรียนต่อได้'); renderStudentCourses(); }
       else showToast('ยกเลิกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
@@ -14475,9 +14484,9 @@ const supabaseDataSdk = {
       let r;
       if (row) {
         if (!force && (parseFloat(row.percent) || 0) === pct && !done) return;
-        r = await window.dataSdk.update({ ...row, ...base });
+        r = await _coUpd({ ...row, ...base });
       } else {
-        r = await window.dataSdk.create({
+        r = await _coIns({
           type: 'course_progress', lesson_id: _cp.lessonId, course_id: _cp.courseId,
           student_id: _cp.studentId, created_at: new Date().toISOString(), ...base
         });
@@ -14485,7 +14494,7 @@ const supabaseDataSdk = {
       // เก็บความยาวคลิปไว้ที่เนื้อหา ครั้งต่อไปคิดร้อยละได้ก่อนวีดีโอโหลดเสร็จ
       const l = _lessonById(_cp.lessonId);
       if (l && dur > 0 && (parseFloat(l.duration_sec) || 0) === 0) {
-        try { await window.dataSdk.update({ ...l, duration_sec: Math.round(dur) }); } catch (e) {}
+        try { await _coUpd({ ...l, duration_sec: Math.round(dur) }); } catch (e) {}
       }
       if (r && !r.isOk) showToast('บันทึกความคืบหน้าไม่สำเร็จ — ' + ((r.error && r.error.message) || ''), 'error');
       return r;
