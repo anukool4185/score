@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.238';
+    const APP_VERSION = 'SUPABASE-2026.10.19.239';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8025,8 +8025,8 @@ const supabaseDataSdk = {
         {id:'mn-overview', icon:'🏠', label:'หน้าแรก'},
         {id:'mn-notif',    icon:'🔔', label:'แจ้งเตือน'},
         {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
-        {id:'mn-stu-hw',   icon:'📝', label:'การบ้าน'},
         {id:'mn-course',   icon:'🎒', label:'หลักสูตร'},
+        {id:'mn-stu-hw',   icon:'📝', label:'การบ้าน'},
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
         {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
         {id:'mn-stu-sa',   icon:'👤', label:'ผู้ช่วยแอดมิน', conditional:'linked_admin_id'},
@@ -14521,6 +14521,9 @@ const supabaseDataSdk = {
       document.getElementById('m-course-overlay')?.remove();
       const o = document.createElement('div');
       o.id = 'm-course-overlay';
+      // ⚠️ ต้องมีคลาสนี้ ไม่งั้นกดเมนูอื่นแล้วหน้านี้ค้างบังทุกหน้า และกดไอคอนหลักสูตรรอบต่อไปไม่ได้
+      // เพราะ mCloseAllOverlays() เก็บหน้าแบบนี้ด้วยคลาส m-native-overlay
+      o.className = 'm-native-overlay';
       o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#f1f5f9;display:flex;flex-direction:column';
       o.innerHTML = `
         <div style="background:#4da6e8;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;flex:0 0 auto">
@@ -14737,6 +14740,15 @@ const supabaseDataSdk = {
             : `<div style="margin-bottom:6px;padding:8px 7px;border:1.5px dashed #e2e8f0;border-radius:9px;font-size:11px;line-height:1.35;background:#f8fafc">${inner}</div>`;
         }).join('');
       }
+    }
+
+    /** 🧹 ถูกเรียกจาก mCloseAllOverlays() ตอนกดเมนูอื่น — เก็บความคืบหน้าและปิดตัวเล่นที่ฝังอยู่
+     *  ไม่ทำแบบนี้ วีดีโอจะเล่นค้างอยู่เบื้องหลังแม้หน้าถูกเก็บไปแล้ว และความคืบหน้าล่าสุดจะไม่ถูกบันทึก */
+    function mcStopIfOpen() {
+      try {
+        if (_cp && _cp.mountId) { cpClosePlayer(true); return true; }
+      } catch (e) {}
+      return false;
     }
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
@@ -33015,6 +33027,9 @@ function _examResultIdentityHtml(sub, set) {
   // ── Navigation ──
   // ปิด overlay/หน้าที่ยืมมาจากเดสก์ท็อปทั้งหมด ก่อนเปลี่ยนเมนู กันเมนูกดแล้วไม่ขยับเพราะโดน overlay บังอยู่
   function mCloseAllOverlays() {
+    // 🎒 หน้าหลักสูตรฝั่งมือถือ — หยุดวีดีโอและเก็บความคืบหน้าก่อนหน้าถูกเก็บไป
+    // ไม่ทำ วีดีโอจะเล่นค้างอยู่เบื้องหลังหลังกดเมนูอื่น และความคืบหน้าล่าสุดหาย
+    try { if (typeof mcStopIfOpen === 'function') mcStopIfOpen(); } catch (e) {}
     // ลบ overlay ทุกตัวที่สร้างผ่าน mCreateOverlay() แบบทั่วไป (ไม่ต้องระบุ id ทีละตัว กันลืมเหมือนที่ผ่านมา)
     document.querySelectorAll('.m-native-overlay').forEach(function(el) { el.remove(); });
     document.getElementById('m-eval-overlay')?.remove();
