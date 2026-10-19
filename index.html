@@ -3770,50 +3770,75 @@
          </div>
 
          <div id="eq-choices-section">
-          <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก (ระบุเฉพาะข้อที่ใช้ ก-ง หรือเพิ่ม จ ได้) — ใส่รูปภาพประกอบแต่ละตัวเลือกได้ (ไม่บังคับ)</label>
+          <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก — ติ๊กวงกลมหน้าข้อที่ถูก · ปุ่มใต้ช่องเป็นของตัวเลือกนั้น ๆ (สมการ · ตาราง · กราฟ · ลิงก์รูป) ใช้เท่าที่ต้องการ</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-           <div>
-            <div class="flex items-center gap-2">
-             <input type="radio" name="eq-correct" value="a" id="eq-correct-a">
-             <span class="text-sm w-4">ก.</span>
-             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-a')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('a','tb')" id="eq-cx-tb-a" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('a','g')" id="eq-cx-g-a" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
+           <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+            <div class="flex items-center gap-2 mb-1">
+             <input type="radio" name="eq-correct" value="a" id="eq-correct-a" class="flex-shrink-0" style="width:16px;height:16px">
+             <span class="text-sm font-semibold text-gray-700 flex-shrink-0" style="width:18px">ก.</span>
+             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input type="text" id="eq-choice-a-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
+            <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+             <button type="button" onclick="openEquationBuilder('eq-choice-a')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">🖊️ สมการ</button>
+             <button type="button" onclick="_bkChoiceEdit('a','tb')" id="eq-cx-tb-a" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่ตารางในตัวเลือกนี้">📊 ตาราง</button>
+             <button type="button" onclick="_bkChoiceEdit('a','g')" id="eq-cx-g-a" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่กราฟในตัวเลือกนี้">📈 กราฟ</button>
+             <input type="text" id="eq-choice-a-image" placeholder="🖼️ ลิงก์รูป (ไม่บังคับ)" class="flex-1 min-w-[110px] px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none">
+            </div>
            </div>
-           <div>
-            <div class="flex items-center gap-2">
-             <input type="radio" name="eq-correct" value="b" id="eq-correct-b">
-             <span class="text-sm w-4">ข.</span>
-             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-b')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('b','tb')" id="eq-cx-tb-b" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('b','g')" id="eq-cx-g-b" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
+           <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+            <div class="flex items-center gap-2 mb-1">
+             <input type="radio" name="eq-correct" value="b" id="eq-correct-b" class="flex-shrink-0" style="width:16px;height:16px">
+             <span class="text-sm font-semibold text-gray-700 flex-shrink-0" style="width:18px">ข.</span>
+             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input type="text" id="eq-choice-b-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
+            <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+             <button type="button" onclick="openEquationBuilder('eq-choice-b')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">🖊️ สมการ</button>
+             <button type="button" onclick="_bkChoiceEdit('b','tb')" id="eq-cx-tb-b" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่ตารางในตัวเลือกนี้">📊 ตาราง</button>
+             <button type="button" onclick="_bkChoiceEdit('b','g')" id="eq-cx-g-b" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่กราฟในตัวเลือกนี้">📈 กราฟ</button>
+             <input type="text" id="eq-choice-b-image" placeholder="🖼️ ลิงก์รูป (ไม่บังคับ)" class="flex-1 min-w-[110px] px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none">
+            </div>
            </div>
-           <div>
-            <div class="flex items-center gap-2">
-             <input type="radio" name="eq-correct" value="c" id="eq-correct-c">
-             <span class="text-sm w-4">ค.</span>
-             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-c')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('c','tb')" id="eq-cx-tb-c" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('c','g')" id="eq-cx-g-c" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
+           <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+            <div class="flex items-center gap-2 mb-1">
+             <input type="radio" name="eq-correct" value="c" id="eq-correct-c" class="flex-shrink-0" style="width:16px;height:16px">
+             <span class="text-sm font-semibold text-gray-700 flex-shrink-0" style="width:18px">ค.</span>
+             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input type="text" id="eq-choice-c-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
+            <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+             <button type="button" onclick="openEquationBuilder('eq-choice-c')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">🖊️ สมการ</button>
+             <button type="button" onclick="_bkChoiceEdit('c','tb')" id="eq-cx-tb-c" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่ตารางในตัวเลือกนี้">📊 ตาราง</button>
+             <button type="button" onclick="_bkChoiceEdit('c','g')" id="eq-cx-g-c" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่กราฟในตัวเลือกนี้">📈 กราฟ</button>
+             <input type="text" id="eq-choice-c-image" placeholder="🖼️ ลิงก์รูป (ไม่บังคับ)" class="flex-1 min-w-[110px] px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none">
+            </div>
            </div>
-           <div>
-            <div class="flex items-center gap-2">
-             <input type="radio" name="eq-correct" value="d" id="eq-correct-d">
-             <span class="text-sm w-4">ง.</span>
-             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-d')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('d','tb')" id="eq-cx-tb-d" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('d','g')" id="eq-cx-g-d" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
+           <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+            <div class="flex items-center gap-2 mb-1">
+             <input type="radio" name="eq-correct" value="d" id="eq-correct-d" class="flex-shrink-0" style="width:16px;height:16px">
+             <span class="text-sm font-semibold text-gray-700 flex-shrink-0" style="width:18px">ง.</span>
+             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input type="text" id="eq-choice-d-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
+            <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+             <button type="button" onclick="openEquationBuilder('eq-choice-d')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">🖊️ สมการ</button>
+             <button type="button" onclick="_bkChoiceEdit('d','tb')" id="eq-cx-tb-d" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่ตารางในตัวเลือกนี้">📊 ตาราง</button>
+             <button type="button" onclick="_bkChoiceEdit('d','g')" id="eq-cx-g-d" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่กราฟในตัวเลือกนี้">📈 กราฟ</button>
+             <input type="text" id="eq-choice-d-image" placeholder="🖼️ ลิงก์รูป (ไม่บังคับ)" class="flex-1 min-w-[110px] px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none">
+            </div>
            </div>
-           <div>
-            <div class="flex items-center gap-2">
-             <input type="radio" name="eq-correct" value="e" id="eq-correct-e">
-             <span class="text-sm w-4">จ.</span>
-             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-e')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('e','tb')" id="eq-cx-tb-e" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('e','g')" id="eq-cx-g-e" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
+           <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+            <div class="flex items-center gap-2 mb-1">
+             <input type="radio" name="eq-correct" value="e" id="eq-correct-e" class="flex-shrink-0" style="width:16px;height:16px">
+             <span class="text-sm font-semibold text-gray-700 flex-shrink-0" style="width:18px">จ.</span>
+             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 min-w-0 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
             </div>
-            <input type="text" id="eq-choice-e-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
+            <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+             <button type="button" onclick="openEquationBuilder('eq-choice-e')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">🖊️ สมการ</button>
+             <button type="button" onclick="_bkChoiceEdit('e','tb')" id="eq-cx-tb-e" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่ตารางในตัวเลือกนี้">📊 ตาราง</button>
+             <button type="button" onclick="_bkChoiceEdit('e','g')" id="eq-cx-g-e" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="ใส่กราฟในตัวเลือกนี้">📈 กราฟ</button>
+             <input type="text" id="eq-choice-e-image" placeholder="🖼️ ลิงก์รูป (ไม่บังคับ)" class="flex-1 min-w-[110px] px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none">
+            </div>
            </div>
           </div>
-          <p class="text-[11px] text-gray-400">ติ๊กหน้าตัวเลือกที่เป็นคำตอบที่ถูกต้อง · รูปภาพใช้ลิงก์จาก Google Drive แบบเปิดสาธารณะเหมือนรูปคำถาม · ปุ่ม 🖊️ ใส่สมการ · 📊 ใส่ตาราง · 📈 ใส่กราฟ ของตัวเลือกนั้น ๆ (ตัวเลือกที่มีแต่กราฟโดยไม่มีข้อความก็ใช้ได้)</p>
+          <p class="text-[11px] text-gray-400">ตัวเลือกที่มีแต่กราฟหรือตาราง โดยไม่มีข้อความ ก็ใช้เป็นตัวเลือกได้ · ลิงก์รูปใช้ของ Google Drive แบบเปิดสาธารณะเหมือนรูปคำถาม</p>
           <div id="eq-choice-preview" class="mt-2"></div>
          </div>
 
@@ -4310,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.248';
+    const APP_VERSION = 'SUPABASE-2026.10.20.249';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -15464,7 +15489,7 @@ const supabaseDataSdk = {
       /* ── วงกลม / โดนัท ── */
       if (c.kind === 'pie') {
         const bs = c.bars.filter(b => b.value > 0);
-        if (!bs.length) return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟวงกลม"></svg>`;
+        if (!bs.length) return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="กราฟวงกลม"></svg>`;
         const total = bs.reduce((a, b) => a + b.value, 0) || 1;
         const cx = W * 0.36, cy = H / 2;
         const R = Math.max(30, Math.min(W * 0.32, (H - 24) / 2));
@@ -15511,13 +15536,13 @@ const supabaseDataSdk = {
           parts.push(`<rect x="${lx}" y="${y - 8}" width="11" height="11" fill="${esc(col)}"></rect>`);
           parts.push(`<text x="${lx + 16}" y="${y + 1}" font-size="11" fill="#334155" dominant-baseline="middle">${esc(b.label || '(ไม่มีชื่อ)')} ${esc(c.pieLabel === 'val' ? _cgFmt(b.value) : pct + '%')}</text>`);
         });
-        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟวงกลม">${parts.join('')}</svg>`;
+        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="กราฟวงกลม">${parts.join('')}</svg>`;
       }
 
       /* ── แท่ง ── */
       if (c.kind === 'bar') {
         const bs = c.bars.filter(b => String(b.label).trim() !== '' || b.value !== 0);
-        if (!bs.length) return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟแท่ง"></svg>`;
+        if (!bs.length) return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="กราฟแท่ง"></svg>`;
         const vmax = Math.max.apply(null, bs.map(b => b.value).concat([0]));
         const vmin = Math.min.apply(null, bs.map(b => b.value).concat([0]));
         const span = (vmax - vmin) || 1;
@@ -15542,7 +15567,7 @@ const supabaseDataSdk = {
         parts.push(`<line x1="${P.l}" y1="${P.t}" x2="${P.l}" y2="${P.t + ih}" stroke="#334155" stroke-width="1.5"></line>`);
         if (c.ylabel) parts.push(`<text x="4" y="${P.t + 10}" font-size="10" fill="#475569">${esc(c.ylabel)}</text>`);
         if (c.xlabel) parts.push(`<text x="${P.l + iw}" y="${H - 6}" font-size="10" fill="#475569" text-anchor="end">${esc(c.xlabel)}</text>`);
-        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟแท่ง">${parts.join('')}</svg>`;
+        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="กราฟแท่ง">${parts.join('')}</svg>`;
       }
 
       /* ── เส้นจากสมการ และ จุด ── */
@@ -15616,7 +15641,7 @@ const supabaseDataSdk = {
       }
       if (c.ylabel) parts.push(`<text x="4" y="${P.t + 10}" font-size="11" fill="#475569">${esc(c.ylabel)}</text>`);
       if (c.xlabel) parts.push(`<text x="${P.l + iw}" y="${H - 6}" font-size="11" fill="#475569" text-anchor="end">${esc(c.xlabel)}</text>`);
-      return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟ">${parts.join('')}</svg>`;
+      return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%;height:auto" role="img" aria-label="กราฟ">${parts.join('')}</svg>`;
     }
 
     /* ═════════════ ✅ การตรวจคำตอบและคิดคะแนน ═════════════ */
@@ -16053,15 +16078,22 @@ const supabaseDataSdk = {
         </div>
 
         <div id="cex-choice-box">
-          <p class="text-xs font-semibold text-gray-700 mb-1">🗂️ ตัวเลือก — ติ๊กวงกลมหน้าข้อที่ถูก · แต่ละตัวเลือกใส่สมการ ตาราง และกราฟได้</p>
+          <p class="text-xs font-semibold text-gray-700 mb-1">🗂️ ตัวเลือก — ติ๊กวงกลมหน้าข้อที่ถูก · ปุ่มใต้ช่องเป็นของตัวเลือกนั้น ๆ ใช้เท่าที่ต้องการ</p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px" class="mb-2">
           ${chs.slice(0, 5).map((c, i) => `
-            <div class="flex items-center gap-2 mb-2 flex-wrap">
-              <input type="radio" name="cex-q-correct" value="${i}" ${ci === i ? 'checked' : ''}>
-              <input id="cex-q-c${i}" value="${escHtml(c.t)}" placeholder="ตัวเลือกที่ ${i + 1}" class="flex-1 min-w-[150px] px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
-              <button onclick="openEquationBuilder('cex-q-c${i}')" class="px-2 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs" title="แทรกสมการในตัวเลือกนี้">📐</button>
-              <button onclick="_ceChoiceEdit(${i},'tb')" id="cex-q-btb${i}" class="px-2 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs" title="ตารางในตัวเลือกนี้">📊${String(c.tb || '').length > 4 ? ' •' : ''}</button>
-              <button onclick="_ceChoiceEdit(${i},'g')" id="cex-q-bg${i}" class="px-2 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs" title="กราฟในตัวเลือกนี้">📈${_cgHasData(c.g) ? ' •' : ''}</button>
+            <div class="border-2 border-gray-200 rounded-lg p-2 bg-white">
+              <div class="flex items-center gap-2 mb-1">
+                <input type="radio" name="cex-q-correct" value="${i}" ${ci === i ? 'checked' : ''} style="width:16px;height:16px;flex-shrink:0">
+                <span class="text-sm font-semibold text-gray-700" style="width:18px;flex-shrink:0">${i + 1}.</span>
+                <input id="cex-q-c${i}" value="${escHtml(c.t)}" placeholder="ตัวเลือกที่ ${i + 1}" style="min-width:0" class="flex-1 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm">
+              </div>
+              <div class="flex items-center gap-1 flex-wrap" style="padding-left:26px">
+                <button onclick="openEquationBuilder('cex-q-c${i}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded text-[11px] font-medium whitespace-nowrap" title="แทรกสมการในตัวเลือกนี้">📐 สมการ</button>
+                <button onclick="_ceChoiceEdit(${i},'tb')" id="cex-q-btb${i}" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded text-[11px] font-medium whitespace-nowrap" title="ตารางในตัวเลือกนี้">📊 ตาราง${String(c.tb || '').length > 4 ? ' •' : ''}</button>
+                <button onclick="_ceChoiceEdit(${i},'g')" id="cex-q-bg${i}" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-[11px] font-medium whitespace-nowrap" title="กราฟในตัวเลือกนี้">📈 กราฟ${_cgHasData(c.g) ? ' •' : ''}</button>
+              </div>
             </div>`).join('')}
+          </div>
           <p class="text-xs text-gray-500 mb-3">เว้นตัวเลือกที่ไม่ใช้ไว้ว่างได้ · ตัวเลือกที่มีแต่กราฟหรือตารางโดยไม่มีข้อความก็ใช้ได้ (ข้อสอบแบบเลือกกราฟ)</p>
         </div>
 
@@ -16220,8 +16252,8 @@ const supabaseDataSdk = {
       const st = (_ceStage && _ceStage.choices && _ceStage.choices[i]) || { tb: '', g: '' };
       const b1 = document.getElementById('cex-q-btb' + i);
       const b2 = document.getElementById('cex-q-bg' + i);
-      if (b1) b1.textContent = '📊' + (String(st.tb || '').length > 4 ? ' •' : '');
-      if (b2) b2.textContent = '📈' + (_cgHasData(st.g) ? ' •' : '');
+      if (b1) b1.textContent = '📊 ตาราง' + (String(st.tb || '').length > 4 ? ' •' : '');
+      if (b2) b2.textContent = '📈 กราฟ' + (_cgHasData(st.g) ? ' •' : '');
     }
 
     /* ── 📈 ตัวแก้ค่ากราฟ — ใช้ซ้ำได้หลายที่ด้วยคำนำหน้า (โจทย์ · เฉลย · ตัวเลือก) ── */
@@ -16766,8 +16798,9 @@ const supabaseDataSdk = {
       const x = (_bkStage && _bkStage[l]) || { tb: '', g: '' };
       const b1 = document.getElementById('eq-cx-tb-' + l);
       const b2 = document.getElementById('eq-cx-g-' + l);
-      if (b1) b1.textContent = '📊' + (String(x.tb || '').length > 4 ? '•' : '');
-      if (b2) b2.textContent = '📈' + (_cgHasData(x.g) ? '•' : '');
+      // ป้ายปุ่มมีคำกำกับอยู่ด้วย เติมจุดท้ายคำเพื่อบอกว่าตัวเลือกนี้ใส่ของไว้แล้ว
+      if (b1) b1.textContent = '📊 ตาราง' + (String(x.tb || '').length > 4 ? ' •' : '');
+      if (b2) b2.textContent = '📈 กราฟ' + (_cgHasData(x.g) ? ' •' : '');
     }
     function _bkChoiceEdit(l, what) {
       document.getElementById('bk-sub-modal')?.remove();
@@ -16823,7 +16856,7 @@ const supabaseDataSdk = {
       if (!shown.length) { box.innerHTML = ''; return; }
       const rich = shown.some(c => _bkHasExtra(c.x));
       box.innerHTML = `<p class="text-[11px] text-gray-500 mb-1">👁️ ตัวอย่างที่นักเรียนจะเห็น</p>
-        <div style="display:grid;grid-template-columns:repeat(${rich ? 2 : 1},minmax(0,1fr));gap:8px">
+        <div style="display:grid;grid-template-columns:${rich ? 'repeat(auto-fit,minmax(220px,1fr))' : '1fr'};gap:8px">
           ${shown.map(c => `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:6px;background:#fff">
             <span class="text-xs text-gray-500">${BK_THAI[c.l]}.</span> ${_bkChoiceBody(c.t, c.x, c.img, { small: true })}</div>`).join('')}
         </div>`;
