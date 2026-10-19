@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.237';
+    const APP_VERSION = 'SUPABASE-2026.10.19.238';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -8026,6 +8026,7 @@ const supabaseDataSdk = {
         {id:'mn-notif',    icon:'🔔', label:'แจ้งเตือน'},
         {id:'mn-reg',      icon:'📋', label:'ลงทะเบียน'},
         {id:'mn-stu-hw',   icon:'📝', label:'การบ้าน'},
+        {id:'mn-course',   icon:'🎒', label:'หลักสูตร'},
         {id:'mn-grade',    icon:'📊', label:'คะแนน'},
         {id:'mn-more',     icon:'⚙️', label:'อื่นๆ'},
         {id:'mn-stu-sa',   icon:'👤', label:'ผู้ช่วยแอดมิน', conditional:'linked_admin_id'},
@@ -14296,36 +14297,19 @@ const supabaseDataSdk = {
       });
     }
 
-    async function cpOpenPlayer(lessonId) {
-      const sid = currentUser?.student_id;
-      const l = _lessonById(lessonId);
-      if (!l || !sid) return;
-      if (!_coLesReady(l)) { showToast('เนื้อหานี้ครูยังจัดเตรียมไม่เสร็จ ยังเข้าเรียนไม่ได้', 'error'); return; }
-      const ls = _lessonsReadyOf(l.course_id);
-      const idx = ls.findIndex(x => String(x.__backendId) === String(lessonId));
-      if (!_lessonOpen(ls, idx, sid)) { showToast('ต้องเรียนเนื้อหาอันก่อนให้จบก่อน', 'error'); return; }
-
-      const row = _progRow(lessonId, sid);
-      const maxSec = row ? (parseFloat(row.max_sec) || 0) : 0;
-      const lastSec = row ? (parseFloat(row.last_sec) || 0) : 0;
-      _cp = { lessonId, courseId: l.course_id, studentId: sid, row, maxSec, lastSec,
-              dur: parseFloat(l.duration_sec) || 0, player: null, timer: null, saveAt: 0, dirty: false };
-
-      document.getElementById('cp-modal')?.remove();
-      const d = document.createElement('div');
-      d.id = 'cp-modal';
-      d.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-[100001] p-3';
-      d.innerHTML = `
-        <div class="bg-white rounded-2xl w-full max-w-3xl overflow-hidden" oncontextmenu="return false">
-          <div class="flex items-center justify-between gap-2 px-4 py-3 border-b">
-            <p class="font-bold text-gray-800 text-sm flex-1">🎬 ${escHtml(l.lesson_name || '')}</p>
-            <button onclick="cpClosePlayer()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">ปิด</button>
+    /** เนื้อในของตัวเล่น — ใช้ร่วมกันทั้งหน้าต่างลอย (ฝั่งคอม) และฝังในหน้า (ฝั่งมือถือ) */
+    function _cpBodyHtml(l, mounted) {
+      return `
+        <div class="${mounted ? 'bg-white rounded-xl overflow-hidden' : 'bg-white rounded-2xl w-full max-w-3xl overflow-hidden'}" oncontextmenu="return false">
+          <div class="flex items-center justify-between gap-2 px-3 py-2 border-b">
+            <p class="font-bold text-gray-800 text-sm flex-1">🎬 ${escHtml(_coLesName(l))}</p>
+            <button onclick="cpClosePlayer()" class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-xs">${mounted ? 'หยุดเรียน' : 'ปิด'}</button>
           </div>
           <div class="bg-black" style="position:relative;padding-top:56.25%">
             <div id="cp-yt" style="position:absolute;inset:0"></div>
             <div id="cp-shield" style="position:absolute;left:0;right:0;bottom:0;height:46px;background:transparent"></div>
           </div>
-          <div class="px-4 py-3">
+          <div class="px-3 py-3">
             <div id="cp-bar" onclick="cpBarClick(event)" class="h-3 bg-gray-200 rounded cursor-pointer relative overflow-hidden" title="คลิกเพื่อย้อนกลับไปดูซ้ำ (เลื่อนไปข้างหน้าไม่ได้)">
               <div id="cp-bar-max" class="absolute inset-y-0 left-0 bg-blue-200"></div>
               <div id="cp-bar-cur" class="absolute inset-y-0 left-0 bg-blue-600"></div>
@@ -14340,8 +14324,39 @@ const supabaseDataSdk = {
             <p class="text-[11px] text-gray-500 mt-1">เลื่อนไปข้างหน้าไม่ได้ แต่ย้อนกลับดูซ้ำได้ตลอด และระบบจำตำแหน่งล่าสุดไว้ให้เรียนต่อ</p>
           </div>
         </div>`;
-      document.body.appendChild(d);
+    }
+    /** mountId = ใส่ไว้ในกล่องนี้แทนการเปิดหน้าต่างลอย (ฝั่งมือถือ) */
+    async function cpOpenPlayer(lessonId, mountId) {
+      const sid = currentUser?.student_id;
+      const l = _lessonById(lessonId);
+      if (!l || !sid) return;
+      if (!_coLesReady(l)) { showToast('เนื้อหานี้ครูยังจัดเตรียมไม่เสร็จ ยังเข้าเรียนไม่ได้', 'error'); return; }
+      const ls = _lessonsReadyOf(l.course_id);
+      const idx = ls.findIndex(x => String(x.__backendId) === String(lessonId));
+      if (!_lessonOpen(ls, idx, sid)) { showToast('ต้องเรียนเนื้อหาอันก่อนให้จบก่อน', 'error'); return; }
 
+      const row = _progRow(lessonId, sid);
+      const maxSec = row ? (parseFloat(row.max_sec) || 0) : 0;
+      const lastSec = row ? (parseFloat(row.last_sec) || 0) : 0;
+      _cp = { lessonId, courseId: l.course_id, studentId: sid, row, maxSec, lastSec,
+              dur: parseFloat(l.duration_sec) || 0, player: null, timer: null, saveAt: 0, dirty: false };
+
+      const body = _cpBodyHtml(l, !!mountId);
+      if (mountId) {
+        // 🎬 โหมดฝังในหน้า — ใช้ในหน้าหลักสูตรฝั่งมือถือ วีดีโออยู่ฝั่งขวาของเพจ ไม่ใช่หน้าต่างลอย
+        document.getElementById('cp-modal')?.remove();
+        const host = document.getElementById(mountId);
+        if (!host) { _cp = null; return; }
+        host.innerHTML = body;
+        _cp.mountId = mountId;
+      } else {
+        document.getElementById('cp-modal')?.remove();
+        const d = document.createElement('div');
+        d.id = 'cp-modal';
+        d.className = 'fixed inset-0 bg-black/80 flex items-center justify-center z-[100001] p-3';
+        d.innerHTML = body;
+        document.body.appendChild(d);
+      }
       try { await _cpLoadApi(); } catch (e) { showToast(e.message, 'error'); return; }
       if (!document.getElementById('cp-yt')) return;   // ปิดไปก่อนโหลดเสร็จ
       _cp.player = new YT.Player('cp-yt', {
@@ -14475,8 +14490,10 @@ const supabaseDataSdk = {
       if (r && !r.isOk) showToast('บันทึกความคืบหน้าไม่สำเร็จ — ' + ((r.error && r.error.message) || ''), 'error');
       return r;
     }
-    async function cpClosePlayer() {
+    async function cpClosePlayer(skipRender) {
+      let mounted = null;
       if (_cp) {
+        mounted = _cp.mountId || null;
         if (_cp.timer) clearInterval(_cp.timer);
         try { if (_cp.player && _cp.player.pauseVideo) _cp.player.pauseVideo(); } catch (e) {}
         await _cpSave(true);
@@ -14484,7 +14501,242 @@ const supabaseDataSdk = {
         _cp = null;
       }
       document.getElementById('cp-modal')?.remove();
+      if (skipRender === true) return;
+      if (mounted) { if (typeof mcRenderMine === 'function') mcRenderMine(); return; }
       if (typeof renderStudentCourses === 'function') renderStudentCourses();
+    }
+
+    /* ═════════════ 📱 ฝั่งมือถือของนักเรียน — สองเพจในไอคอน 🎒 หลักสูตร ═════════════
+       เพจ 1 หลักสูตรทั้งหมด  : แถบซ้ายแคบ = ชื่อหลักสูตรที่เปิดให้วิชาที่ตัวเองลงเรียน
+                                 ฝั่งขวา = รายละเอียด เนื้อหา และระบบสมัครอบรม
+       เพจ 2 หลักสูตรที่สมัครแล้ว: แถบซ้ายแคบ = ลำดับความคืบหน้าของเนื้อหา
+                                 ฝั่งขวา = วีดีโอที่กำลังเรียน (ฝังในหน้า ไม่ใช่หน้าต่างลอย)       */
+
+    var _mc = { courseId: null, mineId: null };
+
+    function _mcSid() { return (typeof currentUser !== 'undefined' && currentUser) ? currentUser.student_id : null; }
+
+    /** โครงหน้าร่วมของทั้งสองเพจ */
+    function _mcOverlay(title) {
+      document.getElementById('m-course-overlay')?.remove();
+      const o = document.createElement('div');
+      o.id = 'm-course-overlay';
+      o.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#f1f5f9;display:flex;flex-direction:column';
+      o.innerHTML = `
+        <div style="background:#4da6e8;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;flex:0 0 auto">
+          <button onclick="mcClose()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer">←</button>
+          <span style="font-weight:700;font-size:14px">${title}</span>
+        </div>
+        <div id="mc-body" style="flex:1 1 auto;display:flex;flex-direction:column;min-height:0"></div>`;
+      document.body.appendChild(o);
+      return document.getElementById('mc-body');
+    }
+    async function mcClose() {
+      if (_cp) { try { await cpClosePlayer(true); } catch (e) {} }
+      document.getElementById('m-course-overlay')?.remove();
+    }
+    const _MC_RAIL = 'flex:0 0 116px;max-width:42%;overflow-y:auto;background:#fff;border-right:1px solid #e2e8f0;padding:8px 6px';
+    const _MC_PANE = 'flex:1 1 auto;overflow-y:auto;padding:10px;min-width:0';
+    /** ปุ่มในแถบซ้าย */
+    function _mcRailBtn(on, html, onclick) {
+      return `<button onclick="${onclick}" style="display:block;width:100%;text-align:left;margin-bottom:6px;padding:8px 7px;border:1.5px solid ${on ? '#3b82f6' : '#e2e8f0'};
+        background:${on ? '#eff6ff' : '#fff'};border-radius:9px;font-size:11px;line-height:1.35;color:#1e293b;cursor:pointer">${html}</button>`;
+    }
+    function _mcBar(p, done) {
+      return `<div style="height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:4px">
+        <div style="height:100%;width:${Math.max(0, Math.min(100, p))}%;background:${done ? '#10b981' : '#3b82f6'}"></div></div>`;
+    }
+    function _mcEmpty(msg, sub) {
+      return `<div style="text-align:center;padding:38px 14px;color:#94a3b8">
+        <p style="font-size:30px;margin:0 0 6px">🎒</p><p style="font-size:12px;margin:0">${msg}</p>
+        ${sub ? `<p style="font-size:11px;margin:6px 0 0">${sub}</p>` : ''}</div>`;
+    }
+
+    /* ── เพจ 1: หลักสูตรทั้งหมดที่ลงเรียนได้ ── */
+    function mShowStudentCourseBrowse() {
+      _mcOverlay('🎒 หลักสูตรอบรม');
+      mcRenderBrowse();
+    }
+    function mcRenderBrowse() {
+      const body = document.getElementById('mc-body');
+      if (!body) return;
+      const sid = _mcSid();
+      const list = sid ? _coursesForStudent(sid) : [];
+      if (!list.length) {
+        body.innerHTML = _mcEmpty('ยังไม่มีหลักสูตรที่เปิดให้วิชาที่ลงทะเบียนไว้',
+          'ต้องลงทะเบียนเรียนวิชานั้นก่อน จึงจะเห็นหลักสูตรของวิชานั้น');
+        return;
+      }
+      if (!list.some(c => String(c.__backendId) === String(_mc.courseId))) _mc.courseId = list[0].__backendId;
+      const rail = list.map(c => {
+        const on = String(c.__backendId) === String(_mc.courseId);
+        const n = _lessonsReadyOf(c.__backendId).length;
+        const mine = _isEnrolled(c.__backendId, sid);
+        return _mcRailBtn(on,
+          `<span style="font-weight:600">${escHtml(_coName(c))}</span>
+           <span style="display:block;color:#64748b;font-size:10px;margin-top:2px">🎬 ${n}${mine ? ' · 🙋 สมัครแล้ว' : ''}</span>`,
+          `mcPickBrowse('${c.__backendId}')`);
+      }).join('');
+      body.innerHTML = `<div style="flex:1;display:flex;min-height:0">
+        <div id="mc-rail" style="${_MC_RAIL}">${rail}</div>
+        <div id="mc-pane" style="${_MC_PANE}"></div></div>`;
+      mcRenderBrowsePane();
+    }
+    function mcPickBrowse(id) { _mc.courseId = id; mcRenderBrowse(); }
+    function mcRenderBrowsePane() {
+      const pane = document.getElementById('mc-pane');
+      if (!pane) return;
+      const sid = _mcSid();
+      const c = _courseById(_mc.courseId);
+      if (!c) { pane.innerHTML = _mcEmpty('แตะชื่อหลักสูตรด้านซ้าย'); return; }
+      const ls = _lessonsReadyOf(c.__backendId);
+      const enrolled = _isEnrolled(c.__backendId, sid);
+      const all = _courseOverall(c.__backendId, sid);
+      const fin = ls.length > 0 && ls.every(l => _progDone(l.__backendId, sid));
+      const lessons = ls.length ? ls.map((l, i) => {
+        const p = _progPercent(l.__backendId, sid);
+        const done = _progDone(l.__backendId, sid);
+        const open = _lessonOpen(ls, i, sid);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9">
+          <span style="color:#94a3b8;font-size:10px;width:14px;text-align:right">${i + 1}.</span>
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-size:12px;color:${enrolled && open ? '#1e293b' : '#94a3b8'}">${escHtml(_coLesName(l))}</p>
+            ${enrolled ? _mcBar(p, done) : ''}
+            ${enrolled ? `<p style="margin:3px 0 0;font-size:10px;color:#64748b">${done ? '✅ เรียนจบแล้ว' : p > 0 ? 'ดูไปแล้ว ' + p + '%' : 'ยังไม่เริ่ม'}</p>` : ''}
+          </div>
+          ${enrolled
+            ? (open
+              ? `<button onclick="mcGoLearn('${c.__backendId}','${l.__backendId}')" style="flex:0 0 auto;padding:6px 9px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer">${done ? '🔁' : '▶'}</button>`
+              : '<span style="flex:0 0 auto;font-size:14px">🔒</span>')
+            : ''}
+        </div>`;
+      }).join('') : '<p style="color:#94a3b8;font-size:11px;padding:8px 0;margin:0">หลักสูตรนี้ยังไม่มีเนื้อหา</p>';
+      pane.innerHTML = `
+        <div style="background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+          <p style="margin:0;font-weight:700;font-size:14px;color:#1e293b">🎒 ${escHtml(_coName(c))}</p>
+          <p style="margin:4px 0 0;font-size:11px;color:#64748b">📖 ${escHtml(c.subject_name || 'ไม่ระบุวิชา')} · 📅 ${escHtml(_coSemLabel(c.semester))} · 🎬 ${ls.length} เนื้อหา</p>
+          ${c.description ? `<p style="margin:6px 0 0;font-size:11px;color:#475569">${escHtml(c.description)}</p>` : ''}
+          ${fin ? '<p style="margin:6px 0 0;font-size:11px;color:#047857;font-weight:700">🏁 เรียนจบทั้งหลักสูตรแล้ว</p>' : ''}
+          <div style="margin-top:10px">
+            ${enrolled
+              ? `<p style="margin:0 0 6px;font-size:11px;color:#1d4ed8;font-weight:700">🙋 สมัครอบรมแล้ว · ความคืบหน้า ${all}%</p>
+                 <div style="display:flex;gap:6px;flex-wrap:wrap">
+                   <button onclick="mcGoLearn('${c.__backendId}')" style="flex:1 1 auto;padding:10px;background:#3b82f6;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">🎬 เข้าเรียน</button>
+                   <button onclick="mcCancel('${c.__backendId}')" style="flex:0 0 auto;padding:10px 12px;background:#e2e8f0;color:#475569;border:none;border-radius:9px;font-size:11px;cursor:pointer">ยกเลิก</button>
+                 </div>`
+              : `<button onclick="mcEnroll('${c.__backendId}')" style="width:100%;padding:11px;background:#10b981;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">🙋 สมัครอบรมหลักสูตร</button>
+                 <p style="margin:6px 0 0;font-size:10px;color:#94a3b8">สมัครแล้วเข้าเรียนได้ทีละเนื้อหา ยกเลิกได้ภายหลังโดยความคืบหน้าไม่หาย</p>`}
+          </div>
+        </div>
+        <div style="background:#fff;border-radius:12px;padding:10px 12px;margin-top:10px;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+          <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#475569">🎬 เนื้อหาในหลักสูตร</p>
+          ${lessons}
+        </div>`;
+    }
+    async function mcEnroll(id) {
+      await cpEnroll(id);
+      mcRenderBrowse();
+    }
+    async function mcCancel(id) {
+      await cpCancelEnroll(id);
+      mcRenderBrowse();
+    }
+    /** ข้ามไปเพจเรียน (พร้อมเล่นเนื้อหาที่กดมาถ้าระบุ) */
+    function mcGoLearn(courseId, lessonId) {
+      _mc.mineId = courseId;
+      mShowStudentCourseMine();
+      if (lessonId) mcPlay(lessonId);
+    }
+
+    /* ── เพจ 2: หลักสูตรที่สมัครแล้ว — ซ้ายคือลำดับความคืบหน้า ขวาคือวีดีโอ ── */
+    function mShowStudentCourseMine() {
+      _mcOverlay('🎬 หลักสูตรที่สมัครแล้ว');
+      mcRenderMine();
+    }
+    /** หลักสูตรที่สมัครไว้และยังไม่ยกเลิก */
+    function _mcMineList() {
+      const sid = _mcSid();
+      if (!sid) return [];
+      return _coursesForStudent(sid).filter(c => _isEnrolled(c.__backendId, sid));
+    }
+    function mcRenderMine() {
+      const body = document.getElementById('mc-body');
+      if (!body) return;
+      const sid = _mcSid();
+      const mine = _mcMineList();
+      if (!mine.length) {
+        body.innerHTML = _mcEmpty('ยังไม่ได้สมัครอบรมหลักสูตรใด',
+          'ไปที่ไอคอน 🎒 หลักสูตรทั้งหมด แล้วกดสมัครอบรมก่อน');
+        return;
+      }
+      if (!mine.some(c => String(c.__backendId) === String(_mc.mineId))) _mc.mineId = mine[0].__backendId;
+      const c = _courseById(_mc.mineId);
+      const ls = _lessonsReadyOf(_mc.mineId);
+      const all = _courseOverall(_mc.mineId, sid);
+      const cur = _cp ? _cp.lessonId : null;
+      const rail = ls.length ? ls.map((l, i) => {
+        const p = _progPercent(l.__backendId, sid);
+        const done = _progDone(l.__backendId, sid);
+        const open = _lessonOpen(ls, i, sid);
+        const on = String(l.__backendId) === String(cur);
+        const inner = `<span style="font-weight:${on ? '700' : '600'};color:${open ? '#1e293b' : '#94a3b8'}">${i + 1}. ${escHtml(_coLesName(l))}</span>
+          ${_mcBar(p, done)}
+          <span style="display:block;color:#64748b;font-size:10px;margin-top:3px">${done ? '✅ จบแล้ว' : open ? (p > 0 ? p + '%' : 'ยังไม่เริ่ม') : '🔒 ล็อกอยู่'}</span>`;
+        return open ? _mcRailBtn(on, inner, `mcPlay('${l.__backendId}')`)
+          : `<div style="margin-bottom:6px;padding:8px 7px;border:1.5px dashed #e2e8f0;border-radius:9px;font-size:11px;line-height:1.35;background:#f8fafc">${inner}</div>`;
+      }).join('') : '<p style="color:#94a3b8;font-size:11px;margin:0">ยังไม่มีเนื้อหา</p>';
+      body.innerHTML = `
+        <div style="flex:0 0 auto;background:#fff;border-bottom:1px solid #e2e8f0;padding:7px 8px">
+          <select onchange="mcPickMine(this.value)" style="width:100%;padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+            ${mine.map(x => `<option value="${escHtml(x.__backendId)}" ${String(x.__backendId) === String(_mc.mineId) ? 'selected' : ''}>${escHtml(_coName(x))} — ${escHtml(x.subject_name || '')}</option>`).join('')}
+          </select>
+          <p style="margin:5px 0 0;font-size:10px;color:#64748b">📈 ความคืบหน้ารวม ${all}% · 🎬 ${ls.length} เนื้อหา</p>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div id="mc-rail" style="${_MC_RAIL}">${rail}</div>
+          <div id="mc-pane" style="${_MC_PANE}"><div id="mc-video"></div></div>
+        </div>`;
+      const v = document.getElementById('mc-video');
+      if (v && !_cp) {
+        const next = ls.find((l, i) => _lessonOpen(ls, i, sid) && !_progDone(l.__backendId, sid));
+        v.innerHTML = `<div style="background:#fff;border-radius:12px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+          <p style="font-size:26px;margin:0 0 6px">🎬</p>
+          <p style="font-size:12px;color:#475569;margin:0">แตะเนื้อหาด้านซ้ายเพื่อเริ่มเรียน</p>
+          ${next ? `<button onclick="mcPlay('${next.__backendId}')" style="margin-top:10px;padding:10px 14px;background:#3b82f6;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer">
+            ▶ ${_progPercent(next.__backendId, sid) > 0 ? 'เรียนต่อ' : 'เริ่มเรียน'} ${escHtml(_coLesName(next))}</button>` : ''}
+          <p style="font-size:10px;color:#94a3b8;margin:10px 0 0">เลื่อนวีดีโอไปข้างหน้าไม่ได้ แต่ย้อนกลับดูซ้ำได้ และระบบจำตำแหน่งล่าสุดไว้ให้เรียนต่อ</p>
+        </div>`;
+      }
+    }
+    function mcPickMine(id) {
+      _mc.mineId = id;
+      if (_cp) { cpClosePlayer(true).then(() => mcRenderMine()); return; }
+      mcRenderMine();
+    }
+    /** กดเนื้อหาในแถบซ้าย — เก็บความคืบหน้าของอันเดิมก่อน แล้วเล่นอันใหม่ในฝั่งขวา */
+    async function mcPlay(lessonId) {
+      if (_cp) { try { await cpClosePlayer(true); } catch (e) {} }
+      const l = _lessonById(lessonId);
+      if (l) _mc.mineId = l.course_id;
+      mcRenderMine();
+      await cpOpenPlayer(lessonId, 'mc-video');
+      // วาดแถบซ้ายใหม่ให้ไฮไลต์อันที่กำลังเรียน (ตัวเล่นถูกฝังไว้แล้ว ไม่ถูกล้าง)
+      const railBox = document.getElementById('mc-rail');
+      if (railBox && _cp) {
+        const sid = _mcSid();
+        const ls = _lessonsReadyOf(_mc.mineId);
+        railBox.innerHTML = ls.map((x, i) => {
+          const p = _progPercent(x.__backendId, sid);
+          const done = _progDone(x.__backendId, sid);
+          const open = _lessonOpen(ls, i, sid);
+          const on = String(x.__backendId) === String(lessonId);
+          const inner = `<span style="font-weight:${on ? '700' : '600'};color:${open ? '#1e293b' : '#94a3b8'}">${i + 1}. ${escHtml(_coLesName(x))}</span>
+            ${_mcBar(p, done)}
+            <span style="display:block;color:#64748b;font-size:10px;margin-top:3px">${done ? '✅ จบแล้ว' : open ? (p > 0 ? p + '%' : 'ยังไม่เริ่ม') : '🔒 ล็อกอยู่'}</span>`;
+          return open ? _mcRailBtn(on, inner, `mcPlay('${x.__backendId}')`)
+            : `<div style="margin-bottom:6px;padding:8px 7px;border:1.5px dashed #e2e8f0;border-radius:9px;font-size:11px;line-height:1.35;background:#f8fafc">${inner}</div>`;
+        }).join('');
+      }
     }
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
@@ -33605,6 +33857,11 @@ function _examResultIdentityHtml(sub, set) {
     'mn-sast-reg':   [{icon:'📚',label:'ลงทะเบียนเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('register','📚 ลงทะเบียนเรียน')"}],
     'mn-sast-hw':    [{icon:'📝',label:'การบ้าน',fn:"mShowDesktopStudentTabFromSubAdmin('homework','📝 การบ้าน')"}],
     'mn-sast-grade': [{icon:'📊',label:'ผลการเรียน',fn:"mShowDesktopStudentTabFromSubAdmin('grades','📊 ผลการเรียน')"}],
+    // 🎒 หลักสูตรอบรมของนักเรียน — สองไอคอนย่อย ใช้หน้าแบบสองแถบ (ซ้ายแคบ ขวากว้าง)
+    'mn-course': [
+      {id:'co-browse',icon:'🎒',label:'หลักสูตรทั้งหมด',fn:"mShowStudentCourseBrowse()"},
+      {id:'co-mine',  icon:'🎬',label:'ที่สมัครแล้ว',   fn:"mShowStudentCourseMine()"},
+    ],
     'mn-more': [
       {id:'profile',icon:'👤',label:'ข้อมูลส่วนตัว',fn:"mShowDesktopStudentTab('profile','👤 แก้ไขข้อมูลส่วนตัว')"},
       {id:'attendance',icon:'⏱️',label:'เวลาเรียน',fn:"mShowDesktopStudentTab('attendance','⏱️ เวลาเรียน')"},
