@@ -4199,7 +4199,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.243';
+    const APP_VERSION = 'SUPABASE-2026.10.19.244';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -14863,14 +14863,15 @@ const supabaseDataSdk = {
         const p = _courseOverall(x.__backendId, sid);
         const lsx = _lessonsReadyOf(x.__backendId);
         const fin = lsx.length > 0 && lsx.every(l => _progDone(l.__backendId, sid));
-        // ชื่อ · แถบความคืบหน้า · ตัวเลข · ปุ่ม อยู่บรรทัดเดียวกัน
-        // แถบกินที่ว่างที่เหลือทั้งหมดและไม่ตกบรรทัด (ชื่อยาวได้ไม่เกินครึ่ง เพื่อให้แถบมีที่เสมอ)
+        // ชื่อ · แถบความคืบหน้า · ตัวเลข · ปุ่ม อยู่บรรทัดเดียวกันเสมอ
+        // ชื่อยาวแค่ไหนก็อยู่บรรทัดเดียว แถบความคืบหน้าหดให้อัตโนมัติ
+        // (แถบของแต่ละหลักสูตรจึงยาวไม่เท่ากัน เพราะยึดการอยู่แถวเดียวกับชื่อเป็นหลัก)
         return `<div onclick="mcPickMine('${x.__backendId}')" style="border:1.5px solid ${on ? '#10b981' : '#e2e8f0'};
             background:${on ? '#ecfdf5' : '#fff'};border-radius:9px;padding:7px 8px;margin-bottom:6px;cursor:pointer;
             display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
-          <p style="margin:0;flex:0 1 auto;max-width:50%;min-width:0;font-size:11px;font-weight:700;color:${on ? '#047857' : '#1e293b'};
-            white-space:normal;word-break:break-word;overflow-wrap:anywhere">${escHtml(_coName(x))}</p>
-          <div style="flex:1 1 auto;min-width:20px;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+          <p title="${escHtml(_coName(x))}" style="margin:0;flex:0 1 auto;min-width:0;font-size:11px;font-weight:700;color:${on ? '#047857' : '#1e293b'};
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(_coName(x))}</p>
+          <div style="flex:1 1 auto;min-width:26px;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden">
             <div style="height:100%;width:${Math.max(0, Math.min(100, p))}%;background:${fin ? '#10b981' : '#3b82f6'}"></div>
           </div>
           <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:#475569">${p}%</span>
