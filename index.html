@@ -4198,7 +4198,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.240';
+    const APP_VERSION = 'SUPABASE-2026.10.19.241';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13628,6 +13628,7 @@ const supabaseDataSdk = {
               ${canEdit ? `<span class="flex gap-1">
                 <button onclick="coMoveLesson('${l.__backendId}',-1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนขึ้น">▲</button>
                 <button onclick="coMoveLesson('${l.__backendId}',1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
+                <button onclick="coTestPlay('${l.__backendId}')" class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs" title="ทดสอบว่าคลิปนี้เล่นในเว็บได้จริงไหม">🔎</button>
                 <button onclick="coEditLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">✏️</button>
                 <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น ข้ามวิชา ข้ามภาค">🔀</button>
                 <button onclick="coDeleteLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">🗑️</button>
@@ -13961,6 +13962,14 @@ const supabaseDataSdk = {
              <span class="text-xs text-emerald-800">✅ อ่านลิงก์ได้ รหัสคลิป ${escHtml(id)}</span></div>`
         : (document.getElementById('co-l-url')?.value.trim()
             ? '<p class="text-xs text-red-600">❌ อ่านลิงก์ยูทูบไม่ได้ ตรวจลิงก์อีกครั้ง</p>' : '');
+      if (id) {
+        box.innerHTML += `<div class="bg-black rounded-lg overflow-hidden mt-2" style="position:relative;padding-top:56.25%">
+            <iframe src="https://www.youtube.com/embed/${escHtml(id)}?rel=0&modestbranding=1"
+              style="position:absolute;inset:0;width:100%;height:100%;border:0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+          </div>
+          <p class="text-xs text-amber-700 mt-1">⚠️ กดเล่นลองดูตรงนี้ก่อนบันทึก ถ้าขึ้นว่า "Video unavailable" แปลว่าเจ้าของคลิปปิดการเล่นบนเว็บอื่น นักเรียนจะดูไม่ได้</p>`;
+      }
     }
     async function coSaveLesson(courseId, editId) {
       const name = document.getElementById('co-l-name')?.value.trim();
@@ -14059,6 +14068,27 @@ const supabaseDataSdk = {
       document.getElementById('co-modal')?.remove();
       if (r && r.isOk) { showToast('🔀 ย้ายเนื้อหาแล้ว — ความคืบหน้าของนักเรียนตามไปด้วย'); loadCoursesTab(); }
       else showToast('ย้ายไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+    /** 🔎 ทดสอบว่าคลิปเล่นบนเว็บได้จริงไหม — ใช้ตัวฝังมาตรฐานของยูทูบ
+     *  ถ้าเจ้าของคลิปปิดการเล่นบนเว็บอื่น ยูทูบจะขึ้น "Video unavailable" ในกรอบนี้ให้เห็นทันที
+     *  ครูจึงรู้ก่อนที่นักเรียนจะไปเจอจอดำ */
+    function coTestPlay(id) {
+      const l = _lessonById(id);
+      if (!l) return;
+      const yid = String(l.youtube_id || '').trim();
+      if (!yid) { showToast('เนื้อหานี้ยังไม่มีลิงก์ยูทูบ', 'error'); return; }
+      _coModal('🔎 ทดสอบเล่นคลิป',
+        `<p class="text-sm text-gray-700 mb-2">${escHtml(_coLesName(l))}</p>
+         <div class="bg-black rounded-lg overflow-hidden" style="position:relative;padding-top:56.25%">
+           <iframe src="https://www.youtube.com/embed/${escHtml(yid)}?rel=0&modestbranding=1"
+             style="position:absolute;inset:0;width:100%;height:100%;border:0"
+             allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+         </div>
+         <p class="text-xs text-gray-600 mt-2">กดเล่นดู ถ้าเล่นได้ตรงนี้ นักเรียนก็เล่นได้</p>
+         <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-2">⚠️ ถ้าขึ้นว่า "Video unavailable" หรือ "Watch on YouTube"
+           แปลว่าเจ้าของคลิปปิดการเล่นบนเว็บไซต์อื่น นักเรียนจะดูในระบบไม่ได้ ต้องเปลี่ยนเป็นคลิปอื่น</p>
+         <p class="text-xs text-gray-500 mt-1">🔗 <a href="https://www.youtube.com/watch?v=${escHtml(yid)}" target="_blank" rel="noopener" class="text-blue-600 underline">เปิดคลิปนี้บนยูทูบ</a></p>`,
+        `document.getElementById('co-modal')?.remove()`, 'ปิด');
     }
     function coDeleteLesson(id) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
@@ -14317,6 +14347,7 @@ const supabaseDataSdk = {
           <div class="bg-black" style="position:relative;padding-top:56.25%">
             <div id="cp-yt" style="position:absolute;inset:0"></div>
             <div id="cp-shield" style="position:absolute;left:0;right:0;bottom:0;height:46px;background:transparent"></div>
+            <div id="cp-err" style="position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#111827;color:#fff;padding:16px;text-align:center"></div>
           </div>
           <div class="px-3 py-3">
             <div id="cp-bar" onclick="cpBarClick(event)" class="h-3 bg-gray-200 rounded cursor-pointer relative overflow-hidden" title="คลิกเพื่อย้อนกลับไปดูซ้ำ (เลื่อนไปข้างหน้าไม่ได้)">
@@ -14333,6 +14364,50 @@ const supabaseDataSdk = {
             <p class="text-[11px] text-gray-500 mt-1">เลื่อนไปข้างหน้าไม่ได้ แต่ย้อนกลับดูซ้ำได้ตลอด และระบบจำตำแหน่งล่าสุดไว้ให้เรียนต่อ</p>
           </div>
         </div>`;
+    }
+    /** 🚫 เล่นคลิปไม่ได้ — บอกสาเหตุให้นักเรียนรู้ ไม่ปล่อยให้เห็นจอดำเฉย ๆ
+     *  รหัสของยูทูบ: 2 ลิงก์ผิด · 5 เบราว์เซอร์เล่นไม่ได้ · 100 ไม่พบคลิป · 101/150 เจ้าของปิดการฝังบนเว็บอื่น */
+    function _cpShowError(code, l) {
+      const box = document.getElementById('cp-err');
+      if (_cp && _cp.timer) { clearInterval(_cp.timer); _cp.timer = null; }
+      let msg, tip, showLink = false;
+      if (code === 'api') {
+        msg = '⛔ โหลดตัวเล่นวีดีโอไม่ได้';
+        tip = 'ตรวจอินเทอร์เน็ต หรือเครือข่ายนี้อาจปิดกั้นยูทูบอยู่ แล้วลองอีกครั้ง';
+      } else {
+        const c = parseInt(code, 10);
+        if (c === 101 || c === 150) {
+          msg = '⛔ เจ้าของคลิปปิดการเล่นบนเว็บไซต์อื่น';
+          tip = 'คลิปนี้ดูในระบบได้ไม่ได้ กรุณาแจ้งครูให้เปลี่ยนเป็นคลิปอื่น';
+          showLink = true;
+        } else if (c === 100) {
+          msg = '⛔ ไม่พบคลิปนี้บนยูทูบ';
+          tip = 'คลิปอาจถูกลบหรือตั้งเป็นส่วนตัว กรุณาแจ้งครูให้ตรวจลิงก์';
+          showLink = true;
+        } else if (c === 2) {
+          msg = '⛔ ลิงก์คลิปไม่ถูกต้อง';
+          tip = 'กรุณาแจ้งครูให้ตรวจลิงก์อีกครั้ง';
+        } else if (c === 5) {
+          msg = '⛔ เบราว์เซอร์นี้เล่นคลิปไม่ได้';
+          tip = 'ลองรีเฟรชหน้า หรือเปิดด้วยเบราว์เซอร์อื่น';
+        } else {
+          msg = '⛔ เล่นคลิปไม่ได้' + (isNaN(c) ? '' : ' (รหัส ' + c + ')');
+          tip = 'ตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง';
+        }
+      }
+      if (box) {
+        const yid = l && l.youtube_id ? String(l.youtube_id) : '';
+        box.innerHTML = `<p style="margin:0;font-size:14px;font-weight:700">${escHtml(msg)}</p>
+          <p style="margin:0;font-size:12px;color:#cbd5e1">${escHtml(tip)}</p>
+          ${showLink && yid ? `<a href="https://www.youtube.com/watch?v=${escHtml(yid)}" target="_blank" rel="noopener"
+             style="margin-top:4px;background:#ef4444;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;text-decoration:none">เปิดดูบนยูทูบ</a>
+            <p style="margin:0;font-size:10px;color:#94a3b8">การดูบนยูทูบระบบจะไม่นับความคืบหน้าให้</p>` : ''}`;
+        box.style.display = 'flex';
+      }
+      const m = document.getElementById('cp-msg');
+      if (m) m.textContent = msg + ' — ' + tip;
+      const pb = document.getElementById('cp-play');
+      if (pb) { pb.disabled = true; pb.style.opacity = '.5'; }
     }
     /** mountId = ใส่ไว้ในกล่องนี้แทนการเปิดหน้าต่างลอย (ฝั่งมือถือ) */
     async function cpOpenPlayer(lessonId, mountId) {
@@ -14366,11 +14441,13 @@ const supabaseDataSdk = {
         d.innerHTML = body;
         document.body.appendChild(d);
       }
-      try { await _cpLoadApi(); } catch (e) { showToast(e.message, 'error'); return; }
+      try { await _cpLoadApi(); } catch (e) { showToast(e.message, 'error'); _cpShowError('api', l); return; }
       if (!document.getElementById('cp-yt')) return;   // ปิดไปก่อนโหลดเสร็จ
       _cp.player = new YT.Player('cp-yt', {
         videoId: l.youtube_id,
-        playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, fs: 0, playsinline: 1, iv_load_policy: 3 },
+        playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, fs: 0, playsinline: 1, iv_load_policy: 3,
+          // บอกต้นทางให้ยูทูบรู้จัก ช่วยให้ตัวเล่นทำงานถูกต้องบนบางเบราว์เซอร์
+          origin: (typeof location !== 'undefined' && /^https?:/.test(location.protocol)) ? location.origin : undefined },
         events: {
           onReady: () => {
             try {
@@ -14386,7 +14463,9 @@ const supabaseDataSdk = {
             if (st === 1) { _cpSetPlayLabel(true); }
             else { _cpSetPlayLabel(false); if (st === 2 || st === 0) _cpSave(true); }
             if (st === 0) _cpPaint();
-          }
+          },
+          // 🚫 เล่นไม่ได้ (คลิปถูกลบ ตั้งส่วนตัว หรือเจ้าของปิดการฝังบนเว็บอื่น) — บอกสาเหตุให้นักเรียนรู้
+          onError: (ev) => { _cpShowError(ev && ev.data, l); }
         }
       });
     }
