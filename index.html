@@ -4262,7 +4262,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.246';
+    const APP_VERSION = 'SUPABASE-2026.10.19.247';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13267,7 +13267,8 @@ const supabaseDataSdk = {
     // 📊 ตัวแก้ตารางข้อมูลในฟอร์มข้อสอบ (ใช้ร่วมกันทั้งปรนัย 'eq' และอัตนัย 'esq')
     //    กรอกในช่องได้ทีละช่อง และคัดลอกตารางจาก Excel/Word มาวางทีเดียวก็ได้
     // ══════════════════════════════════════════════════════════════
-    const _qtState = { eq: [], esq: [], cex: [] };   // cex = คลังข้อสอบหลักสูตร
+    // cex = โจทย์ของคลังข้อสอบหลักสูตร · cee = เฉลย · ces = ตัวเลือกคำตอบ
+    const _qtState = { eq: [], esq: [], cex: [], cee: [], ces: [] };
 
     function qtLoad(pfx, raw) { _qtState[pfx] = _qtParse(raw).map(t => ({
       c: t.c || '', h: t.h !== false,
@@ -15060,7 +15061,7 @@ const supabaseDataSdk = {
       return false;
     }
 
-// ══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // 📝 คลังข้อสอบหลักสูตร — เครื่องมือคิดคำนวณล้วน (ไม่แตะหน้าจอ)
     //    ส่วนนี้ทดสอบได้ตรง ๆ ทุกฟังก์ชัน จึงแยกไว้ก่อนส่วนหน้าจอ
     //    ⚠️ ไม่เกี่ยวกับคลังข้อสอบปกติและไม่แตะตารางคะแนนในชั้นเรียนเลย
@@ -15073,6 +15074,41 @@ const supabaseDataSdk = {
 
     const _CG_FN = ['asin', 'acos', 'atan', 'sinh', 'cosh', 'tanh',
       'sin', 'cos', 'tan', 'sqrt', 'abs', 'log', 'ln', 'exp'];
+
+    /** 🔄 แปลงสมการแบบ LaTeX ให้เป็นสมการธรรมดาที่ตัววาดกราฟอ่านได้
+     *  ครูจึงใช้ปุ่มสมการชุดเดิม (147 รูปแบบ) กับช่องกราฟได้เลย ไม่ต้องจำสองไวยากรณ์
+     *  สิ่งที่วาดไม่ได้ (เมทริกซ์ อินทิกรัล ผลรวม ระบบสมการ) จะถูกปฏิเสธอย่างสุภาพ */
+    function _cgFromLatex(src) {
+      let s = String(src == null ? '' : src);
+      s = s.replace(/^\s*\$+/, '').replace(/\$+\s*$/, '');  // ตัดเครื่องหมายคร่อมสมการที่หัวท้าย
+      if (!/[\\{}|]/.test(s)) return s;                // ไม่ใช่ LaTeX อยู่แล้ว ใช้ได้ตรง ๆ
+      s = s.replace(/\\(?:left|right|,|;|!|quad|qquad|displaystyle|limits)\s*/g, '');
+      s = s.replace(/\\placeholder\{\s*\}/g, '');       // ช่องประที่ยังไม่ได้เติมตัวเลข
+      s = s.replace(/\\(?:mathrm|text|operatorname)\s*\{([^{}]*)\}/g, '$1');
+      // เศษส่วน ราก รากที่ n และตัวยก — วนซ้ำเพื่อรองรับการซ้อนกัน เช่น \frac{x^{2}}{2}
+      for (let i = 0; i < 8; i++) {
+        const before = s;
+        s = s.replace(/\^\s*\{([^{}]*)\}/g, '^($1)');
+        s = s.replace(/\\(?:d?frac|tfrac|cfrac)\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, '(($1)/($2))');
+        s = s.replace(/\\sqrt\s*\[\s*([^\]]*)\s*\]\s*\{([^{}]*)\}/g, '(($2)^(1/($1)))');
+        s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, 'sqrt($1)');
+        if (s === before) break;
+      }
+      s = s.replace(/\\(?:cdot|times|ast)/g, '*').replace(/\\div/g, '/');
+      s = s.replace(/\\pi/g, 'pi').replace(/\\e(?![a-z])/g, 'e');
+      s = s.replace(/\\ln/g, 'ln');
+      s = s.replace(/\\log\s*_\s*\{?10\}?/g, 'log').replace(/\\log/g, 'log');
+      s = s.replace(/\\exp/g, 'exp');
+      s = s.replace(/\\(arcsin|arccos|arctan)/g, (m, f) => 'a' + f.slice(3));
+      s = s.replace(/\\(sinh|cosh|tanh|sin|cos|tan|abs)/g, '$1');
+      s = s.replace(/\\left\|([^|]*)\\right\|/g, 'abs($1)');
+      s = s.replace(/\|([^|]*)\|/g, 'abs($1)');
+      s = s.replace(/\^\s*\{([^{}]*)\}/g, '^($1)');     // ตัวยก
+      s = s.replace(/_\s*\{[^{}]*\}/g, '');            // ตัวห้อยไม่มีความหมายกับกราฟ
+      s = s.replace(/\{|\}/g, '');
+      s = s.replace(/\\[a-zA-Z]+/g, '§');               // คำสั่ง LaTeX ที่เหลือ = วาดไม่ได้
+      return s.trim();
+    }
 
     /** แยกข้อความสมการเป็นชิ้น ๆ — คืน null ถ้ามีอักขระที่ไม่รู้จัก */
     function _cgTokens(src) {
@@ -15221,7 +15257,7 @@ const supabaseDataSdk = {
     /** แปลงข้อความสมการเป็นฟังก์ชันพร้อมใช้ — คืน null ถ้าอ่านสมการไม่ได้
      *  รับได้ทั้ง "y = x^2-1" และ "x^2-1" */
     function _cgCompile(expr) {
-      let s = String(expr == null ? '' : expr).trim();
+      let s = _cgFromLatex(expr).trim();
       if (!s) return null;
       s = s.replace(/^\s*[yf]\s*(\(\s*x\s*\))?\s*=/i, '');   // ตัด "y =" หรือ "f(x) =" ออก
       const rpn = _cgRpn(_cgTokens(s));
@@ -15236,15 +15272,19 @@ const supabaseDataSdk = {
     /** ค่าตั้งต้นของกราฟ */
     function _cgDefault() {
       return {
-        kind: 'func',            // 'func' เส้นจากสมการ · 'bar' แท่งจากข้อมูล · 'scatter' จุดจากข้อมูล
+        kind: 'func',            // 'func' เส้นจากสมการ · 'bar' แท่ง · 'scatter' จุด · 'pie' วงกลม/โดนัท
         eqs: [{ expr: '', color: '#2563eb' }],
         xmin: -5, xmax: 5, ymin: null, ymax: null,   // ว่าง = คิดช่วง y ให้อัตโนมัติ
         grid: true, xlabel: 'x', ylabel: 'y',
-        bars: [],                // [{label, value}]
+        bars: [],                // [{label, value, color}] — ใช้ทั้งกราฟแท่งและกราฟวงกลม
         pts: [],                 // [{x, y}]
+        pieLabel: 'pct',         // 'pct' ร้อยละ · 'val' ค่าจริง · 'both' ทั้งคู่
+        donut: false,            // true = เจาะรูกลางเป็นโดนัท
         w: 420, h: 300
       };
     }
+    /** ชุดสีของกราฟวงกลม — ต่างทั้งสีและความสว่าง พิมพ์ขาวดำยังแยกชิ้นออก */
+    const CG_PIE_COLORS = ['#1d4ed8', '#f59e0b', '#0f766e', '#be123c', '#7c3aed', '#65a30d', '#0891b2', '#a16207'];
     function _cgParse(raw) {
       const d = _cgDefault();
       if (!raw) return d;
@@ -15253,7 +15293,7 @@ const supabaseDataSdk = {
       if (!o || typeof o !== 'object') return d;
       const num = (v, f) => { const n = parseFloat(v); return isNaN(n) ? f : n; };
       return {
-        kind: (o.kind === 'bar' || o.kind === 'scatter') ? o.kind : 'func',
+        kind: (o.kind === 'bar' || o.kind === 'scatter' || o.kind === 'pie') ? o.kind : 'func',
         eqs: Array.isArray(o.eqs) && o.eqs.length
           ? o.eqs.slice(0, 4).map(e => ({ expr: String((e && e.expr) || ''), color: String((e && e.color) || '#2563eb') }))
           : d.eqs,
@@ -15263,7 +15303,11 @@ const supabaseDataSdk = {
         grid: !(o.grid === false),
         xlabel: String(o.xlabel == null ? 'x' : o.xlabel),
         ylabel: String(o.ylabel == null ? 'y' : o.ylabel),
-        bars: Array.isArray(o.bars) ? o.bars.slice(0, 30).map(b => ({ label: String((b && b.label) || ''), value: num(b && b.value, 0) })) : [],
+        bars: Array.isArray(o.bars) ? o.bars.slice(0, 30).map((b, i) => ({
+          label: String((b && b.label) || ''), value: num(b && b.value, 0),
+          color: String((b && b.color) || CG_PIE_COLORS[i % CG_PIE_COLORS.length]) })) : [],
+        pieLabel: (o.pieLabel === 'val' || o.pieLabel === 'both') ? o.pieLabel : 'pct',
+        donut: o.donut === true || o.donut === 'true',
         pts: Array.isArray(o.pts) ? o.pts.slice(0, 200).map(p => ({ x: num(p && p.x, 0), y: num(p && p.y, 0) })) : [],
         w: Math.max(160, Math.min(720, num(o.w, 420))),
         h: Math.max(120, Math.min(560, num(o.h, 300)))
@@ -15274,6 +15318,7 @@ const supabaseDataSdk = {
     function _cgHasData(cfg) {
       const c = _cgParse(cfg);
       if (c.kind === 'bar') return c.bars.some(b => String(b.label).trim() !== '' || b.value !== 0);
+      if (c.kind === 'pie') return c.bars.some(b => b.value > 0);
       if (c.kind === 'scatter') return c.pts.length > 0;
       return c.eqs.some(e => _cgCompile(e.expr) !== null);
     }
@@ -15304,6 +15349,59 @@ const supabaseDataSdk = {
       const parts = [];
       parts.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff" stroke="#e2e8f0"></rect>`);
 
+      /* ── วงกลม / โดนัท ── */
+      if (c.kind === 'pie') {
+        const bs = c.bars.filter(b => b.value > 0);
+        if (!bs.length) return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟวงกลม"></svg>`;
+        const total = bs.reduce((a, b) => a + b.value, 0) || 1;
+        const cx = W * 0.36, cy = H / 2;
+        const R = Math.max(30, Math.min(W * 0.32, (H - 24) / 2));
+        const rIn = c.donut ? R * 0.52 : 0;
+        let ang = -Math.PI / 2;                       // เริ่มที่ 12 นาฬิกา
+        const pt = (r, a) => [(cx + r * Math.cos(a)).toFixed(1), (cy + r * Math.sin(a)).toFixed(1)];
+        bs.forEach((b, i) => {
+          const frac = b.value / total;
+          const a2 = ang + frac * Math.PI * 2;
+          const col = b.color || CG_PIE_COLORS[i % CG_PIE_COLORS.length];
+          const big = (a2 - ang) > Math.PI ? 1 : 0;
+          if (frac > 0.9999) {
+            // ชิ้นเดียวเต็มวง วาดเป็นวงกลมเพราะส่วนโค้งเต็มรอบวาดไม่ได้
+            parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${R.toFixed(1)}" fill="${esc(col)}" stroke="#ffffff" stroke-width="1.5"></circle>`);
+            if (rIn > 0) parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rIn.toFixed(1)}" fill="#ffffff"></circle>`);
+          } else {
+            const o1 = pt(R, ang), o2 = pt(R, a2);
+            let d = `M ${o1[0]} ${o1[1]} A ${R.toFixed(1)} ${R.toFixed(1)} 0 ${big} 1 ${o2[0]} ${o2[1]}`;
+            if (rIn > 0) {
+              const i2 = pt(rIn, a2), i1 = pt(rIn, ang);
+              d += ` L ${i2[0]} ${i2[1]} A ${rIn.toFixed(1)} ${rIn.toFixed(1)} 0 ${big} 0 ${i1[0]} ${i1[1]} Z`;
+            } else {
+              d += ` L ${cx.toFixed(1)} ${cy.toFixed(1)} Z`;
+            }
+            parts.push(`<path d="${d}" fill="${esc(col)}" stroke="#ffffff" stroke-width="1.5"></path>`);
+          }
+          // ป้ายกลางชิ้น
+          const mid = ang + (a2 - ang) / 2;
+          const lp = pt(rIn > 0 ? (rIn + R) / 2 : R * 0.62, mid);
+          const pct = Math.round(frac * 1000) / 10;
+          const lbl = c.pieLabel === 'val' ? _cgFmt(b.value)
+            : c.pieLabel === 'both' ? (_cgFmt(b.value) + ' (' + pct + '%)') : (pct + '%');
+          if (frac >= 0.05) {
+            parts.push(`<text x="${lp[0]}" y="${lp[1]}" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">${esc(lbl)}</text>`);
+          }
+          ang = a2;
+        });
+        // คำอธิบายสีด้านขวา
+        const lx = W * 0.70, top = Math.max(16, cy - bs.length * 9);
+        bs.forEach((b, i) => {
+          const y = top + i * 18;
+          const col = b.color || CG_PIE_COLORS[i % CG_PIE_COLORS.length];
+          const pct = Math.round((b.value / total) * 1000) / 10;
+          parts.push(`<rect x="${lx}" y="${y - 8}" width="11" height="11" fill="${esc(col)}"></rect>`);
+          parts.push(`<text x="${lx + 16}" y="${y + 1}" font-size="11" fill="#334155" dominant-baseline="middle">${esc(b.label || '(ไม่มีชื่อ)')} ${esc(c.pieLabel === 'val' ? _cgFmt(b.value) : pct + '%')}</text>`);
+        });
+        return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="กราฟวงกลม">${parts.join('')}</svg>`;
+      }
+
       /* ── แท่ง ── */
       if (c.kind === 'bar') {
         const bs = c.bars.filter(b => String(b.label).trim() !== '' || b.value !== 0);
@@ -15325,7 +15423,7 @@ const supabaseDataSdk = {
           const hgt = Math.abs(b.value - 0) / span * ih;
           const x = P.l + i * bw + bw * 0.18;
           const y = b.value >= 0 ? y0 - hgt : y0;
-          parts.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.64).toFixed(1)}" height="${Math.max(1, hgt).toFixed(1)}" fill="#2563eb"></rect>`);
+          parts.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw * 0.64).toFixed(1)}" height="${Math.max(1, hgt).toFixed(1)}" fill="${esc(b.color || '#2563eb')}"></rect>`);
           parts.push(`<text x="${(P.l + i * bw + bw / 2).toFixed(1)}" y="${(P.t + ih + 14).toFixed(1)}" font-size="10" fill="#334155" text-anchor="middle">${esc(b.label)}</text>`);
         });
         parts.push(`<line x1="${P.l}" y1="${y0.toFixed(1)}" x2="${P.l + iw}" y2="${y0.toFixed(1)}" stroke="#334155" stroke-width="1.5"></line>`);
@@ -15469,12 +15567,12 @@ const supabaseDataSdk = {
       if (String(q.qtype || 'choice') === 'essay') {
         if (!_ceKeys(q).length) m.push('คำตอบที่ยอมรับได้');
       } else {
-        let ch = [];
-        try { ch = JSON.parse(q.choices || '[]'); } catch (e) { ch = []; }
-        const n = Array.isArray(ch) ? ch.filter(x => String(x == null ? '' : x).trim() !== '').length : 0;
+        // ตัวเลือกนับว่ามีเนื้อหาเมื่อมีข้อความ หรือมีตาราง หรือมีกราฟ (ข้อสอบเลือกกราฟก็ใช้ได้)
+        const ch = _ceChoices(q);
+        const n = ch.filter(c => !_ceChoiceEmpty(c)).length;
         if (n < 2) m.push('ตัวเลือก (อย่างน้อย 2 ข้อ)');
         const ci = parseInt(q.correct_index, 10);
-        if (isNaN(ci) || ci < 0 || ci >= (Array.isArray(ch) ? ch.length : 0)) m.push('ข้อที่ถูก');
+        if (isNaN(ci) || ci < 0 || ci >= ch.length) m.push('ข้อที่ถูก');
       }
       if (!(parseFloat(q.points) > 0)) m.push('คะแนน');
       return m;
@@ -15543,7 +15641,6 @@ const supabaseDataSdk = {
        ชื่อข้อสอบประกอบสดจาก "ชื่อหลักสูตร (ชื่อเนื้อหา)" จึงเปลี่ยนตามเองเมื่อแก้ชื่อหรือย้าย */
 
     let _ceCourseId = null;        // หลักสูตรที่กำลังดูในหน้าคลังข้อสอบ
-    let _cgEdit = null;            // ค่าตั้งกราฟที่กำลังแก้ในหน้าต่างข้อสอบ
 
     /** ชื่อข้อสอบของเนื้อหาหนึ่ง — ไม่เก็บลงฐานข้อมูล ประกอบใหม่ทุกครั้งที่แสดง */
     function _ceExamName(lesson) {
@@ -15647,6 +15744,8 @@ const supabaseDataSdk = {
             <span class="flex-1 min-w-[140px] text-sm text-gray-800" style="white-space:normal;word-break:break-word">${escHtml(short || '(ยังไม่ได้ใส่โจทย์)')}
               ${_cgHasData(q.graph_json) ? '<span class="text-xs text-blue-600">📈</span>' : ''}
               ${String(q.question_tables || '').length > 4 ? '<span class="text-xs text-slate-600">📊</span>' : ''}
+              ${_ceChoices(q).some(_ceChoiceHasExtra) ? '<span class="text-xs text-violet-600" title="ตัวเลือกมีตาราง/กราฟ">🗂️</span>' : ''}
+              ${(_cgHasData(q.explain_graph) || String(q.explain_tables || '').length > 4) ? '<span class="text-xs text-emerald-600" title="เฉลยมีตาราง/กราฟ">💡</span>' : ''}
               ${draft ? `<span class="text-xs text-amber-700 bg-amber-100 border border-amber-200 rounded px-1">⚠️ ยังขาด ${escHtml(miss.join(' · ') || 'เป็นร่าง')}</span>` : ''}</span>
             <span class="text-xs text-gray-600">${escHtml(parseFloat(q.points) || 0)} คะแนน</span>
             ${canEdit ? `<span class="flex gap-1">
@@ -15748,7 +15847,43 @@ const supabaseDataSdk = {
       else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
 
-    /* ── 📝 หน้าต่างสร้าง/แก้ข้อสอบ — โจทย์ สมการ ตาราง กราฟ เฉลย คะแนน ── */
+    /* ── 📦 ตัวเลือกคำตอบแบบมีเนื้อหาครบ: ข้อความ + สมการ + ตาราง + กราฟ ──
+       เก็บเป็นวัตถุ {t: ข้อความ, tb: ตาราง, g: กราฟ} แต่ยังอ่านของเก่าที่เป็นข้อความล้วนได้ */
+
+    function _ceChoices(q) {
+      let raw = [];
+      try { raw = JSON.parse((q && q.choices) || '[]'); } catch (e) { raw = []; }
+      if (!Array.isArray(raw)) raw = [];
+      return raw.slice(0, 5).map(c => (c && typeof c === 'object')
+        ? { t: String(c.t == null ? '' : c.t), tb: String(c.tb || ''), g: String(c.g || '') }
+        : { t: String(c == null ? '' : c), tb: '', g: '' });
+    }
+    function _ceChoiceEmpty(c) {
+      return !c || (String(c.t || '').trim() === '' && String(c.tb || '').length < 5 && !_cgHasData(c.g));
+    }
+    function _ceChoiceHasExtra(c) { return !!c && (String(c.tb || '').length > 4 || _cgHasData(c.g)); }
+    /** วาดตัวเลือกหนึ่งข้อ (ใช้ทั้งหน้าดูตัวอย่างของครูและหน้าสอบของนักเรียน) */
+    function _ceChoiceHtml(c, opt) {
+      const o = opt || {};
+      const small = o.small !== false;
+      const g = c && _cgHasData(c.g) ? _cgSvg(_cgSmaller(c.g, small ? 300 : 420)) : '';
+      const tb = c && String(c.tb || '').length > 4 && typeof _qtHtml === 'function' ? _qtHtml(c.tb, { small: true }) : '';
+      const txt = String((c && c.t) || '');
+      return (txt ? `<div style="white-space:pre-wrap;word-break:break-word">${escHtml(txt)}</div>` : '')
+        + (tb ? `<div style="margin-top:4px">${tb}</div>` : '')
+        + (g ? `<div style="margin-top:4px;overflow:auto">${g}</div>` : '');
+    }
+    /** ย่อกราฟให้พอดีช่องตัวเลือก (กดขยายดูเต็มได้ในหน้าสอบ) */
+    function _cgSmaller(raw, maxW) {
+      const c = _cgParse(raw);
+      if (c.w <= maxW) return c;
+      const k = maxW / c.w;
+      return { ...c, w: Math.round(c.w * k), h: Math.round(c.h * k) };
+    }
+
+    /* ── 📝 หน้าต่างสร้าง/แก้ข้อสอบ — โจทย์ สมการ ตาราง กราฟ ตัวเลือก เฉลย คะแนน ── */
+
+    let _ceStage = null;    // ที่พักตาราง/กราฟของตัวเลือกระหว่างแก้ไข
 
     function cexAddQ(lessonId, qtype) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
@@ -15765,13 +15900,14 @@ const supabaseDataSdk = {
       const l = _lessonById(lessonId);
       if (!l) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
       const isEssay = String(qtype) === 'essay';
-      let choices = [];
-      try { choices = JSON.parse((q && q.choices) || '[]'); } catch (e) { choices = []; }
-      if (!Array.isArray(choices)) choices = [];
-      while (choices.length < 4) choices.push('');
+      const chs = _ceChoices(q);
+      while (chs.length < 4) chs.push({ t: '', tb: '', g: '' });
+      _ceStage = { choices: chs.map(c => ({ tb: c.tb, g: c.g })) };
       const ci = parseInt(q && q.correct_index, 10);
-      _cgEdit = _cgParse(q && q.graph_json);
+      _cgEditSet('cex-g', _cgParse(q && q.graph_json));
+      _cgEditSet('cee-g', _cgParse(q && q.explain_graph));
       const hasG = q ? _cgHasData(q.graph_json) : false;
+      const hasEG = q ? _cgHasData(q.explain_graph) : false;
       const miss = q ? _ceQMissing(q) : [];
 
       const body = `
@@ -15788,7 +15924,7 @@ const supabaseDataSdk = {
         <textarea id="cex-q-text" rows="3" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml((q && q.question_text) || '')}</textarea>
         <div class="flex gap-2 mt-1 mb-1 flex-wrap">
           <button onclick="openEquationBuilder('cex-q-text')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">📐 แทรกสมการ</button>
-          <button onclick="_cePreviewText()" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs">👁️ ดูตัวอย่างโจทย์</button>
+          <button onclick="_cePreviewText()" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs">👁️ ดูตัวอย่างทั้งข้อ</button>
         </div>
         <div id="cex-q-prev" class="text-sm bg-slate-50 border border-slate-200 rounded p-2 mb-3" style="min-height:34px"></div>
 
@@ -15800,25 +15936,21 @@ const supabaseDataSdk = {
 
         <div class="border-2 border-blue-200 rounded-lg p-3 mb-3">
           <p class="text-xs font-semibold text-gray-700 mb-2">📈 กราฟในโจทย์ (ไม่ใส่ก็ได้)</p>
-          <label class="block text-xs text-gray-600 mb-1">ชนิดกราฟ</label>
-          <select id="cex-g-kind" onchange="_cgSyncEditor()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
-            <option value="none" ${!hasG ? 'selected' : ''}>— ไม่มีกราฟ —</option>
-            <option value="func" ${hasG && _cgEdit.kind === 'func' ? 'selected' : ''}>📉 เส้นจากสมการ y = f(x)</option>
-            <option value="bar" ${hasG && _cgEdit.kind === 'bar' ? 'selected' : ''}>📊 แท่งจากข้อมูล</option>
-            <option value="scatter" ${hasG && _cgEdit.kind === 'scatter' ? 'selected' : ''}>⚬ จุดจากข้อมูล</option>
-          </select>
+          ${_cgKindSelect('cex-g', hasG)}
           <div id="cex-g-box"></div>
         </div>
 
         <div id="cex-choice-box">
-          <p class="text-xs font-semibold text-gray-700 mb-1">🗂️ ตัวเลือก — ติ๊กวงกลมหน้าข้อที่ถูก</p>
-          ${choices.slice(0, 5).map((v, i) => `
-            <div class="flex items-center gap-2 mb-2">
+          <p class="text-xs font-semibold text-gray-700 mb-1">🗂️ ตัวเลือก — ติ๊กวงกลมหน้าข้อที่ถูก · แต่ละตัวเลือกใส่สมการ ตาราง และกราฟได้</p>
+          ${chs.slice(0, 5).map((c, i) => `
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
               <input type="radio" name="cex-q-correct" value="${i}" ${ci === i ? 'checked' : ''}>
-              <input id="cex-q-c${i}" value="${escHtml(String(v == null ? '' : v))}" placeholder="ตัวเลือกที่ ${i + 1}" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+              <input id="cex-q-c${i}" value="${escHtml(c.t)}" placeholder="ตัวเลือกที่ ${i + 1}" class="flex-1 min-w-[150px] px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
               <button onclick="openEquationBuilder('cex-q-c${i}')" class="px-2 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs" title="แทรกสมการในตัวเลือกนี้">📐</button>
+              <button onclick="_ceChoiceEdit(${i},'tb')" id="cex-q-btb${i}" class="px-2 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs" title="ตารางในตัวเลือกนี้">📊${String(c.tb || '').length > 4 ? ' •' : ''}</button>
+              <button onclick="_ceChoiceEdit(${i},'g')" id="cex-q-bg${i}" class="px-2 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs" title="กราฟในตัวเลือกนี้">📈${_cgHasData(c.g) ? ' •' : ''}</button>
             </div>`).join('')}
-          <p class="text-xs text-gray-500 mb-3">เว้นตัวเลือกที่ไม่ใช้ไว้ว่างได้ ระบบจะไม่แสดงให้นักเรียน</p>
+          <p class="text-xs text-gray-500 mb-3">เว้นตัวเลือกที่ไม่ใช้ไว้ว่างได้ · ตัวเลือกที่มีแต่กราฟหรือตารางโดยไม่มีข้อความก็ใช้ได้ (ข้อสอบแบบเลือกกราฟ)</p>
         </div>
 
         <div id="cex-essay-box">
@@ -15847,21 +15979,28 @@ const supabaseDataSdk = {
           </label>
         </div>
 
-        <label class="block text-xs text-gray-600 mb-1">💡 คำอธิบายเฉลย (นักเรียนเห็นหลังส่งข้อสอบ)</label>
-        <textarea id="cex-q-explain" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml((q && q.explanation) || '')}</textarea>
-        <div class="flex gap-2 mt-1">
-          <button onclick="openEquationBuilder('cex-q-explain')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">📐 แทรกสมการ</button>
+        <div class="border-2 border-emerald-200 rounded-lg p-3 mb-2">
+          <p class="text-xs font-semibold text-gray-700 mb-1">💡 เฉลยและคำอธิบาย (นักเรียนเห็นหลังส่งข้อสอบ)</p>
+          <textarea id="cex-q-explain" rows="2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">${escHtml((q && q.explanation) || '')}</textarea>
+          <div class="flex gap-2 mt-1 mb-2">
+            <button onclick="openEquationBuilder('cex-q-explain')" class="px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-semibold">📐 แทรกสมการ</button>
+          </div>
+          <p class="text-xs text-gray-600 mb-1">📊 ตารางในเฉลย (ไม่ใส่ก็ได้)</p>
+          <div id="cee-tables"></div>
+          <button onclick="qtAddTable('cee')" class="mt-2 mb-2 px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตาราง</button>
+          <p class="text-xs text-gray-600 mb-1 mt-2">📈 กราฟในเฉลย (ไม่ใส่ก็ได้)</p>
+          ${_cgKindSelect('cee-g', hasEG)}
+          <div id="cee-g-box"></div>
+          <button onclick="_ceCopyGraphToExplain()" class="mt-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-xs">⤵️ ใช้กราฟเดียวกับโจทย์</button>
         </div>
-        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer mt-2">
-          <input type="checkbox" id="cex-q-eg" ${(q && String(q.explain_graph || '').length > 4) ? 'checked' : ''}>
-          <span>แสดงกราฟเดียวกับโจทย์ในเฉลยด้วย</span>
-        </label>
         <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 mt-3">💾 กรอกไม่ครบก็กดบันทึกได้ ระบบเก็บเป็นร่างให้ ข้อที่ยังไม่ครบจะไม่ถูกสุ่มออกสอบ</p>`;
 
       _coModal(q ? '✏️ แก้ไขข้อสอบ' : '➕ เพิ่มข้อสอบ', body,
         q ? `cexSaveQ('${lessonId}','${q.__backendId}')` : `cexSaveQ('${lessonId}')`);
       qtLoad('cex', (q && q.question_tables) || '');
-      _cgSyncEditor();
+      qtLoad('cee', (q && q.explain_tables) || '');
+      _cgSyncEditor('cex-g');
+      _cgSyncEditor('cee-g');
       _ceEditorSync();
       _cePreviewText();
     }
@@ -15875,50 +16014,175 @@ const supabaseDataSdk = {
       const mode = document.getElementById('cex-q-mode')?.value || 'text';
       show('cex-tol-box', t === 'essay' && mode === 'number');
     }
-    /** ดูตัวอย่างโจทย์พร้อมสมการ ตาราง และกราฟ แบบที่นักเรียนจะเห็น */
+    /** คัดลอกกราฟของโจทย์มาเป็นกราฟของเฉลย */
+    function _ceCopyGraphToExplain() {
+      const g = _cgSnapshot('cex-g');
+      if (!g || !_cgHasData(g)) { showToast('โจทย์ยังไม่มีกราฟให้คัดลอก', 'error'); return; }
+      _cgEditSet('cee-g', _cgParse(g));
+      const sel = document.getElementById('cee-g-kind');
+      if (sel) sel.value = g.kind;
+      _cgSyncEditor('cee-g');
+      showToast('⤵️ ใช้กราฟเดียวกับโจทย์แล้ว แก้เพิ่มได้');
+    }
+    /** ดูตัวอย่างทั้งข้อแบบที่นักเรียนจะเห็น */
     function _cePreviewText() {
       const box = document.getElementById('cex-q-prev');
       if (!box) return;
       const txt = String(document.getElementById('cex-q-text')?.value || '');
       const tb = (typeof qtValue === 'function') ? qtValue('cex') : '';
-      const g = _cgSnapshot();
-      box.innerHTML = (txt.trim() ? escHtml(txt) : '<span class="text-gray-400">ยังไม่ได้ใส่โจทย์</span>')
+      const g = _cgSnapshot('cex-g');
+      const isEssay = (document.getElementById('cex-q-type')?.value === 'essay');
+      let html = (txt.trim() ? escHtml(txt) : '<span class="text-gray-400">ยังไม่ได้ใส่โจทย์</span>')
         + (String(tb || '').length > 4 ? `<div class="mt-2">${_qtHtml(tb, { small: true })}</div>` : '')
-        + (_cgHasData(g) ? `<div class="mt-2">${_cgSvg(g)}</div>` : '');
+        + (_cgHasData(g) ? `<div class="mt-2" style="overflow:auto">${_cgSvg(g)}</div>` : '');
+      if (!isEssay) {
+        const chs = _ceReadChoices();
+        const shown = chs.filter(c => !_ceChoiceEmpty(c));
+        const rich = shown.some(c => _ceChoiceHasExtra(c));
+        if (shown.length) {
+          html += `<div class="mt-2" style="display:grid;grid-template-columns:repeat(${rich ? 2 : 1},minmax(0,1fr));gap:8px">`
+            + shown.map((c, i) => `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:6px;background:#fff">
+                <span class="text-xs text-gray-500">${i + 1}.</span> ${_ceChoiceHtml(c, { small: true })}</div>`).join('')
+            + '</div>';
+        }
+      }
+      box.innerHTML = html;
       if (typeof renderMathIn === 'function') renderMathIn(box);
     }
+    /** อ่านตัวเลือกที่กรอกอยู่ในขณะนี้ (ข้อความจากช่อง + ตาราง/กราฟจากที่พัก) */
+    function _ceReadChoices() {
+      const st = (_ceStage && _ceStage.choices) || [];
+      return [0, 1, 2, 3, 4].map(i => ({
+        t: String(document.getElementById('cex-q-c' + i)?.value || '').trim(),
+        tb: String((st[i] && st[i].tb) || ''),
+        g: String((st[i] && st[i].g) || '')
+      }));
+    }
 
-    /* ── ตัวแก้ค่ากราฟในหน้าต่างข้อสอบ ── */
+    /** 📊📈 หน้าต่างย่อยสำหรับใส่ตาราง/กราฟในตัวเลือกหนึ่งข้อ (ไม่ปิดหน้าต่างข้อสอบ) */
+    function _ceChoiceEdit(i, what) {
+      document.getElementById('ce-sub-modal')?.remove();
+      const st = (_ceStage && _ceStage.choices && _ceStage.choices[i]) || { tb: '', g: '' };
+      const d = document.createElement('div');
+      d.id = 'ce-sub-modal';
+      d.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[100002] p-4';
+      d.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 max-w-lg w-full max-h-[92vh] overflow-y-auto">
+          <h3 class="text-lg font-bold text-gray-800 mb-1">${what === 'tb' ? '📊 ตาราง' : '📈 กราฟ'}ในตัวเลือกที่ ${i + 1}</h3>
+          <p class="text-xs text-gray-500 mb-3">ใส่แล้วตัวเลือกนี้จะแสดงพร้อม${what === 'tb' ? 'ตาราง' : 'กราฟ'}ให้นักเรียนเห็น</p>
+          ${what === 'tb'
+            ? `<div id="ces-tables"></div>
+               <button onclick="qtAddTable('ces')" class="mt-2 px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตาราง</button>`
+            : `${_cgKindSelect('ces-g', _cgHasData(st.g))}<div id="ces-g-box"></div>`}
+          <div class="flex gap-2 mt-4">
+            <button onclick="document.getElementById('ce-sub-modal')?.remove()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+            ${(what === 'tb' ? String(st.tb || '').length > 4 : _cgHasData(st.g))
+              ? `<button onclick="_ceChoiceClear(${i},'${what}')" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm">เอาออก</button>` : ''}
+            <button onclick="_ceChoiceApply(${i},'${what}')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold">✅ ใช้</button>
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+      if (what === 'tb') qtLoad('ces', st.tb || '');
+      else { _cgEditSet('ces-g', _cgParse(st.g)); _cgSyncEditor('ces-g'); }
+    }
+    function _ceChoiceApply(i, what) {
+      if (!_ceStage) _ceStage = { choices: [] };
+      if (!_ceStage.choices[i]) _ceStage.choices[i] = { tb: '', g: '' };
+      if (what === 'tb') _ceStage.choices[i].tb = (typeof qtValue === 'function') ? qtValue('ces') : '';
+      else {
+        const g = _cgSnapshot('ces-g');
+        _ceStage.choices[i].g = (g && _cgHasData(g)) ? _cgStringify(g) : '';
+      }
+      document.getElementById('ce-sub-modal')?.remove();
+      _ceMarkChoiceBtn(i);
+      _cePreviewText();
+    }
+    function _ceChoiceClear(i, what) {
+      if (_ceStage && _ceStage.choices[i]) _ceStage.choices[i][what] = '';
+      document.getElementById('ce-sub-modal')?.remove();
+      _ceMarkChoiceBtn(i);
+      _cePreviewText();
+    }
+    /** ติดจุดบนปุ่มให้รู้ว่าตัวเลือกนี้มีตาราง/กราฟอยู่ */
+    function _ceMarkChoiceBtn(i) {
+      const st = (_ceStage && _ceStage.choices && _ceStage.choices[i]) || { tb: '', g: '' };
+      const b1 = document.getElementById('cex-q-btb' + i);
+      const b2 = document.getElementById('cex-q-bg' + i);
+      if (b1) b1.textContent = '📊' + (String(st.tb || '').length > 4 ? ' •' : '');
+      if (b2) b2.textContent = '📈' + (_cgHasData(st.g) ? ' •' : '');
+    }
 
-    /** อ่านค่าที่ครูกรอกอยู่ในขณะนี้ออกมาเป็นค่าตั้งกราฟ */
-    function _cgSnapshot() {
-      const kind = document.getElementById('cex-g-kind')?.value || 'none';
+    /* ── 📈 ตัวแก้ค่ากราฟ — ใช้ซ้ำได้หลายที่ด้วยคำนำหน้า (โจทย์ · เฉลย · ตัวเลือก) ── */
+
+    const _cgEditState = {};
+    function _cgEditSet(pfx, cfg) { _cgEditState[pfx] = cfg || _cgDefault(); }
+    function _cgEditGet(pfx) { return _cgEditState[pfx] || _cgDefault(); }
+    /** ช่องเลือกชนิดกราฟ */
+    function _cgKindSelect(pfx, has) {
+      const c = _cgEditGet(pfx);
+      const opt = (v, t) => `<option value="${v}" ${has && c.kind === v ? 'selected' : ''}>${t}</option>`;
+      return `<label class="block text-xs text-gray-600 mb-1">ชนิดกราฟ</label>
+        <select id="${pfx}-kind" onchange="_cgSyncEditor('${pfx}')" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
+          <option value="none" ${!has ? 'selected' : ''}>— ไม่มีกราฟ —</option>
+          ${opt('func', '📉 เส้นจากสมการ y = f(x)')}
+          ${opt('bar', '📊 แท่งจากข้อมูล')}
+          ${opt('pie', '🥧 วงกลม / โดนัท')}
+          ${opt('scatter', '⚬ จุดจากข้อมูล')}
+        </select>`;
+    }
+    /** แป้นปุ่มเล็กเฉพาะกราฟ — เติมสมการแบบที่ตัววาดกราฟอ่านได้ทันที */
+    const CG_KEYS = [['x²', 'x^2'], ['x³', 'x^3'], ['xⁿ', '^'], ['√', 'sqrt()'], ['|x|', 'abs(x)'],
+      ['÷', '/'], ['×', '*'], ['( )', '()'], ['π', 'pi'], ['sin', 'sin()'], ['cos', 'cos()'],
+      ['tan', 'tan()'], ['ln', 'ln()'], ['log', 'log()'], ['e^', 'exp()']];
+    function _cgKeypad(targetId) {
+      return `<div class="flex flex-wrap gap-1 mb-2">
+        ${CG_KEYS.map(k => `<button onclick="_cgKeyIn('${targetId}', ${JSON.stringify(k[1]).replace(/"/g, '&quot;')})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-mono">${escHtml(k[0])}</button>`).join('')}
+        <span class="text-xs text-gray-500 ml-1">กดเติมสมการ หรือใช้ปุ่ม 📐 แทรกสมการแบบ LaTeX ก็ได้ ระบบแปลงให้เอง</span>
+      </div>`;
+    }
+    function _cgKeyIn(id, txt) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const s = String(el.value || '');
+      const pos = (typeof el.selectionStart === 'number') ? el.selectionStart : s.length;
+      const ins = String(txt);
+      el.value = s.slice(0, pos) + ins + s.slice(pos);
+      const inside = ins.indexOf('()') >= 0 ? pos + ins.indexOf('()') + 1 : pos + ins.length;
+      try { el.focus(); el.setSelectionRange(inside, inside); } catch (e) {}
+      _cgPreview(id.replace(/-eq\d+$/, ''));
+    }
+
+    /** อ่านค่าที่กรอกอยู่ออกมาเป็นค่าตั้งกราฟ */
+    function _cgSnapshot(pfx) {
+      const p = pfx || 'cex-g';
+      const kind = document.getElementById(p + '-kind')?.value || 'none';
       if (kind === 'none') return null;
       const gv = id => String(document.getElementById(id)?.value || '').trim();
       const nv = (id, f) => { const v = parseFloat(gv(id)); return isNaN(v) ? f : v; };
       const out = _cgDefault();
       out.kind = kind;
-      out.xmin = nv('cex-g-xmin', -5); out.xmax = nv('cex-g-xmax', 5);
-      out.ymin = gv('cex-g-ymin') === '' ? null : nv('cex-g-ymin', null);
-      out.ymax = gv('cex-g-ymax') === '' ? null : nv('cex-g-ymax', null);
-      out.grid = !!(document.getElementById('cex-g-grid') || { checked: true }).checked;
-      out.xlabel = gv('cex-g-xlabel') || 'x';
-      out.ylabel = gv('cex-g-ylabel') || 'y';
+      out.xmin = nv(p + '-xmin', -5); out.xmax = nv(p + '-xmax', 5);
+      out.ymin = gv(p + '-ymin') === '' ? null : nv(p + '-ymin', null);
+      out.ymax = gv(p + '-ymax') === '' ? null : nv(p + '-ymax', null);
+      out.grid = !!(document.getElementById(p + '-grid') || { checked: true }).checked;
+      out.xlabel = gv(p + '-xlabel') || 'x';
+      out.ylabel = gv(p + '-ylabel') || 'y';
+      out.donut = !!(document.getElementById(p + '-donut') || {}).checked;
+      out.pieLabel = gv(p + '-pielabel') || 'pct';
       out.eqs = [0, 1, 2].map(i => ({
-        expr: gv('cex-g-eq' + i),
-        color: gv('cex-g-col' + i) || ['#2563eb', '#dc2626', '#059669'][i]
+        expr: gv(p + '-eq' + i),
+        color: gv(p + '-col' + i) || ['#2563eb', '#dc2626', '#059669'][i]
       })).filter(e => e.expr !== '');
       if (!out.eqs.length) out.eqs = [{ expr: '', color: '#2563eb' }];
-      // แท่ง: อ่านจากช่องชื่อ/ค่า
       out.bars = [];
       for (let i = 0; i < 12; i++) {
-        const lb = gv('cex-g-bl' + i), vl = gv('cex-g-bv' + i);
+        const lb = gv(p + '-bl' + i), vl = gv(p + '-bv' + i);
         if (lb === '' && vl === '') continue;
-        out.bars.push({ label: lb, value: parseFloat(vl) || 0 });
+        out.bars.push({ label: lb, value: parseFloat(vl) || 0,
+          color: gv(p + '-bc' + i) || CG_PIE_COLORS[i % CG_PIE_COLORS.length] });
       }
-      // จุด: อ่านจากข้อความทีละบรรทัด x,y
       out.pts = [];
-      String(document.getElementById('cex-g-pts')?.value || '').split(/\n+/).forEach(line => {
+      String(document.getElementById(p + '-pts')?.value || '').split(/\n+/).forEach(line => {
         const m = String(line).replace(/\s+/g, '').split(/[,\t;]/);
         if (m.length < 2) return;
         const x = parseFloat(m[0]), y = parseFloat(m[1]);
@@ -15928,81 +16192,106 @@ const supabaseDataSdk = {
       return out;
     }
     /** วาดช่องกรอกของกราฟให้ตรงกับชนิดที่เลือก */
-    function _cgSyncEditor() {
-      const box = document.getElementById('cex-g-box');
+    function _cgSyncEditor(pfx) {
+      const p = pfx || 'cex-g';
+      const box = document.getElementById(p + '-box');
       if (!box) return;
-      const kind = document.getElementById('cex-g-kind')?.value || 'none';
+      const kind = document.getElementById(p + '-kind')?.value || 'none';
       if (kind === 'none') { box.innerHTML = ''; return; }
-      const c = _cgEdit || _cgDefault();
+      const c = _cgEditGet(p);
       const inp = (id, label, val, ph, w) =>
         `<div style="${w ? 'width:' + w : 'flex:1 1 90px'}">
            <label class="block text-xs text-gray-600 mb-1">${label}</label>
-           <input id="${id}" value="${escHtml(String(val == null ? '' : val))}" placeholder="${escHtml(ph || '')}" oninput="_cgPreview()"
+           <input id="${id}" value="${escHtml(String(val == null ? '' : val))}" placeholder="${escHtml(ph || '')}" oninput="_cgPreview('${p}')"
              class="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm">
          </div>`;
       let inner = '';
       if (kind === 'func') {
         inner += [0, 1, 2].map(i => {
           const e = c.eqs[i] || { expr: '', color: ['#2563eb', '#dc2626', '#059669'][i] };
-          return `<div class="flex items-end gap-2 mb-2">
-            ${inp('cex-g-eq' + i, i === 0 ? '✏️ สมการ (เช่น x^2-3x+2)' : 'สมการเพิ่ม ' + (i + 1) + ' (ไม่ใส่ก็ได้)', e.expr, 'y = x^2')}
+          return `<div class="flex items-end gap-2 mb-1">
+            ${inp(p + '-eq' + i, i === 0 ? '✏️ สมการ (เช่น x^2-3x+2)' : 'สมการเพิ่ม ' + (i + 1) + ' (ไม่ใส่ก็ได้)', e.expr, 'y = x^2')}
             <div style="width:62px">
               <label class="block text-xs text-gray-600 mb-1">สี</label>
-              <input id="cex-g-col${i}" type="color" value="${escHtml(e.color || '#2563eb')}" oninput="_cgPreview()" class="w-full h-9 border-2 border-gray-200 rounded-lg">
+              <input id="${p}-col${i}" type="color" value="${escHtml(e.color || '#2563eb')}" oninput="_cgPreview('${p}')" class="w-full h-9 border-2 border-gray-200 rounded-lg">
             </div>
-          </div>`;
+            <button onclick="openEquationBuilder('${p}-eq${i}')" class="px-2 py-1.5 mb-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-xs" title="แทรกสมการแบบ LaTeX">📐</button>
+          </div>` + (i === 0 ? _cgKeypad(p + '-eq0') : '');
         }).join('');
-        inner += `<p class="text-xs text-gray-500 mb-2">ใช้ได้: + − × ÷ ^ วงเล็บ sqrt abs sin cos tan asin acos atan ln log exp pi · คูณละไว้ได้ เช่น 2x หรือ 3(x+1)</p>`;
+        inner += `<p class="text-xs text-gray-500 mb-2">ใช้ได้: + − × ÷ ^ วงเล็บ sqrt abs sin cos tan asin acos atan ln log exp pi · คูณละไว้ได้ เช่น 2x หรือ 3(x+1) · วางสมการ LaTeX ก็ได้</p>`;
       }
-      if (kind === 'bar') {
-        inner += '<p class="text-xs text-gray-600 mb-1">ข้อมูลแท่ง (เว้นว่างได้ถ้าใช้ไม่ครบ)</p><div class="flex flex-wrap gap-2 mb-2">';
+      if (kind === 'bar' || kind === 'pie') {
+        inner += `<p class="text-xs text-gray-600 mb-1">ข้อมูล${kind === 'pie' ? 'แต่ละชิ้น' : 'แท่ง'} (เว้นว่างได้ถ้าใช้ไม่ครบ)</p><div class="flex flex-wrap gap-2 mb-2">`;
         for (let i = 0; i < 8; i++) {
-          const b = c.bars[i] || { label: '', value: '' };
-          inner += `<div style="width:120px">
-            <input id="cex-g-bl${i}" value="${escHtml(b.label)}" placeholder="ชื่อแท่ง ${i + 1}" oninput="_cgPreview()" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-xs mb-1">
-            <input id="cex-g-bv${i}" value="${escHtml(b.value === '' ? '' : b.value)}" placeholder="ค่า" type="number" step="any" oninput="_cgPreview()" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-xs">
+          const b = c.bars[i] || { label: '', value: '', color: CG_PIE_COLORS[i % CG_PIE_COLORS.length] };
+          inner += `<div style="width:126px">
+            <input id="${p}-bl${i}" value="${escHtml(b.label)}" placeholder="ชื่อ ${i + 1}" oninput="_cgPreview('${p}')" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-xs mb-1">
+            <div class="flex gap-1">
+              <input id="${p}-bv${i}" value="${escHtml(b.value === '' ? '' : b.value)}" placeholder="ค่า" type="number" step="any" oninput="_cgPreview('${p}')" class="flex-1 px-2 py-1.5 border-2 border-gray-200 rounded text-xs">
+              <input id="${p}-bc${i}" type="color" value="${escHtml(b.color || CG_PIE_COLORS[i % CG_PIE_COLORS.length])}" oninput="_cgPreview('${p}')" class="w-8 h-8 border-2 border-gray-200 rounded">
+            </div>
           </div>`;
         }
         inner += '</div>';
       }
-      if (kind === 'scatter') {
-        inner += `<label class="block text-xs text-gray-600 mb-1">จุดข้อมูล — บรรทัดละจุด เขียน x,y (วางจาก Excel ได้)</label>
-          <textarea id="cex-g-pts" rows="4" oninput="_cgPreview()" placeholder="1,2&#10;2,4&#10;3,9" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm mb-2">${escHtml(c.pts.map(p => p.x + ',' + p.y).join('\n'))}</textarea>`;
-      }
-      if (kind !== 'bar') {
-        inner += `<div class="flex gap-2 mb-2 flex-wrap">
-          ${inp('cex-g-xmin', 'x น้อยสุด', c.xmin, '-5')}
-          ${inp('cex-g-xmax', 'x มากสุด', c.xmax, '5')}
-          ${inp('cex-g-ymin', 'y น้อยสุด (ว่าง = อัตโนมัติ)', c.ymin === null ? '' : c.ymin, 'อัตโนมัติ')}
-          ${inp('cex-g-ymax', 'y มากสุด (ว่าง = อัตโนมัติ)', c.ymax === null ? '' : c.ymax, 'อัตโนมัติ')}
+      if (kind === 'pie') {
+        inner += `<div class="flex gap-2 items-end mb-2 flex-wrap">
+          <div style="width:170px">
+            <label class="block text-xs text-gray-600 mb-1">ป้ายบนชิ้น</label>
+            <select id="${p}-pielabel" onchange="_cgPreview('${p}')" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm">
+              <option value="pct" ${c.pieLabel === 'pct' ? 'selected' : ''}>ร้อยละ</option>
+              <option value="val" ${c.pieLabel === 'val' ? 'selected' : ''}>ค่าจริง</option>
+              <option value="both" ${c.pieLabel === 'both' ? 'selected' : ''}>ทั้งค่าจริงและร้อยละ</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer pb-2">
+            <input type="checkbox" id="${p}-donut" ${c.donut ? 'checked' : ''} onchange="_cgPreview('${p}')"> แบบโดนัท (เจาะรูกลาง)
+          </label>
+          <span class="text-xs text-gray-500 pb-2">ระบบคิดร้อยละจากผลรวมให้เอง</span>
         </div>`;
       }
-      inner += `<div class="flex gap-2 items-end mb-2 flex-wrap">
-          ${inp('cex-g-xlabel', 'ชื่อแกนนอน', c.xlabel, 'x', '110px')}
-          ${inp('cex-g-ylabel', 'ชื่อแกนตั้ง', c.ylabel, 'y', '110px')}
+      if (kind === 'scatter') {
+        inner += `<label class="block text-xs text-gray-600 mb-1">จุดข้อมูล — บรรทัดละจุด เขียน x,y (วางจาก Excel ได้)</label>
+          <textarea id="${p}-pts" rows="4" oninput="_cgPreview('${p}')" placeholder="1,2&#10;2,4&#10;3,9" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm mb-2">${escHtml(c.pts.map(q => q.x + ',' + q.y).join('\n'))}</textarea>`;
+      }
+      if (kind === 'func' || kind === 'scatter') {
+        inner += `<div class="flex gap-2 mb-2 flex-wrap">
+          ${inp(p + '-xmin', 'x น้อยสุด', c.xmin, '-5')}
+          ${inp(p + '-xmax', 'x มากสุด', c.xmax, '5')}
+          ${inp(p + '-ymin', 'y น้อยสุด (ว่าง = อัตโนมัติ)', c.ymin === null ? '' : c.ymin, 'อัตโนมัติ')}
+          ${inp(p + '-ymax', 'y มากสุด (ว่าง = อัตโนมัติ)', c.ymax === null ? '' : c.ymax, 'อัตโนมัติ')}
+        </div>`;
+      }
+      if (kind !== 'pie') {
+        inner += `<div class="flex gap-2 items-end mb-2 flex-wrap">
+          ${inp(p + '-xlabel', 'ชื่อแกนนอน', c.xlabel, 'x', '110px')}
+          ${inp(p + '-ylabel', 'ชื่อแกนตั้ง', c.ylabel, 'y', '110px')}
           <label class="flex items-center gap-2 text-xs text-gray-700 cursor-pointer pb-2">
-            <input type="checkbox" id="cex-g-grid" ${c.grid ? 'checked' : ''} onchange="_cgPreview()"> แสดงเส้นตาราง
+            <input type="checkbox" id="${p}-grid" ${c.grid ? 'checked' : ''} onchange="_cgPreview('${p}')"> แสดงเส้นตาราง
           </label>
-        </div>
-        <div id="cex-g-prev" class="bg-white border border-gray-200 rounded p-2" style="overflow:auto"></div>`;
+        </div>`;
+      }
+      inner += `<div id="${p}-prev" class="bg-white border border-gray-200 rounded p-2" style="overflow:auto"></div>`;
       box.innerHTML = inner;
-      _cgPreview();
+      _cgPreview(p);
     }
     /** วาดกราฟตัวอย่างทันทีที่ครูพิมพ์ */
-    function _cgPreview() {
-      const box = document.getElementById('cex-g-prev');
+    function _cgPreview(pfx) {
+      const p = pfx || 'cex-g';
+      const box = document.getElementById(p + '-prev');
       if (!box) return;
-      const g = _cgSnapshot();
+      const g = _cgSnapshot(p);
       if (!g) { box.innerHTML = ''; return; }
       if (!_cgHasData(g)) {
-        const bad = (g.kind === 'func') && g.eqs.some(e => String(e.expr).trim() !== '');
-        box.innerHTML = bad
-          ? '<p class="text-xs text-red-600">❌ อ่านสมการไม่ได้ ตรวจอีกครั้ง (ใช้ x เป็นตัวแปร เช่น x^2-3x+2)</p>'
+        const typed = (g.kind === 'func') && g.eqs.some(e => String(e.expr).trim() !== '');
+        box.innerHTML = typed
+          ? '<p class="text-xs text-red-600">❌ วาดสมการนี้ไม่ได้ — กราฟวาดได้เฉพาะที่เป็น y = f(x) (ใช้ x เป็นตัวแปร เช่น x^2-3x+2) ส่วนโจทย์ยังใส่สมการนี้ได้ตามปกติ</p>'
           : '<p class="text-xs text-gray-400">ยังไม่มีข้อมูลให้วาด</p>';
         return;
       }
       box.innerHTML = _cgSvg(g);
-      _cgEdit = _cgParse(g);
+      _cgEditSet(p, _cgParse(g));
+      if (p === 'cex-g') _cePreviewText();
     }
 
     async function cexSaveQ(lessonId, editId) {
@@ -16016,33 +16305,34 @@ const supabaseDataSdk = {
       const points = parseFloat(gv('cex-q-points'));
       const draft = !!(document.getElementById('cex-q-draft') || {}).checked;
       const tables = (typeof qtValue === 'function') ? qtValue('cex') : '';
-      const g = _cgSnapshot();
-      const gjson = (g && _cgHasData(g)) ? _cgStringify(g) : '';
-      const wantEG = !!(document.getElementById('cex-q-eg') || {}).checked;
+      const eTables = (typeof qtValue === 'function') ? qtValue('cee') : '';
+      const g = _cgSnapshot('cex-g');
+      const eg = _cgSnapshot('cee-g');
       const chosen = document.querySelector('input[name="cex-q-correct"]:checked');
-      const choices = [0, 1, 2, 3, 4].map(i => gv('cex-q-c' + i).trim());
+      const allCh = _ceReadChoices();
+      const keep = [];                                   // ตัวเลือกที่มีเนื้อหาจริง
+      allCh.forEach((c, i) => { if (!_ceChoiceEmpty(c)) keep.push(i); });
       const rec = {
         type: 'course_exam_question',
         lesson_id: lessonId,
         qtype: qtype,
         question_text: text,
         question_tables: tables,
-        graph_json: gjson,
-        explain_graph: (wantEG ? gjson : ''),
-        choices: qtype === 'choice' ? JSON.stringify(choices.filter(c => c !== '')) : '',
-        correct_index: qtype === 'choice' ? (chosen ? parseInt(chosen.value, 10) : null) : null,
+        graph_json: (g && _cgHasData(g)) ? _cgStringify(g) : '',
+        explanation: gv('cex-q-explain').trim(),
+        explain_tables: eTables,
+        explain_graph: (eg && _cgHasData(eg)) ? _cgStringify(eg) : '',
+        choices: qtype === 'choice' ? JSON.stringify(keep.map(i => allCh[i])) : '',
+        // ⚠️ ข้อที่ถูกต้องอ้างตามลำดับของตัวเลือกที่ "เหลืออยู่จริง" หลังตัดช่องว่างออก
+        correct_index: null,
         answer_keys: qtype === 'essay' ? gv('cex-q-keys').trim() : '',
         answer_mode: qtype === 'essay' ? (gv('cex-q-mode') === 'number' ? 'number' : 'text') : 'text',
         tolerance: qtype === 'essay' ? (parseFloat(gv('cex-q-tol')) || 0) : 0,
-        explanation: gv('cex-q-explain').trim(),
         points: (points > 0 ? points : 1),
         is_draft: draft
       };
-      // ⚠️ ข้อที่ถูกต้องอ้างตามลำดับของตัวเลือกที่ "เหลืออยู่จริง" หลังตัดช่องว่างออก
       if (qtype === 'choice' && chosen) {
-        const keepIdx = [];
-        choices.forEach((c, i) => { if (c !== '') keepIdx.push(i); });
-        const pos = keepIdx.indexOf(parseInt(chosen.value, 10));
+        const pos = keep.indexOf(parseInt(chosen.value, 10));
         rec.correct_index = pos >= 0 ? pos : null;
       }
       let r;
@@ -16062,9 +16352,11 @@ const supabaseDataSdk = {
           ? '💾 บันทึกไว้เป็นร่างแล้ว — ยังขาด ' + miss.join(' · ') + ' กลับมาเติมภายหลังได้ ยังไม่ถูกสุ่มออกสอบ'
           : (editId ? '✅ แก้ไขข้อสอบแล้ว' : '✅ เพิ่มข้อสอบแล้ว'));
         document.getElementById('co-modal')?.remove();
+        _ceStage = null;
         renderCourseExam();
       } else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
+
 
     async function cexMoveQ(id, dir) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
