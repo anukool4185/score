@@ -3732,7 +3732,7 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">✅ คะแนนต่อข้อ</label>
-           <input type="number" id="eq-score" value="1" min="0" step="0.5" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <input type="number" id="eq-score" value="1" min="0" step="0.5" oninput="_bkRubricUI('eq')" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           </div>
          </div>
 
@@ -3764,6 +3764,11 @@
           <button type="button" onclick="qtAddTable('eq')" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตารางข้อมูล</button>
          </div>
 
+         <div class="mb-3 border-2 border-blue-200 rounded-lg p-3">
+          <label class="block text-xs font-semibold text-gray-700 mb-2">📈 กราฟในโจทย์ (ไม่ใส่ก็ได้) — เส้นจากสมการ · แท่ง · วงกลม/โดนัท · จุด</label>
+          <div id="eq-g-wrap"></div>
+         </div>
+
          <div id="eq-choices-section">
           <label class="block text-xs text-gray-600 mb-1">🔤 ตัวเลือก (ระบุเฉพาะข้อที่ใช้ ก-ง หรือเพิ่ม จ ได้) — ใส่รูปภาพประกอบแต่ละตัวเลือกได้ (ไม่บังคับ)</label>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
@@ -3771,7 +3776,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="a" id="eq-correct-a">
              <span class="text-sm w-4">ก.</span>
-             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-a')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
+             <input type="text" id="eq-choice-a" placeholder="ตัวเลือก ก" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-a')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('a','tb')" id="eq-cx-tb-a" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('a','g')" id="eq-cx-g-a" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
             </div>
             <input type="text" id="eq-choice-a-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -3779,7 +3784,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="b" id="eq-correct-b">
              <span class="text-sm w-4">ข.</span>
-             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-b')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
+             <input type="text" id="eq-choice-b" placeholder="ตัวเลือก ข" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-b')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('b','tb')" id="eq-cx-tb-b" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('b','g')" id="eq-cx-g-b" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
             </div>
             <input type="text" id="eq-choice-b-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -3787,7 +3792,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="c" id="eq-correct-c">
              <span class="text-sm w-4">ค.</span>
-             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-c')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
+             <input type="text" id="eq-choice-c" placeholder="ตัวเลือก ค" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-c')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('c','tb')" id="eq-cx-tb-c" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('c','g')" id="eq-cx-g-c" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
             </div>
             <input type="text" id="eq-choice-c-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -3795,7 +3800,7 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="d" id="eq-correct-d">
              <span class="text-sm w-4">ง.</span>
-             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-d')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
+             <input type="text" id="eq-choice-d" placeholder="ตัวเลือก ง" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-d')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('d','tb')" id="eq-cx-tb-d" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('d','g')" id="eq-cx-g-d" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
             </div>
             <input type="text" id="eq-choice-d-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
@@ -3803,12 +3808,30 @@
             <div class="flex items-center gap-2">
              <input type="radio" name="eq-correct" value="e" id="eq-correct-e">
              <span class="text-sm w-4">จ.</span>
-             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-e')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button>
+             <input type="text" id="eq-choice-e" placeholder="ตัวเลือก จ (ถ้ามี)" class="flex-1 px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"><button type="button" onclick="openEquationBuilder('eq-choice-e')" style="padding:6px 8px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="แทรกสมการ">🖊️</button><button type="button" onclick="_bkChoiceEdit('e','tb')" id="eq-cx-tb-e" style="padding:6px 8px;background:#e0f2fe;color:#0369a1;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่ตารางในตัวเลือกนี้">📊</button><button type="button" onclick="_bkChoiceEdit('e','g')" id="eq-cx-g-e" style="padding:6px 8px;background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0" title="ใส่กราฟในตัวเลือกนี้">📈</button>
             </div>
             <input type="text" id="eq-choice-e-image" placeholder="🖼️ ลิงก์รูปภาพตัวเลือกนี้ (ไม่บังคับ)" class="w-full mt-1 ml-6 px-2 py-1 border border-gray-200 rounded text-[11px] text-gray-500 focus:border-blue-400 focus:outline-none" style="width:calc(100% - 24px)">
            </div>
           </div>
-          <p class="text-[11px] text-gray-400">ติ๊กหน้าตัวเลือกที่เป็นคำตอบที่ถูกต้อง · รูปภาพใช้ลิงก์จาก Google Drive แบบเปิดสาธารณะเหมือนรูปคำถาม</p>
+          <p class="text-[11px] text-gray-400">ติ๊กหน้าตัวเลือกที่เป็นคำตอบที่ถูกต้อง · รูปภาพใช้ลิงก์จาก Google Drive แบบเปิดสาธารณะเหมือนรูปคำถาม · ปุ่ม 🖊️ ใส่สมการ · 📊 ใส่ตาราง · 📈 ใส่กราฟ ของตัวเลือกนั้น ๆ (ตัวเลือกที่มีแต่กราฟโดยไม่มีข้อความก็ใช้ได้)</p>
+          <div id="eq-choice-preview" class="mt-2"></div>
+         </div>
+
+         <div id="eq-key-box" class="mb-3 border-2 border-emerald-200 rounded-lg p-3">
+          <label class="block text-xs font-semibold text-gray-700 mb-1" id="eq-key-label">💡 คำอธิบายเฉลย (ไม่ใส่ก็ได้)
+           <button type="button" onclick="openEquationBuilder('eq-answer-key')" class="ml-1 px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[11px] font-medium">🖊️ แทรกสมการ</button>
+          </label>
+          <textarea id="eq-answer-key" rows="2" placeholder="เช่น แยกตัวประกอบได้ $(x-1)(x-2)=0$ จึงได้ x = 1, 2" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
+          <p class="text-xs text-gray-600 mt-2 mb-1">📊 ตารางในเฉลย (ไม่ใส่ก็ได้)</p>
+          <div id="eqk-tables"></div>
+          <button type="button" onclick="qtAddTable('eqk')" class="mt-1 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตาราง</button>
+          <p class="text-xs text-gray-600 mt-2 mb-1">📈 กราฟในเฉลย (ไม่ใส่ก็ได้)</p>
+          <div id="eqk-g-wrap"></div>
+          <button type="button" onclick="_bkCopyQGraph('eq-g','eqk-g')" class="mt-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs">⤵️ ใช้กราฟเดียวกับโจทย์</button>
+          <div id="eq-rubric-box" class="mt-3 pt-3 border-t border-emerald-200">
+           <p class="text-xs font-semibold text-gray-700 mb-1">✅ เกณฑ์ให้คะแนนย่อย (เฉพาะข้ออัตนัย) — ตอนตรวจแอดมินติ๊กแล้วระบบรวมคะแนนให้</p>
+           <div id="eq-rubric"></div>
+          </div>
          </div>
 
          <div class="flex gap-2 mt-4">
@@ -3861,11 +3884,13 @@
           </div>
           <div>
            <label class="block text-xs text-gray-600 mb-1">💯 คะแนนเต็มข้อนี้</label>
-           <input type="number" id="esq-score" value="5" min="0.5" step="0.5" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+           <input type="number" id="esq-score" value="5" min="0.5" step="0.5" oninput="_bkRubricUI('esq')" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
           </div>
          </div>
          <div class="mb-3">
-          <label class="block text-xs text-gray-600 mb-1">❓ โจทย์คำถาม</label>
+          <label class="block text-xs text-gray-600 mb-1">❓ โจทย์คำถาม <span class="text-gray-400 font-normal">(พิมพ์สมการได้ คร่อมด้วย $...$)</span>
+           <button type="button" onclick="openEquationBuilder('esq-question-text')" class="ml-1 px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[11px] font-medium">🖊️ แทรกสมการ</button>
+          </label>
           <textarea id="esq-question-text" rows="3" placeholder="พิมพ์โจทย์ที่ต้องการให้นักเรียนเขียนตอบ" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
          </div>
          <div class="mb-3">
@@ -3878,9 +3903,32 @@
           <div id="esq-tables"></div>
           <button type="button" onclick="qtAddTable('esq')" class="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตารางข้อมูล</button>
          </div>
+
+         <div class="mb-3 border-2 border-blue-200 rounded-lg p-3">
+          <label class="block text-xs font-semibold text-gray-700 mb-2">📈 กราฟในโจทย์ (ไม่ใส่ก็ได้) — เส้นจากสมการ · แท่ง · วงกลม/โดนัท · จุด</label>
+          <div id="esq-g-wrap"></div>
+         </div>
+
+         <div class="mb-3 border-2 border-emerald-200 rounded-lg p-3">
+          <label class="block text-xs font-semibold text-gray-700 mb-1">💡 เฉลยคำตอบ (ช่วยแอดมินตรวจ — นักเรียนไม่เห็น)
+           <button type="button" onclick="openEquationBuilder('esq-answer-key')" class="ml-1 px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[11px] font-medium">🖊️ แทรกสมการ</button>
+          </label>
+          <textarea id="esq-answer-key" rows="3" placeholder="เขียนคำตอบที่ถูกต้องแบบเต็ม ๆ ไว้เลย ใส่สมการได้ เช่น $x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}$" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
+          <p class="text-xs text-gray-600 mt-2 mb-1">📊 ตารางในเฉลย (ไม่ใส่ก็ได้)</p>
+          <div id="esk-tables"></div>
+          <button type="button" onclick="qtAddTable('esk')" class="mt-1 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตาราง</button>
+          <p class="text-xs text-gray-600 mt-2 mb-1">📈 กราฟในเฉลย (ไม่ใส่ก็ได้)</p>
+          <div id="esk-g-wrap"></div>
+          <button type="button" onclick="_bkCopyQGraph('esq-g','esk-g')" class="mt-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs">⤵️ ใช้กราฟเดียวกับโจทย์</button>
+          <div class="mt-3 pt-3 border-t border-emerald-200">
+           <p class="text-xs font-semibold text-gray-700 mb-1">✅ เกณฑ์ให้คะแนนย่อย — ตอนตรวจแอดมินติ๊กแล้วระบบรวมคะแนนให้</p>
+           <div id="esq-rubric"></div>
+          </div>
+         </div>
+
          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
           <div>
-           <label class="block text-xs text-gray-600 mb-1">📋 แนวคำตอบ / เกณฑ์ให้คะแนน <span class="text-gray-400">(ช่วยตรวจให้เป็นมาตรฐาน)</span></label>
+           <label class="block text-xs text-gray-600 mb-1">📋 แนวคำตอบย่อ ๆ <span class="text-gray-400">(ไม่ใส่ก็ได้ ถ้าใส่เฉลยเต็มไว้ข้างบนแล้ว)</span></label>
            <textarea id="esq-guideline" rows="2" placeholder="เช่น ตอบถูก 3 ประเด็นได้เต็ม" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></textarea>
           </div>
           <div>
@@ -4262,7 +4310,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.247';
+    const APP_VERSION = 'SUPABASE-2026.10.19.248';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -11997,6 +12045,16 @@ const supabaseDataSdk = {
       const type = document.querySelector('input[name="eq-type"]:checked')?.value || 'choice';
       const section = document.getElementById('eq-choices-section');
       if (section) section.style.display = type === 'choice' ? '' : 'none';
+      // ✍️ ข้ออัตนัยในคลังนี้ครูตรวจเอง จึงมีเฉลยกับเกณฑ์ย่อยไว้ช่วยตรวจ ส่วนปรนัยใช้เป็นคำอธิบายเฉลย
+      const rub = document.getElementById('eq-rubric-box');
+      if (rub) rub.style.display = type === 'choice' ? 'none' : '';
+      const lab = document.getElementById('eq-key-label');
+      if (lab) {
+        const btn = '<button type="button" onclick="openEquationBuilder(\'eq-answer-key\')" class="ml-1 px-2 py-0.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded text-[11px] font-medium">🖊️ แทรกสมการ</button>';
+        lab.innerHTML = (type === 'choice'
+          ? '💡 คำอธิบายเฉลย (ไม่ใส่ก็ได้)'
+          : '💡 เฉลยคำตอบ (ช่วยแอดมินตรวจ — นักเรียนไม่เห็น)') + btn;
+      }
     }
 
     // แสดง preview รูปภาพเมื่อวางลิงก์
@@ -12030,6 +12088,12 @@ const supabaseDataSdk = {
         question_text: questionText,
         question_image_url: imageUrl,
         question_tables: qtValue('eq'),
+        question_graph: _bkGraphValue('eq-g'),
+        // 💡 เฉลย: ปรนัยใช้เป็นคำอธิบายเฉลย · อัตนัยใช้เป็นคำตอบที่ถูกต้องไว้ช่วยแอดมินตรวจ
+        answer_key: document.getElementById('eq-answer-key')?.value.trim() || '',
+        answer_key_tables: qtValue('eqk'),
+        answer_key_graph: _bkGraphValue('eqk-g'),
+        rubric: questionType === 'choice' ? '' : _bkRubricValue('eq'),
       };
 
       if (questionType === 'choice') {
@@ -12044,11 +12108,18 @@ const supabaseDataSdk = {
         const choiceCImg = document.getElementById('eq-choice-c-image')?.value.trim();
         const choiceDImg = document.getElementById('eq-choice-d-image')?.value.trim();
         const choiceEImg = document.getElementById('eq-choice-e-image')?.value.trim();
-        const filledChoices = [choiceA, choiceB, choiceC, choiceD, choiceE].filter(Boolean);
-        if (filledChoices.length < 2) { showToast('ข้อสอบปรนัยต้องมีตัวเลือกอย่างน้อย 2 ข้อ', 'error'); return; }
+        // 📈 ตัวเลือกที่มีแต่กราฟหรือตาราง (ไม่มีข้อความ) ก็นับว่าใช้ได้ — ทำข้อสอบแบบ "กราฟใดคือ..." ได้
+        const extras = _bkExtras({ choice_extras: _bkExtrasStr(_bkStage) });
+        const texts = { a: choiceA, b: choiceB, c: choiceC, d: choiceD, e: choiceE };
+        const imgs = { a: choiceAImg, b: choiceBImg, c: choiceCImg, d: choiceDImg, e: choiceEImg };
+        const hasAny = l => !!texts[l] || !!imgs[l] || _bkHasExtra(extras[l]);
+        const filledChoices = ['a','b','c','d','e'].filter(hasAny);
+        if (filledChoices.length < 2) { showToast('ข้อสอบปรนัยต้องมีตัวเลือกอย่างน้อย 2 ข้อ (ใส่ข้อความ รูป ตาราง หรือกราฟก็ได้)', 'error'); return; }
         if (!correct) { showToast('กรุณาติ๊กเลือกคำตอบที่ถูกต้อง', 'error'); return; }
+        if (!hasAny(correct)) { showToast('ตัวเลือกที่ติ๊กว่าถูกยังว่างอยู่ — ใส่เนื้อหาให้ตัวเลือกนั้นก่อน', 'error'); return; }
         record = { ...record, choice_a: choiceA, choice_b: choiceB, choice_c: choiceC, choice_d: choiceD, choice_e: choiceE, correct_answer: correct,
-          choice_a_image: choiceAImg, choice_b_image: choiceBImg, choice_c_image: choiceCImg, choice_d_image: choiceDImg, choice_e_image: choiceEImg };
+          choice_a_image: choiceAImg, choice_b_image: choiceBImg, choice_c_image: choiceCImg, choice_d_image: choiceDImg, choice_e_image: choiceEImg,
+          choice_extras: _bkExtrasStr(_bkStage) };
       }
 
       let result;
@@ -12090,6 +12161,13 @@ const supabaseDataSdk = {
       document.getElementById('eq-image-url').value = '';
       document.getElementById('eq-image-preview').innerHTML = '';
       qtLoad('eq', null);   // 📊 เริ่มจากไม่มีตารางข้อมูล
+      qtLoad('eqk', null);
+      document.getElementById('eq-answer-key').value = '';
+      _bkGraphUI('eq-g-wrap', 'eq-g', '');
+      _bkGraphUI('eqk-g-wrap', 'eqk-g', '');
+      _bkRubricUI('eq', '');
+      _bkStageInit({});
+      _bkPreviewChoices();
       ['a','b','c','d','e'].forEach(l => {
         document.getElementById(`eq-choice-${l}`).value = '';
         const imgEl = document.getElementById(`eq-choice-${l}-image`);
@@ -12141,7 +12219,10 @@ const supabaseDataSdk = {
         const typeLabel = q.question_type === 'choice' ? '🔤 ปรนัย' : '✍️ อัตนัย';
         const choicesHtml = q.question_type === 'choice' ? `
           <div class="text-xs text-gray-600 mt-2 space-y-0.5">
-            ${['a','b','c','d','e'].map(l => q[`choice_${l}`] ? `<p class="${q.correct_answer===l ? 'text-green-700 font-semibold' : ''}">${l==='a'?'ก':l==='b'?'ข':l==='c'?'ค':l==='d'?'ง':'จ'}. ${q[`choice_${l}`]} ${q.correct_answer===l?'✅':''}</p>` : '').join('')}
+            ${(() => { const cx = _bkExtras(q);
+              return ['a','b','c','d','e'].map(l => _bkChoiceFilled(q, l)
+                ? `<div class="${q.correct_answer===l ? 'text-green-700 font-semibold' : ''}">${BK_THAI[l]}. ${_bkChoiceBody(q[`choice_${l}`], cx[l], q[`choice_${l}_image`], { small: true })} ${q.correct_answer===l?'✅':''}</div>`
+                : '').join(''); })()}
           </div>` : '<p class="text-xs text-gray-400 mt-2">ครูตรวจให้คะแนนเอง</p>';
         const imgHtml = q.question_image_url ? `<img src="${q.question_image_url}" style="max-height:100px;border-radius:8px;margin-top:6px" onerror="this.style.display='none'">` : '';
         const isDraft = !_qReady(q);
@@ -12157,7 +12238,9 @@ const supabaseDataSdk = {
                 <p class="font-medium text-gray-800 mt-1">${q.question_text}</p>
                 ${imgHtml}
                 ${_qtHtml(q.question_tables)}
+                ${_bkQGraphHtml(q, { small: true })}
                 ${choicesHtml}
+                ${_bkGradeHelpHtml(q, 'bank-' + q.__backendId, '')}
               </div>
               <div class="flex gap-1 flex-shrink-0">
                 <button onclick="editExamQuestion('${q.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
@@ -12215,6 +12298,14 @@ const supabaseDataSdk = {
       });
       const correctRadio = document.getElementById(`eq-correct-${q.correct_answer}`);
       if (correctRadio) correctRadio.checked = true;
+      // 📈💡 เติมกราฟ เฉลย และเกณฑ์ย่อยที่เคยใส่ไว้กลับมาให้ครบ
+      qtLoad('eqk', q.answer_key_tables);
+      document.getElementById('eq-answer-key').value = q.answer_key || '';
+      _bkGraphUI('eq-g-wrap', 'eq-g', q.question_graph);
+      _bkGraphUI('eqk-g-wrap', 'eqk-g', q.answer_key_graph);
+      _bkRubricUI('eq', q.rubric);
+      _bkStageInit(q);
+      _bkPreviewChoices();
       updateEqTypeUI();
       _showEqFormAsPopup(); // 🪟 แสดงฟอร์มเป็น popup กลางจอ แทนการเลื่อนขึ้นไปดูด้านบน
     }
@@ -12461,7 +12552,10 @@ const supabaseDataSdk = {
     }
     function _essaySnap(q) {
       return { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-        score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words, chapter: q.chapter };
+        question_graph: q.question_graph || '',
+        score_per_question: q.score_per_question, answer_guideline: q.answer_guideline, min_words: q.min_words, chapter: q.chapter,
+        // 🔒 เฉลยและเกณฑ์ย่อยไม่ไปกับกระดาษของนักเรียน หน้าตรวจดึงสดจากคลังด้วย _bkKeySrc
+        };
     }
 
     /** คำนวณคะแนนรวมจากข้อที่เลือก */
@@ -12888,7 +12982,9 @@ const supabaseDataSdk = {
               </p>
               <p class="text-sm text-gray-800 font-medium">${idx+1}. ${escHtml(q.question_text || '')}${_qtBadge(q.question_tables)}</p>
               ${q.question_image_url ? `<img src="${escHtml(q.question_image_url)}" style="max-height:100px;border-radius:8px;margin-top:6px" onerror="this.style.display='none'">` : ''}
+              ${_bkQGraphHtml(q, { small: true })}
               ${q.answer_guideline ? `<p class="text-xs text-green-700 mt-2 bg-green-50 rounded p-2">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
+              ${_bkGradeHelpHtml(q, 'esqlist-' + q.__backendId, '')}
             </div>
             <div class="flex gap-1 flex-shrink-0">
               <button onclick="editEssayQuestion('${q.__backendId}')" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✏️</button>
@@ -13131,6 +13227,11 @@ const supabaseDataSdk = {
       document.getElementById('esq-question-text').value = '';
       document.getElementById('esq-image-url').value = '';
       document.getElementById('esq-guideline').value = '';
+      document.getElementById('esq-answer-key').value = '';
+      qtLoad('esk', null);
+      _bkGraphUI('esq-g-wrap', 'esq-g', '');
+      _bkGraphUI('esk-g-wrap', 'esk-g', '');
+      _bkRubricUI('esq', '');
       qtLoad('esq', null);
     }
 
@@ -13159,9 +13260,15 @@ const supabaseDataSdk = {
           question_text: text,
           question_image_url: imageUrl || null,
           question_tables: qtValue('esq'),
+          question_graph: _bkGraphValue('esq-g'),
           score_per_question: score,
           answer_guideline: guideline || null,
           min_words: minWords,
+          // 💡 เฉลยคำตอบและเกณฑ์ย่อย — นักเรียนไม่เห็น ใช้ช่วยแอดมินตรวจเท่านั้น
+          answer_key: document.getElementById('esq-answer-key')?.value.trim() || '',
+          answer_key_tables: qtValue('esk'),
+          answer_key_graph: _bkGraphValue('esk-g'),
+          rubric: _bkRubricValue('esq'),
         };
         const result = editId
           ? await window.dataSdk.update({ ...allData.find(d => d.__backendId === editId && d.type === 'essay_question'), ...payload })
@@ -13198,6 +13305,11 @@ const supabaseDataSdk = {
       document.getElementById('esq-guideline').value = q.answer_guideline || '';
       document.getElementById('esq-min-words').value = q.min_words || 0;
       qtLoad('esq', q.question_tables);
+      document.getElementById('esq-answer-key').value = q.answer_key || '';
+      qtLoad('esk', q.answer_key_tables);
+      _bkGraphUI('esq-g-wrap', 'esq-g', q.question_graph);
+      _bkGraphUI('esk-g-wrap', 'esk-g', q.answer_key_graph);
+      _bkRubricUI('esq', q.rubric);
       _showEsqFormAsPopup();
     }
 
@@ -13268,7 +13380,7 @@ const supabaseDataSdk = {
     //    กรอกในช่องได้ทีละช่อง และคัดลอกตารางจาก Excel/Word มาวางทีเดียวก็ได้
     // ══════════════════════════════════════════════════════════════
     // cex = โจทย์ของคลังข้อสอบหลักสูตร · cee = เฉลย · ces = ตัวเลือกคำตอบ
-    const _qtState = { eq: [], esq: [], cex: [], cee: [], ces: [] };
+    const _qtState = { eq: [], esq: [], cex: [], cee: [], ces: [], eqk: [], esk: [], bkc: [] };
 
     function qtLoad(pfx, raw) { _qtState[pfx] = _qtParse(raw).map(t => ({
       c: t.c || '', h: t.h !== false,
@@ -16406,6 +16518,338 @@ const supabaseDataSdk = {
     }
 
     // ══════════════════════════════════════════════════════════════
+    // 🧰 ชุดเครื่องมือสร้างข้อสอบของคลังข้อสอบปกติ (ปรนัย + อัตนัย)
+    //    ใช้ตัววาดกราฟและตัวทำตารางตัวเดียวกับคลังข้อสอบหลักสูตร
+    //    เพิ่มให้: กราฟในโจทย์ · ตาราง/สมการ/กราฟในทุกตัวเลือก
+    //              เฉลยพร้อมตาราง/กราฟ · เกณฑ์ให้คะแนนย่อยช่วยแอดมินตรวจ
+    //    ⚠️ ไม่แตะตารางคะแนนในชั้นเรียน และไม่เกี่ยวกับคลังข้อสอบหลักสูตร
+    // ══════════════════════════════════════════════════════════════
+
+    const BK_LETTERS = ['a', 'b', 'c', 'd', 'e'];
+    const BK_THAI = { a: 'ก', b: 'ข', c: 'ค', d: 'ง', e: 'จ' };
+
+    /* ── 🗂️ ตาราง/กราฟที่พ่วงกับตัวเลือกแต่ละข้อ (เก็บรวมเป็น JSON ช่องเดียว) ── */
+
+    function _bkExtras(q) {
+      let raw = {};
+      try { raw = JSON.parse((q && q.choice_extras) || '{}') || {}; } catch (e) { raw = {}; }
+      const out = {};
+      BK_LETTERS.forEach(l => {
+        const v = raw[l] || {};
+        out[l] = { tb: String(v.tb || ''), g: String(v.g || '') };
+      });
+      return out;
+    }
+    function _bkExtrasStr(obj) {
+      const keep = {};
+      BK_LETTERS.forEach(l => {
+        const v = (obj && obj[l]) || {};
+        const tb = String(v.tb || ''), g = String(v.g || '');
+        if (tb.length > 4 || _cgHasData(g)) keep[l] = { tb: tb, g: g };
+      });
+      return Object.keys(keep).length ? JSON.stringify(keep) : '';
+    }
+    function _bkHasExtra(x) { return !!x && (String(x.tb || '').length > 4 || _cgHasData(x.g)); }
+    /** วาดเนื้อตัวเลือกหนึ่งข้อ: ข้อความ (มีสมการได้) + รูป + ตาราง + กราฟ */
+    function _bkChoiceBody(text, extra, imgUrl, opt) {
+      const o = opt || {};
+      const small = o.small !== false;
+      const t = String(text == null ? '' : text);
+      const tb = extra && String(extra.tb || '').length > 4 ? _qtHtml(extra.tb, { small: true }) : '';
+      const g = extra && _cgHasData(extra.g) ? _cgSvg(_cgSmaller(extra.g, small ? 300 : 420)) : '';
+      const img = imgUrl ? `<img src="${escHtml(imgUrl)}" style="max-height:${small ? 90 : 140}px;border-radius:6px;margin-top:4px;display:block" onerror="this.style.display='none'">` : '';
+      return (t ? `<span style="white-space:pre-wrap;word-break:break-word">${escHtml(t)}</span>` : '')
+        + img
+        + (tb ? `<div style="margin-top:4px">${tb}</div>` : '')
+        + (g ? `<div style="margin-top:4px;overflow:auto">${g}</div>` : '');
+    }
+    /** ตัวเลือกข้อนี้มีอะไรให้นักเรียนอ่านไหม (ข้อความ หรือรูป หรือตาราง หรือกราฟ) */
+    function _bkChoiceFilled(q, letter) {
+      const x = _bkExtras(q)[letter] || {};
+      return String((q && q['choice_' + letter]) || '').trim() !== ''
+        || String((q && q['choice_' + letter + '_image']) || '').trim() !== ''
+        || _bkHasExtra(x);
+    }
+    /** กราฟในโจทย์ (ใช้ได้ทั้งคลังปรนัยและอัตนัย) */
+    function _bkQGraphHtml(q, opt) {
+      const raw = q && q.question_graph;
+      if (!_cgHasData(raw)) return '';
+      const o = opt || {};
+      return `<div style="overflow:auto;margin:6px 0">${_cgSvg(o.small ? _cgSmaller(raw, 420) : raw)}</div>`;
+    }
+
+    /* ── ✅ เกณฑ์ให้คะแนนย่อย (rubric) — แอดมินติ๊กแล้วระบบรวมคะแนนให้ ── */
+
+    function _bkRubric(raw) {
+      let list = [];
+      try { list = JSON.parse(raw || '[]'); } catch (e) { list = []; }
+      if (!Array.isArray(list)) list = [];
+      return list.slice(0, 20)
+        .map(r => (r && typeof r === 'object')
+          ? { t: String(r.t == null ? '' : r.t), p: parseFloat(r.p) || 0 }
+          : { t: String(r == null ? '' : r), p: 0 })
+        .filter(r => r.t.trim() !== '' || r.p > 0);
+    }
+    function _bkRubricStr(list) {
+      const keep = (Array.isArray(list) ? list : []).filter(r => String(r.t || '').trim() !== '');
+      return keep.length ? JSON.stringify(keep.map(r => ({ t: String(r.t).trim(), p: parseFloat(r.p) || 0 }))) : '';
+    }
+    function _bkRubricTotal(list) {
+      return Math.round((Array.isArray(list) ? list : []).reduce((t, r) => t + (parseFloat(r.p) || 0), 0) * 100) / 100;
+    }
+
+    const _bkRubricState = {};        // เกณฑ์ย่อยที่กำลังแก้ในฟอร์ม แยกตามคำนำหน้า
+
+    /** วาดตัวแก้เกณฑ์ย่อยในฟอร์มสร้างข้อสอบ */
+    function _bkRubricUI(pfx, raw, maxInputId) {
+      const box = document.getElementById(pfx + '-rubric');
+      if (!box) return;
+      if (raw !== undefined) _bkRubricState[pfx] = _bkRubric(raw);
+      const list = _bkRubricState[pfx] || [];
+      const sum = _bkRubricTotal(list);
+      const max = parseFloat(document.getElementById(maxInputId || (pfx + '-score'))?.value) || 0;
+      box.innerHTML = `
+        ${list.length ? list.map((r, i) => `
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs text-gray-400 w-4 text-right">${i + 1}</span>
+            <input id="${pfx}-rb-t${i}" value="${escHtml(r.t)}" placeholder="เช่น เขียนสมการถูก" oninput="_bkRubricSum('${pfx}')"
+              class="flex-1 min-w-[120px] px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm">
+            <input id="${pfx}-rb-p${i}" value="${escHtml(r.p)}" type="number" step="0.5" min="0" oninput="_bkRubricSum('${pfx}')"
+              class="w-20 px-2 py-1.5 border-2 border-gray-200 rounded-lg text-sm text-center" title="คะแนนของเกณฑ์นี้">
+            <button type="button" onclick="_bkRubricDel('${pfx}',${i})" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs" title="เอาเกณฑ์นี้ออก">✕</button>
+          </div>`).join('')
+          : '<p class="text-xs text-gray-400 mb-1">ยังไม่มีเกณฑ์ย่อย — ไม่ใส่ก็ได้ ถ้าใส่ไว้ตอนตรวจจะติ๊กแล้วระบบรวมคะแนนให้เอง</p>'}
+        <div class="flex items-center gap-2 flex-wrap mt-1">
+          <button type="button" onclick="_bkRubricAdd('${pfx}')" class="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">➕ เพิ่มเกณฑ์ย่อย</button>
+          ${list.length ? `<span id="${pfx}-rubric-sum" class="text-xs ${max > 0 && sum !== max ? 'text-amber-700' : 'text-gray-500'}">${_bkRubricSumText(sum, max)}</span>` : ''}
+        </div>`;
+    }
+    function _bkRubricSumText(sum, max) {
+      return 'รวมเกณฑ์ย่อย ' + sum + ' คะแนน' + (max > 0 ? ' · คะแนนเต็มข้อนี้ ' + max : '')
+        + (max > 0 && sum !== max ? ' ⚠️ ไม่เท่ากัน' : '');
+    }
+    /** ครูพิมพ์คะแนนของเกณฑ์ย่อย → อัปเดตผลรวมทันทีโดยไม่วาดช่องใหม่ (ไม่ทำให้เคอร์เซอร์หลุด) */
+    function _bkRubricSum(pfx) {
+      _bkRubricRead(pfx);
+      const el = document.getElementById(pfx + '-rubric-sum');
+      if (!el) return;
+      const sum = _bkRubricTotal(_bkRubricState[pfx] || []);
+      const max = parseFloat(document.getElementById(pfx + '-score')?.value) || 0;
+      el.textContent = _bkRubricSumText(sum, max);
+      el.className = 'text-xs ' + (max > 0 && sum !== max ? 'text-amber-700' : 'text-gray-500');
+    }
+    function _bkRubricRead(pfx) {
+      const list = _bkRubricState[pfx] || [];
+      list.forEach((r, i) => {
+        const t = document.getElementById(pfx + '-rb-t' + i);
+        const p = document.getElementById(pfx + '-rb-p' + i);
+        if (t) r.t = t.value;
+        if (p) r.p = parseFloat(p.value) || 0;
+      });
+      return list;
+    }
+    function _bkRubricAdd(pfx) {
+      _bkRubricRead(pfx);
+      _bkRubricState[pfx] = (_bkRubricState[pfx] || []).concat([{ t: '', p: 1 }]);
+      _bkRubricUI(pfx);
+    }
+    function _bkRubricDel(pfx, i) {
+      _bkRubricRead(pfx);
+      (_bkRubricState[pfx] || []).splice(i, 1);
+      _bkRubricUI(pfx);
+    }
+    function _bkRubricValue(pfx) { return _bkRubricStr(_bkRubricRead(pfx)); }
+
+    /** 🔒 เฉลยและเกณฑ์ย่อยไม่ถูกคัดลอกลงกระดาษของนักเรียน (กันนักเรียนแกะดูคำตอบจากข้อมูลที่เครื่องโหลดไป)
+     *  เวลาตรวจจึงดึงเฉลยสด ๆ จากคลังข้อสอบด้วยรหัสข้อ ถ้าข้อนั้นถูกลบไปแล้วก็ใช้เท่าที่มีในกระดาษ */
+    function _bkKeySrc(q, bankType) {
+      if (!q) return q;
+      const live = (typeof allData !== 'undefined' ? allData : [])
+        .find(d => d.type === bankType && String(d.__backendId) === String(q.__backendId));
+      if (!live) return q;
+      return { ...q,
+        answer_key: live.answer_key || q.answer_key || '',
+        answer_key_tables: live.answer_key_tables || q.answer_key_tables || '',
+        answer_key_graph: live.answer_key_graph || q.answer_key_graph || '',
+        answer_guideline: q.answer_guideline || live.answer_guideline || '',
+        rubric: live.rubric || q.rubric || '' };
+    }
+
+    /** 📋 กล่องช่วยตรวจ: เฉลย/แนวคำตอบ + ตาราง + กราฟ + เกณฑ์ย่อยให้ติ๊ก
+     *  uid  = รหัสเฉพาะของกล่องนี้ (กันชนกันเวลามีหลายคนในหน้าเดียว)
+     *  inputId = ช่องคะแนนที่จะให้ระบบเติมผลรวมให้ (ไม่ส่งมาก็ได้ = แสดงเฉลยเฉย ๆ) */
+    function _bkGradeHelpHtml(q, uid, inputId) {
+      if (!q) return '';
+      const key = String(q.answer_key || '').trim();
+      const guide = String(q.answer_guideline || '').trim();
+      const tb = String(q.answer_key_tables || '').length > 4 ? _qtHtml(q.answer_key_tables, { small: true }) : '';
+      const g = _cgHasData(q.answer_key_graph) ? `<div style="overflow:auto;margin-top:4px">${_cgSvg(_cgSmaller(q.answer_key_graph, 360))}</div>` : '';
+      const rub = _bkRubric(q.rubric);
+      if (!key && !guide && !tb && !g && !rub.length) return '';
+      const ticks = (rub.length && inputId) ? `
+        <div class="mt-2">
+          <p class="text-[11px] font-semibold text-emerald-800 mb-1">✅ เกณฑ์ย่อย — ติ๊กข้อที่นักเรียนทำได้ ระบบรวมคะแนนให้เอง</p>
+          ${rub.map((r, i) => `<label class="flex items-start gap-2 text-xs text-gray-700 cursor-pointer mb-0.5">
+            <input type="checkbox" data-rub="${escHtml(uid)}" data-p="${escHtml(r.p)}" onchange="_bkRubricApply('${escHtml(uid)}','${escHtml(inputId)}')" class="mt-0.5">
+            <span>${escHtml(r.t)} <b class="text-emerald-700">(${escHtml(r.p)})</b></span>
+          </label>`).join('')}
+          <p class="text-[11px] text-gray-500 mt-1">รวมเกณฑ์ย่อย ${_bkRubricTotal(rub)} คะแนน · แก้ตัวเลขในช่องคะแนนทับได้ตามดุลพินิจ</p>
+        </div>` : (rub.length ? `<p class="text-[11px] text-emerald-800 mt-2">✅ เกณฑ์ย่อย: ${rub.map(r => escHtml(r.t) + ' (' + escHtml(r.p) + ')').join(' · ')}</p>` : '');
+      return `<details class="mt-2 bg-emerald-50 border border-emerald-200 rounded p-2" ${inputId ? 'open' : ''}>
+        <summary class="text-xs font-semibold text-emerald-900 cursor-pointer">📋 เฉลย / แนวคำตอบ ${rub.length ? '+ เกณฑ์ย่อย ' : ''}(สำหรับครูตรวจ)</summary>
+        ${guide ? `<p class="text-xs text-gray-700 whitespace-pre-wrap mt-1">${escHtml(guide)}</p>` : ''}
+        ${key ? `<p class="text-sm text-gray-800 whitespace-pre-wrap mt-1">${escHtml(key)}</p>` : ''}
+        ${tb ? `<div class="mt-1">${tb}</div>` : ''}
+        ${g}
+        ${ticks}
+      </details>`;
+    }
+    /** เฉพาะแถวติ๊กเกณฑ์ย่อย — ใช้ตอนที่เฉลยแสดงอยู่ที่หัวข้อแล้ว (ตรวจรายข้อทั้งห้อง) */
+    function _bkRubricTicksHtml(q, uid, inputId) {
+      const rub = _bkRubric(q && q.rubric);
+      if (!rub.length || !inputId) return '';
+      return `<details class="mt-1">
+        <summary class="text-[11px] text-emerald-800 font-semibold cursor-pointer">✅ ติ๊กเกณฑ์ย่อยให้ระบบรวมคะแนน (${rub.length} ข้อ · เต็ม ${_bkRubricTotal(rub)})</summary>
+        ${rub.map(r => `<label class="flex items-start gap-2 text-[11px] text-gray-700 cursor-pointer mb-0.5">
+          <input type="checkbox" data-rub="${escHtml(uid)}" data-p="${escHtml(r.p)}" onchange="_bkRubricApply('${escHtml(uid)}','${escHtml(inputId)}')" class="mt-0.5">
+          <span>${escHtml(r.t)} <b class="text-emerald-700">(${escHtml(r.p)})</b></span>
+        </label>`).join('')}
+      </details>`;
+    }
+    /** ติ๊กเกณฑ์ย่อยแล้วเติมผลรวมลงช่องคะแนน (ไม่เกินคะแนนเต็มของข้อนั้น) */
+    function _bkRubricApply(uid, inputId) {
+      let t = 0;
+      document.querySelectorAll('input[data-rub="' + uid + '"]:checked').forEach(c => { t += parseFloat(c.dataset.p) || 0; });
+      const inp = document.getElementById(inputId);
+      if (!inp) return;
+      const max = parseFloat(inp.dataset.max);
+      t = Math.round(t * 100) / 100;
+      inp.value = (max > 0 && t > max) ? max : t;
+      try { inp.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {
+        if (typeof inp.oninput === 'function') inp.oninput();
+      }
+    }
+
+    /* ── 📈 ตัวแก้กราฟในฟอร์มคลังข้อสอบปกติ — ใช้ตัวเดียวกับคลังข้อสอบหลักสูตร ── */
+
+    /** วางตัวแก้กราฟลงในกล่องที่เตรียมไว้ (เรียกตอนเปิดฟอร์มหรือตอนโหลดข้อเดิมมาแก้) */
+    function _bkGraphUI(wrapId, pfx, raw) {
+      const w = document.getElementById(wrapId);
+      if (!w) return;
+      _cgEditSet(pfx, _cgParse(raw));
+      w.innerHTML = _cgKindSelect(pfx, _cgHasData(raw)) + `<div id="${pfx}-box"></div>`;
+      _cgSyncEditor(pfx);
+    }
+    /** อ่านค่ากราฟออกมาเป็นข้อความพร้อมบันทึก ('' = ไม่มีกราฟ) */
+    function _bkGraphValue(pfx) {
+      const g = _cgSnapshot(pfx);
+      return (g && _cgHasData(g)) ? _cgStringify(g) : '';
+    }
+
+    /** ⤵️ คัดลอกกราฟของโจทย์ไปเป็นกราฟของเฉลย (แก้เพิ่มทีหลังได้ ไม่ผูกกัน) */
+    function _bkCopyQGraph(fromPfx, toPfx) {
+      const raw = _bkGraphValue(fromPfx);
+      if (!raw) { showToast('โจทย์ยังไม่มีกราฟให้คัดลอก', 'error'); return; }
+      _bkGraphUI(toPfx + '-wrap', toPfx, raw);
+      showToast('⤵️ ใช้กราฟเดียวกับโจทย์แล้ว แก้เพิ่มได้');
+    }
+
+    /* ── 📊📈 หน้าต่างย่อยใส่ตาราง/กราฟให้ตัวเลือกของคลังปรนัย ── */
+
+    let _bkStage = null;              // ที่พักตาราง/กราฟของตัวเลือกระหว่างแก้ไข
+
+    function _bkStageInit(q) {
+      _bkStage = _bkExtras(q || {});
+      BK_LETTERS.forEach(l => _bkMarkChoice(l));
+    }
+    function _bkMarkChoice(l) {
+      const x = (_bkStage && _bkStage[l]) || { tb: '', g: '' };
+      const b1 = document.getElementById('eq-cx-tb-' + l);
+      const b2 = document.getElementById('eq-cx-g-' + l);
+      if (b1) b1.textContent = '📊' + (String(x.tb || '').length > 4 ? '•' : '');
+      if (b2) b2.textContent = '📈' + (_cgHasData(x.g) ? '•' : '');
+    }
+    function _bkChoiceEdit(l, what) {
+      document.getElementById('bk-sub-modal')?.remove();
+      const x = (_bkStage && _bkStage[l]) || { tb: '', g: '' };
+      const d = document.createElement('div');
+      d.id = 'bk-sub-modal';
+      d.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
+      d.style.zIndex = '999998';
+      d.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 max-w-lg w-full max-h-[92vh] overflow-y-auto">
+          <h3 class="text-lg font-bold text-gray-800 mb-1">${what === 'tb' ? '📊 ตาราง' : '📈 กราฟ'}ในตัวเลือก ${BK_THAI[l] || l}</h3>
+          <p class="text-xs text-gray-500 mb-3">ใส่แล้วตัวเลือกนี้จะแสดงพร้อม${what === 'tb' ? 'ตาราง' : 'กราฟ'}ให้นักเรียนเห็นตอนสอบ</p>
+          ${what === 'tb'
+            ? `<div id="bkc-tables"></div>
+               <button type="button" onclick="qtAddTable('bkc')" class="mt-2 px-3 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-xs font-semibold">➕ เพิ่มตาราง</button>`
+            : `<div id="bkc-g-wrap"></div>`}
+          <div class="flex gap-2 mt-4">
+            <button type="button" onclick="document.getElementById('bk-sub-modal')?.remove()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+            ${(what === 'tb' ? String(x.tb || '').length > 4 : _cgHasData(x.g))
+              ? `<button type="button" onclick="_bkChoiceClear('${l}','${what}')" class="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm">เอาออก</button>` : ''}
+            <button type="button" onclick="_bkChoiceApply('${l}','${what}')" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold">✅ ใช้</button>
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+      if (what === 'tb') qtLoad('bkc', x.tb || '');
+      else _bkGraphUI('bkc-g-wrap', 'bkc-g', x.g || '');
+    }
+    function _bkChoiceApply(l, what) {
+      if (!_bkStage) _bkStage = _bkExtras({});
+      if (!_bkStage[l]) _bkStage[l] = { tb: '', g: '' };
+      if (what === 'tb') _bkStage[l].tb = (typeof qtValue === 'function') ? qtValue('bkc') : '';
+      else _bkStage[l].g = _bkGraphValue('bkc-g');
+      document.getElementById('bk-sub-modal')?.remove();
+      _bkMarkChoice(l);
+      _bkPreviewChoices();
+    }
+    function _bkChoiceClear(l, what) {
+      if (_bkStage && _bkStage[l]) _bkStage[l][what] = '';
+      document.getElementById('bk-sub-modal')?.remove();
+      _bkMarkChoice(l);
+      _bkPreviewChoices();
+    }
+    /** ดูตัวอย่างตัวเลือกแบบที่นักเรียนจะเห็น */
+    function _bkPreviewChoices() {
+      const box = document.getElementById('eq-choice-preview');
+      if (!box) return;
+      const shown = BK_LETTERS.map(l => ({
+        l: l,
+        t: String(document.getElementById('eq-choice-' + l)?.value || '').trim(),
+        img: String(document.getElementById('eq-choice-' + l + '-image')?.value || '').trim(),
+        x: (_bkStage && _bkStage[l]) || { tb: '', g: '' }
+      })).filter(c => c.t || c.img || _bkHasExtra(c.x));
+      if (!shown.length) { box.innerHTML = ''; return; }
+      const rich = shown.some(c => _bkHasExtra(c.x));
+      box.innerHTML = `<p class="text-[11px] text-gray-500 mb-1">👁️ ตัวอย่างที่นักเรียนจะเห็น</p>
+        <div style="display:grid;grid-template-columns:repeat(${rich ? 2 : 1},minmax(0,1fr));gap:8px">
+          ${shown.map(c => `<div style="border:1px solid #e2e8f0;border-radius:8px;padding:6px;background:#fff">
+            <span class="text-xs text-gray-500">${BK_THAI[c.l]}.</span> ${_bkChoiceBody(c.t, c.x, c.img, { small: true })}</div>`).join('')}
+        </div>`;
+      if (typeof renderMathIn === 'function') renderMathIn(box);
+    }
+
+    /** 📸 สำเนาข้อสอบที่ใช้ในชุดสอบ — รวมของใหม่ให้ครบ ไม่ว่าจะเพิ่มฟีเจอร์อะไรทีหลัง
+     *  ⚠️ เดิมเขียนรายชื่อคอลัมน์ไว้หลายที่ พอเพิ่มของใหม่จึงหลุดไม่ไปถึงหน้าสอบ */
+    function _eqSnap(q) {
+      if (!q) return null;
+      const o = {
+        __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url,
+        question_tables: q.question_tables, question_graph: q.question_graph || '',
+        question_type: q.question_type, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
+        choice_extras: q.choice_extras || ''
+        // 🔒 ไม่คัดลอกเฉลย ตารางเฉลย กราฟเฉลย และเกณฑ์ย่อยลงกระดาษของนักเรียน
+        //    หน้าตรวจของครูดึงของพวกนี้สดจากคลังข้อสอบด้วย _bkKeySrc แทน
+      };
+      BK_LETTERS.forEach(l => {
+        o['choice_' + l] = q['choice_' + l];
+        o['choice_' + l + '_image'] = q['choice_' + l + '_image'];
+      });
+      return o;
+    }
+
+    // ══════════════════════════════════════════════════════════════
     // 🏅 เกียรติบัตรหลักสูตร — แอดมินออกแบบเอง ย้ายตำแหน่งได้ทุกชิ้น
     //    🚫 ไม่เก็บใบเกียรติบัตรของนักเรียนไว้เลย แม้แต่แถวข้อมูล
     //       เลขที่และรหัสตรวจสอบคำนวณสดจากข้อมูลที่มีอยู่ + กุญแจลับในตาราง settings
@@ -18722,12 +19166,7 @@ const supabaseDataSdk = {
         // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมปล่อยสำเนาข้อสอบว่างไว้ เพราะคิดว่าจะสุ่มให้แต่ละคนตอนเข้าสอบ
         // แต่ถ้าการสุ่มตอนนั้นล้มเหลว (เน็ตหลุด/บันทึกไม่ผ่าน) กระดาษจะว่างเปล่าถาวร กู้คืนไม่ได้เลย
         // แก้โดยเก็บ "คลังข้อสอบที่ใช้สุ่ม" ไว้ที่ชุดสอบด้วย เป็นตัวสำรองให้กู้คืนได้เสมอ
-        questionSnapshot = poolQuestions.map(q => ({
-          __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+        questionSnapshot = poolQuestions.map(q => _eqSnap(q));
         // question_ids ยังคงปล่อยว่าง เพราะแต่ละคนได้ข้อไม่เหมือนกัน (เก็บที่ submission รายคนแทน)
       } else {
         questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
@@ -18740,11 +19179,7 @@ const supabaseDataSdk = {
         // ถ้าภายหลังมีการแก้ไข/ลบข้อสอบต้นฉบับในคลัง จะไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย
         questionSnapshot = questionIds.map(id => {
           const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
-          return q ? { __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image } : null;
+          return _eqSnap(q);
         }).filter(Boolean);
       }
 
@@ -19728,6 +20163,7 @@ const supabaseDataSdk = {
               <p style="margin:0 0 10px;white-space:pre-wrap;color:#334155">${escHtml(q.question_text || '')}</p>
               ${q.question_image_url ? `<img src="${escHtml(q.question_image_url)}" style="max-width:100%;border-radius:8px;margin-bottom:10px">` : ''}
               ${_qtHtml(q.question_tables)}
+              ${_bkQGraphHtml(q)}
               <textarea data-qid="${escHtml(qid)}" data-min="${minW}" oninput="_onEssayInput(this)" rows="7" placeholder="พิมพ์คำตอบที่นี่..."
                 style="width:100%;box-sizing:border-box;border:2px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;line-height:1.6;font-family:inherit">${escHtml(answers[qid] || '')}</textarea>
               <p class="essay-wc" data-qid="${escHtml(qid)}" style="margin:4px 0 0;font-size:11px;color:#64748b"></p>
@@ -20377,6 +20813,7 @@ const supabaseDataSdk = {
         }).filter(r => r.q).sort((a, b) => _egqStudentNo(a.s) - _egqStudentNo(b.s));
       if (!rows.length) { panel.innerHTML = '<p class="text-gray-400 text-sm">ไม่มีคำตอบของข้อนี้</p>'; return; }
       const q = rows[0].q, max = parseFloat(q.score_per_question) || 0;
+      const qk = _bkKeySrc(q, 'essay_question');   // 🔑 เฉลยดึงสดจากคลัง ไม่ได้มากับกระดาษนักเรียน
       const palette = [['#fffbeb', '#fde68a'], ['#eff6ff', '#bfdbfe']];
       const nav = `<div class="flex items-center gap-2 my-2">
           <button onclick="egqGo(-1)" ${qIdx <= 0 ? 'disabled style="opacity:.4"' : ''} class="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm">◀ ข้อก่อน</button>
@@ -20388,7 +20825,8 @@ const supabaseDataSdk = {
           <p class="text-sm font-bold text-gray-800">ข้อ ${qIdx + 1} <span class="font-normal text-amber-700">(เต็ม ${max} คะแนน${parseInt(q.min_words) ? ` · ขั้นต่ำ ${q.min_words} คำ` : ''})</span></p>
           <p class="text-sm text-gray-700 whitespace-pre-wrap">${escHtml(q.question_text || '')}</p>
           ${_qtHtml(q.question_tables, { small: true })}
-          ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mt-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
+          ${_bkQGraphHtml(q, { small: true })}
+          ${_bkGradeHelpHtml(qk, 'egqhead-' + qid, '')}
         </div>
         <p class="text-[11px] text-gray-500 mb-1">💡 คะแนนที่ใส่ยังไม่บันทึก ระบบจำไว้ให้ — สลับข้อไปมาได้ ปุ่มบันทึกอยู่ท้ายชื่อในข้อสุดท้ายของแต่ละคน</p>
         <div class="flex items-center gap-2 mb-2 flex-wrap text-xs">
@@ -20417,9 +20855,10 @@ const supabaseDataSdk = {
                 <p class="text-xs font-semibold text-gray-800">${escHtml(s.student_name || s.student_id)}${flag}${s.status === 'terminated' ? ' <span class="text-red-600">(ถูกยุติ)</span>' : ''}${(s.auto_closed === true || s.auto_closed === 'true') ? ' <span class="text-amber-700">(⏰ หมดเวลา ระบบส่งให้)</span>' : ''}${_egqIsDone(s) ? ' <span class="text-green-700">(บันทึกแล้ว)</span>' : ''}</p>
                 <p class="text-sm text-gray-800 whitespace-pre-wrap mt-1">${escHtml(ans) || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</p>
                 <p class="text-[10px] mt-1 ${minW && wc < minW ? 'text-red-600' : 'text-gray-500'}">${wc} คำ${minW ? ` / ขั้นต่ำ ${minW}` : ''}</p>
+                ${_bkRubricTicksHtml(qk, 'egq-' + sid, 'egq-in-' + sid)}
               </div>
               <div class="p-2 flex flex-col items-center gap-1">
-                <input type="number" class="egq-score w-20 px-2 py-1 border-2 rounded text-center font-bold" style="border-color:${bd}"
+                <input type="number" id="egq-in-${sid}" class="egq-score w-20 px-2 py-1 border-2 rounded text-center font-bold" style="border-color:${bd}"
                   data-sub="${sid}" data-qid="${escHtml(qid)}" data-max="${max}" data-empty="${ans.trim() ? '0' : '1'}"
                   min="0" max="${max}" step="0.5" value="${_egqScore(s, qid)}" oninput="_egqOnInput(this)">
                 ${qid === myLast ? `<div id="egq-save-box-${sid}" class="w-full">${_egqSaveBoxHtml(s)}</div>` : ''}
@@ -20540,10 +20979,11 @@ const supabaseDataSdk = {
             <p class="font-semibold text-sm text-gray-800">ข้อ ${i + 1} <span class="text-amber-700 font-normal">(เต็ม ${max})</span></p>
             <p class="text-sm text-gray-700 whitespace-pre-wrap mb-2">${escHtml(q.question_text || '')}</p>
             ${_qtHtml(q.question_tables, { small: true })}
-            ${q.answer_guideline ? `<p class="text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded p-2 mb-2 whitespace-pre-wrap">📋 แนวคำตอบ: ${escHtml(q.answer_guideline)}</p>` : ''}
+            ${_bkQGraphHtml(q, { small: true })}
+            ${_bkGradeHelpHtml(_bkKeySrc(q, 'essay_question'), 'esg-' + qid, 'esg-in-' + qid)}
             <div class="bg-gray-50 border rounded p-2 text-sm whitespace-pre-wrap mb-2 min-h-[48px]">${escHtml(ans[qid] || '') || '<span class="text-gray-400">(ไม่ได้ตอบ)</span>'}</div>
             <p class="text-[11px] text-gray-500 mb-1">${_countWordsTh(ans[qid])} คำ${parseInt(q.min_words) ? ` / ขั้นต่ำ ${q.min_words}` : ''}</p>
-            <label class="text-sm">คะแนน: <input type="number" class="essay-q-score w-20 px-2 py-1 border-2 border-gray-200 rounded" data-qid="${escHtml(qid)}" data-max="${max}"
+            <label class="text-sm">คะแนน: <input type="number" id="esg-in-${escHtml(qid)}" class="essay-q-score w-20 px-2 py-1 border-2 border-gray-200 rounded" data-qid="${escHtml(qid)}" data-max="${max}"
               min="0" max="${max}" step="0.5" value="${prev[qid] ?? (String(ans[qid] || '').trim() ? '' : (canGrade ? 0 : ''))}" ${canGrade ? '' : 'disabled'} oninput="_sumEssayGrade()"> / ${max}</label>
           </div>`; }).join('')}
         <div class="sticky bottom-0 bg-white border-t pt-3 flex items-center gap-3 flex-wrap">
@@ -21229,11 +21669,7 @@ function _examResultIdentityHtml(sub, set) {
           submissionSnapshot = orderedIds
             .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
             .filter(Boolean)
-            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-              question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-              choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-              choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-              choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+            .map(q => _eqSnap(q));
         }
         console.log('[RetryExam] ใช้ข้อสอบชุดเดิม', orderedIds.length, 'ข้อ');
       } else if (examSet.is_random_mode) {
@@ -21264,11 +21700,7 @@ function _examResultIdentityHtml(sub, set) {
           picked.push(pool[Math.floor(Math.random() * pool.length)]);
         }
         orderedIds = picked.map(q => q.__backendId);
-        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+        submissionSnapshot = picked.map(q => _eqSnap(q));
       } else {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
@@ -21278,11 +21710,7 @@ function _examResultIdentityHtml(sub, set) {
         submissionSnapshot = orderedIds
           .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
           .filter(Boolean)
-          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+          .map(q => _eqSnap(q));
       }
       // ⚠️ บั๊กที่พบและแก้แล้ว: ฐานข้อมูลมีกฎห้ามนักเรียน 1 คนมีกระดาษซ้ำในชุดสอบเดียวกัน
       // เดิมสอบแก้ตัวสร้างแถวใหม่ จึงถูกปฏิเสธ ทำให้ขึ้นว่า "ไม่สามารถเริ่มสอบแก้ได้"
@@ -21422,11 +21850,7 @@ function _examResultIdentityHtml(sub, set) {
         }
         orderedIds = picked.map(q => q.__backendId);
         // 📸 เก็บ snapshot ไว้ที่ submission เอง (ไม่ใช่ exam_set) เพราะแต่ละคนได้ข้อไม่เหมือนกัน
-        submissionSnapshot = picked.map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-          question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-          choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-          choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-          choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+        submissionSnapshot = picked.map(q => _eqSnap(q));
       } else {
         const questionIds = (examSet.question_ids || '').split(',').filter(Boolean);
         orderedIds = examSet.shuffle_enabled ? _seededShuffle(questionIds, seed) : questionIds;
@@ -21436,11 +21860,7 @@ function _examResultIdentityHtml(sub, set) {
         submissionSnapshot = orderedIds
           .map(qid => allData.find(d => d.__backendId === qid && d.type === 'exam_question'))
           .filter(Boolean)
-          .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-            question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-            choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-            choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-            choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+          .map(q => _eqSnap(q));
       }
 
       // 🛡️ ป้องกันแถวซ้ำชั้นที่ 2: ถ้ามีแถวที่กำลังสอบอยู่แล้ว (in_progress) ให้เปิดแถวเดิมต่อ ไม่สร้างใหม่
@@ -21720,11 +22140,7 @@ function _examResultIdentityHtml(sub, set) {
           const fromBank = qids
             .map(id => allData.find(d => String(d.__backendId) === String(id) && d.type === 'exam_question'))
             .filter(Boolean)
-            .map(q => ({ __backendId: q.__backendId, question_text: q.question_text, question_image_url: q.question_image_url, question_tables: q.question_tables,
-              question_type: q.question_type, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c,
-              choice_d: q.choice_d, choice_e: q.choice_e, correct_answer: q.correct_answer, score_per_question: q.score_per_question,
-              choice_a_image: q.choice_a_image, choice_b_image: q.choice_b_image, choice_c_image: q.choice_c_image,
-              choice_d_image: q.choice_d_image, choice_e_image: q.choice_e_image }));
+            .map(q => _eqSnap(q));
           if (fromBank.length > 0) rebuilt = fromBank;
         }
 
@@ -22226,7 +22642,8 @@ function _examResultIdentityHtml(sub, set) {
           // แก้โดยคำนวณลำดับสลับเดียวกับหน้าคำถามเป๊ะ (seed เดียวกัน) แล้วหาตำแหน่งที่คำตอบจริงไปอยู่ในลำดับที่สลับแล้ว ก่อนจะ mark ให้ตรงกับที่นักเรียนเห็นบนจอจริง
           let displayLetterKeys = letterKeys;
           if (examSetIsShuffleEnabled(submission)) {
-            const rawKeysForQ = ['a','b','c','d','e'].filter(l => question && question[`choice_${l}`]);
+            // ⚠️ ต้องนับตัวเลือกด้วยกฎเดียวกับหน้าคำถามเป๊ะ ๆ (ตัวเลือกที่มีแต่กราฟ/ตารางก็นับ) ไม่อย่างนั้นวงที่ฝนจะเลื่อนผิดข้อ
+            const rawKeysForQ = ['a','b','c','d','e'].filter(l => question && _bkChoiceFilled(question, l));
             const seedForQ = _seedFromString(currentUser.student_id + item.qid);
             displayLetterKeys = _seededShuffle(rawKeysForQ, seedForQ);
           }
@@ -22560,16 +22977,18 @@ function _examResultIdentityHtml(sub, set) {
 
       let choicesHtml = '';
       if (question.question_type === 'choice') {
-        const rawChoices = ['a','b','c','d','e'].filter(l => question[`choice_${l}`]).map(l => ({ key: l, text: question[`choice_${l}`], image: question[`choice_${l}_image`] }));
+        // 📈 ตัวเลือกใส่ตาราง กราฟ และสมการได้ — ตัวเลือกที่มีแต่กราฟก็นับเป็นตัวเลือกจริง
+        const _cx = _bkExtras(question);
+        const rawChoices = ['a','b','c','d','e'].filter(l => _bkChoiceFilled(question, l))
+          .map(l => ({ key: l, text: question[`choice_${l}`], image: question[`choice_${l}_image`], x: _cx[l] }));
         const shuffledChoices = examSetIsShuffleEnabled(submission) ? _seededShuffle(rawChoices, seed) : rawChoices;
-        choicesHtml = shuffledChoices.map(c => `
-          <label style="display:flex;align-items:center;gap:10px;padding:12px;border:2px solid ${currentAnswer===c.key ? '#2563eb' : '#e2e8f0'};border-radius:10px;margin-bottom:8px;cursor:pointer;background:${currentAnswer===c.key ? '#eff6ff' : 'white'}">
-            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" style="width:18px;height:18px;flex-shrink:0">
-            <div style="flex:1">
-              ${c.image ? `<img src="${c.image}" style="max-width:100%;max-height:150px;border-radius:8px;margin-bottom:${c.text ? '6px' : '0'};display:block" onerror="this.style.display='none'">` : ''}
-              ${c.text ? `<span style="font-size:14px">${c.text}</span>` : ''}
-            </div>
-          </label>`).join('');
+        const _rich = rawChoices.some(c => _bkHasExtra(c.x));
+        choicesHtml = `<div style="display:grid;grid-template-columns:repeat(${_rich ? 'auto-fit' : '1'},minmax(${_rich ? '240px' : '100%'},1fr));gap:8px">`
+          + shuffledChoices.map(c => `
+          <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid ${currentAnswer===c.key ? '#2563eb' : '#e2e8f0'};border-radius:10px;cursor:pointer;background:${currentAnswer===c.key ? '#eff6ff' : 'white'}">
+            <input type="radio" name="exam-answer" value="${c.key}" ${currentAnswer===c.key ? 'checked' : ''} onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" style="width:18px;height:18px;flex-shrink:0;margin-top:2px">
+            <div style="flex:1;font-size:14px;min-width:0">${_bkChoiceBody(c.text, c.x, c.image, { small: _rich })}</div>
+          </label>`).join('') + '</div>';
       } else {
         choicesHtml = `<textarea onchange="confirmExamAnswer('${submissionId}','${qid}',this.value,${idx})" rows="6" placeholder="พิมพ์คำตอบของคุณที่นี่..." style="width:100%;padding:12px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">${currentAnswer}</textarea>`;
       }
@@ -22586,6 +23005,7 @@ function _examResultIdentityHtml(sub, set) {
             ${imgHtml}
             <p style="font-size:15px;font-weight:600;color:#1e293b;margin:0 0 14px;line-height:1.6">${question.question_text}</p>
             ${_qtHtml(question.question_tables)}
+            ${_bkQGraphHtml(question)}
             ${choicesHtml}
             <div id="exam-save-status" style="min-height:20px;margin:6px 0"></div>
             ${confirmBtnHtml}
@@ -23210,8 +23630,10 @@ function _examResultIdentityHtml(sub, set) {
                 <p style="font-size:12px;color:#94a3b8;margin:0 0 4px">ข้อ ${idx+1} · เต็ม ${q.score_per_question} คะแนน</p>
                 <p style="font-size:13px;font-weight:600;color:#1e293b;margin:0 0 8px">${q.question_text}</p>
                 ${_qtHtml(q.question_tables, { small: true })}
+                ${_bkQGraphHtml(q, { small: true })}
                 <div style="background:white;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;color:#334155">${(answers[q.__backendId]||'(ไม่ได้ตอบ)').replace(/</g,'&lt;')}</div>
-                <input type="number" class="eg-written-score" data-qid="${q.__backendId}" data-max="${q.score_per_question}" min="0" max="${q.score_per_question}" step="0.5" placeholder="ให้คะแนนข้อนี้ (0-${q.score_per_question})" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                ${_bkGradeHelpHtml(_bkKeySrc(q, 'exam_question'), 'egw-' + idx, 'egw-in-' + idx)}
+                <input type="number" id="egw-in-${idx}" class="eg-written-score" data-qid="${q.__backendId}" data-max="${q.score_per_question}" min="0" max="${q.score_per_question}" step="0.5" placeholder="ให้คะแนนข้อนี้ (0-${q.score_per_question})" style="width:100%;padding:8px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;margin-top:6px">
               </div>
             `).join('')}
           </div>
