@@ -3550,6 +3550,7 @@
           <p class="text-xs text-emerald-700 mt-1">✅ แก้ ย้าย ลบ หลักสูตรหรือเนื้อหา ไม่กระทบคะแนนของนักเรียน เพราะเก็บแยกตารางกันทั้งหมด</p>
           <p class="text-xs text-amber-700 mt-1">🔀 ปุ่มย้าย: ย้ายทั้งหลักสูตรข้ามภาค/ข้ามวิชา หรือเลือกย้ายเฉพาะบางเนื้อหาไปหลักสูตรใหม่ที่ตั้งชื่อตอนย้ายก็ได้</p>
           <p class="text-xs text-amber-700 mt-1">💾 กรอกไม่ครบก็กดบันทึกไว้ก่อนได้ทั้งหลักสูตรและเนื้อหา กลับมาเติมภายหลังได้ ส่วนที่ยังไม่ครบจะยังไม่แสดงให้นักเรียน</p>
+          <p class="text-xs text-violet-700 mt-1">📋 ปุ่มคัดลอก: ทำหลักสูตรหรือเนื้อหาชุดใหม่จากของเดิมทั้งชุด แล้วแก้เฉพาะส่วนที่ต่าง ของเดิมไม่กระทบ</p>
          </div>
          <button onclick="coAddCourse()" class="px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold text-sm shadow-sm flex-shrink-0">
           ➕ สร้างหลักสูตร
@@ -4198,7 +4199,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.19.242';
+    const APP_VERSION = 'SUPABASE-2026.10.19.243';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -13630,6 +13631,7 @@ const supabaseDataSdk = {
                 <button onclick="coMoveLesson('${l.__backendId}',1)" class="px-1.5 py-0.5 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
                 <button onclick="coTestPlay('${l.__backendId}')" class="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs" title="ทดสอบว่าคลิปนี้เล่นในเว็บได้จริงไหม">🔎</button>
                 <button onclick="coEditLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">✏️</button>
+                <button onclick="coCopyLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-violet-50 text-violet-700 rounded text-xs" title="คัดลอกเนื้อหานี้">📋</button>
                 <button onclick="coMoveLessonTo('${l.__backendId}')" class="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs" title="ย้ายไปหลักสูตรอื่น ข้ามวิชา ข้ามภาค">🔀</button>
                 <button onclick="coDeleteLesson('${l.__backendId}')" class="px-1.5 py-0.5 bg-red-50 text-red-600 rounded text-xs">🗑️</button>
               </span>` : ''}
@@ -13653,6 +13655,7 @@ const supabaseDataSdk = {
                 <button onclick="coMoveCourse('${c.__backendId}',1)" class="px-2 py-1 bg-gray-100 rounded text-xs" title="เลื่อนลง">▼</button>
                 <button onclick="coToggleOpen('${c.__backendId}')" class="px-2 py-1 ${open ? 'bg-gray-200 text-gray-700' : 'bg-emerald-500 text-white'} rounded text-xs font-semibold">${open ? 'ปิด' : 'เปิด'}</button>
                 <button onclick="coEditCourse('${c.__backendId}')" class="px-2 py-1 bg-blue-500 text-white rounded text-xs">✏️ แก้ไข</button>
+                <button onclick="coCopyCourse('${c.__backendId}')" class="px-2 py-1 bg-violet-500 text-white rounded text-xs" title="คัดลอกหลักสูตรนี้ไปเป็นชุดใหม่ แล้วแก้เฉพาะที่ต่าง">📋 คัดลอก</button>
                 <button onclick="coMoveCourseTo('${c.__backendId}')" class="px-2 py-1 bg-amber-500 text-white rounded text-xs" title="ย้ายภาค/วิชา หรือย้ายบางเนื้อหา">🔀 ย้าย</button>
                 <button onclick="coDeleteCourse('${c.__backendId}')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">🗑️</button>
               </div>` : ''}
@@ -14089,6 +14092,99 @@ const supabaseDataSdk = {
            แปลว่าเจ้าของคลิปปิดการเล่นบนเว็บไซต์อื่น นักเรียนจะดูในระบบไม่ได้ ต้องเปลี่ยนเป็นคลิปอื่น</p>
          <p class="text-xs text-gray-500 mt-1">🔗 <a href="https://www.youtube.com/watch?v=${escHtml(yid)}" target="_blank" rel="noopener" class="text-blue-600 underline">เปิดคลิปนี้บนยูทูบ</a></p>`,
         `document.getElementById('co-modal')?.remove()`, 'ปิด');
+    }
+    /* ═════ 📋 คัดลอกเพื่อนำไปแก้เฉพาะที่ต่าง ═════
+       สำเนาเป็นของใหม่ทั้งหมด (รหัสใหม่) จึงไม่มีผู้สมัครและไม่มีความคืบหน้าติดมา
+       และยังปิดอยู่เสมอ ต้องกดเปิดเองเมื่อพร้อม */
+
+    /** 📋 คัดลอกหลักสูตร — เลือกได้ว่าจะเอาเนื้อหาไหนไปด้วย และจะไปอยู่ภาค/วิชาใด */
+    function coCopyCourse(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const c = _courseById(id);
+      if (!c) return;
+      const ls = _lessonsOf(id);
+      _coModal('📋 คัดลอกหลักสูตร',
+        `<p class="text-sm text-gray-600 mb-3">คัดลอก <b>${escHtml(_coName(c))}</b> เป็นชุดใหม่ ของเดิมไม่เปลี่ยนแปลง</p>`
+        + _coInp('co-cp-name', '🎒 ชื่อหลักสูตรใหม่', (String(c.course_name || '').trim() ? c.course_name + ' (สำเนา)' : ''), 'ไม่ใส่ก็ได้ เติมภายหลังได้')
+        + _coSemSelect('co-cp-sem', c.semester, '📅 ภาคเรียนของชุดใหม่', "_coFillSubjects('co-cp-subject','co-cp-sem')")
+        + _coSubjectSelect('co-cp-subject', 'co-cp-sem', c.subject_name, '📖 วิชาของชุดใหม่')
+        + `<div class="border-2 border-violet-200 bg-violet-50/50 rounded-lg p-3">
+             <p class="text-xs text-gray-700 font-semibold mb-1">🎬 เนื้อหาที่จะคัดลอกไปด้วย</p>
+             ${ls.length ? ls.map((l, i) => `
+               <label class="flex items-center gap-2 py-0.5 cursor-pointer">
+                 <input type="checkbox" class="co-cp-les" value="${escHtml(l.__backendId)}" checked>
+                 <span class="text-xs text-gray-800">${i + 1}. ${escHtml(_coLesName(l))}${_coLesMissing(l).length ? ' ⚠️' : ''}</span>
+               </label>`).join('') : '<p class="text-xs text-gray-400">หลักสูตรนี้ยังไม่มีเนื้อหา</p>'}
+             ${ls.length ? '<p class="text-xs text-gray-500 mt-1">ติ๊กออกได้ถ้าไม่ต้องการเนื้อหาอันนั้น</p>' : ''}
+           </div>`
+        + `<p class="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2 mt-3">✅ ชุดใหม่ยังปิดอยู่ ไม่มีผู้สมัครและไม่มีความคืบหน้าติดมา · ของเดิมและคะแนนนักเรียนไม่กระทบ</p>`,
+        `coConfirmCopyCourse('${id}')`, '📋 คัดลอก');
+      _coFillSubjects('co-cp-subject', 'co-cp-sem');
+    }
+    async function coConfirmCopyCourse(id) {
+      const c = _courseById(id);
+      if (!c) { showToast('ไม่พบหลักสูตรนี้', 'error'); return; }
+      const name = document.getElementById('co-cp-name')?.value.trim() || '';
+      const semEl = document.getElementById('co-cp-sem');
+      const sm = semEl ? semEl.value : c.semester;
+      const subject = document.getElementById('co-cp-subject')?.value || '';
+      const ids = Array.prototype.slice.call(document.querySelectorAll('input.co-cp-les'))
+        .filter(x => x.checked).map(x => x.value);
+      const newId = await _coCreateCourseFor(name, subject, sm, c.description);
+      if (!newId) return;
+      let order = 1, ok = 0, fail = 0;
+      for (const lid of ids) {
+        const l = _lessonById(lid);
+        if (!l) { fail++; continue; }
+        const r = await _coIns({
+          type: 'course_lesson', course_id: newId, lesson_name: l.lesson_name || '',
+          description: l.description || '', youtube_id: l.youtube_id || '', youtube_url: l.youtube_url || '',
+          duration_sec: parseInt(l.duration_sec) || 0, sort_order: order++,
+          created_at: new Date().toISOString()
+        });
+        if (r && r.isOk) ok++; else fail++;
+      }
+      document.getElementById('co-modal')?.remove();
+      showToast('📋 คัดลอกหลักสูตรแล้ว' + (ok ? ' พร้อมเนื้อหา ' + ok + ' รายการ' : '')
+        + (fail ? ' (คัดลอกไม่ได้ ' + fail + ' รายการ)' : '') + ' — ชุดใหม่ยังปิดอยู่ แก้ได้เลย');
+      loadCoursesTab();
+    }
+    /** 📋 คัดลอกเนื้อหา — ไว้ในหลักสูตรเดิมหรือหลักสูตรอื่นก็ได้ */
+    function coCopyLesson(id) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const l = _lessonById(id);
+      if (!l) return;
+      const all = _allCourses().sort((a, b) => String(a.course_name || '').localeCompare(String(b.course_name || ''), 'th'));
+      _coModal('📋 คัดลอกเนื้อหา',
+        `<p class="text-sm text-gray-600 mb-3">คัดลอก <b>${escHtml(_coLesName(l))}</b> เป็นอันใหม่ ลิงก์และคำอธิบายเดิมติดไปด้วย ของเดิมไม่เปลี่ยนแปลง</p>`
+        + _coInp('co-cp-lname', '🎬 ชื่อเนื้อหาใหม่', (String(l.lesson_name || '').trim() ? l.lesson_name + ' (สำเนา)' : ''), 'ไม่ใส่ก็ได้ เติมภายหลังได้')
+        + `<label class="block text-xs text-gray-600 mb-1">🎒 ใส่ไว้ในหลักสูตร</label>
+           <select id="co-cp-course" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+             ${all.map(c => `<option value="${escHtml(c.__backendId)}" ${String(c.__backendId) === String(l.course_id) ? 'selected' : ''}>${escHtml(_coName(c))} — ${escHtml(c.subject_name || 'ยังไม่ระบุวิชา')} · ${escHtml(_coSemLabel(c.semester))}</option>`).join('')}
+           </select>
+           <p class="text-xs text-gray-500 mt-2">สำเนาเป็นเนื้อหาใหม่ จึงเริ่มนับความคืบหน้าของนักเรียนใหม่ ไม่กระทบอันเดิม</p>`,
+        `coConfirmCopyLesson('${id}')`, '📋 คัดลอก');
+    }
+    async function coConfirmCopyLesson(id) {
+      const l = _lessonById(id);
+      if (!l) { showToast('ไม่พบเนื้อหานี้', 'error'); return; }
+      const to = document.getElementById('co-cp-course')?.value || l.course_id;
+      const name = document.getElementById('co-cp-lname')?.value.trim() || '';
+      const sibs = _lessonsOf(to);
+      const r = await _coIns({
+        type: 'course_lesson', course_id: to, lesson_name: name,
+        description: l.description || '', youtube_id: l.youtube_id || '', youtube_url: l.youtube_url || '',
+        duration_sec: parseInt(l.duration_sec) || 0,
+        sort_order: sibs.length ? Math.max.apply(null, sibs.map(x => parseInt(x.sort_order) || 0)) + 1 : 1,
+        created_at: new Date().toISOString()
+      });
+      document.getElementById('co-modal')?.remove();
+      if (r && r.isOk) {
+        showToast(_coLesMissing({ lesson_name: name, youtube_id: l.youtube_id }).length
+          ? '📋 คัดลอกเนื้อหาแล้ว — ยังไม่ได้ตั้งชื่อ เก็บเป็นร่างไว้ กลับมาเติมได้'
+          : '📋 คัดลอกเนื้อหาแล้ว แก้ได้เลย');
+        loadCoursesTab();
+      } else showToast('คัดลอกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
     function coDeleteLesson(id) {
       if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
@@ -14767,20 +14863,21 @@ const supabaseDataSdk = {
         const p = _courseOverall(x.__backendId, sid);
         const lsx = _lessonsReadyOf(x.__backendId);
         const fin = lsx.length > 0 && lsx.every(l => _progDone(l.__backendId, sid));
+        // ชื่อ · แถบความคืบหน้า · ตัวเลข · ปุ่ม อยู่บรรทัดเดียวกัน
+        // แถบกินที่ว่างที่เหลือทั้งหมดและไม่ตกบรรทัด (ชื่อยาวได้ไม่เกินครึ่ง เพื่อให้แถบมีที่เสมอ)
         return `<div onclick="mcPickMine('${x.__backendId}')" style="border:1.5px solid ${on ? '#10b981' : '#e2e8f0'};
-            background:${on ? '#ecfdf5' : '#fff'};border-radius:9px;padding:7px 8px;margin-bottom:6px;cursor:pointer">
-          <p style="margin:0;font-size:11px;font-weight:700;color:${on ? '#047857' : '#1e293b'};
+            background:${on ? '#ecfdf5' : '#fff'};border-radius:9px;padding:7px 8px;margin-bottom:6px;cursor:pointer;
+            display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
+          <p style="margin:0;flex:0 1 auto;max-width:50%;min-width:0;font-size:11px;font-weight:700;color:${on ? '#047857' : '#1e293b'};
             white-space:normal;word-break:break-word;overflow-wrap:anywhere">${escHtml(_coName(x))}</p>
-          <div style="display:flex;align-items:center;gap:6px;margin-top:5px">
-            <div style="flex:1;min-width:0;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden">
-              <div style="height:100%;width:${Math.max(0, Math.min(100, p))}%;background:${fin ? '#10b981' : '#3b82f6'}"></div>
-            </div>
-            <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:#475569">${p}%</span>
-            ${fin
-              ? '<span style="flex:0 0 auto;font-size:10px;color:#64748b">🏁 จบแล้ว</span>'
-              : `<button onclick="event.stopPropagation();mcContinue('${x.__backendId}')"
-                  style="flex:0 0 auto;padding:5px 9px;background:#10b981;color:#fff;border:none;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer">เรียนต่อ</button>`}
+          <div style="flex:1 1 auto;min-width:20px;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${Math.max(0, Math.min(100, p))}%;background:${fin ? '#10b981' : '#3b82f6'}"></div>
           </div>
+          <span style="flex:0 0 auto;font-size:10px;font-weight:700;color:#475569">${p}%</span>
+          ${fin
+            ? '<span style="flex:0 0 auto;font-size:10px;color:#64748b">🏁</span>'
+            : `<button onclick="event.stopPropagation();mcContinue('${x.__backendId}')"
+                style="flex:0 0 auto;padding:5px 9px;background:#10b981;color:#fff;border:none;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap">เรียนต่อ</button>`}
         </div>`;
       }).join('');
 
