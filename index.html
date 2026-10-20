@@ -4009,7 +4009,7 @@
            <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
            <select id="esa-scoretype" onchange="_updateEsaScoreTypeLabel();updateEsaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
             <option value="k">K (ความรู้)</option>
-            <option value="p">S (ทักษะและกระบวนการ)</option>
+            <option value="s">S (ทักษะและกระบวนการ)</option>
             <option value="c">C (คุณลักษณะ)</option>
            </select>
           </div>
@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.254';
+    const APP_VERSION = 'SUPABASE-2026.10.20.257';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4776,6 +4776,16 @@ SB_TYPE_TO_TABLE['task_message']        = 'notifications';
 //    รหัสนักเรียน ห้องเรียน เบอร์โทร ชื่อวิชา และคะแนนแบบคั่นจุลภาค ("5,8,10")
 // 🔗 รหัสที่ใช้เชื่อมโยงข้อมูลระหว่างตาราง — ต้องเป็นข้อความเสมอ
 // เพราะระบบทั้งหมด (กว่า 400 จุด) เทียบค่าแบบข้อความ ถ้าเป็นตัวเลขจะเชื่อมโยงไม่ติด
+/* 🪢 คู่ชื่อช่องคะแนนช่วงเปลี่ยนจาก P เป็น S (ชื่อใหม่, ชื่อเก่า)
+   ใช้ทั้งตอนอ่านและตอนเขียน เพื่อให้ข้ามรุ่นกันได้โดยคะแนนไม่หาย
+   🗑️ ลบตารางนี้ทิ้งได้เมื่อใช้งานจริงผ่านไปอย่างน้อย 1 ภาคเรียน และลบคอลัมน์เก่าในฐานข้อมูลแล้ว */
+const SCORE_PS_PAIRS = [
+  ['s_scores', 'p_scores'],
+  ['s_full_scores', 'p_full_scores'],
+  ['s_full_score', 'p_full_score'],
+  ['s_percent', 'p_percent'],
+];
+
 const SB_ID_FIELDS = new Set([
   'registration_id', 'exam_set_id', 'essay_exam_set_id', 'submission_id',
   'class_subject_id', 'linked_student_id', 'student_backend_id',
@@ -4790,10 +4800,10 @@ const SB_NUMERIC_FIELDS = new Set([
   'actual_hours_taught', 'actual_hours_can_absent',
   'attended_hours', 'attended_hours_real',
   // ── สัดส่วนคะแนน KSAC (ใช้คำนวณเกรด) ──
-  'k_percent', 'p_percent', 'a_percent', 'c_percent',
+  'k_percent', 's_percent', 'a_percent', 'c_percent',
   'mid_percent', 'final_percent',
   // ── คะแนนเต็มรวม (ตัวหารในสูตรคำนวณเกรด) ──
-  'k_full_score', 'p_full_score', 'a_full_score',
+  'k_full_score', 's_full_score', 'a_full_score',
   'c_full_score', 'm_full_score', 'f_full_score',
   // ── คะแนนสอบ ──
   'auto_score', 'manual_score', 'total_score', 'k_score_contributed',
@@ -5132,6 +5142,15 @@ const supabaseDataSdk = {
       //    สำคัญ: ต้องเป็นข้อความ ไม่งั้นเลข 0 นำหน้าจะหาย เช่น ห้อง "01" → 1
       obj[k] = String(v);
     });
+    // 🪢 ตาข่ายนิรภัยช่วงเปลี่ยนชื่อ P → S
+    //    ถ้าแถวยังมีแต่ชื่อเก่า (ยังไม่ได้รัน SQL ย้ายข้อมูล) ให้ยืมค่าจากชื่อเก่ามาใช้
+    //    ระบบจึงทำงานได้ทันทีไม่ว่าจะอัปโหลดไฟล์ก่อนหรือรัน SQL ก่อน
+    SCORE_PS_PAIRS.forEach(([sNew, pOld]) => {
+      if ((obj[sNew] === undefined || obj[sNew] === null || obj[sNew] === '')
+          && row[pOld] !== undefined && row[pOld] !== null) {
+        obj[sNew] = SB_NUMERIC_FIELDS.has(sNew) ? (parseFloat(row[pOld]) || 0) : String(row[pOld]);
+      }
+    });
     // ชื่อฟิลด์ที่ต่างกันระหว่างระบบเก่า/ใหม่ — แปลงให้ตรงกัน
     if (type === 'class_subject' && row.subject_type) obj.subjectType = row.subject_type;
     if (type === 'evaluation' && row.record_type) obj.type = 'evaluation_' + row.record_type;
@@ -5146,6 +5165,14 @@ const supabaseDataSdk = {
   /** แปลงข้อมูลจากระบบเดิม → รูปแบบที่ Supabase รับได้ */
   _toSupabase(record) {
     const out = {};
+    // 🪢 ตาข่ายนิรภัยช่วงเปลี่ยนชื่อ P → S — เขียนลงทั้งชื่อใหม่และชื่อเก่าไปพร้อมกัน
+    //    ① ถ้ายังไม่ได้รัน SQL คะแนนก็ยังลงช่องเก่าได้ ไม่หาย
+    //    ② ถ้าต้องถอยกลับไปใช้ไฟล์รุ่นก่อน ข้อมูลในช่องเก่ายังครบ
+    //    ③ เมื่อลบคอลัมน์เก่าทิ้งแล้ว ตัวส่งข้อมูลจะตัดชื่อที่ไม่มีออกให้เอง ไม่พัง
+    record = { ...record };
+    SCORE_PS_PAIRS.forEach(([sNew, pOld]) => {
+      if (record[sNew] !== undefined && record[sNew] !== null) record[pOld] = record[sNew];
+    });
     // ⚠️ ฟิลด์ที่ระบบเดิมใช้ แต่ฐานข้อมูล Supabase ไม่มีคอลัมน์รองรับ — ต้องตัดออกก่อนส่ง
     // ไม่งั้นฐานข้อมูลจะปฏิเสธทั้งรายการ ทำให้บันทึกไม่ผ่าน (เช่น เริ่มสอบไม่ได้)
     const skipKeys = ['__backendId', 'type', 'created_at', 'updated_at',
@@ -5185,8 +5212,8 @@ const supabaseDataSdk = {
         'cheat_warning_count', 'k_round', 'random_count', 'applied_full_score_delta',
         'score_per_question', 'student_number', 'num_questions', 'credits', 'hours_per_week',
         'weeks_taught', 'total_hours', 'attended_hours', 'attended_hours_real',
-        'k_percent', 'p_percent', 'a_percent', 'c_percent', 'mid_percent', 'final_percent',
-        'k_full_score', 'p_full_score', 'a_full_score', 'c_full_score', 'm_full_score', 'f_full_score',
+        'k_percent', 's_percent', 'a_percent', 'c_percent', 'mid_percent', 'final_percent',
+        'k_full_score', 's_full_score', 'a_full_score', 'c_full_score', 'm_full_score', 'f_full_score',
         'raw_score', 'new_full_score', 'score_round', 'percent_value', 'total_slots', 'choice_count',
         // 🎒 ระบบหลักสูตร
         'pass_percent', 'total_pass_percent', 'cheat_limit', 'exam_count', 'exam_count_choice',
@@ -7464,7 +7491,7 @@ const supabaseDataSdk = {
     function hasAnyScoreEntered(regId) {
       const grade = allData.find(g => g.type === 'grade' && g.registration_id === regId);
       if (!grade) return false;
-      const fields = ['pretest_scores', 'k_scores', 'p_scores', 'a_scores', 'c_scores', 'm_scores', 'f_scores'];
+      const fields = ['pretest_scores', 'k_scores', 's_scores', 'a_scores', 'c_scores', 'm_scores', 'f_scores'];
       return fields.some(f => {
         const val = grade[f];
         if (!val) return false;
@@ -7725,7 +7752,7 @@ const supabaseDataSdk = {
         type: 'kpac_request',
         student_id: student.student_id,
         class_name: student.class_name, room_number: student.room_number, subject_name: subjectName,
-        k_percent: k, p_percent: p, a_percent: a, c_percent: c,
+        k_percent: k, s_percent: p, a_percent: a, c_percent: c,
         status: 'pending', created_at: new Date().toISOString()
       });
       if (!result.isOk) { showToast('ไม่สามารถส่งคำขอได้', 'error'); return; }
@@ -7834,7 +7861,7 @@ const supabaseDataSdk = {
                 }
                 const byWho = isKpac ? 'นักเรียนขอเอง' : (req.requested_by_subadmin || 'ไม่ระบุ');
                 const kpacInfo = isKpac
-                  ? `<p class="text-xs text-purple-600">K${req.k_percent||0} S${req.p_percent||0} A${req.a_percent||0} C${req.c_percent||0}</p>`
+                  ? `<p class="text-xs text-purple-600">K${req.k_percent||0} S${req.s_percent||0} A${req.a_percent||0} C${req.c_percent||0}</p>`
                   : '';
                 return `
                 <div class="px-3 py-2 border-b border-gray-100 text-sm">
@@ -9007,7 +9034,7 @@ const supabaseDataSdk = {
             }
           });
         });
-        ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
+        ['pretest', 'k', 's', 'a', 'c', 'm', 'f'].forEach(t => {
           const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
           if (firstInput) validateScores(firstInput);
         });
@@ -9076,7 +9103,7 @@ const supabaseDataSdk = {
                 // คอลัมน์ KSAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KSAC
                 const kpacCell = kpacReq
                   ? `<div class="flex flex-col items-center gap-1">
-                      <div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>
+                      <div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.s_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>
                       ${approvedReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-1.5 py-0.5 bg-orange-400 hover:bg-orange-500 text-white rounded text-[10px] whitespace-nowrap">🔑 ขอใช้ KSAC</button>` : ''}
                     </div>`
                   : '<span class="text-gray-300 text-xs">-</span>';
@@ -9188,10 +9215,10 @@ const supabaseDataSdk = {
       // ดึง KSAC ที่นักเรียนขอมา (ถ้ามี)
       const kpacReq = kpacRequestId ? allData.find(d => d.__backendId === kpacRequestId) : null;
       const kVal = kpacReq?.k_percent ?? '';
-      const pVal = kpacReq?.p_percent ?? '';
+      const pVal = kpacReq?.s_percent ?? '';
       const aVal = kpacReq?.a_percent ?? '';
       const cVal = kpacReq?.c_percent ?? '';
-      const kpacNote = kpacReq ? `<p class="text-xs text-orange-600 mb-2 font-semibold">📋 KSAC ที่นักเรียนขอ: K=${kpacReq.k_percent} P=${kpacReq.p_percent} A=${kpacReq.a_percent} C=${kpacReq.c_percent} — เติมให้แล้ว แก้ไขได้</p>` : '';
+      const kpacNote = kpacReq ? `<p class="text-xs text-orange-600 mb-2 font-semibold">📋 KSAC ที่นักเรียนขอ: K=${kpacReq.k_percent} P=${kpacReq.s_percent} A=${kpacReq.a_percent} C=${kpacReq.c_percent} — เติมให้แล้ว แก้ไขได้</p>` : '';
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       editDiv.innerHTML = `
@@ -9249,7 +9276,7 @@ const supabaseDataSdk = {
         type: 'student_registration', student_id: student.student_id, student_name: `${student.prefix}${student.first_name} ${student.last_name}`, class_name: scope.className,
         room_number: scope.roomNumber, subject_name: scope.subjectName,
         class_subject_id: `${scope.className}_${scope.roomNumber}_${scope.subjectName}`,
-        k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+        k_percent: k, s_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
       });
       if (result.isOk) {
         const req = allData.find(d => d.__backendId === requestId);
@@ -10454,9 +10481,9 @@ const supabaseDataSdk = {
         const studentNumber = student?.student_number || '-';
         const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
-        const totalFull = (scoresConfig?.k_full_score || 0) + (scoresConfig?.p_full_score || 0) + (scoresConfig?.a_full_score || 0) +
+        const totalFull = (scoresConfig?.k_full_score || 0) + (scoresConfig?.s_full_score || 0) + (scoresConfig?.a_full_score || 0) +
                            (scoresConfig?.c_full_score || 0) + (scoresConfig?.m_full_score || 0) + (scoresConfig?.f_full_score || 0);
-        const totalSum = grade ? (sumScoresStr(grade.k_scores) + sumScoresStr(grade.p_scores) + sumScoresStr(grade.a_scores) +
+        const totalSum = grade ? (sumScoresStr(grade.k_scores) + sumScoresStr(grade.s_scores) + sumScoresStr(grade.a_scores) +
                           sumScoresStr(grade.c_scores) + sumScoresStr(grade.m_scores) + sumScoresStr(grade.f_scores)) : 0;
         const scoreText = grade ? `${totalSum.toFixed(1)} / ${totalFull || '-'}` : '<span class="text-gray-400">ยังไม่มีคะแนน</span>';
         const hoursData = _findHoursData(reg);
@@ -12792,7 +12819,7 @@ const supabaseDataSdk = {
       setVal('esa-class', s.class_name); updateEsaRoomOptions();
       setVal('esa-room', s.room_number); updateEsaSubjectOptions();
       setVal('esa-subject', s.subject_name);
-      setVal('esa-scoretype', ['k','p','c'].includes(s.score_type) ? s.score_type : 'k'); _updateEsaScoreTypeLabel();
+      setVal('esa-scoretype', ['k', 's', 'c'].includes(s.score_type) ? s.score_type : 'k'); _updateEsaScoreTypeLabel();
       setVal('esa-kround', String(parseInt(s.k_round) || 1));
       renderEsaChapterFilter();
       const chs = String(s.selected_chapters || '').split(',').filter(Boolean);
@@ -12896,7 +12923,7 @@ const supabaseDataSdk = {
         await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, parseInt(s.k_round) || 1, -delta, s.score_type);
       }
       // คืนคะแนนนักเรียนที่โอนเข้าช่องคะแนนไปแล้ว (หักเฉพาะส่วนที่ชุดนี้สมทบ คะแนนส่วนอื่นในช่องคงอยู่) — เหมือนปรนัย
-      const _sType = ['k', 'p', 'c'].includes(s.score_type) ? s.score_type : 'k';
+      const _sType = ['k', 's', 'c'].includes(s.score_type) ? s.score_type : 'k';
       const _round = parseInt(s.k_round) || 1;
       for (const sub of subs) {
         const contributed = parseFloat(sub.k_score_contributed) || 0;
@@ -13148,7 +13175,7 @@ const supabaseDataSdk = {
                 class_name: stu.class_name,
                 room_number: stu.room_number,
                 subject_name: cs.subject_name,
-                k_percent: k, p_percent: p, a_percent: a, c_percent: cc,
+                k_percent: k, s_percent: p, a_percent: a, c_percent: cc,
               });
               if (!regResult.isOk) { failed++; continue; }
               regCreated++;
@@ -18214,59 +18241,112 @@ const supabaseDataSdk = {
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
     /* ══════════════════════════════════════════════════════════════════════════
-       🔮 แผนที่คาดการณ์ — ของที่ "ยังไม่ได้ทำ" แต่สำรวจไว้ครบแล้ว
+       🔗 แผนที่ความสัมพันธ์ของช่องคะแนน S — อ่านตรงนี้ก่อนแก้อะไรที่เกี่ยวกับ S
        ──────────────────────────────────────────────────────────────────────────
-       เขียนไว้ล่วงหน้าตามที่เจ้าของระบบสั่ง ❗ยังไม่ได้ลงมือปรับอะไรทั้งสิ้น
-       ตัวเลขทั้งหมดนับจากไฟล์จริง ณ เวอร์ชันนี้ เมื่อถึงเวลาทำจริงให้อ่านหัวข้อที่ตรงกัน
-       แล้วทำตามลำดับที่เขียนไว้ จะได้ไม่ต้องสำรวจใหม่
+       ปี 2569 หลักสูตรเปลี่ยน ช่อง P (ทักษะ/กระบวนการ) เปลี่ยนเป็น S (ทักษะและกระบวนการ)
+       และชื่อระบบเปลี่ยนจาก KPAC เป็น KSAC
 
-       ╔═ สถานการณ์ 1: ต้องเปลี่ยนชื่อคอลัมน์ในฐานข้อมูลจาก p_* เป็น s_* ด้วย ════════
-       ║ ตอนนี้ยังไม่ทำ เพราะเปลี่ยนแล้วได้แค่ความสวย ระบบทำงานได้ครบอยู่แล้ว
-       ║ สคริปต์พร้อมรันอยู่ที่ไฟล์ PLAN_p_to_s_deep.sql (ขึ้นหัวว่า "ยังไม่ต้องรัน")
-       ║
-       ║ ① คอลัมน์ที่ต้องเปลี่ยน 5 จุด ใน 4 ตาราง
-       ║    grades.p_scores · subject_full_scores.p_full_scores · .p_full_score
-       ║    registrations.p_percent · registration_requests.p_percent  ← ตารางคำขอมีด้วย อย่าลืม
-       ║    (จำนวนจุดในโค้ดนับสดด้วย  node ps_scan.js  ไม่ต้องเชื่อเลขที่เขียนค้างไว้)
-       ║
-       ║ ② ⚠️ วิธีย้ายที่ปลอดภัย — "เพิ่มคอลัมน์ใหม่แล้วคัดลอก" ไม่ใช่ RENAME
-       ║    RENAME เปลี่ยนทันทีทั้งตาราง ถอยกลับยาก และถ้าครูคนไหนยังค้างไฟล์ระบบรุ่นเก่า
-       ║    ในเบราว์เซอร์ เครื่องนั้นจะเขียนลงคอลัมน์ที่ไม่มีแล้ว คะแนนหายเงียบ ๆ
-       ║    จึงใช้ ADD COLUMN + UPDATE คัดลอก + ตรวจผล แล้วค่อย DROP ของเก่าทีหลัง
-       ║
-       ║ ③ ⚠️ จุดที่ลืมแล้วพังเงียบ ๆ — โค้ดประกอบชื่อคอลัมน์ขึ้นเองจากตัวอักษร
-       ║    เช่น sType + '_scores' · sType + '_full_scores' · type + '_scores'
-       ║    ถ้าเปลี่ยนชื่อคอลัมน์แต่ค่า score_type ในแถวยังเป็น 'p'
-       ║    คะแนนจากชุดสอบจะหายเงียบ ๆ โดยไม่มีข้อความฟ้อง เพราะตัวเชื่อมฐานข้อมูล
-       ║    ตัดคอลัมน์ที่ไม่รู้จักทิ้งให้เองอัตโนมัติ
-       ║    → ต้องเปลี่ยนตัวอักษรภายในใน ['pretest','k','p','a','c','m','f'] และ ['k','p','c']
-       ║      เปลี่ยน value="p" ในดรอปดาวน์ และต้องแปลงค่าที่เก็บไว้ในแถวด้วย:
-       ║      UPDATE exam_sets       SET score_type='s' WHERE score_type='p';
-       ║      UPDATE essay_exam_sets SET score_type='s' WHERE score_type='p';
-       ║
-       ║ ④ ของเก่าที่จะอ่านไม่ออกหลังเปลี่ยน
-       ║    ไฟล์สำรองที่ส่งออกไว้ก่อนหน้านี้ใช้หัวคอลัมน์ p_* และไฟล์กู้คืน 3 ไฟล์
-       ║    (restore_from_backup.sql · restore_round2.sql · restore_4students.sql)
-       ║    → ต้องแก้หัวคอลัมน์ในไฟล์ หรือเก็บสคริปต์กู้คืนรุ่นเดิมไว้คู่กัน
-       ║
-       ║ ⑤ ลำดับที่ปลอดภัย (ห้ามสลับ)
-       ║    1 สำรองฐานข้อมูลทั้งก้อน
-       ║    2 รัน PLAN_p_to_s_deep.sql ส่วนที่ 1-2  (เพิ่มคอลัมน์ · คัดลอก · แปลง score_type)
-       ║    3 รันส่วนที่ 3 ตรวจผล — ทุกบรรทัดต้องได้ 0 ไม่งั้นหยุด
-       ║    4 อัปโหลดไฟล์ระบบที่แก้ชื่อในโค้ดแล้ว ← ต้องวันเดียวกับข้อ 2
-       ║    5 ให้ครูกด Ctrl+Shift+R หนึ่งครั้ง กันเบราว์เซอร์ค้างไฟล์รุ่นเก่า
-       ║    6 รันชุดเทสทั้งหมด แล้วใช้งานจริงอย่างน้อย 1 ภาคเรียนโดยยังเก็บคอลัมน์เก่าไว้
-       ║    7 ค่อยรันส่วนที่ 4 ลบคอลัมน์เก่า — ถอยกลับได้ตลอดจนกว่าจะถึงข้อนี้
-       ╚═══════════════════════════════════════════════════════════════════════
+       สถานะ: เปลี่ยนครบทุกชั้นแล้ว — ทั้งตัวอักษรที่ผู้ใช้เห็น ตัวอักษรภายในโค้ด
+              และชื่อคอลัมน์ในฐานข้อมูล  ✅
+       🔴 ต้องรัน PLAN_p_to_s_deep.sql ส่วนที่ 1-3 ที่ Supabase ด้วย ไม่งั้นข้อมูลเก่าจะไม่ถูกย้าย
+          สคริปต์ใช้วิธี ADD COLUMN + UPDATE คัดลอก แล้วค่อยลบของเก่าทีหลัง ไม่ใช้ RENAME ทีเดียว
+          เพราะ RENAME ถอยกลับยาก และถ้าใครค้างไฟล์รุ่นเก่าไว้ คะแนนจะหายเงียบ ๆ
+          (ถ้ายังไม่รัน ระบบยังทำงานได้ เพราะมีตาข่ายนิรภัยอยู่ — อ่านหัวข้อตาข่ายนิรภัยด้านล่าง)
+
+       ── ที่เก็บข้อมูลจริง (ชื่อปัจจุบัน) ────────────────────────────────────
+       grades.s_scores                     คะแนนที่นักเรียนได้ คั่นจุลภาค เช่น "7,8,9" (สูงสุด 3 ครั้ง)
+       subject_full_scores.s_full_scores   คะแนนเต็ม "รายครั้ง" คั่นจุลภาค
+       subject_full_scores.s_full_score    คะแนนเต็ม "ยอดรวม" = ตัวหารในสูตร
+                                    ⚠️ สองช่องนี้ต้องขยับพร้อมกันเสมอ เคยมีบั๊กที่อัปเดตแค่ตัวพหูพจน์
+                                       แล้วเกรดเพี้ยน ดูตัวเขียนที่ singularField ในหน้าอัปโหลดคะแนน
+       registrations.s_percent             น้ำหนักร้อยละ (นักเรียนกำหนดตอนลงทะเบียน)
+       registration_requests.s_percent     น้ำหนักร้อยละที่นักเรียนขอมา ← อย่าลืมตารางนี้
+       exam_sets.score_type = 's'          ชุดสอบปรนัยที่ให้คะแนนลงช่องนี้
+       essay_exam_sets.score_type = 's'    ชุดสอบอัตนัยที่ให้คะแนนลงช่องนี้
+
+       ── 🪢 ตาข่ายนิรภัยช่วงเปลี่ยนชื่อ (สำคัญมาก) ──────────────────────────
+       ตาราง SCORE_PS_PAIRS จับคู่ชื่อใหม่กับชื่อเก่าไว้ 4 คู่ แล้วทำงาน 2 ทาง
+         ตอนอ่าน (_toLegacy)    แถวไหนมีแต่ชื่อเก่า → ยืมค่ามาใส่ชื่อใหม่ให้อัตโนมัติ
+         ตอนเขียน (_toSupabase) เขียนลงทั้งชื่อใหม่และชื่อเก่าพร้อมกัน
+       ผลที่ได้
+         · อัปโหลดไฟล์ก่อนรัน SQL หรือรัน SQL ก่อนอัปโหลด ก็ได้ทั้งคู่ คะแนนไม่หาย
+         · ครูที่ยังค้างไฟล์รุ่นเก่าในเบราว์เซอร์ ยังใช้งานได้ คะแนนที่กรอกไม่หาย
+         · ถอยกลับไปใช้ไฟล์รุ่นก่อนได้ตลอด เพราะช่องเก่ายังมีข้อมูลครบ
+       🗑️ ลบตาข่ายนี้ได้เมื่อใช้งานจริงผ่านไปอย่างน้อย 1 ภาคเรียน และลบคอลัมน์เก่าแล้ว
+          วิธีลบ: เอาตาราง SCORE_PS_PAIRS และส่วนที่เรียกใช้ใน _toLegacy/_toSupabase ออก
+          ตัวตรวจ sim_psbridge.js คุมพฤติกรรมของตาข่ายนี้อยู่ทุกทาง
+
+       ── สูตรคิดคะแนน (ไม่ได้แก้เลยตอนเปลี่ยนชื่อ) ──────────────────────────
+       จุดเข้าเดียวของการคิดเกรดทั้งระบบ:  computeGradeReportRows(ชั้น, ห้อง, วิชา)
+       sScore   = ปัดเศษ( (ผลรวมของ s_scores ÷ s_full_score) × s_percent )
+       totalKPAC = kScore + sScore + aScore + cScore                 ← ชื่อตัวแปรยังเป็น totalKPAC
+       totalAll  = totalKPAC + mScore + fScore  →  scoreToGrade()
+       ⚠️ รายละเอียดที่ตรวจเจอตอนเดินตัวเลขจริง (ไม่ใช่การเดา)
+          · ระบบ "ปัดเศษทีละช่อง" ด้วย roundGradeValue ก่อนนำไปบวกรวม ไม่ได้บวกดิบแล้วค่อยปัด
+            เช่น (35÷40)×20 = 17.5 กลายเป็น 18 · (9÷10)×5 = 4.5 กลายเป็น 5
+            วิธีปัดตั้งได้ 3 แบบใน settings.grade_rounding_method: standard (ครึ่งขึ้น) · up · down
+          · คะแนนเต็มที่เป็นตัวหารคือช่อง "เอกพจน์" s_full_score เท่านั้น
+          · ช่องกลางภาค/ปลายภาคใช้ชื่อ "พหูพจน์" m_scores / f_scores (ไม่ใช่ m_score)
+          · คะแนนเต็มเป็น 0 หรือน้ำหนักเป็น 0 → ได้ 0 ไม่ใช่ค่าเสีย (หารศูนย์ถูกกันไว้แล้ว)
+          · คะแนนที่มีเว้นวรรคคั่น เช่น "6, 6 ,6" อ่านได้ปกติ
+
+       ── ทางที่คะแนนไหลเข้าช่องนี้ มี 3 ทาง ───────────────────────────────────
+       1) ครูกรอกมือ            หน้าบันทึกคะแนน generateScoreInputs('s', ...) (3 ช่อง)
+       2) ชุดสอบ               _writeExamScoreToKField() ประกอบชื่อคอลัมน์เองจากตัวอักษร:
+                               sType + '_scores' และ sType + '_full_scores'
+                               ⚠️ นี่คือเหตุผลที่ชื่อคอลัมน์กับค่า score_type ต้องเปลี่ยนพร้อมกัน
+       3) การบ้าน (S ย่อย)      _subSyncMainScores() เขียน a_scores และ s_scores พร้อมกัน
+                               ส่งไม่ตรงเวลา = ล้างคะแนน S ของครั้งนั้นทิ้ง
+
+       ── ที่ผู้ใช้เห็นตัวอักษร ──────────────────────────────────────────────
+       _scoreLetter()        ตัวแปลงกลาง s → S (และ p → S เผื่อชุดสอบเก่าที่ยังไม่ได้แปลงค่า)
+                             ห้ามใช้ t.toUpperCase() ตรง ๆ อีก
+       ป้ายในฟอร์ม           "S (ทักษะและกระบวนการ)" · หัวตาราง "S" · ช่องกรอก "S%"
+       ไฟล์ Excel ที่ส่งออก   หัวคอลัมน์ 'S' และ 'S%'
+       การบ้าน               "S ย่อย" และ "S หลัก"
+       เกียรติบัตร            เลขที่ใบใหม่ขึ้นต้น KSAC- · ตัวอ่านรับทั้ง KPAC- (ใบเก่า) และ KSAC-
+
+       ── 🔒 ค่าอ้างอิงที่ล็อกไว้ และผลการซ้อมใหญ่ ─────────────────────────────
+       sim_sgolden.js + golden_s.json  เก็บผลลัพธ์จริงของนักเรียนตัวอย่าง 5 กรณี
+          (กรอกครบ · ช่อง S ว่าง · กรอกไม่ครบ · น้ำหนักเป็น 0 · มีทศนิยมและเว้นวรรค)
+       พิสูจน์แล้วว่าไฟล์ก่อนเปลี่ยนชื่อกับหลังเปลี่ยนชื่อ ให้ตัวเลขเท่ากันทุกตัว
+       ซ้อมบนสำเนาก่อนลงมือจริงด้วย ps_rehearse.js · ps_rehearse2.js · ps_rehearse3.js
+          รอบ 1 เปลี่ยนเฉพาะโค้ด ข้อมูลยังเก่า → ตก 5 ไฟล์ สาเหตุเดียวกันหมด (ข้อมูลยังไม่ย้าย)
+          รอบ 2 เปลี่ยนพร้อมกันตามลำดับในแผน → ผ่าน 63/63 ไฟล์ ตัวเลขเท่าเดิมทุกตัว
+          รอบ 3 ซ้อมเปลี่ยนชื่อไฟล์ → ไฟล์ระบบไม่อ้างชื่อตัวเอง เปลี่ยนได้ปลอดภัย
+
+       ── ที่ห้ามแตะเด็ดขาด ────────────────────────────────────────────────────
+       ชื่อตัวแปร totalKPAC และพวก updateBulkKPACDisplay
+       คีย์ในเครื่องผู้ใช้ kpac_sb_cache / kpac_cheat_purge / kpac_last_backup
+       ฟังก์ชันในฐานข้อมูล kpac_touch_updated_at / kpac_select_deleted_rows
+       กุญแจลับสำรอง 'kpac' ใน _certCode()  ← ถ้าแตะ ใบเกียรติบัตรที่พิมพ์ไปแล้วตรวจไม่ผ่านทั้งหมด
+
+       🧪 ตัวตรวจอัตโนมัติ: sim_ps_link.js (ความสัมพันธ์) · sim_psbridge.js (ตาข่ายนิรภัย)
+          sim_sgolden.js (สูตร) · sim_ksac.js (ป้ายที่ผู้ใช้เห็น)
+       ══════════════════════════════════════════════════════════════════════════ */
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       🔮 แผนที่คาดการณ์ — ของที่ "ยังไม่ได้ทำ" แต่สำรวจไว้แล้วเผื่อวันหนึ่งต้องทำ
+       ──────────────────────────────────────────────────────────────────────────
+       ╔═ สถานการณ์ 1: ลบตาข่ายนิรภัยและคอลัมน์เก่าทิ้ง (ขั้นสุดท้ายของการย้าย) ══
+       ║ 🛑 ห้ามทำจนกว่าจะใช้งานจริงผ่านไปอย่างน้อย 1 ภาคเรียนหลังรัน SQL แล้ว
+       ║ ① รัน PLAN_p_to_s_deep.sql ส่วนที่ 3 ตรวจผลก่อน ทุกบรรทัดต้องได้ 0
+       ║ ② เอาตาราง SCORE_PS_PAIRS ออก พร้อมส่วนที่เรียกใช้ใน _toLegacy และ _toSupabase
+       ║ ③ ลบ 'p' ออกจาก SCORE_LETTER (เหลือแค่ s)
+       ║ ④ ลบ sim_psbridge.js และข้อที่ตรวจชื่อเก่าใน sim_ps_link.js / sim_ksac.js
+       ║ ⑤ รัน PLAN_p_to_s_deep.sql ส่วนที่ 4 ลบคอลัมน์เก่า
+       ║ ⑥ แก้ไฟล์กู้คืน 3 ไฟล์ให้ใช้ชื่อใหม่ และทำตัวแปลงหัวคอลัมน์สำหรับไฟล์สำรองเก่า
+       ║ ⚠️ หลังขั้นนี้แล้วถอยกลับไม่ได้อีก ต้องแน่ใจว่าสำรองข้อมูลไว้แล้ว
+       ╚══════════════════════════════════════════════════════════════════════════
 
        ╔═ สถานการณ์ 2: หลักสูตรเปลี่ยนจำนวนครั้งของ S (ตอนนี้ 3 ครั้ง) ════════════
        ║ เลขจำนวนครั้งถูกพิมพ์กระจายไว้ ต้องแก้ให้ครบทุกจุด ไม่งั้นช่องกรอกกับช่องเก็บไม่ตรงกัน
-       ║    หน้าบันทึกคะแนน    generateScoreInputs('p', ..., 3, ...)          1 จุด
-       ║    หน้าดูอย่างเดียว    generateReadOnlyScoreInputs('p', ..., 3, ...)  1 จุด
-       ║    ตารางตั้งค่าคะแนน   { type:'p', times:3 }                          3 จุด
+       ║    หน้าบันทึกคะแนน    generateScoreInputs('s', ..., 3, ...)          1 จุด
+       ║    หน้าดูอย่างเดียว    generateReadOnlyScoreInputs('s', ..., 3, ...)  1 จุด
+       ║    ตารางตั้งค่าคะแนน   { type:'s', times:3 }                          3 จุด
        ║    ดรอปดาวน์ชุดสอบอัตนัย  maxTimes = t === 'k' ? 10 : 3               1 จุด
        ║ ค่าปัจจุบันของทุกช่อง: K=10 · S=3 · A=3 · C=3 · M=2 · F=2 · pretest=10
-       ║ ⚠️ ข้อมูลเก่าใน p_scores เก็บไว้ 3 ช่อง ถ้าลดจำนวนครั้งลง ช่องที่เกินจะถูกตัดทิ้ง
+       ║ ⚠️ ข้อมูลเก่าใน s_scores เก็บไว้ 3 ช่อง ถ้าลดจำนวนครั้งลง ช่องที่เกินจะถูกตัดทิ้ง
        ║    ต้องถามเจ้าของระบบก่อนเสมอว่าจะตัดหรือจะเก็บไว้
        ╚══════════════════════════════════════════════════════════════════════════
 
@@ -18316,6 +18396,27 @@ const supabaseDataSdk = {
        ║ → ตารางคะแนนเต็ม → ไฟล์ส่งออก → แผนที่ความสัมพันธ์ด้านล่างนี้
        ╚══════════════════════════════════════════════════════════════════════════
 
+       ╔═ สถานการณ์ 6: เปลี่ยนชื่อไฟล์ kpac_supabase.html เป็น ksac_supabase.html ════
+       ║ ซ้อมแล้วด้วย ps_rehearse3.js (ทำในพื้นที่ทดลองแยก) ผลคือ
+       ║
+       ║ ✅ ตัวไฟล์ระบบ "ไม่ได้อ้างชื่อตัวเองเลยแม้แต่จุดเดียว"
+       ║    ไม่มีลิงก์ ไม่มีปุ่มดาวน์โหลดตัวเอง ไม่มีชื่อไฟล์ฝังอยู่ข้างใน
+       ║    → เปลี่ยนชื่อไฟล์ได้ทันที เนื้อในไม่ต้องแก้อะไรเลยสักบรรทัด
+       ║ ✅ ซ้อมเปลี่ยนชื่อแล้วรันชุดเทส ผ่าน 64/65 ไฟล์ (ที่ตก 1 ไฟล์เป็นเรื่องพื้นที่ทดลอง
+       ║    ไม่ได้คัดลอกโฟลเดอร์ย่อยไปด้วย ไม่เกี่ยวกับการเปลี่ยนชื่อ)
+       ║
+       ║ ⚠️ ความเสี่ยงจริงไม่ได้อยู่ในโค้ด แต่อยู่ที่ "ที่อยู่เว็บ"
+       ║    ถ้าเว็บเปิดด้วยที่อยู่ที่ลงท้ายด้วย /kpac_supabase.html
+       ║    พอเปลี่ยนชื่อ ที่อยู่เดิมจะเปิดไม่ได้ทันที — คนที่บุ๊กมาร์กไว้
+       ║    หรือครูที่ส่งลิงก์ให้นักเรียนไว้แล้ว จะเจอหน้าว่าง
+       ║    ทางแก้ที่ปลอดภัย: อัปโหลดไฟล์ใหม่ "เพิ่ม" โดยยังเก็บไฟล์ชื่อเดิมไว้
+       ║    แล้วทำไฟล์ชื่อเดิมให้พาไปหาไฟล์ใหม่ (หน้าเปลี่ยนเส้นทาง) อย่างน้อย 1 ภาคเรียน
+       ║    ถ้าเว็บเปิดด้วยชื่อ index.html อยู่แล้ว เรื่องนี้ไม่มีผลใด ๆ
+       ║
+       ║ 📌 สรุป: ในแง่ระบบ เปลี่ยนชื่อไฟล์ปลอดภัยที่สุดในบรรดาทุกสถานการณ์
+       ║    แต่ต้องวางแผนเรื่องลิงก์เดิมก่อนเสมอ
+       ╚═══════════════════════════════════════════════════════════════════════
+
        ╔═ ⚠️ จุดอ่อนที่เจอระหว่างสำรวจ — ยังไม่แก้ เพราะวันนี้ยังไม่เกิดผล ════════
        ║ ดรอปดาวน์ชุดสอบ 2 ตัวใช้กฎจำนวนครั้งคนละแบบ
        ║    อัตนัย (esa-scoretype)  maxTimes = t === 'k' ? 10 : 3   ← ถูกต้อง
@@ -18326,62 +18427,12 @@ const supabaseDataSdk = {
        ╚══════════════════════════════════════════════════════════════════════════
        ══════════════════════════════════════════════════════════════════════════ */
 
-    /* ══════════════════════════════════════════════════════════════════════════
-       🔗 แผนที่ความสัมพันธ์ของช่องคะแนน S (เดิม P) — อ่านตรงนี้ก่อนแก้อะไรที่เกี่ยวกับ S
-       ──────────────────────────────────────────────────────────────────────────
-       ปี 2569 หลักสูตรเปลี่ยน ตัว P (ทักษะ/กระบวนการ) เปลี่ยนชื่อเรียกเป็น S (ทักษะและกระบวนการ)
-       และชื่อระบบเปลี่ยนจาก KPAC เป็น KSAC
 
-       ⚠️ กฎข้อเดียวที่ต้องจำ: เปลี่ยน "เฉพาะตัวอักษรที่ผู้ใช้เห็น" เท่านั้น
-          ชื่อในฐานข้อมูลและตัวอักษรที่ใช้ภายในโค้ดยังเป็น p เหมือนเดิมทั้งหมด
-          ข้อมูลเก่าจึงใช้ได้ต่อโดยไม่ต้องย้าย และไม่ต้องรัน SQL ใด ๆ
-
-       ── ที่เก็บข้อมูลจริง (ห้ามเปลี่ยนชื่อ) ───────────────────────────────────
-       grades.p_scores              คะแนนที่นักเรียนได้ เก็บเป็นข้อความคั่นจุลภาค เช่น "7,8,9" (สูงสุด 3 ครั้ง)
-       subject_full_scores.p_full_scores   คะแนนเต็ม "รายครั้ง" คั่นจุลภาค
-       subject_full_scores.p_full_score    คะแนนเต็ม "ยอดรวม" = ตัวหารในสูตร
-                                    ⚠️ สองช่องนี้ต้องขยับพร้อมกันเสมอ เคยมีบั๊กที่อัปเดตแค่ตัวพหูพจน์
-                                       แล้วเกรดเพี้ยน ดูตัวเขียนที่ singularField ในหน้าอัปโหลดคะแนน
-       registrations.p_percent      น้ำหนักร้อยละของช่องนี้ (นักเรียนกำหนดเองตอนลงทะเบียน)
-       exam_sets.score_type = 'p'          ชุดสอบปรนัยที่ให้คะแนนลงช่องนี้
-       essay_exam_sets.score_type = 'p'    ชุดสอบอัตนัยที่ให้คะแนนลงช่องนี้
-
-       ── สูตรคิดคะแนน (เหมือนเดิมทุกประการ ไม่ได้แก้ตอนเปลี่ยนชื่อ) ──────────────
-       sScore   = (ผลรวมของ p_scores ÷ p_full_score) × p_percent     ← ดู weightedScore ในหน้าสัดส่วนเกรด
-       totalKPAC = kScore + sScore + aScore + cScore                 ← ชื่อตัวแปรยังเป็น totalKPAC
-       totalAll  = totalKPAC + mScore + fScore  →  scoreToGrade()
-
-       ── ทางที่คะแนนไหลเข้าช่องนี้ มี 3 ทาง ───────────────────────────────────
-       1) ครูกรอกมือ            หน้าบันทึกคะแนน generateScoreInputs('p', ...) (3 ช่อง)
-       2) ชุดสอบ               _writeExamScoreToKField() ประกอบชื่อคอลัมน์เองจากตัวอักษร:
-                               sType + '_scores' และ sType + '_full_scores'
-                               ⚠️ ถ้าวันหนึ่งเปลี่ยนชื่อคอลัมน์จริง ต้องแก้ที่นี่ด้วย
-       3) การบ้าน (S ย่อย)      _subSyncMainScores() เขียน a_scores และ p_scores พร้อมกัน
-                               ส่งไม่ตรงเวลา = ล้างคะแนน S ของครั้งนั้นทิ้ง
-
-       ── ที่ผู้ใช้เห็นตัวอักษร (เปลี่ยนเป็น S แล้วทั้งหมด) ──────────────────────
-       _scoreLetter()        ตัวแปลงกลาง p → S ทุกที่ที่แสดงตัวอักษรของชุดสอบต้องเรียกตัวนี้
-                             ห้ามใช้ t.toUpperCase() ตรง ๆ อีก เพราะจะได้ "P" ดิบกลับมา
-       ป้ายในฟอร์ม           "S (ทักษะและกระบวนการ)" · หัวตาราง "S" · ช่องกรอก "S%"
-       ไฟล์ Excel ที่ส่งออก   หัวคอลัมน์ 'S' และ 'S%'  (เป็นขาออกอย่างเดียว ไม่มีตัวอ่านไฟล์ที่มองหาหัว P)
-       หน้า "ยังไม่ลงทะเบียน"  ป้าย raw = { K, S, A, C } ถูกเอาไปต่อเป็นข้อความ "ยังไม่ได้กรอก K/S"
-       การบ้าน               "S ย่อย" และ "S หลัก"
-       เกียรติบัตร            เลขที่ใบใหม่ขึ้นต้น KSAC- · ตัวอ่านรับทั้ง KPAC- (ใบเก่า) และ KSAC-
-
-       ── ที่ห้ามแตะเด็ดขาด ────────────────────────────────────────────────────
-       ชื่อคอลัมน์ทุกตัวข้างบน · ตัวอักษร 'p' ใน ['pretest','k','p','a','c','m','f']
-       ค่า value="p" ในดรอปดาวน์ · ชื่อตัวแปร totalKPAC และพวก updateBulkKPACDisplay
-       คีย์ในเครื่องผู้ใช้ kpac_sb_cache / kpac_cheat_purge / kpac_last_backup
-       ฟังก์ชันในฐานข้อมูล kpac_touch_updated_at / kpac_select_deleted_rows
-       กุญแจลับสำรอง 'kpac' ใน _certCode()  ← ถ้าแตะ ใบเกียรติบัตรที่พิมพ์ไปแล้วตรวจไม่ผ่านทั้งหมด
-
-       🧪 มีตัวตรวจอัตโนมัติคุมทุกข้อข้างบนอยู่ที่ sim_ps_link.js
-          ถ้าแก้อะไรแล้วความสัมพันธ์ขาด ตัวตรวจจะฟ้องก่อนส่งไฟล์
-       ══════════════════════════════════════════════════════════════════════════ */
     /** 🔤 ตัวอักษรของช่องคะแนนที่ใช้ "แสดงให้ผู้ใช้เห็น"
-     *  ⚠️ ชื่อคอลัมน์ในฐานข้อมูลยังเป็น p_scores / p_full_score เหมือนเดิมทั้งหมด
+     *  ⚠️ ชื่อคอลัมน์ในฐานข้อมูลยังเป็น s_scores / s_full_score เหมือนเดิมทั้งหมด
      *     เปลี่ยนเฉพาะตัวอักษรบนหน้าจอ P → S ตามหลักสูตรใหม่ ข้อมูลเก่าจึงใช้ได้ต่อโดยไม่ต้องย้าย */
-    const SCORE_LETTER = { k: 'K', p: 'S', a: 'A', c: 'C', m: 'M', f: 'F', pretest: 'Pre' };
+    const SCORE_LETTER = { k: 'K', s: 'S', p: 'S', a: 'A', c: 'C', m: 'M', f: 'F', pretest: 'Pre' };
+    //                            ↑ 'p' เก็บไว้เผื่อชุดสอบเก่าที่ยังไม่ได้แปลงค่า score_type
     function _scoreLetter(t) {
       const k = String(t == null ? '' : t).toLowerCase();
       return SCORE_LETTER[k] || k.toUpperCase();
@@ -19475,7 +19526,7 @@ const supabaseDataSdk = {
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType) {
       if (!delta) return;
       // 📊 รองรับ K / P / C (อัตนัยเลือกเก็บที่ P ได้ — เดิมรองรับแค่ K/C ทำให้ P ไปบวกคะแนนเต็มผิดช่องเป็น K)
-      const sType = ['k', 'p', 'c'].includes(scoreType) ? scoreType : 'k';
+      const sType = ['k', 's', 'c'].includes(scoreType) ? scoreType : 'k';
       const fullScoreField = sType + '_full_scores';
       const fullScoreSingular = sType + '_full_score';
       // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
@@ -19541,7 +19592,7 @@ const supabaseDataSdk = {
 
     /** 📊 ดูว่าครั้งที่นี้มีคะแนนเต็มอยู่แล้วหรือยัง (จากชุดสอบเดิม หรือครูกรอกมือไว้) */
     function _getExistingRoundFullScore(className, roomNumber, subjectName, round, scoreType, excludeSetId) {
-      const sType = ['k', 'p', 'c'].includes(scoreType) ? scoreType : 'k';
+      const sType = ['k', 's', 'c'].includes(scoreType) ? scoreType : 'k';
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const sc = allData.find(d => d.type === 'class_subject_scores'
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName))
@@ -19551,7 +19602,7 @@ const supabaseDataSdk = {
       // รวมทั้งชุดสอบปรนัยและอัตนัยในครั้งเดียวกัน (ใช้ช่องคะแนนเดียวกัน)
       const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(excludeSetId || '')
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName)
-        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((['k','p','c'].includes(d.score_type) ? d.score_type : 'k') === sType));
+        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((['k', 's', 'c'].includes(d.score_type) ? d.score_type : 'k') === sType));
       return { full, sets };
     }
 
@@ -19579,7 +19630,7 @@ const supabaseDataSdk = {
     function _roundScoreByReg(cls, room, subj, round, sType) {
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const r = parseInt(round) || 1;
-      const field = (['k', 'p', 'c'].includes(sType) ? sType : 'k') + '_scores';
+      const field = (['k', 's', 'c'].includes(sType) ? sType : 'k') + '_scores';
       const map = new Map();
       allData.filter(d => d.type === 'grade' && N(d.class_name) === N(cls) && N(d.room_number) === N(room) && N(d.subject_name) === N(subj))
         .forEach(g => {
@@ -19687,7 +19738,7 @@ const supabaseDataSdk = {
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
-        const T = _scoreLetter(['k','p','c'].includes(scoreType) ? scoreType : 'k');
+        const T = _scoreLetter(['k', 's', 'c'].includes(scoreType) ? scoreType : 'k');
         document.getElementById('fullscore-mode-popup')?.remove();
         const wrap = document.createElement('div');
         wrap.id = 'fullscore-mode-popup';
@@ -19953,7 +20004,7 @@ const supabaseDataSdk = {
         const set = allData.find(d => d.type === 'exam_set' && String(d.__backendId) === String(examSetId));
         const contributed = parseFloat(sub.k_score_contributed) || 0;
         if (set && (sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
-          const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+          const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
           const round = parseInt(set.k_round) || 1;
           const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id,
             class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
@@ -20500,7 +20551,7 @@ const supabaseDataSdk = {
       const amount = (!isNaN(_c) && sub.k_score_contributed !== '' && sub.k_score_contributed !== null)
         ? _c : (_imported && !isNaN(_score) ? _score : 0);
       if (!(amount > 0)) return false;
-      const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+      const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
       const round = parseInt(set.k_round) || 1;
       const field = sType + '_scores';
       const g = (typeof _findGradeRow === 'function')
@@ -20609,7 +20660,7 @@ const supabaseDataSdk = {
     // ✍️ ระบบสอบอัตนัย: นักเรียนเขียนตอบ → ครูตรวจ → โอนคะแนน (ใช้ฟังก์ชันลงคะแนนตัวเดียวกับปรนัย)
     // ════════════════════════════════════════════════════════════
     function _essayRoundText(set) {
-      return `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ${parseInt(set.k_round) || 1}`;
+      return `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ${parseInt(set.k_round) || 1}`;
     }
     /** 🕐 แปลงค่าเวลาจากฐานข้อมูลให้เป็นวันที่ที่ใช้ได้จริงทุกเครื่อง
      *  ⚠️ บั๊กที่กันไว้: บางเครื่อง (โดยเฉพาะ iPhone/Safari) อ่านรูปแบบของ Postgres
@@ -20667,7 +20718,7 @@ const supabaseDataSdk = {
       return subs.map(sub => {
         const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
         if (!set) return '';
-        if (onlyType && (['k','p','c'].includes(set.score_type) ? set.score_type : 'k') !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
+        if (onlyType && (['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k') !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
         const rt = _essayRoundText(set) + ' อัตนัย';
         // 🕐 ใช้ตัวกลางตัวเดียว: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
         const open = _isSubmissionOpen(sub, set, true);
@@ -21297,7 +21348,7 @@ const supabaseDataSdk = {
       // 1) หักคะแนนที่กระดาษนี้เคยโอนเข้าไป (คะแนนส่วนอื่นในช่องคงอยู่)
       const contributed = parseFloat(sub.k_score_contributed) || 0;
       if ((sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
-        const sType = ['k','p','c'].includes(set.score_type) ? set.score_type : 'k', round = parseInt(set.k_round) || 1;
+        const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k', round = parseInt(set.k_round) || 1;
         const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id, class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
         if (g) {
           const arr = String(g[sType + '_scores'] || '').split(',').map(x => x.trim()); while (arr.length < round) arr.push('');
@@ -21775,7 +21826,7 @@ function _examResultIdentityHtml(sub, set) {
       const full = stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : (sub?.student_name || '');
       const no = stu?.student_number ? `เลขที่ ${stu.student_number}` : '';
       const room = `${stu?.class_name || sub?.class_name || ''}${(stu?.room_number || sub?.room_number) ? '/' + (stu?.room_number || sub?.room_number) : ''}`;
-      const round = set ? `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
+      const round = set ? `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
       const kind = (set && set.type === 'essay_exam_set') ? 'อัตนัย' : 'ปรนัย';
       const used = parseInt(sub?.retry_count) || 0;
       const line = (a, b) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span style="color:#64748b">${a}</span><b style="color:#1e293b;text-align:right">${b}</b></div>`;
@@ -23982,7 +24033,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       const round = parseInt(examSet.k_round) || 1;
       // 📊 รองรับ K / P / C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
-      const sType = ['k', 'p', 'c'].includes(examSet.score_type) ? examSet.score_type : 'k';
+      const sType = ['k', 's', 'c'].includes(examSet.score_type) ? examSet.score_type : 'k';
       const scoreField = sType + '_scores';           // k_scores หรือ c_scores
       const fullScoreField = sType + '_full_scores';  // k_full_scores หรือ c_full_scores
       const fullScoreSingular = sType + '_full_score';
@@ -24006,7 +24057,7 @@ function _examResultIdentityHtml(sub, set) {
         const _sameRoundSetIds = new Set(allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(examSet.__backendId)
             && _n(d.class_name) === _n(examSet.class_name) && _n(d.room_number) === _n(examSet.room_number)
             && _n(d.subject_name) === _n(examSet.subject_name) && String(parseInt(d.k_round) || 1) === String(round)
-            && (['k','p','c'].includes(d.score_type) ? d.score_type : 'k') === sType).map(d => String(d.__backendId)));
+            && (['k', 's', 'c'].includes(d.score_type) ? d.score_type : 'k') === sType).map(d => String(d.__backendId)));
         _replacedOthers = allData.filter(d => (d.type === 'exam_submission' || d.type === 'essay_submission')
           && _sameRoundSetIds.has(String(d.type === 'essay_submission' ? d.essay_exam_set_id : d.exam_set_id))
           && String(d.student_id) === String(submission.student_id) && String(d.__backendId) !== String(submission.__backendId)
@@ -25654,7 +25705,7 @@ function _examResultIdentityHtml(sub, set) {
         const grade = _findGradeRow(reg);
         // น้ำหนัก% ของ K/S/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
         const kWeight = reg.k_percent || 0;
-        const pWeight = reg.p_percent || 0;
+        const pWeight = reg.s_percent || 0;
         const aWeight = reg.a_percent || 0;
         const cWeight = reg.c_percent || 0;
         const weightedScore = (achievedStr, fullScore, weight) => {
@@ -25663,7 +25714,7 @@ function _examResultIdentityHtml(sub, set) {
           return (achieved / fullScore) * weight;
         };
         const kScore = roundGradeValue(weightedScore(grade?.k_scores, scoresConfig?.k_full_score, kWeight));
-        const pScore = roundGradeValue(weightedScore(grade?.p_scores, scoresConfig?.p_full_score, pWeight));
+        const pScore = roundGradeValue(weightedScore(grade?.s_scores, scoresConfig?.s_full_score, pWeight));
         const aScore = roundGradeValue(weightedScore(grade?.a_scores, scoresConfig?.a_full_score, aWeight));
         const cScore = roundGradeValue(weightedScore(grade?.c_scores, scoresConfig?.c_full_score, cWeight));
         const mScore = roundGradeValue(weightedScore(grade?.m_scores, scoresConfig?.m_full_score, midPercentWeight));
@@ -26676,7 +26727,7 @@ function _examResultIdentityHtml(sub, set) {
           // คะแนนเต็มเริ่มต้นเป็น 0 (เหมือนตอนนำเข้าไฟล์)
           await window.dataSdk.create({ type: 'class_subject_scores', class_subject_id: classSubjectId,
             class_name: className, room_number: roomNumber, subject_name: subjectName,
-            k_full_score: 0, p_full_score: 0, a_full_score: 0, c_full_score: 0, m_full_score: 0, f_full_score: 0 }).catch(() => {});
+            k_full_score: 0, s_full_score: 0, a_full_score: 0, c_full_score: 0, m_full_score: 0, f_full_score: 0 }).catch(() => {});
           added++;
         }
         // ทะเบียนชั้น/วิชา (ถ้ายังไม่มี) เพื่อให้เมนูอื่นที่ดึงจากตารางนี้เห็นด้วย
@@ -26791,7 +26842,7 @@ function _examResultIdentityHtml(sub, set) {
             room_number: pair.roomNumber,
             subject_name: pair.subjectName,
             k_full_score: 0,
-            p_full_score: 0,
+            s_full_score: 0,
             a_full_score: 0,
             c_full_score: 0,
             m_full_score: 0,
@@ -27667,7 +27718,7 @@ function _examResultIdentityHtml(sub, set) {
     function _registrationHasScores(reg) {
       const g = (typeof _findGradeRow === 'function') ? _findGradeRow(reg) : null;
       if (!g) return false;
-      const nums = ['k_scores', 'p_scores', 'a_scores', 'c_scores', 'm_score', 'f_score',
+      const nums = ['k_scores', 's_scores', 'a_scores', 'c_scores', 'm_score', 'f_score',
                     'k_score', 'p_score', 'a_score', 'c_score'];
       return nums.some(f => {
         const v = g[f];
@@ -28059,7 +28110,7 @@ function _examResultIdentityHtml(sub, set) {
         .forEach(reg => {
         const limit = _kpacLimitForReg(reg);
         if (limit === null) return;
-        const raw = { K: reg.k_percent, S: reg.p_percent, A: reg.a_percent, C: reg.c_percent };   // ป้ายนี้ไปโผล่ในข้อความ "ยังไม่ได้กรอก K/S"
+        const raw = { K: reg.k_percent, S: reg.s_percent, A: reg.a_percent, C: reg.c_percent };   // ป้ายนี้ไปโผล่ในข้อความ "ยังไม่ได้กรอก K/S"
         const blanks = [];
         let sum = 0;
         Object.keys(raw).forEach(key => {
@@ -28077,7 +28128,7 @@ function _examResultIdentityHtml(sub, set) {
         const student = allData.find(x => x.type === 'student' && _rN(x.student_id) === _rN(reg.student_id));
         out.push({ reg, student, limit, sum, blanks, reasons,
           studentName: student ? `${student.prefix || ''}${student.first_name || ''} ${student.last_name || ''}`.trim() : String(reg.student_id),
-          k: reg.k_percent, p: reg.p_percent, a: reg.a_percent, c: reg.c_percent });
+          k: reg.k_percent, p: reg.s_percent, a: reg.a_percent, c: reg.c_percent });
       });
       return out.sort((x, y) =>
         String(x.reg.class_name || '').localeCompare(String(y.reg.class_name || ''))
@@ -28244,7 +28295,7 @@ function _examResultIdentityHtml(sub, set) {
         if(!s){skipped++;continue;}
         const ex=allData.find(r=>r.type==='student_registration'&&String(r.student_id)===String(sid)&&r.subject_name===sn);
         if(ex){skipped++;continue;}
-        const res=await window.dataSdk.create({type:'student_registration',student_id:sid,class_name:s.class_name,room_number:s.room_number,subject_name:sn,class_subject_id:`${s.class_name}_${s.room_number}_${sn}`,k_percent:k,p_percent:p,a_percent:a,c_percent:c,created_at:new Date().toISOString()});
+        const res=await window.dataSdk.create({type:'student_registration',student_id:sid,class_name:s.class_name,room_number:s.room_number,subject_name:sn,class_subject_id:`${s.class_name}_${s.room_number}_${sn}`,k_percent:k,s_percent:p,a_percent:a,c_percent:c,created_at:new Date().toISOString()});
         if(res.isOk){enrolled++;await applyPendingScoresOnRegistration(sid,sn);}
       }
       showToast(`✅ ลงทะเบียนวิชา ${sn} ให้ ${enrolled} คน${skipped>0?` (ข้าม ${skipped} คน)`:''}`);
@@ -28785,7 +28836,7 @@ function _examResultIdentityHtml(sub, set) {
           class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
           // ใช้รหัสรายวิชาจริงจากระบบ (ถ้ามี) เพื่อให้จับคู่กับคะแนนเต็มได้แน่นอน
           class_subject_id: cs.class_subject_id || `${student.class_name}_${student.room_number}_${subjectName}`,
-          k_percent: k, p_percent: p, a_percent: a, c_percent: c,
+          k_percent: k, s_percent: p, a_percent: a, c_percent: c,
         });
         if (result.isOk) {
           enrolled++;
@@ -28948,7 +28999,7 @@ function _examResultIdentityHtml(sub, set) {
           class_name: student.class_name, room_number: student.room_number,
           subject_name: subjectName,
           class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
-          k_percent: k, p_percent: p, a_percent: a, c_percent: c,
+          k_percent: k, s_percent: p, a_percent: a, c_percent: c,
           created_at: new Date().toISOString()
         });
         if (result.isOk) {
@@ -29019,7 +29070,7 @@ function _examResultIdentityHtml(sub, set) {
             </td>
             <td class="px-2 py-2 whitespace-nowrap">${reg.subject_name}</td>
             <td class="px-2 py-2 text-center whitespace-nowrap">${reg.k_percent ?? 0}</td>
-            <td class="px-2 py-2 text-center whitespace-nowrap">${reg.p_percent ?? 0}</td>
+            <td class="px-2 py-2 text-center whitespace-nowrap">${reg.s_percent ?? 0}</td>
             <td class="px-2 py-2 text-center whitespace-nowrap">${reg.a_percent ?? 0}</td>
             <td class="px-2 py-2 text-center whitespace-nowrap">${reg.c_percent ?? 0}</td>
             <td class="px-2 py-2 text-center whitespace-nowrap text-gray-400">${midPercent}</td>
@@ -29051,7 +29102,7 @@ function _examResultIdentityHtml(sub, set) {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">S%</label>
-              <input type="number" id="edit-reg-p" value="${reg.p_percent ?? 0}" min="0" max="100" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
+              <input type="number" id="edit-reg-p" value="${reg.s_percent ?? 0}" min="0" max="100" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">A%</label>
@@ -29089,7 +29140,7 @@ function _examResultIdentityHtml(sub, set) {
       const regYear = String(document.getElementById('edit-reg-year')?.value ?? '').trim();
       const regSem = String(document.getElementById('edit-reg-sem')?.value ?? '').trim();
       const result = await window.dataSdk.update({
-        ...reg, k_percent: kPercent, p_percent: pPercent, a_percent: aPercent, c_percent: cPercent,
+        ...reg, k_percent: kPercent, s_percent: pPercent, a_percent: aPercent, c_percent: cPercent,
         academic_year: regYear, semester: regSem
       });
       if (result.isOk) {
@@ -29147,7 +29198,7 @@ function _examResultIdentityHtml(sub, set) {
         'เลขที่': studentNumber,
         'ชื่อ-นามสกุล': student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id,
         'วิชา': reg.subject_name,
-        'K%': reg.k_percent ?? 0, 'S%': reg.p_percent ?? 0, 'A%': reg.a_percent ?? 0, 'C%': reg.c_percent ?? 0
+        'K%': reg.k_percent ?? 0, 'S%': reg.s_percent ?? 0, 'A%': reg.a_percent ?? 0, 'C%': reg.c_percent ?? 0
       }));
       const header = [[`รายชื่อนักเรียนที่ลงทะเบียนเรียน`], [`ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName}`], []];
       const ws = XLSX.utils.aoa_to_sheet(header);
@@ -29571,7 +29622,7 @@ function _examResultIdentityHtml(sub, set) {
       // ถ้านักเรียนกำหนด KSAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
       const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName) && sameWorkingTerm(d));
       const kVal = existingReg?.k_percent ?? '';
-      const pVal = existingReg?.p_percent ?? '';
+      const pVal = existingReg?.s_percent ?? '';
       const aVal = existingReg?.a_percent ?? '';
       const cVal = existingReg?.c_percent ?? '';
       container.innerHTML = `
@@ -29584,7 +29635,7 @@ function _examResultIdentityHtml(sub, set) {
             <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="admin-reg-a" min="0" max="100" step="0.1" value="${aVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
             <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="admin-reg-c" min="0" max="100" step="0.1" value="${cVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
           </div>
-          <p class="text-sm text-gray-700 mb-2">รวม: <span id="admin-reg-kpac-total" class="font-bold">${((existingReg?.k_percent||0)+(existingReg?.p_percent||0)+(existingReg?.a_percent||0)+(existingReg?.c_percent||0)).toFixed(1)}</span>% (ต้อง ≤ ${kpacPercent}%)</p>
+          <p class="text-sm text-gray-700 mb-2">รวม: <span id="admin-reg-kpac-total" class="font-bold">${((existingReg?.k_percent||0)+(existingReg?.s_percent||0)+(existingReg?.a_percent||0)+(existingReg?.c_percent||0)).toFixed(1)}</span>% (ต้อง ≤ ${kpacPercent}%)</p>
           <p id="admin-reg-warning" class="text-xs text-red-600 font-semibold hidden mb-2">❌ เกินขีดจำกัด!</p>
           <p id="admin-reg-error" class="text-xs text-red-600 hidden mb-2"></p>
           <div class="flex gap-3">
@@ -29621,12 +29672,12 @@ function _examResultIdentityHtml(sub, set) {
       // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KSAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
       // ถ้ามีการลงทะเบียนวิชานี้อยู่แล้ว ให้แก้ไขค่าเดิม (อัปเดต) แทนการสร้างใหม่ซ้ำ
       const result = existingReg
-        ? await window.dataSdk.update({ ...existingReg, k_percent: k, p_percent: p, a_percent: a, c_percent: c })
+        ? await window.dataSdk.update({ ...existingReg, k_percent: k, s_percent: p, a_percent: a, c_percent: c })
         : await window.dataSdk.create({
             type: 'student_registration', student_id: student.student_id, student_name: `${student.prefix}${student.first_name} ${student.last_name}`, class_name: student.class_name,
             room_number: student.room_number, subject_name: subjectName,
             class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
-            k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
+            k_percent: k, s_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString()
           });
       if (result.isOk) {
         _closeAllPopups();
@@ -30772,7 +30823,7 @@ function _examResultIdentityHtml(sub, set) {
       const existing = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const categories = [
         { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10, color: 'amber' },
-        { type: 'p', label: '🎯 S (ทักษะและกระบวนการ)', times: 3, color: 'green' },
+        { type: 's', label: '🎯 S (ทักษะและกระบวนการ)', times: 3, color: 'green' },
         { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3, color: 'purple' },
         { type: 'c', label: '💪 C (สมรรถนะ)', times: 3, color: 'red' },
         { type: 'm', label: '📋 M (กลางภาค)', times: 2, color: 'cyan' },
@@ -30811,7 +30862,7 @@ function _examResultIdentityHtml(sub, set) {
     }
     async function saveScoresSettings(classSubjectId, className, roomNumber, subjectName) {
       const categories = [
-        { type: 'k', times: 10 }, { type: 'p', times: 3 }, { type: 'a', times: 3 },
+        { type: 'k', times: 10 }, { type: 's', times: 3 }, { type: 'a', times: 3 },
         { type: 'c', times: 3 }, { type: 'm', times: 2 }, { type: 'f', times: 2 }
       ];
       const fullScoresData = {};
@@ -30875,7 +30926,7 @@ function _examResultIdentityHtml(sub, set) {
         </div>
         <div class="text-sm text-gray-600 space-y-1.5">
           <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">📝 K: ${s.k_full_score}</span> ${renderFullScoresBadges(s.k_full_scores, 10)}</div>
-          <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">🎯 P: ${s.p_full_score}</span> ${renderFullScoresBadges(s.p_full_scores, 3)}</div>
+          <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">🎯 P: ${s.s_full_score}</span> ${renderFullScoresBadges(s.s_full_scores, 3)}</div>
           <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">⭐ A: ${s.a_full_score}</span> ${renderFullScoresBadges(s.a_full_scores, 3)}</div>
           <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">💪 C: ${s.c_full_score}</span> ${renderFullScoresBadges(s.c_full_scores, 3)}</div>
           <div class="flex items-center gap-2 flex-wrap"><span class="font-medium flex-shrink-0">📋 M: ${s.m_full_score}</span> ${renderFullScoresBadges(s.m_full_scores, 2)}</div>
@@ -30925,7 +30976,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!scores) return;
       const categories = [
         { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10 },
-        { type: 'p', label: '🎯 S (ทักษะและกระบวนการ)', times: 3 },
+        { type: 's', label: '🎯 S (ทักษะและกระบวนการ)', times: 3 },
         { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3 },
         { type: 'c', label: '💪 C (สมรรถนะ)', times: 3 },
         { type: 'm', label: '📋 M (กลางภาค)', times: 2 },
@@ -30962,7 +31013,7 @@ function _examResultIdentityHtml(sub, set) {
       const scores = allData.find(d => d.__backendId === scoresId);
       if (!scores) return;
       const categories = [
-        { type: 'k', times: 10 }, { type: 'p', times: 3 }, { type: 'a', times: 3 },
+        { type: 'k', times: 10 }, { type: 's', times: 3 }, { type: 'a', times: 3 },
         { type: 'c', times: 3 }, { type: 'm', times: 2 }, { type: 'f', times: 2 }
       ];
       const fullScoresData = {};
@@ -31573,7 +31624,7 @@ function _examResultIdentityHtml(sub, set) {
       for (const reg of _subRegs(sc)) {
         const g = _findGradeRow(reg);
         const aArr = _subSplit(g?.a_scores);
-        const pArr = _subSplit(g?.p_scores);
+        const pArr = _subSplit(g?.s_scores);
         let changed = false;
         for (let n = 1; n <= 3; n++) {
           const rounds = byMain[String(n)];
@@ -31584,7 +31635,7 @@ function _examResultIdentityHtml(sub, set) {
           if (String(aArr[n - 1]) !== String(t.a)) { aArr[n - 1] = String(t.a); changed = true; }
           if (String(pArr[n - 1]) !== String(t.p)) { pArr[n - 1] = String(t.p); changed = true; }
         }
-        if (changed) await _subSaveGrade(reg, g, { a_scores: aArr.join(','), p_scores: pArr.join(',') });
+        if (changed) await _subSaveGrade(reg, g, { a_scores: aArr.join(','), s_scores: pArr.join(',') });
       }
     }
 
@@ -31750,7 +31801,7 @@ function _examResultIdentityHtml(sub, set) {
         student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
         class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
         class_subject_id: `${student.class_name}_${student.room_number}_${subjectName}`,
-        k_percent: 0, p_percent: 0, a_percent: 0, c_percent: 0,
+        k_percent: 0, s_percent: 0, a_percent: 0, c_percent: 0,
       };
       window._virtualRegs[id] = v;
       return v;
@@ -31892,7 +31943,7 @@ function _examResultIdentityHtml(sub, set) {
           student_name: `${student.prefix||''}${student.first_name||''} ${student.last_name||''}`,
           class_name: student.class_name, room_number: String(student.room_number), subject_name: subjectName,
           class_subject_id: cs?.class_subject_id || `${student.class_name}_${student.room_number}_${subjectName}`,
-          k_percent: k, p_percent: p, a_percent: a, c_percent: cc,
+          k_percent: k, s_percent: p, a_percent: a, c_percent: cc,
         });
         if (!res.isOk) { showToast('ลงทะเบียนไม่สำเร็จ: ' + (res.error?.message || ''), 'error'); return; }
         // ผูกคะแนนที่เก็บรอ + โอนคะแนนจากไฟล์ที่รออยู่ (ทำในฟังก์ชันกลางที่ทุกการลงทะเบียนเรียกใช้)
@@ -32035,7 +32086,7 @@ function _examResultIdentityHtml(sub, set) {
         });
       });
       // คำนวณ "รวม" และสถานะ A ให้ตรงกับคะแนนที่บันทึกไว้แล้ว
-      ['pretest', 'k', 'p', 'a', 'c', 'm', 'f'].forEach(t => {
+      ['pretest', 'k', 's', 'a', 'c', 'm', 'f'].forEach(t => {
         const firstInput = document.getElementById(`${t}-${reg.__backendId}-1`);
         if (firstInput) validateScores(firstInput);
       });
@@ -32111,7 +32162,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!set || !reg) { showToast('ไม่พบข้อมูลชุดสอบหรือนักเรียน', 'error'); return; }
       const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
       const name = stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`.trim() : (reg.student_name || reg.student_id);
-      const round = `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}`;
+      const round = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}`;
       if (!confirm(`ให้ ${name} ได้สอบ ${round} ${isEssay ? 'อัตนัย' : 'ปรนัย'} วิชา ${set.subject_name} ด้วยหรือไม่?`)) return;
       const base = {
         registration_id: reg.__backendId, student_id: String(reg.student_id), student_name: name,
@@ -32166,7 +32217,7 @@ function _examResultIdentityHtml(sub, set) {
       wrap.id = 'indiv-exam-popup';
       wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
       wrap.style.zIndex = '60';
-      const tag = `${_scoreLetter(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
+      const tag = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
       // 📊 คะแนนเต็มของครั้งนี้ที่มีอยู่แล้ว (ไว้ให้ครูเห็นก่อนตัดสินใจ) + ชุดสอบนี้เป็นโหมดแทนการสอบนอกระบบอยู่แล้วหรือยัง
       const _setSame = set.full_score_mode === 'same';
       const _fsInfo = (typeof _getExistingRoundFullScore === 'function')
@@ -32183,7 +32234,7 @@ function _examResultIdentityHtml(sub, set) {
           <label class="flex items-start gap-2 text-xs cursor-pointer bg-amber-50 border border-amber-200 rounded p-2 mt-2">
             <input type="checkbox" id="ie-offline-replace" class="w-4 h-4 mt-0.5" ${_setSame ? 'checked disabled' : ''}>
             <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> — ไม่เพิ่มคะแนนเต็ม ใช้คะแนนเต็มเดิมที่กรอกมือไว้
-              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
+              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
           </label>
           <div class="flex gap-2 mt-2">
             <button onclick="confirmIndividualExam('${setId}','${regId}','${kind}')" id="ie-ok" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold btn-3d">${sub ? '🕐 กำหนดเวลาให้' : '➕ จัดสอบให้'}</button>
@@ -32224,7 +32275,7 @@ function _examResultIdentityHtml(sub, set) {
           // 💯 คืนคะแนนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนไปแล้ว (คะแนนส่วนอื่นในช่องคงอยู่)
           const contributed = parseFloat(existing.k_score_contributed) || 0;
           if ((existing.imported_to_grade === true || existing.imported_to_grade === 'true') && contributed > 0) {
-            const sType = ['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k';
+            const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
             const round = parseInt(set.k_round) || 1;
             const g = _findGradeRow({ __backendId: existing.registration_id, student_id: existing.student_id,
               class_name: existing.class_name || set.class_name, room_number: existing.room_number || set.room_number,
@@ -32495,7 +32546,7 @@ function _examResultIdentityHtml(sub, set) {
         const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
           && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
           && N(d.student_id) === N(reg.student_id));
-        const tag = `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
+        const tag = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
         const st = _examChipState(set, sub, isEssay);
         const kind = isEssay ? 'essay' : 'mc';
         const assign = `openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${kind}')`;
@@ -32599,20 +32650,20 @@ function _examResultIdentityHtml(sub, set) {
         const scores = gradeRecord || {
           pretest_scores: '',
           k_scores: '',
-          p_scores: '',
+          s_scores: '',
           a_scores: '',
           c_scores: '',
           m_scores: '',
           f_scores: ''
         };
         const kFullScore = scoresData?.k_full_score || 0;
-        const pFullScore = scoresData?.p_full_score || 0;
+        const pFullScore = scoresData?.s_full_score || 0;
         const aFullScore = scoresData?.a_full_score || 0;
         const cFullScore = scoresData?.c_full_score || 0;
         const mFullScore = scoresData?.m_full_score || 0;
         const fFullScore = scoresData?.f_full_score || 0;
         const kFullScoresArr = parseFullScoresArray(scoresData?.k_full_scores, 10);
-        const pFullScoresArr = parseFullScoresArray(scoresData?.p_full_scores, 3);
+        const pFullScoresArr = parseFullScoresArray(scoresData?.s_full_scores, 3);
         const aFullScoresArr = parseFullScoresArray(scoresData?.a_full_scores, 3);
         const cFullScoresArr = parseFullScoresArray(scoresData?.c_full_scores, 3);
         const mFullScoresArr = parseFullScoresArray(scoresData?.m_full_scores, 2);
@@ -32644,7 +32695,7 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'p')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'p')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="p-${reg.__backendId}">
-                  ${generateScoreInputs('p', reg.__backendId, scores.p_scores, 3, pFullScoresArr)}
+                  ${generateScoreInputs('s', reg.__backendId, scores.s_scores, 3, pFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="p-total-${reg.__backendId}">รวม: 0/${pFullScore}</p>
                 <p class="text-xs font-semibold text-red-600 hidden" id="p-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
@@ -32801,7 +32852,7 @@ function _examResultIdentityHtml(sub, set) {
       const sc = _findScoresConfig(reg);
       const wt = (sum, full, weight) => (!full || full <= 0) ? 0 : (sum / full) * (weight || 0);
       const k = roundGradeValue(wt(_liveCategorySum(regId, reg, 'k', 10), sc?.k_full_score, reg.k_percent));
-      const p = roundGradeValue(wt(_liveCategorySum(regId, reg, 'p', 3), sc?.p_full_score, reg.p_percent));
+      const p = roundGradeValue(wt(_liveCategorySum(regId, reg, 'p', 3), sc?.s_full_score, reg.s_percent));
       const a = roundGradeValue(wt(_liveCategorySum(regId, reg, 'a', 3), sc?.a_full_score, reg.a_percent));
       const c = roundGradeValue(wt(_liveCategorySum(regId, reg, 'c', 3), sc?.c_full_score, reg.c_percent));
       const m = roundGradeValue(wt(_liveCategorySum(regId, reg, 'm', 2), sc?.m_full_score, cs?.mid_percent));
@@ -32888,7 +32939,7 @@ function _examResultIdentityHtml(sub, set) {
       };
       const pretest_scores = getScores('pretest', 10);
       const k_scores = getScores('k', 10);
-      const p_scores = getScores('p', 3);
+      const s_scores = getScores('p', 3);
       const a_scores = getScores('a', 3);
       const c_scores = getScores('c', 3);
       const m_scores = getScores('m', 2);
@@ -32901,7 +32952,7 @@ function _examResultIdentityHtml(sub, set) {
             ..._gradeLinkPatch(existing, reg),   // 🩹 เติมรหัสลงทะเบียนและปี/ภาคให้แถวเก่าที่ยังขาด
             pretest_scores,
             k_scores,
-            p_scores,
+            s_scores,
             a_scores,
             c_scores,
             m_scores,
@@ -32920,7 +32971,7 @@ function _examResultIdentityHtml(sub, set) {
             semester: String(reg.semester ?? ''),
             pretest_scores,
             k_scores,
-            p_scores,
+            s_scores,
             a_scores,
             c_scores,
             m_scores,
@@ -32965,7 +33016,7 @@ function _examResultIdentityHtml(sub, set) {
     }
     function confirmClearScores(regId) {
       // ลบค่าจากทุกช่อง
-      for (const type of ['pretest', 'k', 'p', 'a', 'c', 'm', 'f']) {
+      for (const type of ['pretest', 'k', 's', 'a', 'c', 'm', 'f']) {
         const times = type === 'pretest' || type === 'k' ? 10 : type === 'm' || type === 'f' ? 2 : 3;
         for (let i = 1; i <= times; i++) {
           const input = document.getElementById(`${type}-${regId}-${i}`);
@@ -32974,7 +33025,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       
       // อัปเดตการรวมอัตโนมัติสำหรับทุก type
-      for (const type of ['pretest', 'k', 'p', 'a', 'c', 'm', 'f']) {
+      for (const type of ['pretest', 'k', 's', 'a', 'c', 'm', 'f']) {
         const times = type === 'pretest' || type === 'k' ? 10 : type === 'm' || type === 'f' ? 2 : 3;
         let total = 0;
         for (let i = 1; i <= times; i++) {
@@ -34074,7 +34125,7 @@ function _examResultIdentityHtml(sub, set) {
           && d.class_name === reg.class_name && String(d.room_number) === String(reg.room_number));
         const req = allData.find(d => d.type === 'kpac_request' && d.status === 'pending'
           && String(d.student_id) === String(student.student_id) && d.subject_name === reg.subject_name);
-        const k = parseFloat(req?.k_percent) || 0, p = parseFloat(req?.p_percent) || 0;
+        const k = parseFloat(req?.k_percent) || 0, p = parseFloat(req?.s_percent) || 0;
         const a = parseFloat(req?.a_percent) || 0, cc = parseFloat(req?.c_percent) || 0;
         const m = parseFloat(cs?.mid_percent) || 0, f = parseFloat(cs?.final_percent) || 0;
         const total = k + p + a + cc + m + f;
@@ -34231,19 +34282,19 @@ function _examResultIdentityHtml(sub, set) {
         const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
         const kFull = scoresConfig?.k_full_score || 0;
-        const pFull = scoresConfig?.p_full_score || 0;
+        const pFull = scoresConfig?.s_full_score || 0;
         const aFull = scoresConfig?.a_full_score || 0;
         const cFull = scoresConfig?.c_full_score || 0;
         const mFull = scoresConfig?.m_full_score || 0;
         const fFull = scoresConfig?.f_full_score || 0;
         const kFullScoresArr = parseFullScoresArray(scoresConfig?.k_full_scores, 10);
-        const pFullScoresArr = parseFullScoresArray(scoresConfig?.p_full_scores, 3);
+        const pFullScoresArr = parseFullScoresArray(scoresConfig?.s_full_scores, 3);
         const aFullScoresArr = parseFullScoresArray(scoresConfig?.a_full_scores, 3);
         const cFullScoresArr = parseFullScoresArray(scoresConfig?.c_full_scores, 3);
         const mFullScoresArr = parseFullScoresArray(scoresConfig?.m_full_scores, 2);
         const fFullScoresArr = parseFullScoresArray(scoresConfig?.f_full_scores, 2);
         const kSum = sumScores(grade?.k_scores);
-        const pSum = sumScores(grade?.p_scores);
+        const pSum = sumScores(grade?.s_scores);
         const aSum = sumScores(grade?.a_scores);
         const cSum = sumScores(grade?.c_scores);
         const mSum = sumScores(grade?.m_scores);
@@ -34284,7 +34335,7 @@ function _examResultIdentityHtml(sub, set) {
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง)</p>
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFull}</p>
-                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('p', reg.__backendId, grade?.p_scores, 3, pFullScoresArr)}</div>
+                <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('s', reg.__backendId, grade?.s_scores, 3, pFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${pSum.toFixed(1)}/${pFull}</p>
                 ${_examBtnRow(reg, 'p')}
               </div>
@@ -35032,7 +35083,7 @@ function _examResultIdentityHtml(sub, set) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
         const classSubject = allData.find(c => c.type === 'class_subject' && c.class_name === reg.class_name && c.room_number === reg.room_number && c.subject_name === reg.subject_name);
-        const kMax = reg.k_percent || 0, pMax = reg.p_percent || 0, aMax = reg.a_percent || 0, cMax = reg.c_percent || 0;
+        const kMax = reg.k_percent || 0, pMax = reg.s_percent || 0, aMax = reg.a_percent || 0, cMax = reg.c_percent || 0;
         const kpacMax = kMax + pMax + aMax + cMax;
         const mMax = classSubject?.mid_percent || 0, fMax = classSubject?.final_percent || 0;
         const mfMax = mMax + fMax;
@@ -35984,7 +36035,7 @@ function _examResultIdentityHtml(sub, set) {
         subject_name: subjectName,
         class_subject_id: `${studentClassName}_${studentRoomNumber}_${subjectName}`,
         k_percent: k,
-        p_percent: p,
+        s_percent: p,
         a_percent: a,
         c_percent: c,
         created_at: new Date().toISOString()
@@ -36027,7 +36078,7 @@ function _examResultIdentityHtml(sub, set) {
             <p class="font-semibold text-gray-800">📚 ${reg.class_name}/${reg.room_number} | 📖 ${reg.subject_name}</p>
             <div class="text-sm text-gray-600 mt-2">
               <p>📝 K: ${reg.k_percent.toFixed(1)}%</p>
-              <p>🎯 P: ${reg.p_percent.toFixed(1)}%</p>
+              <p>🎯 P: ${reg.s_percent.toFixed(1)}%</p>
               <p>⭐ A: ${reg.a_percent.toFixed(1)}%</p>
               <p>💪 C: ${reg.c_percent.toFixed(1)}%</p>
             </div>
@@ -36066,7 +36117,7 @@ function _examResultIdentityHtml(sub, set) {
               <p class="font-semibold text-gray-800">📚 ${reg.class_name}/${reg.room_number} | 📖 ${reg.subject_name}</p>
               <div class="text-sm text-gray-600 mt-2">
                 <p>📝 K: ${reg.k_percent.toFixed(1)}%</p>
-                <p>🎯 P: ${reg.p_percent.toFixed(1)}%</p>
+                <p>🎯 P: ${reg.s_percent.toFixed(1)}%</p>
                 <p>⭐ A: ${reg.a_percent.toFixed(1)}%</p>
                 <p>💪 C: ${reg.c_percent.toFixed(1)}%</p>
               </div>
@@ -36134,7 +36185,7 @@ function _examResultIdentityHtml(sub, set) {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">🎯 S (%)</label>
-              <input type="number" id="student-edit-p" min="0" max="100" step="0.1" value="${reg.p_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="studentRecalculateEdit(${kpacLimit})">
+              <input type="number" id="student-edit-p" min="0" max="100" step="0.1" value="${reg.s_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="studentRecalculateEdit(${kpacLimit})">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">⭐ A (%)</label>
@@ -36145,7 +36196,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="student-edit-c" min="0" max="100" step="0.1" value="${reg.c_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="studentRecalculateEdit(${kpacLimit})">
             </div>
             <div class="pt-2 border-t-2">
-              <p class="text-sm font-semibold text-gray-700">รวม: <span class="text-blue-600" id="student-edit-total">${(reg.k_percent + reg.p_percent + reg.a_percent + reg.c_percent).toFixed(1)}</span>% (ต้อง ≤ ${kpacLimit}%)</p>
+              <p class="text-sm font-semibold text-gray-700">รวม: <span class="text-blue-600" id="student-edit-total">${(reg.k_percent + reg.s_percent + reg.a_percent + reg.c_percent).toFixed(1)}</span>% (ต้อง ≤ ${kpacLimit}%)</p>
               <p id="student-edit-warning" class="text-sm text-red-600 font-semibold hidden mt-2">❌ เกินขีดจำกัด!</p>
             </div>
           </div>
@@ -36186,7 +36237,7 @@ function _examResultIdentityHtml(sub, set) {
       const result = await window.dataSdk.update({
         ...reg,
         k_percent: k,
-        p_percent: p,
+        s_percent: p,
         a_percent: a,
         c_percent: c
       });
@@ -36214,7 +36265,7 @@ function _examResultIdentityHtml(sub, set) {
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
           <p class="text-lg font-semibold text-gray-800 mb-2">ลบรายการลงทะเบียน "${reg.class_name}/${reg.room_number} - ${reg.subject_name}" ใช่หรือไม่?</p>
-          <p class="text-sm text-red-600 mb-4">⚠️ สัดส่วน KSAC ที่กำหนดไว้ (K ${reg.k_percent ?? 0}% · S ${reg.p_percent ?? 0}% · A ${reg.a_percent ?? 0}% · C ${reg.c_percent ?? 0}%) จะหายไปและกู้คืนเองไม่ได้ ต้องลงทะเบียนใหม่ทั้งหมด</p>
+          <p class="text-sm text-red-600 mb-4">⚠️ สัดส่วน KSAC ที่กำหนดไว้ (K ${reg.k_percent ?? 0}% · S ${reg.s_percent ?? 0}% · A ${reg.a_percent ?? 0}% · C ${reg.c_percent ?? 0}%) จะหายไปและกู้คืนเองไม่ได้ ต้องลงทะเบียนใหม่ทั้งหมด</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="studentConfirmDeleteRegistration('${regId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -36267,7 +36318,7 @@ function _examResultIdentityHtml(sub, set) {
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">🎯 S (%)</label>
-              <input type="number" id="edit-p" min="0" max="100" step="0.1" value="${reg.p_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="recalculateEdit(${kpacLimit})">
+              <input type="number" id="edit-p" min="0" max="100" step="0.1" value="${reg.s_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="recalculateEdit(${kpacLimit})">
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">⭐ A (%)</label>
@@ -36278,7 +36329,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="edit-c" min="0" max="100" step="0.1" value="${reg.c_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="recalculateEdit(${kpacLimit})">
             </div>
             <div class="pt-2 border-t-2">
-              <p class="text-sm font-semibold text-gray-700">รวม: <span class="text-blue-600" id="edit-total">${(reg.k_percent + reg.p_percent + reg.a_percent + reg.c_percent).toFixed(1)}</span>% (ต้อง ≤ ${kpacLimit}%)</p>
+              <p class="text-sm font-semibold text-gray-700">รวม: <span class="text-blue-600" id="edit-total">${(reg.k_percent + reg.s_percent + reg.a_percent + reg.c_percent).toFixed(1)}</span>% (ต้อง ≤ ${kpacLimit}%)</p>
               <p id="edit-warning" class="text-sm text-red-600 font-semibold hidden mt-2">❌ เกินขีดจำกัด!</p>
             </div>
           </div>
@@ -36318,7 +36369,7 @@ function _examResultIdentityHtml(sub, set) {
       const result = await window.dataSdk.update({
         ...reg,
         k_percent: k,
-        p_percent: p,
+        s_percent: p,
         a_percent: a,
         c_percent: c
       });
@@ -36384,7 +36435,7 @@ function _examResultIdentityHtml(sub, set) {
       const result = await window.dataSdk.update({
         ...reg,
         k_percent: k,
-        p_percent: p,
+        s_percent: p,
         a_percent: a,
         c_percent: c
       });
@@ -37069,7 +37120,7 @@ function _examResultIdentityHtml(sub, set) {
       const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
       const name = student ? `${student.prefix||''}${student.first_name||''} ${student.last_name||''}` : reg.student_id;
       const classSubject = allData.find(c => c.type === 'class_subject' && c.class_name===reg.class_name && c.room_number===reg.room_number && c.subject_name===reg.subject_name);
-      const kMax = reg.k_percent||0, pMax = reg.p_percent||0, aMax = reg.a_percent||0, cMax = reg.c_percent||0;
+      const kMax = reg.k_percent||0, pMax = reg.s_percent||0, aMax = reg.a_percent||0, cMax = reg.c_percent||0;
       const kpacMax = kMax+pMax+aMax+cMax;
       const mMax = classSubject?.mid_percent||0, fMax = classSubject?.final_percent||0;
       const mfMax = mMax+fMax;
@@ -38199,7 +38250,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!s) { skipped++; continue; }
       const ex = allData.find(r => r.type === 'student_registration' && r.student_id === sid && r.subject_name === sn);
       if (ex) { skipped++; continue; }
-      const res = await window.dataSdk.create({ type: 'student_registration', student_id: sid, student_name: `${s.prefix}${s.first_name} ${s.last_name}`, class_name: s.class_name, room_number: s.room_number, subject_name: sn, class_subject_id: `${s.class_name}_${s.room_number}_${sn}`, k_percent: k, p_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString() });
+      const res = await window.dataSdk.create({ type: 'student_registration', student_id: sid, student_name: `${s.prefix}${s.first_name} ${s.last_name}`, class_name: s.class_name, room_number: s.room_number, subject_name: sn, class_subject_id: `${s.class_name}_${s.room_number}_${sn}`, k_percent: k, s_percent: p, a_percent: a, c_percent: c, created_at: new Date().toISOString() });
       if (res.isOk) { enrolled++; await applyPendingScoresOnRegistration(sid, sn); }
     }
     showToast(`✅ ลงทะเบียนวิชา ${sn} ให้ ${enrolled} คน${skipped > 0 ? ` (ข้าม ${skipped} คน)` : ''}`);
