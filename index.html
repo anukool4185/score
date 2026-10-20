@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.262';
+    const APP_VERSION = 'SUPABASE-2026.10.20.263';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5091,7 +5091,23 @@ const supabaseDataSdk = {
           if (arr) this._rawByTable[d.table_name] = arr.filter(x => String(x.__backendId) !== String(d.row_id));
         });
         if (dels.length) changed += dels.length;
-      } catch (e) { /* ยังไม่ได้สร้างตารางบันทึกการลบ — รอบเต็มทุก 2 นาทีจะจัดการให้ */ }
+      } catch (e) {
+        // 🚨 ไม่มีตารางบันทึกการลบ = "ลบแล้วกลับมา" บนเครื่องอื่น และกลับมาหลังรีเฟรช
+        //    เพราะการซิงก์เฉพาะที่เปลี่ยนไม่มีทางรู้ว่าแถวไหนถูกลบไปแล้ว
+        //    เดิมกลืนเงียบ ครูจึงไม่มีทางรู้ว่าต้องไปทำอะไร
+        //    (รอบดึงข้อมูลเต็มทุก 2 นาทีช่วยเก็บตกได้ แต่ระหว่างนั้นของที่ลบจะยังค้างอยู่)
+        if (!window.__warnedNoDeleteLog) {
+          window.__warnedNoDeleteLog = true;
+          console.warn('[SDK] ยังไม่มีตาราง deleted_rows — ของที่ลบจากเครื่องอื่นจะค้างจนถึงรอบดึงข้อมูลเต็ม');
+          try {
+            if (typeof showToast === 'function' && typeof currentUser !== 'undefined' && currentUser
+                && ['admin', 'subadmin'].includes(currentUser.user_type)) {
+              showToast('⚠️ ฐานข้อมูลยังไม่มีตารางบันทึกการลบ — ของที่ลบอาจค้างบนเครื่องอื่นสักพัก'
+                + ' แก้โดยรันไฟล์ add_delete_audit.sql ใน Supabase หนึ่งครั้ง', 'error');
+            }
+          } catch (_) {}
+        }
+      }
       flat = Object.values(this._rawByTable).flat();
       if (changed) console.log(`[SDK] ซิงก์เฉพาะที่เปลี่ยน ${changed} แถว (${Date.now() - t0} ms)`);
     }
@@ -5335,7 +5351,14 @@ const supabaseDataSdk = {
       // ถ้าได้อาร์เรย์ว่างแต่แถวยังอยู่ = ไม่มีสิทธิ์แก้ (RLS) ซึ่ง Supabase ตอบเงียบๆ เหมือนสำเร็จ
       // เดิมระบบเชื่อว่าสำเร็จ จึงแสดงผลให้เห็นว่าแก้แล้ว แต่พอรีเฟรชข้อมูลก็กลับมาเป็นค่าเดิม
       if (Array.isArray(_upd) && _upd.length === 0) {
-        const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
+        // ⚠️ ถ้าตรวจซ้ำไม่ได้ (เน็ตหลุด / ถูกปฏิเสธ) ห้ามถือว่าสำเร็จ
+        //    เดิม .catch(() => []) ทำให้ "ตรวจไม่ได้" ถูกนับเป็น "สำเร็จ" → แจ้งว่าทำแล้วแต่ของไม่เปลี่ยน
+        let still;
+        try { still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`); }
+        catch (e) {
+          return { isOk: false, error: { message: 'สั่งแก้ไขแล้ว แต่ตรวจยืนยันกับฐานข้อมูลไม่ได้ (' + e.message + ') '
+            + 'กรุณารีเฟรชหน้าแล้วดูว่าเปลี่ยนจริงหรือยัง ก่อนทำซ้ำ' } };
+        }
         if (Array.isArray(still) && still.length > 0) {
           return { isOk: false, error: { message: _sbPolicyMsg('แก้ไข', table) } };
         }
@@ -5372,7 +5395,14 @@ const supabaseDataSdk = {
       // ถ้าได้อาร์เรย์ว่าง อาจเป็นเพราะไม่มีสิทธิ์ลบ (RLS) ซึ่ง Supabase ตอบ 204 เงียบๆ เหมือนสำเร็จ
       // เดิมระบบเชื่อว่าสำเร็จ จึงลบออกจากหน้าจอให้ แต่พอรีเฟรชข้อมูลก็กลับมาเหมือนไม่ได้ลบ
       if (Array.isArray(_del) && _del.length === 0) {
-        const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
+        // ⚠️ ถ้าตรวจซ้ำไม่ได้ (เน็ตหลุด / ถูกปฏิเสธ) ห้ามถือว่าสำเร็จ
+        //    เดิม .catch(() => []) ทำให้ "ตรวจไม่ได้" ถูกนับเป็น "สำเร็จ" → แจ้งว่าทำแล้วแต่ของไม่เปลี่ยน
+        let still;
+        try { still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`); }
+        catch (e) {
+          return { isOk: false, error: { message: 'สั่งลบแล้ว แต่ตรวจยืนยันกับฐานข้อมูลไม่ได้ (' + e.message + ') '
+            + 'กรุณารีเฟรชหน้าแล้วดูว่าเปลี่ยนจริงหรือยัง ก่อนทำซ้ำ' } };
+        }
         if (Array.isArray(still) && still.length > 0) {
           return { isOk: false, error: { message: _sbPolicyMsg('ลบ', table) } };
         }
@@ -5709,6 +5739,22 @@ const supabaseDataSdk = {
             loadMFFilters();
             updateMFDisplayList();
           }
+          // 📢 ประกาศ — เดิมไม่มีในรายการนี้เลย จึงอัปเดตเฉพาะตอนกดเพิ่ม/แก้/ลบในเครื่องตัวเอง
+          //    🪤 ผลคือ ลบประกาศแล้วรายการไม่หายทันที และป้ายวิ่งยังโชว์ประกาศที่ลบไปแล้ว
+          //       (ลบจากเครื่องอื่นยิ่งไม่หายเลยจนออกจากหน้าแล้วเข้าใหม่)
+          //    🔎 ไล่จากช่องที่มีอยู่จริงบนหน้าจอ ไม่ไล่จากรายชื่อ target ที่เขียนไว้ตายตัว
+          //       (ประกาศมีหลายปลายทาง: website · student · notification · และอาจเพิ่มได้อีก)
+          try {
+            document.querySelectorAll('[id^="announcement-list-"]').forEach(el => {
+              const _t = el.id.replace('announcement-list-', '');
+              if (_t) updateAnnouncementList(_t);
+            });
+            if (typeof renderLandingAnnouncements === 'function'
+                && (document.getElementById('landing-announcements') || document.getElementById('m-landing-announcements'))) {
+              renderLandingAnnouncements();
+            }
+            if (typeof renderNotificationMarquee === 'function') renderNotificationMarquee();
+          } catch (e) { console.log('[ประกาศ] รีเฟรชไม่สำเร็จ:', e.message); }
           if (document.getElementById('eval-results-summary')) {
             updateEvalResultsSummary();
           }
@@ -7014,7 +7060,12 @@ const supabaseDataSdk = {
     function _termCounts(key) {
       const raw = window.__allRaw || allData;
       const n = t => raw.filter(d => d.type === t && _termKey(d) === key).length;
-      return { subjects: n('class_subject'), students: n('student'), regs: n('student_registration') };
+      // 👤 นับคนแบบ "ไม่ซ้ำรหัสนักเรียน" — ถ้านำเข้ารายชื่อซ้ำ ยอดคนจะไม่พุ่งขึ้น
+      //    (ฟิลด์ students_rows เก็บจำนวนแถวไว้ด้วย เผื่อต้องรู้ว่ามีแถวซ้ำกี่แถว)
+      const ids = new Set();
+      raw.forEach(d => { if (d.type === 'student' && _termKey(d) === key) ids.add(_rN(d.student_id)); });
+      return { subjects: n('class_subject'), students: ids.size,
+               students_rows: n('student'), regs: n('student_registration') };
     }
     async function createAcademicTerm(year, sem) {
       year = String(year ?? document.getElementById('newterm-year')?.value ?? '').trim();
@@ -7428,10 +7479,25 @@ const supabaseDataSdk = {
       if (t.year || t.semester) set.add(t.year + '|' + t.semester);
       return [...set].sort().reverse();
     }
-    /** จำนวนแถวข้อมูลของปี/ภาคนั้น (ใช้บอกว่าเทอมไหนยังว่างอยู่) */
-    function _termRowCount(key) {
-      return (window.__allRaw || allData).filter(d => (d.type === 'student' || d.type === 'student_registration')
-        && _termKey(d) === key).length;
+    /** จำนวนข้อมูลของปี/ภาคนั้น — แยกเป็น "คน" กับ "รายวิชาที่ลงทะเบียน"
+     *
+     *  🪤 บั๊กที่พบ: เดิมคืนค่าเดียวคือ "จำนวนแถว" โดยเอานักเรียนกับการลงทะเบียน
+     *     มาบวกกัน แล้วเอาไปแสดงต่อท้ายชื่อเทอมเฉย ๆ เช่น "2569/1 (330)"
+     *     ครูอ่านว่ามีนักเรียน 330 คน ทั้งที่ความจริงคือ
+     *       นักเรียน 60 คน + การลงทะเบียนเรียน 270 รายการ = 330 แถว
+     *     ตัวเลขนี้ตั้งใจใช้แค่บอกว่า "เทอมนี้ยังว่างอยู่ไหม" แต่ไม่มีหน่วยกำกับ
+     *
+     *  ✅ จึงแยกนับและติดหน่วยให้ชัด และนับคนแบบ "ไม่ซ้ำรหัสนักเรียน"
+     *     (ถ้านำเข้ารายชื่อซ้ำ จะไม่ทำให้ยอดคนพุ่งขึ้นอีก) */
+    /** ข้อความสั้นต่อท้ายชื่อเทอมในดรอปดาวน์ — มีหน่วยกำกับทุกตัวเลข */
+    function _termCountLabel(key) {
+      const c = _termCounts(key);
+      if (!c.students && !c.regs && !c.subjects) return '';
+      const parts = [];
+      if (c.students) parts.push(c.students + ' คน');
+      if (c.subjects) parts.push(c.subjects + ' รายวิชา');
+      if (c.regs) parts.push(c.regs + ' ลงทะเบียน');
+      return ' (' + parts.join(' · ') + ')';
     }
     /** 📅 ดรอปดาวน์เลือกดูข้อมูลบนหัวเว็บ — เปลี่ยนการดูทั้งระบบ */
     function renderTermViewSelect() {
@@ -7451,13 +7517,11 @@ const supabaseDataSdk = {
         _reapplyTermScope();
       }
       const keep = termView();
-      const blanks = (window.__allRaw || allData).filter(d => (d.type === 'student' || d.type === 'student_registration') && _termKey(d) === '|').length;
       vEl.innerHTML = '<option value="" class="text-gray-800">ทุกปี/ภาค</option>'
-        + `<option value="__blank" class="text-gray-800">ยังไม่ระบุปี/ภาค${blanks ? ` (${blanks})` : ''}</option>`
+        + `<option value="__blank" class="text-gray-800">ยังไม่ระบุปี/ภาค${escHtml(_termCountLabel('|'))}</option>`
         + allTermKeys().map(k => { const [y, sm] = k.split('|');
-            const n = _termRowCount(k);
             return `<option value="${escHtml(k)}" class="text-gray-800">${k === activeKey ? '⭐ ' : ''}${escHtml(termLabel(y, sm))}`
-                 + `${n ? ` (${n})` : ''}</option>`; }).join('');
+                 + `${escHtml(_termCountLabel(k))}</option>`; }).join('');
       vEl.value = Array.prototype.some.call(vEl.options, o => o.value === keep) ? keep : '';
       if (vEl.value !== keep) { try { localStorage.setItem(TERM_VIEW_KEY, vEl.value); } catch (e) {} }
       vEl.title = (!t.year && !t.semester)
