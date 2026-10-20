@@ -2304,10 +2304,10 @@
          </div>
         </div>
        </div>
-      </div><!-- 🗃️ จัดเก็บคะแนน (A ย่อย / P ย่อย) -->
+      </div><!-- 🗃️ จัดเก็บคะแนน (A ย่อย / S ย่อย) -->
       <div id="admin-tab-collectscore" class="hidden">
        <div class="bg-white rounded-2xl card-shadow p-6 mb-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-1">🗃️ จัดเก็บคะแนน (A ย่อย / P ย่อย)</h3>
+        <h3 class="text-xl font-bold text-gray-800 mb-1">🗃️ จัดเก็บคะแนน (A ย่อย / S ย่อย)</h3>
         <p id="cs-term-note" class="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mb-3"></p>
         <div class="grid md:grid-cols-3 gap-4 mb-4">
          <select id="cs-filter-class" onchange="csOnClassChange()" class="px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none"><option value="">-- เลือกชั้นเรียน --</option></select>
@@ -3041,7 +3041,7 @@
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
            <h4 class="text-lg font-bold text-gray-800">⚠️ ลงทะเบียนแล้ว แต่ KSAC ไม่ครบ <span id="badkpac-count" class="text-sm font-semibold text-red-600"></span></h4>
-           <p class="text-xs text-gray-500 mt-0.5">กรอกไม่ครบทั้ง 4 ช่อง (K/P/A/C) หรือรวมไม่เท่ากับที่วิชานั้นกำหนดไว้ (100 − M% − F%)</p>
+           <p class="text-xs text-gray-500 mt-0.5">กรอกไม่ครบทั้ง 4 ช่อง (K/S/A/C) หรือรวมไม่เท่ากับที่วิชานั้นกำหนดไว้ (100 − M% − F%)</p>
           </div>
           <button onclick="exportBadKpacExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
          </div>
@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.252';
+    const APP_VERSION = 'SUPABASE-2026.10.20.253';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -7834,7 +7834,7 @@ const supabaseDataSdk = {
                 }
                 const byWho = isKpac ? 'นักเรียนขอเอง' : (req.requested_by_subadmin || 'ไม่ระบุ');
                 const kpacInfo = isKpac
-                  ? `<p class="text-xs text-purple-600">K${req.k_percent||0} P${req.p_percent||0} A${req.a_percent||0} C${req.c_percent||0}</p>`
+                  ? `<p class="text-xs text-purple-600">K${req.k_percent||0} S${req.p_percent||0} A${req.a_percent||0} C${req.c_percent||0}</p>`
                   : '';
                 return `
                 <div class="px-3 py-2 border-b border-gray-100 text-sm">
@@ -18213,6 +18213,59 @@ const supabaseDataSdk = {
     }
 
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
+    /* ══════════════════════════════════════════════════════════════════════════
+       🔗 แผนที่ความสัมพันธ์ของช่องคะแนน S (เดิม P) — อ่านตรงนี้ก่อนแก้อะไรที่เกี่ยวกับ S
+       ──────────────────────────────────────────────────────────────────────────
+       ปี 2569 หลักสูตรเปลี่ยน ตัว P (ทักษะ/กระบวนการ) เปลี่ยนชื่อเรียกเป็น S (ทักษะและกระบวนการ)
+       และชื่อระบบเปลี่ยนจาก KPAC เป็น KSAC
+
+       ⚠️ กฎข้อเดียวที่ต้องจำ: เปลี่ยน "เฉพาะตัวอักษรที่ผู้ใช้เห็น" เท่านั้น
+          ชื่อในฐานข้อมูลและตัวอักษรที่ใช้ภายในโค้ดยังเป็น p เหมือนเดิมทั้งหมด
+          ข้อมูลเก่าจึงใช้ได้ต่อโดยไม่ต้องย้าย และไม่ต้องรัน SQL ใด ๆ
+
+       ── ที่เก็บข้อมูลจริง (ห้ามเปลี่ยนชื่อ) ───────────────────────────────────
+       grades.p_scores              คะแนนที่นักเรียนได้ เก็บเป็นข้อความคั่นจุลภาค เช่น "7,8,9" (สูงสุด 3 ครั้ง)
+       subject_full_scores.p_full_scores   คะแนนเต็ม "รายครั้ง" คั่นจุลภาค
+       subject_full_scores.p_full_score    คะแนนเต็ม "ยอดรวม" = ตัวหารในสูตร
+                                    ⚠️ สองช่องนี้ต้องขยับพร้อมกันเสมอ เคยมีบั๊กที่อัปเดตแค่ตัวพหูพจน์
+                                       แล้วเกรดเพี้ยน ดูตัวเขียนที่ singularField ในหน้าอัปโหลดคะแนน
+       registrations.p_percent      น้ำหนักร้อยละของช่องนี้ (นักเรียนกำหนดเองตอนลงทะเบียน)
+       exam_sets.score_type = 'p'          ชุดสอบปรนัยที่ให้คะแนนลงช่องนี้
+       essay_exam_sets.score_type = 'p'    ชุดสอบอัตนัยที่ให้คะแนนลงช่องนี้
+
+       ── สูตรคิดคะแนน (เหมือนเดิมทุกประการ ไม่ได้แก้ตอนเปลี่ยนชื่อ) ──────────────
+       sScore   = (ผลรวมของ p_scores ÷ p_full_score) × p_percent     ← ดู weightedScore ในหน้าสัดส่วนเกรด
+       totalKPAC = kScore + sScore + aScore + cScore                 ← ชื่อตัวแปรยังเป็น totalKPAC
+       totalAll  = totalKPAC + mScore + fScore  →  scoreToGrade()
+
+       ── ทางที่คะแนนไหลเข้าช่องนี้ มี 3 ทาง ───────────────────────────────────
+       1) ครูกรอกมือ            หน้าบันทึกคะแนน generateScoreInputs('p', ...) (3 ช่อง)
+       2) ชุดสอบ               _writeExamScoreToKField() ประกอบชื่อคอลัมน์เองจากตัวอักษร:
+                               sType + '_scores' และ sType + '_full_scores'
+                               ⚠️ ถ้าวันหนึ่งเปลี่ยนชื่อคอลัมน์จริง ต้องแก้ที่นี่ด้วย
+       3) การบ้าน (S ย่อย)      _subSyncMainScores() เขียน a_scores และ p_scores พร้อมกัน
+                               ส่งไม่ตรงเวลา = ล้างคะแนน S ของครั้งนั้นทิ้ง
+
+       ── ที่ผู้ใช้เห็นตัวอักษร (เปลี่ยนเป็น S แล้วทั้งหมด) ──────────────────────
+       _scoreLetter()        ตัวแปลงกลาง p → S ทุกที่ที่แสดงตัวอักษรของชุดสอบต้องเรียกตัวนี้
+                             ห้ามใช้ t.toUpperCase() ตรง ๆ อีก เพราะจะได้ "P" ดิบกลับมา
+       ป้ายในฟอร์ม           "S (ทักษะและกระบวนการ)" · หัวตาราง "S" · ช่องกรอก "S%"
+       ไฟล์ Excel ที่ส่งออก   หัวคอลัมน์ 'S' และ 'S%'  (เป็นขาออกอย่างเดียว ไม่มีตัวอ่านไฟล์ที่มองหาหัว P)
+       หน้า "ยังไม่ลงทะเบียน"  ป้าย raw = { K, S, A, C } ถูกเอาไปต่อเป็นข้อความ "ยังไม่ได้กรอก K/S"
+       การบ้าน               "S ย่อย" และ "S หลัก"
+       เกียรติบัตร            เลขที่ใบใหม่ขึ้นต้น KSAC- · ตัวอ่านรับทั้ง KPAC- (ใบเก่า) และ KSAC-
+
+       ── ที่ห้ามแตะเด็ดขาด ────────────────────────────────────────────────────
+       ชื่อคอลัมน์ทุกตัวข้างบน · ตัวอักษร 'p' ใน ['pretest','k','p','a','c','m','f']
+       ค่า value="p" ในดรอปดาวน์ · ชื่อตัวแปร totalKPAC และพวก updateBulkKPACDisplay
+       คีย์ในเครื่องผู้ใช้ kpac_sb_cache / kpac_cheat_purge / kpac_last_backup
+       ฟังก์ชันในฐานข้อมูล kpac_touch_updated_at / kpac_select_deleted_rows
+       กุญแจลับสำรอง 'kpac' ใน _certCode()  ← ถ้าแตะ ใบเกียรติบัตรที่พิมพ์ไปแล้วตรวจไม่ผ่านทั้งหมด
+
+       🧪 มีตัวตรวจอัตโนมัติคุมทุกข้อข้างบนอยู่ที่ sim_ps_link.js
+          ถ้าแก้อะไรแล้วความสัมพันธ์ขาด ตัวตรวจจะฟ้องก่อนส่งไฟล์
+       ══════════════════════════════════════════════════════════════════════════ */
+
     /** 🔤 ตัวอักษรของช่องคะแนนที่ใช้ "แสดงให้ผู้ใช้เห็น"
      *  ⚠️ ชื่อคอลัมน์ในฐานข้อมูลยังเป็น p_scores / p_full_score เหมือนเดิมทั้งหมด
      *     เปลี่ยนเฉพาะตัวอักษรบนหน้าจอ P → S ตามหลักสูตรใหม่ ข้อมูลเก่าจึงใช้ได้ต่อโดยไม่ต้องย้าย */
@@ -18961,7 +19014,7 @@ const supabaseDataSdk = {
     // 🔧 ซ่อมข้อมูลเก่า: คำนวณคะแนนเต็มเอกพจน์ (ใช้ในสูตรเกรดจริง) ใหม่ให้เท่ากับผลรวมคะแนนเต็มพหูพจน์ (แต่ละรอบ) ของทุกวิชา
     // ใช้ครั้งเดียวได้ปลอดภัย (คำนวณจากค่าปัจจุบันเสมอ ไม่มีการบวกสะสม จึงกดซ้ำได้ไม่มีปัญหา)
     async function repairSingularFullScoreSync(silent) {
-      if (!silent && !confirm('ยืนยันซ่อมคะแนนเต็มให้สัมพันธ์กันทั้งหมด?\n\nระบบจะคำนวณ "คะแนนดิบรวม" ใหม่ให้ตรงกับผลรวมของคะแนนเต็มแต่ละรอบ (K/P/A/C/M/F) ของทุกวิชาในระบบ ปลอดภัย กดซ้ำได้')) return;
+      if (!silent && !confirm('ยืนยันซ่อมคะแนนเต็มให้สัมพันธ์กันทั้งหมด?\n\nระบบจะคำนวณ "คะแนนดิบรวม" ใหม่ให้ตรงกับผลรวมของคะแนนเต็มแต่ละรอบ (K/S/A/C/M/F) ของทุกวิชาในระบบ ปลอดภัย กดซ้ำได้')) return;
       const allScoreConfigs = allData.filter(d => d.type === 'class_subject_scores');
       if (allScoreConfigs.length === 0) { if (!silent) showToast('ไม่มีข้อมูลคะแนนเต็มในระบบให้ซ่อม'); return; }
       if (!silent) showToast(`🔧 กำลังซ่อม ${allScoreConfigs.length} วิชา กรุณารอสักครู่...`);
@@ -25487,7 +25540,7 @@ function _examResultIdentityHtml(sub, set) {
         const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
         const scoresConfig = _findScoresConfig(reg);
         const grade = _findGradeRow(reg);
-        // น้ำหนัก% ของ K/P/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
+        // น้ำหนัก% ของ K/S/A/C มาจากที่นักเรียนกำหนดตอนลงทะเบียนเอง
         const kWeight = reg.k_percent || 0;
         const pWeight = reg.p_percent || 0;
         const aWeight = reg.a_percent || 0;
@@ -27894,7 +27947,7 @@ function _examResultIdentityHtml(sub, set) {
         .forEach(reg => {
         const limit = _kpacLimitForReg(reg);
         if (limit === null) return;
-        const raw = { K: reg.k_percent, P: reg.p_percent, A: reg.a_percent, C: reg.c_percent };
+        const raw = { K: reg.k_percent, S: reg.p_percent, A: reg.a_percent, C: reg.c_percent };   // ป้ายนี้ไปโผล่ในข้อความ "ยังไม่ได้กรอก K/S"
         const blanks = [];
         let sum = 0;
         Object.keys(raw).forEach(key => {
@@ -27938,7 +27991,7 @@ function _examResultIdentityHtml(sub, set) {
          <td class="px-1 py-1 text-center whitespace-nowrap">${escHtml(String(x.reg.class_name || '-'))}/${escHtml(String(x.reg.room_number || '-'))}</td>
          <td class="px-1 py-1 leading-tight">${escHtml(String(x.reg.subject_name || ''))}</td>
          ${cell(x.k, x.blanks.includes('K'))}
-         ${cell(x.p, x.blanks.includes('P'))}
+         ${cell(x.p, x.blanks.includes('S'))}
          ${cell(x.a, x.blanks.includes('A'))}
          ${cell(x.c, x.blanks.includes('C'))}
          <td class="px-1 py-1 text-center font-bold ${Math.abs(x.sum - x.limit) > 0.001 ? 'text-red-600' : 'text-gray-700'}">${x.sum}</td>
@@ -30856,10 +30909,10 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // 🗃️ จัดเก็บคะแนน (A ย่อย / P ย่อย) + 📦 รวบรวมงาน
+    // 🗃️ จัดเก็บคะแนน (A ย่อย / S ย่อย) + 📦 รวบรวมงาน
     // ──────────────────────────────────────────────────────────────
     // แนวคิด
-    //  · "การบ้าน 1 แถว = A ย่อย/P ย่อย 1 ครั้ง" ใช้ตาราง homework ที่มีอยู่แล้ว
+    //  · "การบ้าน 1 แถว = A ย่อย/S ย่อย 1 ครั้ง" ใช้ตาราง homework ที่มีอยู่แล้ว
     //    (work_number = ครั้งที่ · num_questions = จำนวนข้อ) จึงเชื่อมสองทางกับฝั่งผู้ช่วยแอดมินโดยธรรมชาติ
     //  · สถานะส่งงานของนักเรียนเก็บใน grades.a_sub ("on"/"late"/"") และ grades.p_sub (จำนวนข้อที่ทำได้)
     //    คั่นด้วยจุลภาค เรียงตามครั้งที่
@@ -30936,7 +30989,7 @@ function _examResultIdentityHtml(sub, set) {
       Object.keys(map).forEach(k => (map[k] || []).forEach(n => used.add(Number(n))));
       return _subRounds(sc).filter(r => !used.has(r.no));
     }
-    /** คิดคะแนน A หลัก / P หลัก ของนักเรียนคนหนึ่ง จากครั้งย่อยที่ระบุ */
+    /** คิดคะแนน A หลัก / S หลัก ของนักเรียนคนหนึ่ง จากครั้งย่อยที่ระบุ */
     function _subTally(grade, rounds, lateCounts) {
       let a = 0, p = 0;
       rounds.forEach(r => {
@@ -31034,7 +31087,7 @@ function _examResultIdentityHtml(sub, set) {
                ครั้งที่ ${r.no} · ${r.questions} ข้อ
                ${_subCanEdit() ? `<button onclick="csDeleteRound(${r.no})" class="text-red-600 hover:text-red-800 font-bold" title="ลบครั้งที่ ${r.no}">✕</button>` : ''}
              </span>`).join('')
-          + `<span class="text-xs text-indigo-700 ml-auto">📥 ครั้งย่อยที่ยังไม่รวบรวม จะลง A หลัก/P หลัก ครั้งที่ <b>${_subMergeTarget(cs)}</b></span>`;
+          + `<span class="text-xs text-indigo-700 ml-auto">📥 ครั้งย่อยที่ยังไม่รวบรวม จะลง A หลัก/S หลัก ครั้งที่ <b>${_subMergeTarget(cs)}</b></span>`;
       }
       if (regs.length === 0) { _csClear(`ไม่มีนักเรียนลงทะเบียนวิชานี้ใน${typeof workingTermLabel === 'function' ? workingTermLabel() : ''}`); return; }
       document.getElementById('cs-empty-message')?.classList.add('hidden');
@@ -31211,7 +31264,7 @@ function _examResultIdentityHtml(sub, set) {
       });
       _closeAllPopups();
       if (!r.isOk) { showToast('สร้างไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
-      showToast(`✅ สร้าง A ย่อย/P ย่อย ครั้งที่ ${no} (${q} ข้อ) แล้ว — ฝั่งผู้ช่วยแอดมินมีการบ้านครั้งนี้รอเติมวัน-เวลา`);
+      showToast(`✅ สร้าง A ย่อย/S ย่อย ครั้งที่ ${no} (${q} ข้อ) แล้ว — ฝั่งผู้ช่วยแอดมินมีการบ้านครั้งนี้รอเติมวัน-เวลา`);
       csRenderAll();
     }
     async function csDeleteRound(no) {
@@ -31219,7 +31272,7 @@ function _examResultIdentityHtml(sub, set) {
       const sc = _subScope('cs');
       const r = _subRounds(sc).find(x => x.no === no);
       if (!r) return;
-      if (!confirm(`ลบ A ย่อย/P ย่อย ครั้งที่ ${no} ใช่หรือไม่?\n\nการบ้านครั้งนี้จะถูกลบไปด้วย (คะแนนย่อยที่ติ๊กไว้ของครั้งนี้จะไม่ถูกนับอีก)`)) return;
+      if (!confirm(`ลบ A ย่อย/S ย่อย ครั้งที่ ${no} ใช่หรือไม่?\n\nการบ้านครั้งนี้จะถูกลบไปด้วย (คะแนนย่อยที่ติ๊กไว้ของครั้งนี้จะไม่ถูกนับอีก)`)) return;
       const res = await window.dataSdk.delete(r.row);
       if (!res.isOk) { showToast('ลบไม่สำเร็จ: ' + (res.error?.message || ''), 'error'); return; }
       showToast(`🗑️ ลบครั้งที่ ${no} แล้ว`);
@@ -31297,7 +31350,7 @@ function _examResultIdentityHtml(sub, set) {
       const regs = _subRegs(sc);
       body.innerHTML = `
         <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-4">
-          <p class="font-semibold text-indigo-900 mb-1">📥 ครั้งย่อยที่ยังไม่รวบรวม จะลง A หลัก/P หลัก <b>ครั้งที่ ${target}</b> ให้อัตโนมัติอยู่แล้ว</p>
+          <p class="font-semibold text-indigo-900 mb-1">📥 ครั้งย่อยที่ยังไม่รวบรวม จะลง A หลัก/S หลัก <b>ครั้งที่ ${target}</b> ให้อัตโนมัติอยู่แล้ว</p>
           <p class="text-xs text-indigo-700">กด "รวบรวมงาน" เมื่อต้องการปิดครั้งที่ ${target} แล้วให้ครั้งย่อยหลังจากนี้ไปลงครั้งถัดไป · กลับมาแก้ติ๊กแล้วรวบรวมใหม่ได้ตลอด</p>
         </div>
         <label class="flex items-center gap-2 text-sm mb-4 px-3 py-2 rounded-xl border-2 ${late ? 'bg-amber-50 border-amber-300' : 'border-gray-200'}">
@@ -31360,7 +31413,7 @@ function _examResultIdentityHtml(sub, set) {
         <div class="bg-white rounded-2xl p-6 max-w-md w-full">
           <h3 class="text-xl font-bold text-gray-800 mb-1">📦 รวบรวมงาน ${picked.length} ครั้ง</h3>
           <p class="text-sm text-gray-600 mb-4">ครั้งที่ ${picked.join(', ')} · 📚 ${escHtml(sc.className)}/${escHtml(sc.roomNumber)} | 📖 ${escHtml(sc.subjectName)}</p>
-          <label class="block text-sm font-medium text-gray-700 mb-2">⭐ ลงเป็น A หลัก ครั้งที่ (P หลัก ใช้ครั้งเดียวกันอัตโนมัติ)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">⭐ ลงเป็น A หลัก ครั้งที่ (S หลัก ใช้ครั้งเดียวกันอัตโนมัติ)</label>
           <select id="mw-target-round" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none mb-3">
             ${[1, 2, 3].map(n => `<option value="${n}" ${n === target ? 'selected' : ''}>ครั้งที่ ${n}${n === target ? ' (ค่าปัจจุบัน)' : ''}</option>`).join('')}
           </select>
@@ -31387,11 +31440,11 @@ function _examResultIdentityHtml(sub, set) {
       const r = await window.dataSdk.updateRaw({ ...cs, merge_map: JSON.stringify(map), merge_target: Math.min(3, main + 1) });
       if (!r.isOk) { showToast('บันทึกไม่สำเร็จ: ' + (r.error?.message || ''), 'error'); return; }
       await _subSyncMainScores(sc);
-      showToast(`✅ รวบรวม ${picked.length} ครั้ง ลง A หลัก/P หลัก ครั้งที่ ${main} แล้ว`
+      showToast(`✅ รวบรวม ${picked.length} ครั้ง ลง A หลัก/S หลัก ครั้งที่ ${main} แล้ว`
         + (main < 3 ? ` — ครั้งย่อยหลังจากนี้จะไปลงครั้งที่ ${main + 1}` : ' — ครบ 3 ครั้งแล้ว'));
       mwRenderAll();
     }
-    /** 🔄 เขียนคะแนน A หลัก / P หลัก ของทุกคนในชั้น/ห้อง/วิชานี้ ให้ตรงกับครั้งย่อยล่าสุด */
+    /** 🔄 เขียนคะแนน A หลัก / S หลัก ของทุกคนในชั้น/ห้อง/วิชานี้ ให้ตรงกับครั้งย่อยล่าสุด */
     async function _subSyncMainScores(sc) {
       if (!sc || !sc.className || !sc.roomNumber || !sc.subjectName) return;
       const cs = _subCsRow(sc);
@@ -34897,7 +34950,7 @@ function _examResultIdentityHtml(sub, set) {
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
           <h2 class="text-2xl font-bold text-gray-800 mb-2">📊 ผลการเรียน</h2>
-          <p class="text-gray-500 text-sm mb-6">คะแนนที่เก็บได้จริงของนักเรียนแต่ละคน K/P/A/C/M/F และเกรด (ดูอย่างเดียว)</p>
+          <p class="text-gray-500 text-sm mb-6">คะแนนที่เก็บได้จริงของนักเรียนแต่ละคน K/S/A/C/M/F และเกรด (ดูอย่างเดียว)</p>
           <div class="flex items-center gap-3 flex-wrap mb-4">
             <select id="director-grade-filter-class" onchange="updateDirectorGradeRoomSubject();updateDirectorGradeTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
               <option value="">ทุกชั้น</option>
@@ -36919,7 +36972,7 @@ function _examResultIdentityHtml(sub, set) {
     }).join('');
   }
 
-  // ── 📊 ผลการเรียน (ต่อคน คะแนนที่ได้จริง K/P/A/C/M/F/รวม/เกรด) ──
+  // ── 📊 ผลการเรียน (ต่อคน คะแนนที่ได้จริง K/S/A/C/M/F/รวม/เกรด) ──
   function mShowDirectorGradeNative() {
     mWaitForDataThen(() => {
       mCreateOverlay('m-dir-grade-overlay', '📊 ผลการเรียน', mDirSelectorsHtml('m-dir-grade'));
@@ -36961,7 +37014,7 @@ function _examResultIdentityHtml(sub, set) {
   }
 
   // ── 📑 สรุปเกรด (แบบย่อ เห็นแค่ชื่อ+เกรด เหมาะกับพื้นที่จอมือถือที่จำกัด) ──
-  // ── 📊 สัดส่วนเกรด (Admin) — ตารางรายบุคคล K/P/A/C/M/F/รวม/เกรด แบบมือถือแท้ ──
+  // ── 📊 สัดส่วนเกรด (Admin) — ตารางรายบุคคล K/S/A/C/M/F/รวม/เกรด แบบมือถือแท้ ──
   function mShowAdminGradeReportNative() {
     mWaitForDataThen(() => {
       mCreateOverlay('m-admin-gradereport-overlay', '📊 สัดส่วนเกรด', mDirSelectorsHtml('m-admin-gradereport'));
@@ -38018,7 +38071,7 @@ function _examResultIdentityHtml(sub, set) {
     `;
     document.body.appendChild(overlay);
   }
-  // ลงทะเบียนให้ผู้ที่เลือกในหน้ามือถือ — ใช้ตรรกะเดียวกับฝั่งคอมทุกประการ (K/P/A/C, กันวิชาซ้ำ, เชื่อมคะแนนค้างไว้)
+  // ลงทะเบียนให้ผู้ที่เลือกในหน้ามือถือ — ใช้ตรรกะเดียวกับฝั่งคอมทุกประการ (K/S/A/C, กันวิชาซ้ำ, เชื่อมคะแนนค้างไว้)
   async function mEnrollNoEnrollSelected() {
     const sn = document.getElementById('m-noenroll-subject')?.value;
     if (!sn) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
