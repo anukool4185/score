@@ -6,7 +6,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ระบบบันทึก KPAC นักเรียน</title>
+  <title>ระบบบันทึก KSAC นักเรียน</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -1782,7 +1782,7 @@
         </div>
        </div>
        <!-- กล่องล่าง: ประกาศหน้าแรกของเว็บ -->
-       <!-- 🔍 ช่องค้นหานักเรียน + แจ้ง KPAC ไปยังผู้ช่วยแอดมิน -->
+       <!-- 🔍 ช่องค้นหานักเรียน + แจ้ง KSAC ไปยังผู้ช่วยแอดมิน -->
        <div class="border-2 border-gray-200 rounded-xl p-3 mb-4">
         <p class="text-xs font-semibold text-gray-700 mb-2">🔍 ค้นหาสถานะ</p>
         <div class="hidden md:flex gap-3 flex-wrap mb-2">
@@ -1978,7 +1978,7 @@
     <nav id="desktop-top-nav" class="gradient-bg text-white p-4 z-50 shadow-lg sticky top-0">
      <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-col">
-       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KPAC</h1>
+       <h1 id="app-title" class="text-xl md:text-2xl font-bold">📊 ระบบบันทึก KSAC</h1>
        <span class="text-[10px] text-white/70 leading-tight">เวอร์ชัน <span id="app-version">-</span></span>
       </div>
       <!-- 📅 เลือกดูข้อมูลตามปีการศึกษา/ภาคเรียน — เปลี่ยนการดูทั้งระบบ -->
@@ -2052,7 +2052,7 @@
       <div id="home-content" class="flex-1">
        <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
         <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2>
-        <p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p>
+        <p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KSAC</p>
        </div>
       </div>
      </div>
@@ -2947,19 +2947,19 @@
            <p class="text-xs text-gray-500 mb-3">Username = รหัสนักเรียน | Password = รหัสนักเรียน</p>
            <button onclick="importAddSelectedStudents()" class="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium">➕ เพิ่มนักเรียนที่เลือกเข้าระบบ</button>
           </div>
-          <!-- ขั้นตอนที่ 2: ลงทะเบียนวิชา + KPAC จากตารางนำเข้า -->
+          <!-- ขั้นตอนที่ 2: ลงทะเบียนวิชา + KSAC จากตารางนำเข้า -->
           <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
-           <p class="text-sm font-semibold text-purple-800 mb-2">ขั้นตอนที่ 2: ลงทะเบียนวิชาพร้อมกำหนด KPAC (สำหรับคนที่สมัครแล้วแต่ยังไม่ลงทะเบียน)</p>
+           <p class="text-sm font-semibold text-purple-800 mb-2">ขั้นตอนที่ 2: ลงทะเบียนวิชาพร้อมกำหนด KSAC (สำหรับคนที่สมัครแล้วแต่ยังไม่ลงทะเบียน)</p>
            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
             <div>
              <label class="block text-xs text-gray-600 mb-1">เลือกวิชา</label>
              <select id="import-enroll-subject" onchange="updateImportEnrollKpacLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"><option value="">-- เลือกวิชา --</option></select>
             </div>
             <div class="md:col-span-2">
-             <label class="block text-xs text-gray-600 mb-1">กำหนด KPAC (รวม ≤ ขีดจำกัดวิชา)</label>
+             <label class="block text-xs text-gray-600 mb-1">กำหนด KSAC (รวม ≤ ขีดจำกัดวิชา)</label>
              <div class="flex gap-2">
               <input type="number" id="import-k" placeholder="K%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
-              <input type="number" id="import-p" placeholder="P%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
+              <input type="number" id="import-p" placeholder="S%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
               <input type="number" id="import-a" placeholder="A%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
               <input type="number" id="import-c" placeholder="C%" min="0" step="0.1" oninput="updateImportKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm focus:border-purple-500 focus:outline-none">
              </div>
@@ -3014,7 +3014,7 @@
            <tbody id="noenroll-tbody"></tbody>
           </table>
          </div>
-         <!-- ลงทะเบียนวิชา + KPAC สำหรับส่วนนี้ -->
+         <!-- ลงทะเบียนวิชา + KSAC สำหรับส่วนนี้ -->
          <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <p class="text-sm font-semibold text-purple-800 mb-3">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก</p>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
@@ -3023,10 +3023,10 @@
             <select id="noenroll-subject" onchange="updateNoEnrollKpacLimit()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-purple-500 focus:outline-none"><option value="">-- เลือกวิชา --</option></select>
            </div>
            <div class="md:col-span-2">
-            <label class="block text-xs text-gray-600 mb-1">KPAC (รวม ≤ ขีดจำกัดวิชา แต่ละช่อง ≥ 5%)</label>
+            <label class="block text-xs text-gray-600 mb-1">KSAC (รวม ≤ ขีดจำกัดวิชา แต่ละช่อง ≥ 5%)</label>
             <div class="flex gap-2">
              <input type="number" id="noenroll-k" placeholder="K%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
-             <input type="number" id="noenroll-p" placeholder="P%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
+             <input type="number" id="noenroll-p" placeholder="S%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
              <input type="number" id="noenroll-a" placeholder="A%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
              <input type="number" id="noenroll-c" placeholder="C%" min="0" step="0.1" oninput="updateNoEnrollKpacTotal()" class="w-full px-2 py-2 border-2 border-gray-200 rounded text-sm">
             </div>
@@ -3036,11 +3036,11 @@
           <button onclick="enrollNoEnrollSelected()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">📚 ลงทะเบียนวิชาให้นักเรียนที่เลือก (<span id="noenroll-selected-count">0</span> คน)</button>
          </div>
         </div>
-        <!-- ⚠️ ลงทะเบียนแล้ว แต่ KPAC ไม่ครบ — คนกลุ่มนี้เดิมไม่โผล่ที่ไหนเลย เพราะมีแถวลงทะเบียนอยู่แล้ว -->
+        <!-- ⚠️ ลงทะเบียนแล้ว แต่ KSAC ไม่ครบ — คนกลุ่มนี้เดิมไม่โผล่ที่ไหนเลย เพราะมีแถวลงทะเบียนอยู่แล้ว -->
         <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-           <h4 class="text-lg font-bold text-gray-800">⚠️ ลงทะเบียนแล้ว แต่ KPAC ไม่ครบ <span id="badkpac-count" class="text-sm font-semibold text-red-600"></span></h4>
+           <h4 class="text-lg font-bold text-gray-800">⚠️ ลงทะเบียนแล้ว แต่ KSAC ไม่ครบ <span id="badkpac-count" class="text-sm font-semibold text-red-600"></span></h4>
            <p class="text-xs text-gray-500 mt-0.5">กรอกไม่ครบทั้ง 4 ช่อง (K/P/A/C) หรือรวมไม่เท่ากับที่วิชานั้นกำหนดไว้ (100 − M% − F%)</p>
           </div>
           <button onclick="exportBadKpacExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded text-sm">📊 Excel</button>
@@ -3054,7 +3054,7 @@
              <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง</th>
              <th class="px-1 py-2 text-left">วิชา</th>
              <th class="px-1 py-2 text-center">K</th>
-             <th class="px-1 py-2 text-center">P</th>
+             <th class="px-1 py-2 text-center">S</th>
              <th class="px-1 py-2 text-center">A</th>
              <th class="px-1 py-2 text-center">C</th>
              <th class="px-1 py-2 text-center whitespace-nowrap">รวม</th>
@@ -3230,7 +3230,7 @@
               <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
               <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
               <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K%</th>
-              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P%</th>
+              <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">S%</th>
               <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A%</th>
               <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C%</th>
               <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M%</th>
@@ -3392,10 +3392,10 @@
              <th class="px-1 py-2 text-center font-semibold text-gray-700 whitespace-nowrap">ห้อง</th>
              <th class="px-1 py-2 text-left font-semibold text-gray-700">วิชา</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700">K</th>
-             <th class="px-1 py-2 text-center font-semibold text-gray-700">P</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700">S</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700">A</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700">C</th>
-             <th class="px-1 py-2 text-center font-semibold text-gray-700 bg-amber-50 leading-tight">รวม<br>KPAC</th>
+             <th class="px-1 py-2 text-center font-semibold text-gray-700 bg-amber-50 leading-tight">รวม<br>KSAC</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700">M</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700">F</th>
              <th class="px-1 py-2 text-center font-semibold text-gray-700 bg-amber-50 leading-tight">รวม<br>ทั้งหมด</th>
@@ -3636,7 +3636,7 @@
         <div class="flex gap-2 flex-wrap items-end mb-3">
          <div style="flex:1 1 260px">
           <label class="block text-xs text-gray-600 mb-1">#️⃣ เลขที่เกียรติบัตร</label>
-          <input id="cert-v-no" placeholder="KPAC-2569-1-24532-1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
+          <input id="cert-v-no" placeholder="KSAC-2569-1-24532-1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm">
          </div>
          <div style="flex:1 1 180px">
           <label class="block text-xs text-gray-600 mb-1">🔐 รหัสตรวจสอบ (ไม่ใส่ก็ได้)</label>
@@ -4009,7 +4009,7 @@
            <label class="block text-xs text-gray-600 mb-1">📊 เก็บคะแนนที่</label>
            <select id="esa-scoretype" onchange="_updateEsaScoreTypeLabel();updateEsaFullScoreInfo()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none">
             <option value="k">K (ความรู้)</option>
-            <option value="p">P (ทักษะ)</option>
+            <option value="p">S (ทักษะและกระบวนการ)</option>
             <option value="c">C (คุณลักษณะ)</option>
            </select>
           </div>
@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.250';
+    const APP_VERSION = 'SUPABASE-2026.10.20.252';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4756,7 +4756,7 @@ SB_TYPE_TO_TABLE['mobile_menu_config']  = 'settings';
 SB_TYPE_TO_TABLE['tray_menu_config']    = 'settings';
 SB_TYPE_TO_TABLE['announcement']        = 'settings';
 SB_TYPE_TO_TABLE['kpac_warning']        = 'settings';
-SB_TYPE_TO_TABLE['admin_contact']       = 'settings';  // 📞 ข้อมูลติดต่อแอดมิน  // 🔔 ข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC
+SB_TYPE_TO_TABLE['admin_contact']       = 'settings';  // 📞 ข้อมูลติดต่อแอดมิน  // 🔔 ข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KSAC
 SB_TYPE_TO_TABLE['answer_sheet_config'] = 'settings';
 SB_TYPE_TO_TABLE['char_read_config']    = 'settings';   // ⭐ ค่าคุณลักษณะ/อ่านคิดวิเคราะห์ ต่อเกรด (ชุดเดียวทั้งระบบ)
 SB_TYPE_TO_TABLE['class']               = 'settings';
@@ -4789,7 +4789,7 @@ const SB_NUMERIC_FIELDS = new Set([
   'max_absent_percent_setting', 'hours_can_absent',
   'actual_hours_taught', 'actual_hours_can_absent',
   'attended_hours', 'attended_hours_real',
-  // ── สัดส่วนคะแนน KPAC (ใช้คำนวณเกรด) ──
+  // ── สัดส่วนคะแนน KSAC (ใช้คำนวณเกรด) ──
   'k_percent', 'p_percent', 'a_percent', 'c_percent',
   'mid_percent', 'final_percent',
   // ── คะแนนเต็มรวม (ตัวหารในสูตรคำนวณเกรด) ──
@@ -5389,7 +5389,7 @@ const supabaseDataSdk = {
     let adminSettings = { mid_percent: 25, final_percent: 25, lock_date: '', grade_rounding_method: 'standard' };
     let allAdmins = [];
     let editingMFId = null;
-    const defaultConfig = { app_title: 'ระบบจัดเก็บคะแนน KPAC MF' };
+    const defaultConfig = { app_title: 'ระบบจัดเก็บคะแนน KSAC MF' };
     const DEFAULT_ADMIN = { 'admin': 'admin123' };
     const DEFAULT_DIRECTOR = { 'director': 'director123' };
     if (window.elementSdk) {
@@ -6917,7 +6917,7 @@ const supabaseDataSdk = {
     // ════════════════════════════════════════════════════════════
     // 📚 ตัวตรวจสถานะการลงทะเบียน "กลาง" — ทุกหน้าใช้ตัวนี้ ผลจึงตรงกันทั้งระบบ
     //    ⚠️ เดิมแต่ละหน้าเทียบชื่อวิชา/ชั้น/ห้อง/รหัสแบบตรงทุกตัวอักษร ต่างแค่ช่องว่าง ("คณิต" กับ "คณิต ")
-    //       หรือเลขห้อง ("1" กับ "01") ก็ขึ้นว่า "ยังไม่ลงทะเบียน" ทั้งที่นักเรียนกำหนด KPAC แล้ว
+    //       หรือเลขห้อง ("1" กับ "01") ก็ขึ้นว่า "ยังไม่ลงทะเบียน" ทั้งที่นักเรียนกำหนด KSAC แล้ว
     // ════════════════════════════════════════════════════════════
     function _rN(v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); }
     function _rRoom(v) { const s = _rN(v); return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s; }
@@ -7485,13 +7485,13 @@ const supabaseDataSdk = {
     function computeRegistrationRequests() {
       // ⚠️ บั๊กที่พบและแก้แล้ว: เดิมหาแค่ registration_request อย่างเดียว
       // แต่ระบบมีคำขอ 2 ประเภท คือ registration_request (ผู้ช่วยแอดมินขอลงทะเบียนแทน)
-      // และ kpac_request (นักเรียนขอกำหนด KPAC เอง) ทำให้คำขอบางประเภทไม่ขึ้นในกระดิ่ง
+      // และ kpac_request (นักเรียนขอกำหนด KSAC เอง) ทำให้คำขอบางประเภทไม่ขึ้นในกระดิ่ง
       return allData.filter(d =>
         (d.type === 'registration_request' || d.type === 'kpac_request')
         && d.status === 'pending');
     }
     // ============================================================
-    // 🔍 ค้นหานักเรียนหน้า login + แจ้ง KPAC ไปยังผู้ช่วยแอดมิน
+    // 🔍 ค้นหานักเรียนหน้า login + แจ้ง KSAC ไปยังผู้ช่วยแอดมิน
     // ============================================================
     function isStudentDataComplete(s) {
       return !!(s.first_name && s.last_name && s.class_name && s.room_number);
@@ -7521,7 +7521,7 @@ const supabaseDataSdk = {
              <p class="text-[11px] text-red-700 leading-relaxed">❌ <b>ยังไม่ได้สมัคร</b> — กรุณาสมัครใช้งานระบบก่อนจึงมีสิทธิ์ลงทะเบียน</p>
            </div>
            <div class="bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-             <p class="text-[11px] text-amber-800 leading-relaxed">⚠️ <b>ยังไม่ได้ลงทะเบียน</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KPAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p>
+             <p class="text-[11px] text-amber-800 leading-relaxed">⚠️ <b>ยังไม่ได้ลงทะเบียน</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KSAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p>
            </div></div>`;
         return;
       }
@@ -7541,11 +7541,11 @@ const supabaseDataSdk = {
             ? `<span class="flex items-center gap-1 text-[10px] font-semibold text-amber-700"><span class="w-2 h-2 rounded-full bg-amber-500"></span>ลงแล้ว ${regs.length} · ขาดอีก ${missingSubjects.length} วิชา</span>`
             : `<span class="flex items-center gap-1 text-[10px] font-semibold text-red-700"><span class="w-2 h-2 rounded-full bg-red-500"></span>ยังไม่ลงทะเบียน</span>`);
         let kpacBtn = '';
-        // 📋 แสดงปุ่มแจ้ง KPAC เมื่อยังลงทะเบียนไม่ครบทุกวิชา (เดิมแสดงเฉพาะคนที่ยังไม่ลงเลย)
+        // 📋 แสดงปุ่มแจ้ง KSAC เมื่อยังลงทะเบียนไม่ครบทุกวิชา (เดิมแสดงเฉพาะคนที่ยังไม่ลงเลย)
         if (!isFullyRegistered) {
           kpacBtn = !dataComplete
-            ? `<button onclick="kpacRequestPopupWithForm('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium">📋 แจ้ง KPAC (กรอกข้อมูลให้ครบก่อน)</button>`
-            : `<button onclick="kpacRequestPopup('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">📋 แจ้ง KPAC ไปยังผู้ช่วยแอดมิน</button>`;
+            ? `<button onclick="kpacRequestPopupWithForm('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-medium">📋 แจ้ง KSAC (กรอกข้อมูลให้ครบก่อน)</button>`
+            : `<button onclick="kpacRequestPopup('${s.__backendId}')" class="mt-2 w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-medium">📋 แจ้ง KSAC ไปยังผู้ช่วยแอดมิน</button>`;
         }
         // 📢 ข้อความอธิบายสถานะทั้ง 2 ด้าน (การสมัคร และการลงทะเบียน) ตามที่ผู้ใช้กำหนด
         const signupMsg = `<div class="bg-green-50 border border-green-200 rounded px-2 py-1.5 mb-1.5">
@@ -7553,10 +7553,10 @@ const supabaseDataSdk = {
            </div>`;
         const enrollMsg = isFullyRegistered
           ? `<div class="bg-green-50 border border-green-200 rounded px-2 py-1.5">
-               <p class="text-[11px] text-green-700 leading-relaxed">✅ <b>ลงทะเบียนแล้ว</b> — ท่านลงทะเบียนเรียนโดยท่านกำหนด KPAC แล้ว ระบบจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนเรียบร้อย</p>
+               <p class="text-[11px] text-green-700 leading-relaxed">✅ <b>ลงทะเบียนแล้ว</b> — ท่านลงทะเบียนเรียนโดยท่านกำหนด KSAC แล้ว ระบบจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนเรียบร้อย</p>
              </div>`
           : `<div class="bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-               <p class="text-[11px] text-amber-800 leading-relaxed">⚠️ <b>${hasReg ? `ยังลงทะเบียนไม่ครบ (ขาด ${missingSubjects.length} วิชา)` : 'ยังไม่ได้ลงทะเบียน'}</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KPAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p>
+               <p class="text-[11px] text-amber-800 leading-relaxed">⚠️ <b>${hasReg ? `ยังลงทะเบียนไม่ครบ (ขาด ${missingSubjects.length} วิชา)` : 'ยังไม่ได้ลงทะเบียน'}</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KSAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p>
              </div>`;
 
         return `<div class="bg-white rounded-lg border-2 border-gray-200 px-3 py-2.5 mb-2">
@@ -7573,7 +7573,7 @@ const supabaseDataSdk = {
     }
 
     function kpacRequestPopupWithForm(studentBackendId) {
-      // แสดงฟอร์มกรอกข้อมูลที่ขาด (ชั้น ห้อง ชื่อ นามสกุล) พร้อมกับ KPAC ในหน้าเดียว
+      // แสดงฟอร์มกรอกข้อมูลที่ขาด (ชั้น ห้อง ชื่อ นามสกุล) พร้อมกับ KSAC ในหน้าเดียว
       const student = allData.find(s => s.__backendId === studentBackendId);
       if (!student) return;
       const classes = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.class_name).filter(Boolean))].sort();
@@ -7582,8 +7582,8 @@ const supabaseDataSdk = {
       popup.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl">×</button>
-          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 กรอกข้อมูลให้ครบ + แจ้ง KPAC</h3>
-          <p class="text-xs text-amber-600 mb-4">⚠️ ข้อมูลบางส่วนยังไม่ครบ กรุณากรอกก่อนแจ้ง KPAC</p>
+          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 กรอกข้อมูลให้ครบ + แจ้ง KSAC</h3>
+          <p class="text-xs text-amber-600 mb-4">⚠️ ข้อมูลบางส่วนยังไม่ครบ กรุณากรอกก่อนแจ้ง KSAC</p>
           <div class="space-y-3 mb-4">
            <div><label class="block text-xs text-gray-600 mb-1">ชื่อ</label>
             <input id="kpac-fix-first" value="${student.first_name||''}" placeholder="ชื่อ" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></div>
@@ -7602,7 +7602,7 @@ const supabaseDataSdk = {
           <p id="kpac-fix-error" class="text-red-500 text-xs mb-2 hidden"></p>
           <div class="flex gap-3">
            <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
-           <button onclick="saveKpacFixAndProceed('${studentBackendId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">💾 บันทึกและแจ้ง KPAC</button>
+           <button onclick="saveKpacFixAndProceed('${studentBackendId}')" class="flex-1 px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">💾 บันทึกและแจ้ง KSAC</button>
           </div>
         </div>`;
       document.body.appendChild(popup);
@@ -7632,7 +7632,7 @@ const supabaseDataSdk = {
       // บันทึกข้อมูลที่ขาด
       const result = await window.dataSdk.update({ ...student, first_name: firstName, last_name: lastName, class_name: className, room_number: roomNumber });
       if (!result.isOk) { errorEl.textContent = 'บันทึกไม่สำเร็จ'; errorEl.classList.remove('hidden'); return; }
-      // ปิด popup นี้แล้วเปิด KPAC popup
+      // ปิด popup นี้แล้วเปิด KSAC popup
       _closeAllPopups();
       kpacRequestPopup(studentBackendId);
     }
@@ -7654,7 +7654,7 @@ const supabaseDataSdk = {
       editDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-md w-full my-8 relative">
           <button onclick="this.closest('.fixed').remove()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
-          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 แจ้ง KPAC ไปยังผู้ช่วยแอดมิน</h3>
+          <h3 class="text-lg font-bold text-gray-800 mb-1">📋 แจ้ง KSAC ไปยังผู้ช่วยแอดมิน</h3>
           <p class="text-sm text-gray-600 mb-4">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${studentClass}/${studentRoom}</p>
           <div class="mb-3">
            <label class="block text-xs text-gray-600 mb-1">📖 วิชา</label>
@@ -7666,7 +7666,7 @@ const supabaseDataSdk = {
           <div id="kpac-req-limit-info" class="text-xs text-gray-500 mb-3"></div>
           <div class="grid grid-cols-4 gap-2 mb-3">
            <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="kpac-req-k" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
-           <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="kpac-req-p" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
+           <div><label class="block text-xs text-gray-600 mb-1">S%</label><input type="number" id="kpac-req-p" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
            <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="kpac-req-a" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
            <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="kpac-req-c" min="5" step="0.1" placeholder="≥5" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm" oninput="updateKpacReqTotal()"></div>
           </div>
@@ -7690,7 +7690,7 @@ const supabaseDataSdk = {
       if (classSubjects.length > 0) {
         const cs = classSubjects[0];
         const kpacLimit = 100 - (cs.mid_percent || 0) - (cs.final_percent || 0);
-        infoEl.textContent = `M ${cs.mid_percent}% | F ${cs.final_percent}% | ขีดจำกัด KPAC รวม: ${kpacLimit}%`;
+        infoEl.textContent = `M ${cs.mid_percent}% | F ${cs.final_percent}% | ขีดจำกัด KSAC รวม: ${kpacLimit}%`;
         infoEl.dataset.limit = kpacLimit;
       }
     }
@@ -7819,7 +7819,7 @@ const supabaseDataSdk = {
             : requests.map(req => {
                 // 📋 คำขอมี 2 ประเภท ข้อมูลไม่เหมือนกัน ต้องเติมให้ครบก่อนแสดง
                 const isKpac = req.type === 'kpac_request';
-                // คำขอ KPAC ไม่มีชื่อนักเรียนเก็บไว้ ต้องไปหาจากรหัสนักเรียน
+                // คำขอ KSAC ไม่มีชื่อนักเรียนเก็บไว้ ต้องไปหาจากรหัสนักเรียน
                 let name = req.student_name;
                 // 🔍 หาชื่อจากหลายทาง เผื่อข้อมูลบางส่วนขาดหาย
                 if (!name) {
@@ -7839,7 +7839,7 @@ const supabaseDataSdk = {
                 return `
                 <div class="px-3 py-2 border-b border-gray-100 text-sm">
                   <p class="font-medium text-gray-800">${escHtml(name || req.student_id || '-')}
-                    <span class="text-[10px] ${isKpac ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'} px-1.5 py-0.5 rounded ml-1">${isKpac ? 'ขอ KPAC' : 'ขอลงทะเบียน'}</span>
+                    <span class="text-[10px] ${isKpac ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'} px-1.5 py-0.5 rounded ml-1">${isKpac ? 'ขอ KSAC' : 'ขอลงทะเบียน'}</span>
                   </p>
                   <p class="text-xs text-gray-500">${escHtml(req.class_name||'')}/${escHtml(String(req.room_number||''))} | ${escHtml(req.subject_name||'')}</p>
                   ${kpacInfo}
@@ -8031,7 +8031,7 @@ const supabaseDataSdk = {
       ],
       director: [
         {id:'home',      icon:'🏠', label:'หน้าหลัก'},
-        {id:'kpacfull',  icon:'🎯', label:'คะแนนเต็ม KPAC'},
+        {id:'kpacfull',  icon:'🎯', label:'คะแนนเต็ม KSAC'},
         {id:'grade',     icon:'📊', label:'ผลการเรียน'},
         {id:'attend',    icon:'⏱️', label:'เวลาเรียน'},
         {id:'gradedist', icon:'📑', label:'สรุปเกรด'},
@@ -9053,7 +9053,7 @@ const supabaseDataSdk = {
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชื่อ-นามสกุล</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">รหัสนักเรียน</th>
                 <th class="px-2 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">เบอร์โทร</th>
-                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">KPAC ที่แจ้งไว้</th>
+                <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">KSAC ที่แจ้งไว้</th>
                 <th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">สถานะลงทะเบียน</th>
                 ${perm === 'manage' ? '<th class="px-2 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">จัดการ</th>' : ''}
               </tr>
@@ -9073,11 +9073,11 @@ const supabaseDataSdk = {
                 const pendingReq = approvedReq ? null : allData.find(d => _matchReq(d) && d.status === 'pending');
                 const kpacReq = allData.find(d => d.type === 'kpac_request' && String(d.student_id) === String(s.student_id) && d.subject_name === scope.subjectName && d.class_name === scope.className && d.room_number === scope.roomNumber && d.status === 'pending');
 
-                // คอลัมน์ KPAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KPAC
+                // คอลัมน์ KSAC ที่แจ้งไว้ (แสดงหลังเบอร์โทร) + ปุ่มเล็กขอใช้ KSAC
                 const kpacCell = kpacReq
                   ? `<div class="flex flex-col items-center gap-1">
                       <div class="text-[10px] text-orange-700 bg-orange-50 rounded px-1.5 py-0.5 whitespace-nowrap">K:${kpacReq.k_percent} P:${kpacReq.p_percent} A:${kpacReq.a_percent} C:${kpacReq.c_percent}</div>
-                      ${approvedReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-1.5 py-0.5 bg-orange-400 hover:bg-orange-500 text-white rounded text-[10px] whitespace-nowrap">🔑 ขอใช้ KPAC</button>` : ''}
+                      ${approvedReq ? `<button onclick="subAdminPerformApprovedRegistration('${s.__backendId}', '${approvedReq.__backendId}', '${kpacReq.__backendId}')" class="px-1.5 py-0.5 bg-orange-400 hover:bg-orange-500 text-white rounded text-[10px] whitespace-nowrap">🔑 ขอใช้ KSAC</button>` : ''}
                     </div>`
                   : '<span class="text-gray-300 text-xs">-</span>';
 
@@ -9123,7 +9123,7 @@ const supabaseDataSdk = {
           <p class="text-gray-600 mb-4 text-sm">${escHtml(student.prefix)}${escHtml(student.first_name)} ${escHtml(student.last_name)} | ${scope.className}/${scope.roomNumber} | ${scope.subjectName}</p>
           ${alreadyPending
             ? '<p class="text-amber-600 text-sm mb-4">⏳ มีคำขอลงทะเบียนของนักเรียนคนนี้ค้างอยู่แล้ว รอแอดมินดำเนินการ</p>'
-            : '<p class="text-gray-500 text-sm mb-4">ระบบจะส่งคำขอไปแจ้งเตือนแอดมิน เพื่อให้แอดมินเข้ามาลงทะเบียน/กำหนดคะแนน KPAC ให้นักเรียนคนนี้</p>'
+            : '<p class="text-gray-500 text-sm mb-4">ระบบจะส่งคำขอไปแจ้งเตือนแอดมิน เพื่อให้แอดมินเข้ามาลงทะเบียน/กำหนดคะแนน KSAC ให้นักเรียนคนนี้</p>'
           }
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">${alreadyPending ? 'ปิด' : '❌ ยกเลิก'}</button>
@@ -9185,13 +9185,13 @@ const supabaseDataSdk = {
       const midPercent = classSubjectRecord?.mid_percent || 0;
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
-      // ดึง KPAC ที่นักเรียนขอมา (ถ้ามี)
+      // ดึง KSAC ที่นักเรียนขอมา (ถ้ามี)
       const kpacReq = kpacRequestId ? allData.find(d => d.__backendId === kpacRequestId) : null;
       const kVal = kpacReq?.k_percent ?? '';
       const pVal = kpacReq?.p_percent ?? '';
       const aVal = kpacReq?.a_percent ?? '';
       const cVal = kpacReq?.c_percent ?? '';
-      const kpacNote = kpacReq ? `<p class="text-xs text-orange-600 mb-2 font-semibold">📋 KPAC ที่นักเรียนขอ: K=${kpacReq.k_percent} P=${kpacReq.p_percent} A=${kpacReq.a_percent} C=${kpacReq.c_percent} — เติมให้แล้ว แก้ไขได้</p>` : '';
+      const kpacNote = kpacReq ? `<p class="text-xs text-orange-600 mb-2 font-semibold">📋 KSAC ที่นักเรียนขอ: K=${kpacReq.k_percent} P=${kpacReq.p_percent} A=${kpacReq.a_percent} C=${kpacReq.c_percent} — เติมให้แล้ว แก้ไขได้</p>` : '';
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       editDiv.innerHTML = `
@@ -9205,7 +9205,7 @@ const supabaseDataSdk = {
             <p class="text-xs text-gray-600 mb-3">M ${midPercent}% | F ${finalPercent}% | เหลือสำหรับ K+P+A+C: <strong>${kpacPercent}%</strong></p>
             <div class="grid grid-cols-4 gap-2 mb-3">
               <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="subadmin-reg-k" value="${kVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
-              <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="subadmin-reg-p" value="${pVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">S%</label><input type="number" id="subadmin-reg-p" value="${pVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
               <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="subadmin-reg-a" value="${aVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
               <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="subadmin-reg-c" value="${cVal}" min="0" max="100" step="0.1" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateSubAdminRegKpacTotal(${kpacPercent})"></div>
             </div>
@@ -9854,7 +9854,7 @@ const supabaseDataSdk = {
           // 📢 ใช้ข้อความที่แอดมินตั้งไว้ (ถ้าไม่เคยตั้ง ใช้ข้อความเริ่มต้น) และเคารพการซ่อน
           const warnRec = allData.find(d => d.type === 'kpac_warning' || (d.type === 'settings' && d.setting_type === 'kpac_warning'));
           const isHidden = warnRec?.is_hidden === true || warnRec?.is_hidden === 'true';
-          const warnText = warnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
+          const warnText = warnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KSAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
           if (!isHidden) {
             // 📚 แสดงรายชื่อวิชาที่ยังไม่ได้ลงทะเบียน ให้นักเรียนรู้ชัดว่าเหลือวิชาไหนบ้าง
             const subjectListHtml = missingSubjects.map(s =>
@@ -9958,15 +9958,15 @@ const supabaseDataSdk = {
       if (!container) return;
       // 🔀 ย้ายการตั้งค่าแถบเลื่อนไปไว้ที่แท็บ "การกำหนด Marquee" แล้ว (รวมทุกแถบเลื่อนไว้ที่เดียวตามที่ขอ)
       const marqueeControlsHtml = '';
-      // 🔔 บล็อกตั้งค่าข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC (แสดงเฉพาะแท็บหน้าหลักนักเรียน)
+      // 🔔 บล็อกตั้งค่าข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KSAC (แสดงเฉพาะแท็บหน้าหลักนักเรียน)
       const kpacWarnRec = allData.find(d => d.type === 'kpac_warning' || (d.type === 'settings' && d.setting_type === 'kpac_warning'));
-      const kpacWarnText = kpacWarnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KPAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
+      const kpacWarnText = kpacWarnRec?.text || 'กรุณา กรอกน้ำหนักคะแนน KSAC เพื่อลงทะเบียนเรียน ที่เมนูการจัดการ(นร.)';
       const kpacWarnHidden = kpacWarnRec?.is_hidden === true || kpacWarnRec?.is_hidden === 'true';
       const kpacWarningBlock = target !== 'student' ? '' : `
         <div class="bg-amber-50 rounded-lg p-4 mb-4 border-2 border-amber-200">
           <div class="flex items-start justify-between gap-2 mb-2 flex-wrap">
             <div>
-              <p class="text-sm font-semibold text-amber-800">🔔 ประกาศเมื่อไม่ได้ลงทะเบียน KPAC</p>
+              <p class="text-sm font-semibold text-amber-800">🔔 ประกาศเมื่อไม่ได้ลงทะเบียน KSAC</p>
               <p class="text-xs text-amber-600">แสดงเหนือบล็อกประชาสัมพันธ์ เฉพาะนักเรียนที่ยังไม่ลงทะเบียนวิชาใดเลย</p>
             </div>
             <label class="flex items-center gap-1 text-xs text-amber-700 cursor-pointer whitespace-nowrap">
@@ -10028,7 +10028,7 @@ const supabaseDataSdk = {
       if (typeof renderNotificationMarquee === 'function') renderNotificationMarquee();
       if (typeof renderLandingAnnouncements === 'function') renderLandingAnnouncements();
     }
-    /** 💾 บันทึกข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KPAC */
+    /** 💾 บันทึกข้อความเตือนนักเรียนที่ยังไม่ลงทะเบียน KSAC */
     async function saveKpacWarning() {
       const text = document.getElementById('kpac-warn-text')?.value.trim();
       const hidden = document.getElementById('kpac-warn-hidden')?.checked || false;
@@ -10186,7 +10186,7 @@ const supabaseDataSdk = {
       document.getElementById('m-tray-backdrop')?.style && (document.getElementById('m-tray-backdrop').style.display = 'none');
       // เผื่อออกจากระบบขณะกำลังดูหน้าที่ยืมมาจากเดสก์ท็อป ให้ล้าง header กลับด้วย
       document.getElementById('m-desktop-back-header')?.remove();
-      // ⚠️ สำคัญ: ลบหน้าเต็มจอทุกหน้าที่ค้างอยู่ (สรุปเกรด/คะแนนเต็ม KPAC/ประเมินผู้สอน ฯลฯ)
+      // ⚠️ สำคัญ: ลบหน้าเต็มจอทุกหน้าที่ค้างอยู่ (สรุปเกรด/คะแนนเต็ม KSAC/ประเมินผู้สอน ฯลฯ)
       // หน้าพวกนี้ position:fixed ลอยทับทุกอย่างรวมถึงหน้า login — ถ้าไม่ลบ จะดูเหมือนออกไม่จริง (ทั้งที่ currentUser ถูกล้างแล้วจริงๆ)
       document.querySelectorAll('.m-native-overlay').forEach(el => el.remove());
       ['m-eval-overlay','m-evaluators-overlay','m-detail-popup','exam-alert-panel','eg-grading-panel',
@@ -10219,7 +10219,7 @@ const supabaseDataSdk = {
         safeAddClass(id,'bg-gray-300','text-gray-700');
       });
       const sc = document.getElementById('student-content');
-      if(sc) sc.innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in"><h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2><p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KPAC</p></div>';
+      if(sc) sc.innerHTML = '<div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in"><h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">📊 ยินดีต้อนรับ</h2><p class="text-gray-600 text-center">ระบบสำหรับบันทึกและจัดการคะแนน KSAC</p></div>';
       // รีเซ็ตแท็บแอดมิน
       document.querySelectorAll('[id^="admin-tab-"]').forEach(tab => tab.classList.add('hidden'));
       const adminTabs = document.querySelectorAll('[id^="tab-"][class*="bg-blue-500"], [id^="tab-"][class*="bg-gray-300"]');
@@ -12429,7 +12429,7 @@ const supabaseDataSdk = {
     function _updateEsaScoreTypeLabel() {
       const t = document.getElementById('esa-scoretype')?.value || 'k';
       const label = document.getElementById('esa-round-label');
-      if (label) label.textContent = `🔢 ${t.toUpperCase()} ครั้งที่`;
+      if (label) label.textContent = `🔢 ${_scoreLetter(t)} ครั้งที่`;
       // 🔢 สร้างตัวเลือกครั้งที่ ตามจำนวนที่หน้าบันทึกคะแนนรองรับ (K 10 ครั้ง, P และ C อย่างละ 3 ครั้ง)
       // ⚠️ เดิมเขียนคำสั่งสร้างตัวเลือกไว้ใน HTML ตรงๆ ซึ่งเบราว์เซอร์ไม่ประมวลผล ช่องครั้งที่จึงว่างเปล่า
       const maxTimes = t === 'k' ? 10 : 3;
@@ -12528,10 +12528,10 @@ const supabaseDataSdk = {
       el.classList.remove('hidden');
       if (info.full > 0 || info.sets.length > 0) {
         el.className = 'text-xs mb-3 bg-amber-100 border border-amber-300 text-amber-800 rounded px-3 py-2';
-        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดมอบหมายจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
+        el.innerHTML = `⚠️ ${_scoreLetter(t)} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดมอบหมายจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
       } else {
         el.className = 'text-xs mb-3 bg-green-50 border border-green-200 text-green-700 rounded px-3 py-2';
-        el.innerHTML = `✅ ${t.toUpperCase()} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
+        el.innerHTML = `✅ ${_scoreLetter(t)} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
       }
     }
     /** 📊 แจ้งคะแนนเต็มเดิมในฟอร์มจัดสอบปรนัย (เหมือนอัตนัย) */
@@ -12549,10 +12549,10 @@ const supabaseDataSdk = {
       el.classList.remove('hidden');
       if (info.full > 0 || info.sets.length > 0) {
         el.className = 'text-xs mb-3 bg-amber-100 border border-amber-300 text-amber-800 rounded px-3 py-2';
-        el.innerHTML = `⚠️ ${t.toUpperCase()} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดบันทึกจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
+        el.innerHTML = `⚠️ ${_scoreLetter(t)} ครั้งที่ ${round} มีคะแนนเต็มอยู่แล้ว <b>${info.full}</b> คะแนน มาจาก:${_fullScoreSourcesHtml(info)}<p class="mt-1">ตอนกดบันทึกจะให้เลือก <b>➕ เพิ่มคะแนนเต็ม</b> หรือ <b>🔁 ทับคะแนนเดิม</b> พร้อมแสดงผลลัพธ์ของแต่ละทาง</p>`;
       } else {
         el.className = 'text-xs mb-3 bg-green-50 border border-green-200 text-green-700 rounded px-3 py-2';
-        el.innerHTML = `✅ ${t.toUpperCase()} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
+        el.innerHTML = `✅ ${_scoreLetter(t)} ครั้งที่ ${round} ยังว่าง — คะแนนเต็มจะตั้งตามชุดสอบนี้`;
       }
     }
 
@@ -12857,7 +12857,7 @@ const supabaseDataSdk = {
           <div class="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
             <div class="flex items-start justify-between gap-2 flex-wrap">
               <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800">✍️ ${escHtml(s.class_name)}/${escHtml(s.room_number)} · ${escHtml(s.subject_name)} · ${(s.score_type||'k').toUpperCase()} ครั้งที่ ${s.k_round}</p>
+                <p class="font-semibold text-gray-800">✍️ ${escHtml(s.class_name)}/${escHtml(s.room_number)} · ${escHtml(s.subject_name)} · ${_scoreLetter(s.score_type || 'k')} ครั้งที่ ${s.k_round}</p>
                 <p class="text-xs text-gray-600 mt-1">📝 ${(s.is_random_mode === true || s.is_random_mode === 'true') ? 'สุ่ม ' + (s.random_count || 0) : qCount} ข้อ · ✅ คะแนนเต็ม ${s.total_score} · 👥 ${subs.length} คน</p>
                 <p class="text-xs mt-1">
                   <span class="bg-white border rounded px-1.5 py-0.5">${(s.is_random_mode === true || s.is_random_mode === 'true') ? '🎲 สุ่มข้อสอบ' : '🎯 เลือกเอง'}</span>
@@ -12885,7 +12885,7 @@ const supabaseDataSdk = {
       if (!s) return;
       const subs = allData.filter(d => d.type === 'essay_submission' && String(d.essay_exam_set_id) === String(id));
       const withScore = subs.filter(d => d.manual_score !== undefined && d.manual_score !== null && d.manual_score !== '').length;
-      let msg = `ยืนยันลบชุดสอบอัตนัย "${s.subject_name} ${(s.score_type||'k').toUpperCase()}.${s.k_round}"?`;
+      let msg = `ยืนยันลบชุดสอบอัตนัย "${s.subject_name} ${_scoreLetter(s.score_type || 'k')}.${s.k_round}"?`;
       if (withScore > 0) msg += `\n\n⚠️ มีนักเรียน ${withScore} คนที่ได้คะแนนแล้ว คะแนนจะถูกลบออกด้วย`;
       if (!confirm(msg)) return;
 
@@ -13033,7 +13033,7 @@ const supabaseDataSdk = {
     // ⚡ ระบบสร้างข้อมูลให้นักเรียนใหม่ (ลงทะเบียน + กระดาษคำตอบ)
     // ════════════════════════════════════════════════════════════
 
-    /** เปิดหน้าต่างสร้างระบบให้นักเรียนใหม่ พร้อมให้กำหนดสัดส่วน KPAC */
+    /** เปิดหน้าต่างสร้างระบบให้นักเรียนใหม่ พร้อมให้กำหนดสัดส่วน KSAC */
     function openBulkSetupNewStudents() {
       // หานักเรียนที่ยังไม่ได้ลงทะเบียนวิชาใดเลย
       const registered = new Set(_termRegs().map(d => d.student_id));
@@ -13069,12 +13069,12 @@ const supabaseDataSdk = {
           </div>
 
           <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:14px">
-            <p style="font-size:12px;font-weight:700;color:#1e40af;margin:0 0 8px">📊 กำหนดสัดส่วนคะแนน KPAC</p>
+            <p style="font-size:12px;font-weight:700;color:#1e40af;margin:0 0 8px">📊 กำหนดสัดส่วนคะแนน KSAC</p>
             <p style="font-size:11px;color:#3b82f6;margin:0 0 8px">กรอกตามที่ต้องการ (แก้ไขรายคนภายหลังได้)</p>
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
               <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">K (ความรู้)</label>
                 <input type="number" id="bulk-k" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
-              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">P (ทักษะ)</label>
+              <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">S (ทักษะและกระบวนการ)</label>
                 <input type="number" id="bulk-p" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
               <div><label style="font-size:11px;color:#475569;display:block;margin-bottom:2px">A (เจตคติ)</label>
                 <input type="number" id="bulk-a" placeholder="0" min="0" style="width:100%;padding:6px;border:2px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box"></div>
@@ -13122,7 +13122,7 @@ const supabaseDataSdk = {
 
       // 📊 ไม่บังคับว่าต้องรวมเป็น 100 — แอดมินกำหนดเองตามระบบของแต่ละโรงเรียน
       if (k + p + a + cc === 0) {
-        if (!confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0)\n\nยืนยันดำเนินการต่อหรือไม่? (แก้ไขภายหลังได้)')) return;
+        if (!confirm('ยังไม่ได้กรอกสัดส่วน KSAC (ทั้งหมดเป็น 0)\n\nยืนยันดำเนินการต่อหรือไม่? (แก้ไขภายหลังได้)')) return;
       }
 
       const registered = new Set(_termRegs().map(d => d.student_id));
@@ -16966,6 +16966,8 @@ const supabaseDataSdk = {
     /** รหัสตรวจสอบ 8 ตัว (ตัดตัวที่สับสนกับเลขออก: I O 0 1) */
     function _certCode(ctx) {
       const abc = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+      // ⚠️ ค่าสำรอง 'kpac' ห้ามเปลี่ยนเด็ดขาด แม้ระบบจะเปลี่ยนชื่อเป็น KSAC แล้ว
+      //    เพราะรหัสตรวจสอบของใบที่พิมพ์ไปแล้วคิดจากค่านี้ ถ้าเปลี่ยนใบเก่าจะตรวจไม่ผ่านทั้งหมด
       const seed = [_certSet('cert_secret') || 'kpac', ctx.student_id, ctx.course_id, ctx.date_key].join('|');
       let h1 = _certHash(seed), h2 = _certHash(seed + '#2');
       let out = '';
@@ -16976,12 +16978,15 @@ const supabaseDataSdk = {
     }
     /** เลขที่เกียรติบัตร — อ่านได้ และบอกได้ว่าเป็นของใครหลักสูตรใด */
     function _certNo(ctx) {
-      return 'KPAC-' + (ctx.academic_year || '-') + '-' + (ctx.semester || '-')
+      // 🏷️ ใบที่ออกใหม่ใช้ KSAC- ตามชื่อระบบใหม่
+      return 'KSAC-' + (ctx.academic_year || '-') + '-' + (ctx.semester || '-')
         + '-' + (ctx.student_id || '-') + '-' + (ctx.course_id || '-');
     }
     /** แกะเลขที่กลับเป็นข้อมูล — ใช้ในหน้าตรวจสอบ */
     function _certParseNo(no) {
-      const m = String(no || '').trim().toUpperCase().match(/^KPAC-([^-]*)-([^-]*)-([^-]*)-(.*)$/);
+      // ⚠️ รับได้ทั้ง KSAC- (ใบที่ออกไปก่อนเปลี่ยนชื่อระบบ) และ KSAC- (ใบใหม่)
+      //    ใบที่พิมพ์แจกไปแล้วจึงยังตรวจสอบได้ตลอดไป ห้ามตัดรูปแบบเก่าทิ้ง
+      const m = String(no || '').trim().toUpperCase().match(/^K[PS]AC-([^-]*)-([^-]*)-([^-]*)-(.*)$/);
       if (!m) return null;
       return { academic_year: m[1], semester: m[2], student_id: m[3], course_id: m[4] };
     }
@@ -17231,6 +17236,7 @@ const supabaseDataSdk = {
              ${val ? `<img src="${escHtml(val)}" alt="" style="width:46px;height:46px;object-fit:contain;border:1px solid #e2e8f0;border-radius:6px;background:#fff">`
                    : '<span style="width:46px;height:46px;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;color:#94a3b8">ไม่มี</span>'}
              <input type="file" accept="image/*" onchange="certUploadImg('${id}', this)" class="text-xs flex-1">
+             ${val ? `<button onclick="certImgTool('settings','${id}','${escHtml(String(label).replace(/'/g, ''))}')" class="px-2 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded text-xs whitespace-nowrap" title="ลบพื้นหลัง / ตัดขอบว่างรอบรูป">✂️ แต่งรูป</button>` : ''}
              ${val ? `<button onclick="certClearImg('${id}')" class="px-2 py-1 bg-red-50 text-red-600 rounded text-xs">ลบ</button>` : ''}
            </div>
          </div>`;
@@ -17274,10 +17280,9 @@ const supabaseDataSdk = {
       if (!s) { showToast('ไม่พบแถวค่าตั้งของระบบ', 'error'); return; }
       let data = '';
       try {
-        const buf = await f.arrayBuffer();
-        data = (typeof _eiCompressImage === 'function')
-          ? await _eiCompressImage(buf, f.type || 'image/png', 400)
-          : await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.readAsDataURL(f); });
+        // 🔍 ใช้ตัวอ่านของเกียรติบัตรเอง เพราะตัวย่อรูปรวมของระบบทาพื้นขาวทับ
+        //    รูปลายเซ็นแบบพื้นใสจึงเคยกลายเป็นกล่องขาวทับใบเกียรติบัตร
+        data = await _certReadImage(f, 500);
       } catch (e) { showToast('อ่านไฟล์รูปไม่สำเร็จ — ' + e.message, 'error'); return; }
       if (!data) { showToast('ย่อรูปไม่สำเร็จ', 'error'); return; }
       const patch = {}; patch[field] = data;
@@ -17349,6 +17354,7 @@ const supabaseDataSdk = {
            <input id="cert-t-bg" type="color" value="${escHtml(String(t.bg_color || '#ffffff'))}" class="w-full h-10 border-2 border-gray-200 rounded-lg mb-3">
            <label class="block text-xs text-gray-600 mb-1">🖼️ รูปพื้นหลังทั้งใบ (ไม่ใส่ก็ได้ — ใช้เมื่อโรงเรียนมีใบลายสวยอยู่แล้ว)</label>
            <input type="file" accept="image/*" onchange="certTplBgUpload('${id}', this)" class="text-xs mb-1">
+           ${t.bg_image ? `<button onclick="certTplBgTool('${id}')" class="px-2 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded text-xs mr-1" title="ลบพื้นหลัง / ตัดขอบว่างรอบรูป">✂️ แต่งรูป</button>` : ''}
            ${t.bg_image ? `<button onclick="certTplBgClear('${id}')" class="px-2 py-1 bg-red-50 text-red-600 rounded text-xs">ลบรูปพื้นหลัง</button>` : ''}
            <p class="text-xs text-gray-500 mt-1">เปลี่ยนขนาดกระดาษแล้วชิ้นที่อยู่นอกขอบจะถูกดึงกลับเข้ามาให้</p>`,
         `certSaveTpl('${id}')`);
@@ -17376,15 +17382,14 @@ const supabaseDataSdk = {
       if (!t || !f) return;
       let data = '';
       try {
-        const buf = await f.arrayBuffer();
-        data = (typeof _eiCompressImage === 'function')
-          ? await _eiCompressImage(buf, f.type || 'image/png', 1200)
-          : await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.readAsDataURL(f); });
+        data = await _certReadImage(f, 1400);
       } catch (e) { showToast('อ่านไฟล์รูปไม่สำเร็จ — ' + e.message, 'error'); return; }
       const r = await _coUpd({ ...t, bg_image: data });
       if (r && r.isOk) { showToast('🖼️ ใส่รูปพื้นหลังแล้ว'); document.getElementById('co-modal')?.remove(); loadCertificateTab(); }
       else showToast('บันทึกรูปไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
     }
+    /** ✂️ แต่งรูปพื้นหลังของแบบเกียรติบัตร */
+    function certTplBgTool(id) { certImgTool('tpl', id, 'รูปพื้นหลังของแบบ'); }
     async function certTplBgClear(id) {
       const t = _certTplById(id);
       if (!t || !_courseCanEdit()) return;
@@ -17791,7 +17796,7 @@ const supabaseDataSdk = {
           ${detail ? `<div style="margin-top:6px;font-size:13px;color:#334155">${detail}</div>` : ''}</div>`;
       };
       const p = _certParseNo(no);
-      if (!p) { show(false, '❌ รูปแบบเลขที่ไม่ถูกต้อง', 'เลขที่ต้องขึ้นต้นด้วย KPAC- เช่น KPAC-2569-1-24532-1'); return; }
+      if (!p) { show(false, '❌ รูปแบบเลขที่ไม่ถูกต้อง', 'เลขที่ต้องขึ้นต้นด้วย KSAC- หรือ KSAC- (ใบเก่า) เช่น KSAC-2569-1-24532-1'); return; }
       const ctx = _certContext(p.course_id, p.student_id);
       if (!ctx.student_name) { show(false, '❌ ไม่พบนักเรียนตามเลขที่นี้'); return; }
       if (!_courseById(p.course_id)) { show(false, '❌ ไม่พบหลักสูตรตามเลขที่นี้'); return; }
@@ -17893,7 +17898,7 @@ const supabaseDataSdk = {
           mk({ type: 'box', x: 820, y: 48, w: 232, h: 46, bg: '#1d4ed8' }),
           certNoItem(830, 62, 'center', '#ffffff'),
           mk({ text: 'เกียรติบัตร', x: 70, y: 132, w: 600, size: 50, weight: 700, align: 'left', color: '#0f172a' }),
-          mk({ text: 'หลักสูตรอบรมออนไลน์ · ระบบ KPAC', x: 70, y: 196, w: 600, size: 15, weight: 700, align: 'left', color: '#1d4ed8' }),
+          mk({ text: 'หลักสูตรอบรมออนไลน์ · ระบบ KSAC', x: 70, y: 196, w: 600, size: 15, weight: 700, align: 'left', color: '#1d4ed8' }),
           mk({ type: 'box', x: 70, y: 236, w: 680, h: 300, bg: '#ffffff' }),
           mk({ text: 'มอบให้แก่', x: 96, y: 256, w: 400, size: 15, align: 'left', color: '#64748b' }),
           mk({ type: 'field', field: 'student_name', x: 96, y: 280, w: 620, size: 38, weight: 700, align: 'left', color: '#0f172a' }),
@@ -17925,7 +17930,298 @@ const supabaseDataSdk = {
       ] };
     }
 
+    /* ═════════════ ✂️ เครื่องมือแต่งรูปของเกียรติบัตร ═════════════
+       ลบพื้นหลัง (เช่น ลายเซ็นที่สแกนมาบนกระดาษขาว) และตัดขอบว่างรอบรูป
+       ทำในเครื่องของครูทั้งหมด ไม่ส่งรูปออกไปไหน และเก็บเป็น PNG เพื่อให้พื้นหลังใสจริง */
+
+    let _certImg = null;   // { target, orig, cv, label }
+
+    /** อ่านไฟล์รูปเป็นภาพในหน้าจอ โดย "ไม่" ทาสีขาวทับ จึงเก็บพื้นหลังใสไว้ได้
+     *  ⚠️ ตัวย่อรูปรวมของระบบทาพื้นขาวแล้วบันทึกเป็น webp/jpeg รูปลายเซ็นแบบพื้นใสจึงกลายเป็นกล่องขาว */
+    function _certReadImage(file, maxPx) {
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
+        fr.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('ไฟล์นี้ไม่ใช่รูปภาพที่เปิดได้'));
+          img.onload = () => {
+            try {
+              const MAX = maxPx || 700;
+              const sc = Math.min(1, MAX / Math.max(img.width || 1, img.height || 1));
+              const cv = document.createElement('canvas');
+              cv.width = Math.max(1, Math.round((img.width || 1) * sc));
+              cv.height = Math.max(1, Math.round((img.height || 1) * sc));
+              cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+              resolve(_certCanvasToData(cv));
+            } catch (e) { resolve(String(fr.result || '')); }
+          };
+          img.src = String(fr.result || '');
+        };
+        fr.readAsDataURL(file);
+      });
+    }
+    /** มีจุดโปร่งใสไหม — ถ้ามีต้องเก็บเป็น PNG ไม่งั้นพื้นใสจะหาย */
+    function _certHasAlpha(cv) {
+      try {
+        const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+        for (let i = 3; i < d.length; i += 4) if (d[i] < 250) return true;
+      } catch (e) { return true; }
+      return false;
+    }
+    function _certCanvasToData(cv) {
+      if (_certHasAlpha(cv)) return cv.toDataURL('image/png');
+      let out = cv.toDataURL('image/webp', 0.85);
+      if (out.indexOf('data:image/webp') !== 0) out = cv.toDataURL('image/jpeg', 0.88);
+      return out;
+    }
+
+    /* ── ตัวคิดงานจริง (ทดสอบแยกได้ ไม่ต้องมีหน้าจอ) ── */
+
+    /** สีพื้นหลังอ้างอิง = สีที่พบบ่อยที่สุดตามขอบรูป */
+    function _certEdgeColor(d, W, H) {
+      const bag = {};
+      const add = (x, y) => {
+        const i = (y * W + x) * 4;
+        if (d[i + 3] < 8) return;                       // จุดใสอยู่แล้ว ไม่ต้องนับ
+        const k = (d[i] >> 3) + ',' + (d[i + 1] >> 3) + ',' + (d[i + 2] >> 3);
+        bag[k] = (bag[k] || 0) + 1;
+      };
+      for (let x = 0; x < W; x++) { add(x, 0); add(x, H - 1); }
+      for (let y = 0; y < H; y++) { add(0, y); add(W - 1, y); }
+      let best = null, n = -1;
+      Object.keys(bag).forEach(k => { if (bag[k] > n) { n = bag[k]; best = k; } });
+      if (!best) return null;
+      const p = best.split(',').map(v => (parseInt(v, 10) << 3) + 4);
+      return { r: p[0], g: p[1], b: p[2] };
+    }
+    /** 🪄 ลบพื้นหลัง
+     *  โหมดปกติ: ไล่จากขอบรูปเข้ามา ลบเฉพาะสีที่ต่อเนื่องกับขอบ จึงไม่กินเนื้อรูปข้างใน
+     *            แต่ช่องว่างที่ถูกล้อมปิด (เช่น ตรงกลางตัว "อ" หรือรูตรงกลางตราโรงเรียน) จะยังขาวอยู่
+     *  โหมด everywhere: ลบสีพื้นทุกจุดในรูป ช่องว่างที่ถูกล้อมปิดจึงใสตามไปด้วย
+     *            เหมาะกับลายเซ็นและตราโรงเรียนที่เป็นสีทึบ ไม่เหมาะกับรูปถ่าย */
+    function _certRemoveBg(imgData, tol, everywhere) {
+      const W = imgData.width, H = imgData.height, d = imgData.data;
+      const base = _certEdgeColor(d, W, H);
+      if (!base) return { changed: 0 };
+      const T = Math.max(1, Math.min(160, tol || 40));
+      const near = i => Math.abs(d[i] - base.r) + Math.abs(d[i + 1] - base.g) + Math.abs(d[i + 2] - base.b);
+      if (everywhere) {
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] < 8) continue;
+          const diff = near(i);
+          if (diff <= T) { d[i + 3] = 0; n++; }
+          else if (diff <= T * 3) {                       // ขอบเบลอ → ค่อย ๆ จาง กันขอบหยัก
+            const a = Math.round(d[i + 3] * Math.max(0, Math.min(1, (diff - T) / (T * 2))));
+            if (a < d[i + 3]) { d[i + 3] = a; n++; }
+          }
+        }
+        return { changed: n, base: base };
+      }
+      const seen = new Uint8Array(W * H);
+      const stack = [];
+      const push = (x, y) => {
+        if (x < 0 || y < 0 || x >= W || y >= H) return;
+        const p = y * W + x;
+        if (seen[p]) return;
+        seen[p] = 1;
+        stack.push(p);
+      };
+      for (let x = 0; x < W; x++) { push(x, 0); push(x, H - 1); }
+      for (let y = 0; y < H; y++) { push(0, y); push(W - 1, y); }
+      let changed = 0;
+      const soft = [];
+      while (stack.length) {
+        const p = stack.pop();
+        const i = p * 4;
+        const diff = near(i);
+        if (d[i + 3] < 8) { // ใสอยู่แล้ว ลามต่อไปได้
+          push(p % W + 1, (p / W) | 0); push(p % W - 1, (p / W) | 0);
+          push(p % W, ((p / W) | 0) + 1); push(p % W, ((p / W) | 0) - 1);
+          continue;
+        }
+        if (diff > T * 3) continue;                       // เป็นเนื้อรูปแล้ว หยุดตรงนี้
+        if (diff <= T) { d[i + 3] = 0; changed++; }       // พื้นหลังเต็ม ๆ → ใสสนิท
+        else { soft.push([i, diff]); }                    // ขอบเบลอ → ค่อย ๆ จาง กันขอบหยัก
+        const x = p % W, y = (p / W) | 0;
+        push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+      }
+      soft.forEach(([i, diff]) => {
+        const k = Math.max(0, Math.min(1, (diff - T) / (T * 2)));
+        const a = Math.round(d[i + 3] * k);
+        if (a < d[i + 3]) { d[i + 3] = a; changed++; }
+      });
+      return { changed: changed, base: base };
+    }
+    /** ✂️ หากรอบของเนื้อรูปจริง เพื่อตัดขอบว่างรอบ ๆ ทิ้ง */
+    function _certTrimBox(imgData, tol, pad) {
+      const W = imgData.width, H = imgData.height, d = imgData.data;
+      const base = _certEdgeColor(d, W, H);
+      const T = Math.max(1, Math.min(160, tol || 40));
+      let x0 = W, y0 = H, x1 = -1, y1 = -1;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          if (d[i + 3] < 12) continue;                      // ใส = ถือเป็นที่ว่าง
+          if (base && Math.abs(d[i] - base.r) + Math.abs(d[i + 1] - base.g) + Math.abs(d[i + 2] - base.b) <= T) continue;
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+        }
+      }
+      if (x1 < 0) return null;                              // ทั้งรูปเป็นที่ว่าง ไม่ตัด
+      const p = Math.max(0, pad == null ? 2 : pad);
+      x0 = Math.max(0, x0 - p); y0 = Math.max(0, y0 - p);
+      x1 = Math.min(W - 1, x1 + p); y1 = Math.min(H - 1, y1 + p);
+      return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+    }
+
+    /* ── หน้าต่างแต่งรูป ── */
+
+    /** เปิดเครื่องมือแต่งรูป · target = {kind:'settings',field:'cert_logo'} หรือ {kind:'tpl',id:'...'} */
+    function certImgTool(kind, key, label) {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const src = kind === 'tpl'
+        ? String((_certTplById(key) || {}).bg_image || '')
+        : String((_certSettingsRow() || {})[key] || '');
+      if (!src) { showToast('ยังไม่มีรูปให้แต่ง — อัปโหลดรูปก่อน', 'error'); return; }
+      _certImg = { kind: kind, key: key, label: label || 'รูป', orig: src, cv: null };
+      _certImgOverlay();
+      const img = new Image();
+      img.onerror = () => showToast('เปิดรูปนี้ไม่ได้', 'error');
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        _certImg.cv = cv;
+        _certImgPaint();
+      };
+      img.src = src;
+    }
+    function _certImgOverlay() {
+      document.getElementById('cert-img-tool')?.remove();
+      const d = document.createElement('div');
+      d.id = 'cert-img-tool';
+      d.className = 'fixed inset-0 bg-black/60 flex items-center justify-center p-4';
+      d.style.zIndex = '1000001';
+      d.innerHTML = `
+        <div class="bg-white rounded-2xl p-5 w-full max-h-[92vh] overflow-y-auto" style="max-width:560px">
+          <h3 class="text-lg font-bold text-gray-800 mb-1">✂️ แต่งรูป — ${escHtml(_certImg.label)}</h3>
+          <p class="text-xs text-gray-500 mb-3">เหมาะกับลายเซ็นหรือตราโรงเรียนที่สแกนมาบนกระดาษขาว · ทำในเครื่องของคุณเอง ไม่ส่งรูปออกไปไหน</p>
+          <div style="background-image:linear-gradient(45deg,#e2e8f0 25%,transparent 25%,transparent 75%,#e2e8f0 75%),linear-gradient(45deg,#e2e8f0 25%,#fff 25%,#fff 75%,#e2e8f0 75%);background-size:16px 16px;background-position:0 0,8px 8px;border:2px solid #cbd5e1;border-radius:10px;padding:8px;text-align:center;overflow:auto">
+            <canvas id="cert-img-cv" style="max-width:100%;height:auto;vertical-align:middle"></canvas>
+          </div>
+          <p id="cert-img-info" class="text-xs text-gray-500 mt-2"></p>
+          <div class="mt-3">
+            <label class="block text-xs text-gray-600 mb-1">ความไวในการลบพื้นหลัง — <span id="cert-img-tolv">40</span>
+              <span class="text-gray-400">(น้อย = ลบเฉพาะสีที่เหมือนขอบจริง ๆ · มาก = ลบกว้างขึ้น แต่เสี่ยงกินเนื้อรูป)</span></label>
+            <input id="cert-img-tol" type="range" min="10" max="120" step="5" value="40"
+              oninput="document.getElementById('cert-img-tolv').textContent = this.value" class="w-full">
+          </div>
+          <label class="flex items-start gap-2 text-xs text-gray-700 cursor-pointer mt-2">
+            <input type="checkbox" id="cert-img-all" class="mt-0.5">
+            <span>ลบสีพื้นทั้งรูป — ช่องว่างที่ถูกล้อมปิดก็ใสด้วย เช่น ตรงกลางตัว "อ" หรือรูในตราโรงเรียน
+              <span class="text-gray-400">(เหมาะกับลายเซ็นและตราที่เป็นสีทึบ ไม่เหมาะกับรูปถ่าย)</span></span>
+          </label>
+          <div class="flex gap-2 flex-wrap mt-2">
+            <button type="button" onclick="certImgRemoveBg()" class="px-3 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-sm font-semibold">🪄 ลบพื้นหลัง</button>
+            <button type="button" onclick="certImgTrim()" class="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-sm font-semibold">✂️ ตัดขอบว่างรอบรูป</button>
+            <button type="button" onclick="certImgReset()" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm">↺ เริ่มใหม่</button>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">💡 ลายเซ็นบนกระดาษขาว กด <b>ลบพื้นหลัง</b> ก่อน แล้วค่อย <b>ตัดขอบว่าง</b> จะได้ลายเซ็นลอยบนใบเกียรติบัตรพอดี ๆ · ถ้าลบแล้วเนื้อหาย ให้กดเริ่มใหม่แล้วลดความไวลง</p>
+          <div class="flex gap-2 mt-4">
+            <button type="button" onclick="document.getElementById('cert-img-tool')?.remove()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm">ยกเลิก</button>
+            <button type="button" onclick="certImgSave()" id="cert-img-save" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold">✅ ใช้รูปนี้</button>
+          </div>
+        </div>`;
+      document.body.appendChild(d);
+    }
+    /** วาดรูปที่กำลังแต่งลงหน้าจอ */
+    function _certImgPaint(note) {
+      const cv = _certImg && _certImg.cv;
+      const out = document.getElementById('cert-img-cv');
+      if (!cv || !out) return;
+      out.width = cv.width; out.height = cv.height;
+      out.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+      out.getContext('2d').drawImage(cv, 0, 0);
+      const info = document.getElementById('cert-img-info');
+      if (info) info.textContent = 'ขนาดรูป ' + cv.width + '×' + cv.height + ' จุด' + (note ? ' · ' + note : '');
+    }
+    function _certImgTol() { return parseInt(document.getElementById('cert-img-tol')?.value, 10) || 40; }
+    function certImgRemoveBg() {
+      const cv = _certImg && _certImg.cv;
+      if (!cv) return;
+      const cx = cv.getContext('2d');
+      const im = cx.getImageData(0, 0, cv.width, cv.height);
+      const all = !!(document.getElementById('cert-img-all') || {}).checked;
+      const r = _certRemoveBg(im, _certImgTol(), all);
+      if (!r.changed) { showToast('ไม่พบพื้นหลังที่ลบได้ — ลองเพิ่มความไวดู'); return; }
+      cx.putImageData(im, 0, 0);
+      _certImgPaint('ลบพื้นหลังแล้ว ' + r.changed.toLocaleString('th-TH') + ' จุด' + (all ? ' (ทั้งรูป)' : ''));
+    }
+    function certImgTrim() {
+      const cv = _certImg && _certImg.cv;
+      if (!cv) return;
+      const cx = cv.getContext('2d');
+      const box = _certTrimBox(cx.getImageData(0, 0, cv.width, cv.height), _certImgTol(), 2);
+      if (!box) { showToast('ทั้งรูปเป็นที่ว่าง ตัดไม่ได้', 'error'); return; }
+      if (box.w === cv.width && box.h === cv.height) { showToast('ไม่มีขอบว่างให้ตัดแล้ว'); return; }
+      const nv = document.createElement('canvas');
+      nv.width = box.w; nv.height = box.h;
+      nv.getContext('2d').drawImage(cv, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+      _certImg.cv = nv;
+      _certImgPaint('ตัดขอบว่างออกแล้ว');
+    }
+    function certImgReset() {
+      if (!_certImg) return;
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        _certImg.cv = cv;
+        _certImgPaint('กลับไปใช้รูปเดิม');
+      };
+      img.src = _certImg.orig;
+    }
+    async function certImgSave() {
+      if (!_courseCanEdit()) { showToast('คุณไม่มีสิทธิ์จัดการหลักสูตร', 'error'); return; }
+      const cv = _certImg && _certImg.cv;
+      if (!cv) return;
+      const data = _certCanvasToData(cv);
+      if (!data) { showToast('บันทึกรูปไม่สำเร็จ', 'error'); return; }
+      const btn = document.getElementById('cert-img-save');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+      let r;
+      if (_certImg.kind === 'tpl') {
+        const t = _certTplById(_certImg.key);
+        r = t ? await _coUpd({ ...t, bg_image: data }) : { isOk: false };
+      } else {
+        const s = _certSettingsRow();
+        const patch = {}; patch[_certImg.key] = data;
+        r = s ? await _coUpd({ ...s, ...patch }) : { isOk: false };
+      }
+      if (r && r.isOk) {
+        showToast('✅ บันทึกรูปที่แต่งแล้ว');
+        document.getElementById('cert-img-tool')?.remove();
+        _certImg = null;
+        loadCertificateTab();
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '✅ ใช้รูปนี้'; }
+        showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+      }
+    }
+
     /** ข้อสอบที่พร้อมใช้งานจริง — ข้อที่นำเข้ามาแล้วยังไม่สมบูรณ์ (is_draft) จะไม่ถูกหยิบไปออกข้อสอบ */
+    /** 🔤 ตัวอักษรของช่องคะแนนที่ใช้ "แสดงให้ผู้ใช้เห็น"
+     *  ⚠️ ชื่อคอลัมน์ในฐานข้อมูลยังเป็น p_scores / p_full_score เหมือนเดิมทั้งหมด
+     *     เปลี่ยนเฉพาะตัวอักษรบนหน้าจอ P → S ตามหลักสูตรใหม่ ข้อมูลเก่าจึงใช้ได้ต่อโดยไม่ต้องย้าย */
+    const SCORE_LETTER = { k: 'K', p: 'S', a: 'A', c: 'C', m: 'M', f: 'F', pretest: 'Pre' };
+    function _scoreLetter(t) {
+      const k = String(t == null ? '' : t).toLowerCase();
+      return SCORE_LETTER[k] || k.toUpperCase();
+    }
+
     function _qReady(q) { return !(q.is_draft === true || q.is_draft === 'true'); }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -19226,7 +19522,7 @@ const supabaseDataSdk = {
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
-        const T = String(['k','p','c'].includes(scoreType) ? scoreType : 'k').toUpperCase();
+        const T = _scoreLetter(['k','p','c'].includes(scoreType) ? scoreType : 'k');
         document.getElementById('fullscore-mode-popup')?.remove();
         const wrap = document.createElement('div');
         wrap.id = 'fullscore-mode-popup';
@@ -19280,7 +19576,7 @@ const supabaseDataSdk = {
       // K รองรับ 10 ครั้ง, C รองรับ 3 ครั้ง — ถ้าเกินคะแนนจะไม่แสดงในหน้าบันทึกคะแนน
       const _maxRound = scoreType === 'c' ? 3 : 10;
       if ((parseInt(kRound) || 1) > _maxRound) {
-        showToast(`⚠️ ${scoreType.toUpperCase()} รองรับได้สูงสุด ${_maxRound} ครั้ง กรุณาเลือกครั้งที่ไม่เกินนี้`, 'error');
+        showToast(`⚠️ ${_scoreLetter(scoreType)} รองรับได้สูงสุด ${_maxRound} ครั้ง กรุณาเลือกครั้งที่ไม่เกินนี้`, 'error');
         return;
       }
       const startTime = document.getElementById('ea-start')?.value;
@@ -20049,7 +20345,7 @@ const supabaseDataSdk = {
         : null;
       if (!g) {
         console.error('[คืนคะแนน] หาแถวคะแนนไม่เจอ นักเรียน:', sub.student_id, 'ที่ต้องหักคืน:', amount, sType.toUpperCase(), 'ครั้งที่', round);
-        showToast(`⚠️ ไม่พบแถวคะแนนของนักเรียน ${sub.student_id} — คะแนน ${sType.toUpperCase()} ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจที่หน้า "ให้คะแนน"`, 'error');
+        showToast(`⚠️ ไม่พบแถวคะแนนของนักเรียน ${sub.student_id} — คะแนน ${_scoreLetter(sType)} ครั้งที่ ${round} อาจค้างอยู่ กรุณาตรวจที่หน้า "ให้คะแนน"`, 'error');
         return false;
       }
       const arr = String(g[field] || '').split(',').map(x => x.trim());
@@ -20148,7 +20444,7 @@ const supabaseDataSdk = {
     // ✍️ ระบบสอบอัตนัย: นักเรียนเขียนตอบ → ครูตรวจ → โอนคะแนน (ใช้ฟังก์ชันลงคะแนนตัวเดียวกับปรนัย)
     // ════════════════════════════════════════════════════════════
     function _essayRoundText(set) {
-      return `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ${parseInt(set.k_round) || 1}`;
+      return `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ${parseInt(set.k_round) || 1}`;
     }
     /** 🕐 แปลงค่าเวลาจากฐานข้อมูลให้เป็นวันที่ที่ใช้ได้จริงทุกเครื่อง
      *  ⚠️ บั๊กที่กันไว้: บางเครื่อง (โดยเฉพาะ iPhone/Safari) อ่านรูปแบบของ Postgres
@@ -21314,7 +21610,7 @@ function _examResultIdentityHtml(sub, set) {
       const full = stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : (sub?.student_name || '');
       const no = stu?.student_number ? `เลขที่ ${stu.student_number}` : '';
       const room = `${stu?.class_name || sub?.class_name || ''}${(stu?.room_number || sub?.room_number) ? '/' + (stu?.room_number || sub?.room_number) : ''}`;
-      const round = set ? `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
+      const round = set ? `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
       const kind = (set && set.type === 'essay_exam_set') ? 'อัตนัย' : 'ปรนัย';
       const used = parseInt(sub?.retry_count) || 0;
       const line = (a, b) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span style="color:#64748b">${a}</span><b style="color:#1e293b;text-align:right">${b}</b></div>`;
@@ -21591,7 +21887,7 @@ function _examResultIdentityHtml(sub, set) {
       // ท้ายภาพ
       ctx.fillStyle = '#cbd5e1';
       ctx.font = '18px "Sarabun", sans-serif';
-      ctx.fillText('ระบบบันทึก KPAC', W/2, H - 45);
+      ctx.fillText('ระบบบันทึก KSAC', W/2, H - 45);
 
       // บันทึกเป็นไฟล์ภาพ
       cv.toBlob(blob => {
@@ -25566,10 +25862,10 @@ function _examResultIdentityHtml(sub, set) {
         'เลขที่': r.studentNumber,
         'ชื่อ-นามสกุล': r.studentName,
         'ชั้น': r.className || '', 'ห้อง': r.roomNumber || '', 'วิชา': r.subjectName || '',
-        'K': fmt(r.kScore), 'P': fmt(r.pScore), 'A': fmt(r.aScore), 'C': fmt(r.cScore),
-        'รวม KPAC': fmt(r.totalKPAC),
+        'K': fmt(r.kScore), 'S': fmt(r.pScore), 'A': fmt(r.aScore), 'C': fmt(r.cScore),
+        'รวม KSAC': fmt(r.totalKPAC),
         'M': fmt(r.mScore), 'F': fmt(r.fScore),
-        'รวม KPACMF': fmt(r.totalAll),
+        'รวม KSACMF': fmt(r.totalAll),
         'เกรด': r.gradeValue,
         'เกรดพิเศษ(1)': r.special1,
         'เกรดพิเศษ(2)': r.special2,
@@ -27202,7 +27498,7 @@ function _examResultIdentityHtml(sub, set) {
     // (เดิมโค้ดมองหา type 'attendance' ซึ่งไม่มีจริง ที่ถูกต้องคือ attendance_part1/attendance_part2 — แก้ไขให้ถูกต้องแล้ว)
     /** 🔒 การลงทะเบียนนี้มีคะแนนที่กรอกไว้แล้วหรือยัง
      *  ใช้กันนักเรียนลบการลงทะเบียนที่มีคะแนนแล้ว เพราะการลบจะพาคะแนนหายไปด้วย
-     *  (ถ้าหาย ครูต้องกรอกใหม่ทั้งหมด และ KPAC เดิมที่นักเรียนกำหนดไว้ก็กู้ไม่ได้) */
+     *  (ถ้าหาย ครูต้องกรอกใหม่ทั้งหมด และ KSAC เดิมที่นักเรียนกำหนดไว้ก็กู้ไม่ได้) */
     function _registrationHasScores(reg) {
       const g = (typeof _findGradeRow === 'function') ? _findGradeRow(reg) : null;
       if (!g) return false;
@@ -27576,7 +27872,7 @@ function _examResultIdentityHtml(sub, set) {
 
 
     // ══════════════════════════════════════════════════════════════
-    // ⚠️ นักเรียนที่ลงทะเบียนแล้ว แต่กำหนด KPAC ไม่ครบ
+    // ⚠️ นักเรียนที่ลงทะเบียนแล้ว แต่กำหนด KSAC ไม่ครบ
     //    เดิมคนกลุ่มนี้ไม่โผล่ในแท็บ "ยังไม่ลงทะเบียน" เพราะมีแถวลงทะเบียนอยู่แล้ว
     //    นับว่าไม่ครบเมื่อ: กรอกไม่ครบทั้ง 4 ช่อง หรือ รวม ≠ ขีดจำกัดของวิชานั้น (100 − M% − F%)
     // ══════════════════════════════════════════════════════════════
@@ -27590,7 +27886,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!cs) return null;   // ไม่พบวิชาที่เปิดสอน — ไม่รู้ขีดจำกัด จึงไม่ตัดสิน
       return Math.round((100 - (Number(cs.mid_percent) || 0) - (Number(cs.final_percent) || 0)) * 100) / 100;
     }
-    /** รายการลงทะเบียนที่ KPAC ไม่ครบ พร้อมเหตุผล */
+    /** รายการลงทะเบียนที่ KSAC ไม่ครบ พร้อมเหตุผล */
     function incompleteKpacRegs() {
       const out = [];
       allData.filter(d => d.type === 'student_registration')
@@ -27631,7 +27927,7 @@ function _examResultIdentityHtml(sub, set) {
       const countEl = document.getElementById('badkpac-count');
       if (countEl) countEl.textContent = list.length ? `(${list.length} รายการ)` : '';
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-gray-400 py-6">✅ ทุกคนที่ลงทะเบียนแล้ว กำหนด KPAC ครบถ้วน</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-gray-400 py-6">✅ ทุกคนที่ลงทะเบียนแล้ว กำหนด KSAC ครบถ้วน</td></tr>';
         return;
       }
       const cell = (v, bad) => `<td class="px-1 py-1 text-center ${bad ? 'bg-red-50 text-red-600 font-bold' : ''}">${(v === '' || v === null || v === undefined) ? '-' : v}</td>`;
@@ -27655,17 +27951,17 @@ function _examResultIdentityHtml(sub, set) {
     }
     function exportBadKpacExcel() {
       const list = incompleteKpacRegs();
-      if (list.length === 0) { showToast('ไม่มีรายการที่ KPAC ไม่ครบ', 'info'); return; }
+      if (list.length === 0) { showToast('ไม่มีรายการที่ KSAC ไม่ครบ', 'info'); return; }
       const data = list.map(x => ({
         'ชื่อ-นามสกุล': x.studentName, 'รหัสนักเรียน': x.reg.student_id,
         'ชั้น': x.reg.class_name || '', 'ห้อง': x.reg.room_number || '', 'วิชา': x.reg.subject_name || '',
-        'K%': x.k ?? '', 'P%': x.p ?? '', 'A%': x.a ?? '', 'C%': x.c ?? '',
+        'K%': x.k ?? '', 'S%': x.p ?? '', 'A%': x.a ?? '', 'C%': x.c ?? '',
         'รวม': x.sum, 'ต้องได้': x.limit, 'ปัญหา': x.reasons.join(' · ')
       }));
       const ws = XLSX.utils.json_to_sheet(data);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'KPACไม่ครบ');
-      XLSX.writeFile(wb, 'ลงทะเบียนแล้วแต่KPACไม่ครบ.xlsx');
+      XLSX.utils.book_append_sheet(wb, ws, 'KSACไม่ครบ');
+      XLSX.writeFile(wb, 'ลงทะเบียนแล้วแต่KSACไม่ครบ.xlsx');
     }
 
     function renderNoEnrollTable() {
@@ -27708,7 +28004,7 @@ function _examResultIdentityHtml(sub, set) {
         (parseInt(a.student_number)||0) - (parseInt(b.student_number)||0));
       if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ ไม่มีนักเรียนที่ยังไม่ได้ลงทะเบียนวิชาเลย</td></tr>';
-        renderBadKpacTable();   // ยังต้องวาดตารางด้านล่าง เพราะคนที่ KPAC ไม่ครบคนละกลุ่มกัน
+        renderBadKpacTable();   // ยังต้องวาดตารางด้านล่าง เพราะคนที่ KSAC ไม่ครบคนละกลุ่มกัน
         return;
       }
       renderBadKpacTable();
@@ -27774,7 +28070,7 @@ function _examResultIdentityHtml(sub, set) {
       const a=parseFloat(document.getElementById('noenroll-a')?.value)||0;
       const c=parseFloat(document.getElementById('noenroll-c')?.value)||0;
       const lim=parseFloat(document.getElementById('noenroll-kpac-limit')?.textContent)||100;
-      if(k+p+a+c>lim){showToast(`รวม KPAC เกินขีดจำกัด ${lim}%`,'error');return;}
+      if(k+p+a+c>lim){showToast(`รวม KSAC เกินขีดจำกัด ${lim}%`,'error');return;}
       const ids=Array.from(document.querySelectorAll('.noenroll-cb:checked')).map(cb=>cb.dataset.sid);
       if(ids.length===0){showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน','error');return;}
       let enrolled=0, skipped=0;
@@ -28303,7 +28599,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!subjectName) { showToast('กรุณาเลือกวิชาก่อน', 'error'); return; }
       const limitEl = document.getElementById('import-kpac-limit');
       const limit = parseFloat(limitEl?.textContent) || 100;
-      if (k+p+a+c > limit) { showToast(`รวม KPAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
+      if (k+p+a+c > limit) { showToast(`รวม KSAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
       const ids = getImportSelectedIds();
       if (ids.length === 0) { showToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'error'); return; }
       let enrolled = 0, skipped = 0, skippedNoSubject = 0;
@@ -28473,7 +28769,7 @@ function _examResultIdentityHtml(sub, set) {
       const a = parseFloat(document.getElementById('br-a')?.value)||0;
       const c = parseFloat(document.getElementById('br-c')?.value)||0;
       const limit = parseFloat(document.getElementById('br-kpac-limit')?.textContent)||100;
-      if (k+p+a+c > limit) { showToast(`รวม KPAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
+      if (k+p+a+c > limit) { showToast(`รวม KSAC เกินขีดจำกัด ${limit}%`, 'error'); return; }
       const selectedIds = Array.from(document.querySelectorAll('.br-row-cb:checked')).map(cb => cb.dataset.sid);
       if (selectedIds.length === 0) { showToast('กรุณาเลือกนักเรียนอย่างน้อย 1 คน', 'error'); return; }
       let enrolled = 0, skipped = 0;
@@ -28589,7 +28885,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="edit-reg-k" value="${reg.k_percent ?? 0}" min="0" max="100" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">P%</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">S%</label>
               <input type="number" id="edit-reg-p" value="${reg.p_percent ?? 0}" min="0" max="100" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none">
             </div>
             <div>
@@ -28686,7 +28982,7 @@ function _examResultIdentityHtml(sub, set) {
         'เลขที่': studentNumber,
         'ชื่อ-นามสกุล': student ? `${student.prefix} ${student.first_name} ${student.last_name}` : reg.student_id,
         'วิชา': reg.subject_name,
-        'K%': reg.k_percent ?? 0, 'P%': reg.p_percent ?? 0, 'A%': reg.a_percent ?? 0, 'C%': reg.c_percent ?? 0
+        'K%': reg.k_percent ?? 0, 'S%': reg.p_percent ?? 0, 'A%': reg.a_percent ?? 0, 'C%': reg.c_percent ?? 0
       }));
       const header = [[`รายชื่อนักเรียนที่ลงทะเบียนเรียน`], [`ชั้น ${className} ห้อง ${roomNumber} วิชา ${subjectName}`], []];
       const ws = XLSX.utils.aoa_to_sheet(header);
@@ -29091,7 +29387,7 @@ function _examResultIdentityHtml(sub, set) {
       if (availableSubjects.length > 0) {
         const sel = document.getElementById('admin-reg-subject-select');
         sel.onchange = () => updateAdminRegForm(studentBackendId, requestId);
-        // ✏️ มาจากปุ่มแก้ไขของตาราง "KPAC ไม่ครบ" — เลือกวิชานั้นไว้ให้เลย ไม่ต้องหาเอง
+        // ✏️ มาจากปุ่มแก้ไขของตาราง "KSAC ไม่ครบ" — เลือกวิชานั้นไว้ให้เลย ไม่ต้องหาเอง
         if (preselectSubject && Array.prototype.some.call(sel.options, o => o.value === preselectSubject)) {
           sel.value = preselectSubject;
           updateAdminRegForm(studentBackendId, requestId);
@@ -29107,7 +29403,7 @@ function _examResultIdentityHtml(sub, set) {
       const midPercent = classSubjectRecord?.mid_percent || 0;
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
-      // ถ้านักเรียนกำหนด KPAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
+      // ถ้านักเรียนกำหนด KSAC วิชานี้ไว้แล้ว ให้ดึงตัวเลขเดิมมาแสดง เพื่อให้แก้ไข/กำหนดใหม่ได้
       const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName) && sameWorkingTerm(d));
       const kVal = existingReg?.k_percent ?? '';
       const pVal = existingReg?.p_percent ?? '';
@@ -29115,11 +29411,11 @@ function _examResultIdentityHtml(sub, set) {
       const cVal = existingReg?.c_percent ?? '';
       container.innerHTML = `
         <div class="bg-blue-50 rounded-lg border-2 border-blue-200 p-4">
-          ${existingReg ? '<p class="text-xs text-green-700 font-semibold mb-2">✅ วิชานี้กำหนด KPAC ไว้แล้ว — ตัวเลขเดิมแสดงอยู่ด้านล่าง แก้ไขแล้วกดบันทึกเพื่อกำหนดใหม่</p>' : ''}
+          ${existingReg ? '<p class="text-xs text-green-700 font-semibold mb-2">✅ วิชานี้กำหนด KSAC ไว้แล้ว — ตัวเลขเดิมแสดงอยู่ด้านล่าง แก้ไขแล้วกดบันทึกเพื่อกำหนดใหม่</p>' : ''}
           <p class="text-xs text-gray-600 mb-3">M ${midPercent}% | F ${finalPercent}% | เหลือสำหรับ K+P+A+C: <strong>${kpacPercent}%</strong></p>
           <div class="grid grid-cols-4 gap-2 mb-3">
             <div><label class="block text-xs text-gray-600 mb-1">K%</label><input type="number" id="admin-reg-k" min="0" max="100" step="0.1" value="${kVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">P%</label><input type="number" id="admin-reg-p" min="0" max="100" step="0.1" value="${pVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
+            <div><label class="block text-xs text-gray-600 mb-1">S%</label><input type="number" id="admin-reg-p" min="0" max="100" step="0.1" value="${pVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
             <div><label class="block text-xs text-gray-600 mb-1">A%</label><input type="number" id="admin-reg-a" min="0" max="100" step="0.1" value="${aVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
             <div><label class="block text-xs text-gray-600 mb-1">C%</label><input type="number" id="admin-reg-c" min="0" max="100" step="0.1" value="${cVal}" placeholder="0" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none" onfocus="this.select()" oninput="updateAdminRegKpacTotal(${kpacPercent})"></div>
           </div>
@@ -29157,7 +29453,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       errorEl.classList.add('hidden');
       const existingReg = allData.find(d => d.type === 'student_registration' && _rN(d.student_id) === _rN(student.student_id) && _rN(d.subject_name) === _rN(subjectName));
-      // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KPAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
+      // หมายเหตุ: แอดมินลงทะเบียน/กำหนด KSAC ใหม่แทนได้โดยไม่ติดเงื่อนไขวันที่เปิด-ปิดการลงทะเบียน (ไม่เช็ค isRegistrationOpen())
       // ถ้ามีการลงทะเบียนวิชานี้อยู่แล้ว ให้แก้ไขค่าเดิม (อัปเดต) แทนการสร้างใหม่ซ้ำ
       const result = existingReg
         ? await window.dataSdk.update({ ...existingReg, k_percent: k, p_percent: p, a_percent: a, c_percent: c })
@@ -29169,7 +29465,7 @@ function _examResultIdentityHtml(sub, set) {
           });
       if (result.isOk) {
         _closeAllPopups();
-        showToast(existingReg ? '✅ บันทึกค่า KPAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
+        showToast(existingReg ? '✅ บันทึกค่า KSAC ใหม่สำเร็จ' : '✅ ลงทะเบียนให้นักเรียนสำเร็จ');
         // ปิดคำขอลงทะเบียนที่เปิด popup นี้มา (ถ้ามี) อัตโนมัติ เพราะแอดมินดำเนินการให้แล้ว
         if (requestId) {
           const req = allData.find(d => d.type === 'registration_request' && String(d.__backendId) === String(requestId));
@@ -29851,7 +30147,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="popup-mf-final" min="0" max="100" value="${mf.final_percent || 0}" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none" onchange="updateMFPopupKPAC()">
             </div>
             <div class="p-4 bg-blue-50 rounded-xl">
-              <p class="text-blue-800 font-medium text-sm">💡 คะแนนเก็บ (KPAC): <span class="text-xl font-bold" id="popup-kpac">${100 - (mf.mid_percent || 0) - (mf.final_percent || 0)}%</span></p>
+              <p class="text-blue-800 font-medium text-sm">💡 คะแนนเก็บ (KSAC): <span class="text-xl font-bold" id="popup-kpac">${100 - (mf.mid_percent || 0) - (mf.final_percent || 0)}%</span></p>
             </div>
           </div>
           <div class="flex gap-3">
@@ -30311,7 +30607,7 @@ function _examResultIdentityHtml(sub, set) {
       const existing = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const categories = [
         { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10, color: 'amber' },
-        { type: 'p', label: '🎯 P (ทักษะ)', times: 3, color: 'green' },
+        { type: 'p', label: '🎯 S (ทักษะและกระบวนการ)', times: 3, color: 'green' },
         { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3, color: 'purple' },
         { type: 'c', label: '💪 C (สมรรถนะ)', times: 3, color: 'red' },
         { type: 'm', label: '📋 M (กลางภาค)', times: 2, color: 'cyan' },
@@ -30464,7 +30760,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!scores) return;
       const categories = [
         { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10 },
-        { type: 'p', label: '🎯 P (ทักษะ)', times: 3 },
+        { type: 'p', label: '🎯 S (ทักษะและกระบวนการ)', times: 3 },
         { type: 'a', label: '⭐ A (คุณลักษณะ)', times: 3 },
         { type: 'c', label: '💪 C (สมรรถนะ)', times: 3 },
         { type: 'm', label: '📋 M (กลางภาค)', times: 2 },
@@ -30787,7 +31083,7 @@ function _examResultIdentityHtml(sub, set) {
         <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
           <p class="font-bold text-gray-800">👤 ${escHtml(name)} <span class="text-sm font-normal text-gray-500">🆔 ${escHtml(String(reg.student_id))} | 📚 ${escHtml(sc.className)}/${escHtml(sc.roomNumber)} | 📖 ${escHtml(sc.subjectName)}</span></p>
           <p class="text-sm"><span class="px-2 py-1 bg-purple-100 text-purple-800 rounded font-semibold">⭐ A รวม ${tally.a}</span>
-             <span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold ml-1">🎯 P รวม ${tally.p}</span>
+             <span class="px-2 py-1 bg-green-100 text-green-800 rounded font-semibold ml-1">🎯 S รวม ${tally.p}</span>
              <span class="text-xs text-gray-500 ml-1">(เฉพาะครั้งที่ยังไม่รวบรวม)</span></p>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -30813,7 +31109,7 @@ function _examResultIdentityHtml(sub, set) {
               </label>
             </div>
             <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-700">🎯 P ย่อยครั้งที่ ${r.no} — จำนวนข้อที่ทำได้</span>
+              <span class="text-sm text-gray-700">🎯 S ย่อยครั้งที่ ${r.no} — จำนวนข้อที่ทำได้</span>
               <input type="number" min="0" max="${r.questions || 999}" step="1" value="${pts == null ? '' : pts}"
                 ${(can && !lateLocked) ? '' : 'disabled'}
                 onchange="csSetPoints('${escHtml(String(reg.__backendId))}', ${r.no}, this.value)"
@@ -30834,7 +31130,7 @@ function _examResultIdentityHtml(sub, set) {
       const value = checked ? (which === 'late' ? SUB_STATUS.LATE : SUB_STATUS.ON) : SUB_STATUS.NONE;
       const g = _findGradeRow(reg);
       const a_sub = _subSetAt(g?.a_sub, roundNo, value);
-      // ส่งไม่ตรงเวลา = ใส่คะแนน P ไม่ได้ จึงล้างค่าทิ้ง
+      // ส่งไม่ตรงเวลา = ใส่คะแนน S ไม่ได้ จึงล้างค่าทิ้ง
       const p_sub = (value === SUB_STATUS.LATE) ? _subSetAt(g?.p_sub, roundNo, '') : (g?.p_sub || '');
       await _subSaveGrade(reg, g, { a_sub, p_sub });
       csRenderAll();
@@ -30847,9 +31143,9 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg) return;
       const rounds = _subRounds(sc);
       const r = rounds.find(x => x.no === roundNo);
-      // 🔒 ครั้งที่ติ๊กว่าส่งไม่ตรงเวลา ใส่คะแนน P ไม่ได้ (ด่านจริง ไม่ใช่แค่ปิดช่องบนหน้าจอ)
+      // 🔒 ครั้งที่ติ๊กว่าส่งไม่ตรงเวลา ใส่คะแนน S ไม่ได้ (ด่านจริง ไม่ใช่แค่ปิดช่องบนหน้าจอ)
       if (_subStatusOf(_findGradeRow(reg), roundNo) === SUB_STATUS.LATE) {
-        showToast(`ครั้งที่ ${roundNo} ติ๊กว่าส่งไม่ตรงเวลา จึงใส่คะแนน P ไม่ได้`, 'error');
+        showToast(`ครั้งที่ ${roundNo} ติ๊กว่าส่งไม่ตรงเวลา จึงใส่คะแนน S ไม่ได้`, 'error');
         csRenderAll(); return;
       }
       let v = String(raw || '').trim();
@@ -31068,7 +31364,7 @@ function _examResultIdentityHtml(sub, set) {
           <select id="mw-target-round" class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none mb-3">
             ${[1, 2, 3].map(n => `<option value="${n}" ${n === target ? 'selected' : ''}>ครั้งที่ ${n}${n === target ? ' (ค่าปัจจุบัน)' : ''}</option>`).join('')}
           </select>
-          <p class="text-xs text-gray-500 mb-4">⭐ A หลัก = จำนวนครั้งที่ส่งตรงเวลา${_subLateCounts(cs) ? ' (รวมส่งไม่ตรงเวลาด้วย)' : ''} · 🎯 P หลัก = ผลรวมจำนวนข้อที่ทำได้</p>
+          <p class="text-xs text-gray-500 mb-4">⭐ A หลัก = จำนวนครั้งที่ส่งตรงเวลา${_subLateCounts(cs) ? ' (รวมส่งไม่ตรงเวลาด้วย)' : ''} · 🎯 S หลัก = ผลรวมจำนวนข้อที่ทำได้</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="mwConfirmMerge('${escHtml(picked.join(','))}')" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold">✅ รวบรวม</button>
@@ -31334,11 +31630,11 @@ function _examResultIdentityHtml(sub, set) {
            </div>`;
       const enrollLine = isRegistered
         ? `<div class="flex items-center justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2 flex-wrap">
-             <span class="text-sm text-green-700">✅ <b>ลงทะเบียนแล้ว</b> — กำหนด KPAC เรียบร้อย</span>
+             <span class="text-sm text-green-700">✅ <b>ลงทะเบียนแล้ว</b> — กำหนด KSAC เรียบร้อย</span>
            </div>`
         : `<div class="flex items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 flex-wrap">
              <span class="text-sm text-red-700">❌ <b>ยังไม่ลงทะเบียนวิชานี้</b> — คะแนนที่กรอกถูกเก็บไว้รอ เกรดจะแสดงเป็น ร. จนกว่าจะลงทะเบียน</span>
-             <button onclick="openEnrollKpacPopup('${student.__backendId}','${subjEnc}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold btn-3d">📝 ลงทะเบียน (กำหนด KPAC)</button>
+             <button onclick="openEnrollKpacPopup('${student.__backendId}','${subjEnc}')" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-semibold btn-3d">📝 ลงทะเบียน (กำหนด KSAC)</button>
            </div>`;
       return `
         <div class="mt-4 bg-white border-2 border-red-300 rounded-xl p-4">
@@ -31371,7 +31667,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(wrap);
     }
 
-    /** 📝 หน้าต่างลงทะเบียนให้นักเรียน (กำหนด KPAC) */
+    /** 📝 หน้าต่างลงทะเบียนให้นักเรียน (กำหนด KSAC) */
     function openEnrollKpacPopup(studentBackendId, subjEnc) {
       const subjectName = decodeURIComponent(subjEnc);
       const student = allData.find(s => s.type === 'student' && String(s.__backendId) === String(studentBackendId));
@@ -31390,10 +31686,10 @@ function _examResultIdentityHtml(sub, set) {
           class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none"></div>`;
       wrap.innerHTML = `
         <div class="bg-white rounded-2xl p-5 max-w-md w-full">
-          <p class="text-lg font-bold text-gray-800 mb-1">📝 ลงทะเบียน (กำหนด KPAC)</p>
+          <p class="text-lg font-bold text-gray-800 mb-1">📝 ลงทะเบียน (กำหนด KSAC)</p>
           <p class="text-xs text-gray-500 mb-3">${escHtml(student.prefix||'')}${escHtml(student.first_name||'')} ${escHtml(student.last_name||'')} · 📚 ${escHtml(subjectName)}</p>
-          <p class="text-xs text-blue-600 mb-2">M ${cs.mid_percent||0}% · F ${cs.final_percent||0}% · KPAC รวมได้ไม่เกิน ${limit}%</p>
-          <div class="grid grid-cols-4 gap-2 mb-2">${inp('ek-k','K')}${inp('ek-p','P')}${inp('ek-a','A')}${inp('ek-c','C')}</div>
+          <p class="text-xs text-blue-600 mb-2">M ${cs.mid_percent||0}% · F ${cs.final_percent||0}% · KSAC รวมได้ไม่เกิน ${limit}%</p>
+          <div class="grid grid-cols-4 gap-2 mb-2">${inp('ek-k','K')}${inp('ek-p','S')}${inp('ek-a','A')}${inp('ek-c','C')}</div>
           <p id="ek-sum" class="text-xs text-gray-500 mb-4">รวม: 0 / ${limit}</p>
           <div class="flex gap-2">
             <button onclick="confirmEnrollKpac('${student.__backendId}','${subjEnc}',${limit})" id="ek-save-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold btn-3d">💾 ลงทะเบียน</button>
@@ -31417,8 +31713,8 @@ function _examResultIdentityHtml(sub, set) {
       const p = parseFloat(document.getElementById('ek-p')?.value) || 0;
       const a = parseFloat(document.getElementById('ek-a')?.value) || 0;
       const cc = parseFloat(document.getElementById('ek-c')?.value) || 0;
-      if (k + p + a + cc > limit) { showToast(`รวม KPAC เกิน ${limit}%`, 'error'); return; }
-      if (k + p + a + cc === 0 && !confirm('ยังไม่ได้กรอกสัดส่วน KPAC (ทั้งหมดเป็น 0) ยืนยันลงทะเบียนต่อหรือไม่?')) return;
+      if (k + p + a + cc > limit) { showToast(`รวม KSAC เกิน ${limit}%`, 'error'); return; }
+      if (k + p + a + cc === 0 && !confirm('ยังไม่ได้กรอกสัดส่วน KSAC (ทั้งหมดเป็น 0) ยืนยันลงทะเบียนต่อหรือไม่?')) return;
       const dup = allData.find(r => r.type === 'student_registration'
         && String(r.student_id) === String(student.student_id) && r.subject_name === subjectName && sameWorkingTerm(r));
       if (dup) { showToast(`นักเรียนคนนี้ลงทะเบียนวิชานี้แล้วใน${workingTermLabel()}`, 'info'); document.getElementById('enroll-kpac-popup')?.remove(); return; }
@@ -31650,7 +31946,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!set || !reg) { showToast('ไม่พบข้อมูลชุดสอบหรือนักเรียน', 'error'); return; }
       const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
       const name = stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`.trim() : (reg.student_name || reg.student_id);
-      const round = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}`;
+      const round = `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}`;
       if (!confirm(`ให้ ${name} ได้สอบ ${round} ${isEssay ? 'อัตนัย' : 'ปรนัย'} วิชา ${set.subject_name} ด้วยหรือไม่?`)) return;
       const base = {
         registration_id: reg.__backendId, student_id: String(reg.student_id), student_name: name,
@@ -31705,7 +32001,7 @@ function _examResultIdentityHtml(sub, set) {
       wrap.id = 'indiv-exam-popup';
       wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
       wrap.style.zIndex = '60';
-      const tag = `${(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
+      const tag = `${_scoreLetter(['k', 'p', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
       // 📊 คะแนนเต็มของครั้งนี้ที่มีอยู่แล้ว (ไว้ให้ครูเห็นก่อนตัดสินใจ) + ชุดสอบนี้เป็นโหมดแทนการสอบนอกระบบอยู่แล้วหรือยัง
       const _setSame = set.full_score_mode === 'same';
       const _fsInfo = (typeof _getExistingRoundFullScore === 'function')
@@ -31722,7 +32018,7 @@ function _examResultIdentityHtml(sub, set) {
           <label class="flex items-start gap-2 text-xs cursor-pointer bg-amber-50 border border-amber-200 rounded p-2 mt-2">
             <input type="checkbox" id="ie-offline-replace" class="w-4 h-4 mt-0.5" ${_setSame ? 'checked disabled' : ''}>
             <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> — ไม่เพิ่มคะแนนเต็ม ใช้คะแนนเต็มเดิมที่กรอกมือไว้
-              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
+              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
           </label>
           <div class="flex gap-2 mt-2">
             <button onclick="confirmIndividualExam('${setId}','${regId}','${kind}')" id="ie-ok" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold btn-3d">${sub ? '🕐 กำหนดเวลาให้' : '➕ จัดสอบให้'}</button>
@@ -31972,7 +32268,7 @@ function _examResultIdentityHtml(sub, set) {
           <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#7f1d1d">
             <p style="margin:2px 0"><b>นักเรียน:</b> ${w.number ? 'เลขที่ ' + escHtml(String(w.number)) + ' ' : ''}${escHtml(w.name)} (${escHtml(String(w.sid))})</p>
             <p style="margin:2px 0"><b>วิชา:</b> ${escHtml(sub.subject_name || set?.subject_name || '-')} · ${escHtml(sub.class_name || set?.class_name || '-')}/${escHtml(String(sub.room_number || set?.room_number || '-'))}</p>
-            <p style="margin:2px 0"><b>ชุดสอบ:</b> ${set ? escHtml(String((set.score_type || 'k').toUpperCase()) + (parseInt(set.k_round) || 1)) : '-'} ${isEssay ? 'อัตนัย' : 'ปรนัย'}</p>
+            <p style="margin:2px 0"><b>ชุดสอบ:</b> ${set ? escHtml(_scoreLetter(set.score_type || 'k') + (parseInt(set.k_round) || 1)) : '-'} ${isEssay ? 'อัตนัย' : 'ปรนัย'}</p>
             ${riskHtml}
             <p style="margin:6px 0 0;font-size:11px">⚠️ ระบบตรวจจับได้แค่พฤติกรรมนี้เท่านั้น ไม่ยืนยันการทุจริตจริง 100% — โปรดใช้ดุลยพินิจ</p>
           </div>
@@ -32034,7 +32330,7 @@ function _examResultIdentityHtml(sub, set) {
         const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
           && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
           && N(d.student_id) === N(reg.student_id));
-        const tag = `${(['k','p','c'].includes(set.score_type) ? set.score_type : 'k').toUpperCase()}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
+        const tag = `${_scoreLetter(['k','p','c'].includes(set.score_type) ? set.score_type : 'k')}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
         const st = _examChipState(set, sub, isEssay);
         const kind = isEssay ? 'essay' : 'mc';
         const assign = `openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${kind}')`;
@@ -32180,7 +32476,7 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-xs font-semibold text-red-600 hidden" id="k-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'p')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'p')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'p')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
                 <div class="flex flex-wrap gap-1" id="p-${reg.__backendId}">
                   ${generateScoreInputs('p', reg.__backendId, scores.p_scores, 3, pFullScoresArr)}
@@ -33607,7 +33903,7 @@ function _examResultIdentityHtml(sub, set) {
         : 'แอดมินยังไม่ได้กำหนดช่วงเวลา';
       const isOpen = typeof isRegistrationOpen === 'function' ? isRegistrationOpen() : false;
 
-      // ตาราง KPACMF ของแต่ละวิชา (ค่าที่นักเรียนกำหนดไว้ ถ้ามีคำขอค้างอยู่ใช้ค่าจากคำขอ)
+      // ตาราง KSACMF ของแต่ละวิชา (ค่าที่นักเรียนกำหนดไว้ ถ้ามีคำขอค้างอยู่ใช้ค่าจากคำขอ)
       const rowsHtml = temps.map(reg => {
         const cs = allData.find(d => d.type === 'class_subject' && d.subject_name === reg.subject_name
           && d.class_name === reg.class_name && String(d.room_number) === String(reg.room_number));
@@ -33625,7 +33921,7 @@ function _examResultIdentityHtml(sub, set) {
         return `<div class="bg-gray-50 rounded-xl p-3 mb-3 text-left">
             <p class="text-sm font-bold text-gray-800 mb-2">📚 ${escHtml(reg.subject_name)} ${req ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">คำขอรออนุมัติ</span>' : ''}</p>
             <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
-              ${cell('K', 'ความรู้', k)}${cell('P', 'ทักษะ/กระบวนการ', p)}${cell('A', 'เจตคติ/คุณลักษณะ', a)}
+              ${cell('K', 'ความรู้', k)}${cell('S', 'ทักษะและกระบวนการ', p)}${cell('A', 'เจตคติ/คุณลักษณะ', a)}
               ${cell('C', 'สมรรถนะ', cc)}${cell('M', 'สอบกลางภาค<br>(ครูกำหนด)', m, true)}${cell('F', 'สอบปลายภาค<br>(ครูกำหนด)', f, true)}
             </div>
             <p class="text-sm font-bold ${total === 100 ? 'text-green-700' : 'text-red-600'}">รวม K+P+A+C+M+F = ${total} จากเต็ม 100 ${total === 100 ? '✅' : `(ยังขาดอีก ${100 - total})`}</p>
@@ -33645,7 +33941,7 @@ function _examResultIdentityHtml(sub, set) {
             <p class="text-base font-bold ${isOpen ? 'text-green-700' : 'text-red-700'} my-2">📅 ${schText} ${isOpen ? '(🟢 เปิดอยู่ตอนนี้)' : '(🔴 ปิดแล้ว/ยังไม่เปิด)'}</p>
             <p class="text-base text-gray-800">หากพ้นเวลา <b>ติดต่อผู้ช่วยแอดมิน</b> เพื่อขอลงทะเบียน</p>
           </div>
-          <p class="text-sm font-semibold text-gray-700 mb-2 text-left">📊 สัดส่วนคะแนน KPACMF ที่คุณกำหนดไว้ (ต้องรวมได้ 100)</p>
+          <p class="text-sm font-semibold text-gray-700 mb-2 text-left">📊 สัดส่วนคะแนน KSACMF ที่คุณกำหนดไว้ (ต้องรวมได้ 100)</p>
           ${rowsHtml}
           <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-4">
             <p class="text-base text-gray-800 leading-relaxed">เพื่อให้คะแนนชั่วคราวของคุณสามารถปรับสัดส่วนและคำนวณเกรดได้ มิฉะนั้น ท่านยังคงติด <b class="text-red-600 text-xl">ร.</b> ไว้ก่อน!</p>
@@ -33821,7 +34117,7 @@ function _examResultIdentityHtml(sub, set) {
                 ${_examBtnRow(reg, 'k')}
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 P (3 ครั้ง)</p>
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง)</p>
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFull}</p>
                 <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('p', reg.__backendId, grade?.p_scores, 3, pFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${pSum.toFixed(1)}/${pFull}</p>
@@ -33859,7 +34155,7 @@ function _examResultIdentityHtml(sub, set) {
             <p class="text-sm font-semibold text-gray-600 mb-2">📊 สรุปคะแนนรวม${_scoreGapInlineHtml(reg)}</p>
             <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
               ${scoreBox('K (เก็บคะแนน)', kSum, kFull)}
-              ${scoreBox('P (ทักษะ)', pSum, pFull)}
+              ${scoreBox('S (ทักษะและกระบวนการ)', pSum, pFull)}
               ${scoreBox('A (คุณลักษณะ)', aSum, aFull)}
               ${scoreBox('C (สมรรถนะ)', cSum, cFull)}
               ${scoreBox('M (กลางภาค)', mSum, mFull)}
@@ -34154,7 +34450,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!container) return;
       container.innerHTML = `
         <div id="director-tab-buttons" class="flex gap-2 mb-6 border-b-2 border-gray-200 flex-wrap">
-          <button onclick="showDirectorTab('kpacfull')" id="director-tab-btn-kpacfull" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🎯 คะแนนเต็ม KPAC</button>
+          <button onclick="showDirectorTab('kpacfull')" id="director-tab-btn-kpacfull" class="px-4 py-3 bg-blue-500 text-white rounded-t-lg font-medium transition">🎯 คะแนนเต็ม KSAC</button>
           <button onclick="showDirectorTab('gradesummary')" id="director-tab-btn-gradesummary" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📊 ผลการเรียน</button>
           <button onclick="showDirectorTab('attendance')" id="director-tab-btn-attendance" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">⏱️ เวลาเรียน</button>
           <button onclick="showDirectorTab('gradedist')" id="director-tab-btn-gradedist" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-t-lg font-medium hover:bg-gray-400 transition">📑 สรุปเกรด</button>
@@ -34495,15 +34791,15 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     // ----- มุมมองกรรมการนิเทศ (ประเมินการสอน) -----
-    // 🎯 คะแนนเต็ม KPAC (ดูอย่างเดียวสำหรับกรรมการนิเทศ) — มีตัวกรองชั้น/ห้อง/วิชา
-    // 🎯 คะแนนเต็ม KPAC (ต่อคน ตามน้ำหนัก% ที่นักเรียนแต่ละคนกำหนดเองตอนลงทะเบียน) — แสดงทั้งหมดก่อน แล้วค่อยกรอง
+    // 🎯 คะแนนเต็ม KSAC (ดูอย่างเดียวสำหรับกรรมการนิเทศ) — มีตัวกรองชั้น/ห้อง/วิชา
+    // 🎯 คะแนนเต็ม KSAC (ต่อคน ตามน้ำหนัก% ที่นักเรียนแต่ละคนกำหนดเองตอนลงทะเบียน) — แสดงทั้งหมดก่อน แล้วค่อยกรอง
     function showDirectorKpacFullScores() {
       const container = document.getElementById('director-tab-content');
       if (!container) return;
       const classes = [...new Set(_termRegs().map(d => d.class_name).filter(Boolean))].sort();
       container.innerHTML = `
         <div class="bg-white rounded-2xl card-shadow p-6 md:p-8 fade-in">
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">🎯 คะแนนเต็ม KPAC</h2>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">🎯 คะแนนเต็ม KSAC</h2>
           <p class="text-gray-500 text-sm mb-6">คะแนนเต็มสูงสุดที่เป็นไปได้ของนักเรียนแต่ละคน ตามน้ำหนัก% ที่แต่ละคนกำหนดเองตอนลงทะเบียน (ดูอย่างเดียว)</p>
           <div class="flex items-center gap-3 flex-wrap mb-4">
             <select id="director-kpac-filter-class" onchange="updateDirectorKpacRoomSubject();updateDirectorKpacTable()" class="px-3 py-2 border-2 border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
@@ -34525,10 +34821,10 @@ function _examResultIdentityHtml(sub, set) {
                 <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
                 <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
-                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">S</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C</th>
-                <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม KPAC</th>
+                <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม KSAC</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">F</th>
                 <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม MF</th>
@@ -34622,10 +34918,10 @@ function _examResultIdentityHtml(sub, set) {
                 <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">ชั้น/ห้อง</th>
                 <th class="px-3 py-3 text-left font-semibold text-gray-700 whitespace-nowrap">วิชา</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">K</th>
-                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">P</th>
+                <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">S</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">A</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">C</th>
-                <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม KPAC</th>
+                <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม KSAC</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">M</th>
                 <th class="px-3 py-3 text-center font-semibold text-gray-700 whitespace-nowrap">F</th>
                 <th class="px-3 py-3 text-center font-semibold text-blue-700 whitespace-nowrap">รวม MF</th>
@@ -35418,7 +35714,7 @@ function _examResultIdentityHtml(sub, set) {
                   <input type="number" id="k-score" min="0" max="100" step="0.1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" placeholder="0" required ${!isRegistrationOpen ? 'disabled' : ''}>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-gray-600 mb-2">🎯 P%</label>
+                  <label class="block text-xs font-medium text-gray-600 mb-2">🎯 S%</label>
                   <input type="number" id="p-score" min="0" max="100" step="0.1" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" placeholder="0" required ${!isRegistrationOpen ? 'disabled' : ''}>
                 </div>
                 <div>
@@ -35433,7 +35729,7 @@ function _examResultIdentityHtml(sub, set) {
             </div>
             <div class="bg-amber-50 rounded-lg border-2 border-amber-200 p-4 mb-4">
               <p class="text-sm font-semibold text-amber-900 mb-2">⚠️ ตรวจสอบ:</p>
-              <p class="text-sm text-amber-800 mb-2">รวม K%+P%+A%+C%: <span class="font-bold text-lg text-amber-900" id="total-kpac-percent">0</span>% (ต้อง ≤ ${kpacPercent}%)</p>
+              <p class="text-sm text-amber-800 mb-2">รวม K%+S%+A%+C%: <span class="font-bold text-lg text-amber-900" id="total-kpac-percent">0</span>% (ต้อง ≤ ${kpacPercent}%)</p>
               <p id="kpac-warning" class="text-sm text-red-600 font-semibold hidden">❌ เกินขีดจำกัด! ลดเปอร์เซ็นต์ให้น้อยลง</p>
               <p id="kpac-valid" class="text-sm text-green-600 font-semibold hidden">✅ ถูกต้อง!</p>
             </div>
@@ -35672,7 +35968,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="student-edit-k" min="0" max="100" step="0.1" value="${reg.k_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="studentRecalculateEdit(${kpacLimit})">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 P (%)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 S (%)</label>
               <input type="number" id="student-edit-p" min="0" max="100" step="0.1" value="${reg.p_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="studentRecalculateEdit(${kpacLimit})">
             </div>
             <div>
@@ -35743,7 +36039,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg) return;
       const gate = studentCanEditRegistration(reg);
       if (!gate.ok) { showToast(gate.why.replace('แก้ไข', 'ลบ'), 'error'); return; }
-      // 🔒 มีคะแนนแล้ว ลบเองไม่ได้ — ลบทีเดียวคะแนนและสัดส่วน KPAC ที่กำหนดไว้หายทั้งหมด
+      // 🔒 มีคะแนนแล้ว ลบเองไม่ได้ — ลบทีเดียวคะแนนและสัดส่วน KSAC ที่กำหนดไว้หายทั้งหมด
       if (_registrationHasScores(reg)) {
         showToast('⛔ วิชานี้มีคะแนนบันทึกไว้แล้ว ลบเองไม่ได้ — ถ้าต้องการถอนวิชา กรุณาติดต่อครูผู้สอน', 'error');
         return;
@@ -35753,7 +36049,7 @@ function _examResultIdentityHtml(sub, set) {
       confirmDiv.innerHTML = `
         <div class="bg-white rounded-2xl p-6 max-w-sm w-full">
           <p class="text-lg font-semibold text-gray-800 mb-2">ลบรายการลงทะเบียน "${reg.class_name}/${reg.room_number} - ${reg.subject_name}" ใช่หรือไม่?</p>
-          <p class="text-sm text-red-600 mb-4">⚠️ สัดส่วน KPAC ที่กำหนดไว้ (K ${reg.k_percent ?? 0}% · P ${reg.p_percent ?? 0}% · A ${reg.a_percent ?? 0}% · C ${reg.c_percent ?? 0}%) จะหายไปและกู้คืนเองไม่ได้ ต้องลงทะเบียนใหม่ทั้งหมด</p>
+          <p class="text-sm text-red-600 mb-4">⚠️ สัดส่วน KSAC ที่กำหนดไว้ (K ${reg.k_percent ?? 0}% · S ${reg.p_percent ?? 0}% · A ${reg.a_percent ?? 0}% · C ${reg.c_percent ?? 0}%) จะหายไปและกู้คืนเองไม่ได้ ต้องลงทะเบียนใหม่ทั้งหมด</p>
           <div class="flex gap-3">
             <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg">❌ ยกเลิก</button>
             <button onclick="studentConfirmDeleteRegistration('${regId}')" class="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">🗑️ ยืนยันลบ</button>
@@ -35805,7 +36101,7 @@ function _examResultIdentityHtml(sub, set) {
               <input type="number" id="edit-k" min="0" max="100" step="0.1" value="${reg.k_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="recalculateEdit(${kpacLimit})">
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 P (%)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-2">🎯 S (%)</label>
               <input type="number" id="edit-p" min="0" max="100" step="0.1" value="${reg.p_percent}" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none" onchange="recalculateEdit(${kpacLimit})">
             </div>
             <div>
@@ -35964,7 +36260,7 @@ function _examResultIdentityHtml(sub, set) {
       <!-- Logo & Title -->
       <div style="text-align:center;padding-bottom:12px">
         <div style="font-size:40px;margin-bottom:8px">📊</div>
-        <h1 style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0">KPAC Score</h1>
+        <h1 style="font-size:20px;font-weight:700;color:#1e3a5f;margin:0">KSAC Score</h1>
         <p style="font-size:11px;color:#64748b;margin:4px 0 0">ระบบเก็บคะแนนและตัดเกรด</p>
         <p style="font-size:9px;color:#94a3b8;margin:2px 0 0">เวอร์ชัน <span id="m-app-version">-</span></p>
       </div>
@@ -36063,7 +36359,7 @@ function _examResultIdentityHtml(sub, set) {
       <!-- Header bar -->
       <div id="m-header" style="background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div>
-          <p id="m-header-title" style="font-size:13px;font-weight:700;margin:0">KPAC Score</p>
+          <p id="m-header-title" style="font-size:13px;font-weight:700;margin:0">KSAC Score</p>
           <p id="m-header-user" style="font-size:10px;opacity:0.7;margin:0"></p>
         </div>
         <button onclick="mShowDesktopStudentTab('notif','🔔 การแจ้งเตือน')" id="m-student-notif-bell-btn" style="position:relative;background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-right:6px;display:none">
@@ -36126,7 +36422,7 @@ function _examResultIdentityHtml(sub, set) {
     main.style.display = 'flex';
     // Header
     var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : currentUser.user_type === 'director' ? '🎓 ผู้นิเทศการสอน' : '🎓 นักเรียน';
-    document.getElementById('m-header-title').textContent = 'KPAC Score — ' + typeLabel;
+    document.getElementById('m-header-title').textContent = 'KSAC Score — ' + typeLabel;
     console.log('[Header Debug] user_type:', currentUser.user_type, '| linked_student_id:', currentUser.linked_student_id, '| allData length:', (allData||[]).length);
     var linkedStudentForHeader = (currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
     console.log('[Header Debug] linkedStudentForHeader found:', linkedStudentForHeader);
@@ -36588,10 +36884,10 @@ function _examResultIdentityHtml(sub, set) {
     }).join('');
   }
 
-  // ── 🎯 คะแนนเต็ม KPAC (ต่อคน ตามน้ำหนัก% ที่กำหนดเอง) ──
+  // ── 🎯 คะแนนเต็ม KSAC (ต่อคน ตามน้ำหนัก% ที่กำหนดเอง) ──
   function mShowDirectorKpacNative() {
     mWaitForDataThen(() => {
-      mCreateOverlay('m-dir-kpac-overlay', '🎯 คะแนนเต็ม KPAC', mDirSelectorsHtml('m-dir-kpac'));
+      mCreateOverlay('m-dir-kpac-overlay', '🎯 คะแนนเต็ม KSAC', mDirSelectorsHtml('m-dir-kpac'));
       mDirRenderKpac();
     });
   }
@@ -36616,7 +36912,7 @@ function _examResultIdentityHtml(sub, set) {
       return `<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:8px">
         <p style="font-weight:700;color:#1e293b;margin:0 0 2px;font-size:13px">👤 ${name}</p>
         <p style="font-size:11px;color:#94a3b8;margin:0 0 6px">${reg.class_name}/${reg.room_number} · ${reg.subject_name}</p>
-        <p style="font-size:12px;color:#64748b;margin:0">K ${kMax} · P ${pMax} · A ${aMax} · C ${cMax} → <b style="color:#2563eb">รวม KPAC ${kpacMax}</b></p>
+        <p style="font-size:12px;color:#64748b;margin:0">K ${kMax} · S ${pMax} · A ${aMax} · C ${cMax} → <b style="color:#2563eb">รวม KSAC ${kpacMax}</b></p>
         <p style="font-size:12px;color:#64748b;margin:2px 0 0">M ${mMax} · F ${fMax} → <b style="color:#2563eb">รวม MF ${mfMax}</b></p>
         <p style="font-size:13px;margin:6px 0 0"><b style="color:${grandTotal===100?'#16a34a':'#dc2626'}">รวมทั้งสิ้น ${grandTotal}</b></p>
       </div>`;
@@ -36657,7 +36953,7 @@ function _examResultIdentityHtml(sub, set) {
           </div>
           <span ${r.unregistered ? `onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')"` : ''} style="background:${r.unregistered ? '#dc2626' : '#2563eb'};color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0;${r.unregistered ? 'cursor:pointer' : ''}">${gradeDisplay}${r.unregistered ? ' 🔔' : ''}</span>
         </div>
-        <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KPAC ${r.totalKPAC}</b></p>
+        <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · S ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KSAC ${r.totalKPAC}</b></p>
         <p style="font-size:11px;color:#64748b;margin:2px 0 0">M ${r.mScore} · F ${r.fScore} → <b style="color:#2563eb">รวม MF ${(r.mScore+r.fScore)}</b></p>
         <p style="font-size:12px;margin:4px 0 0"><b style="color:#16a34a">รวมทั้งสิ้น ${r.totalAll}</b></p>
       </div>`;
@@ -36699,7 +36995,7 @@ function _examResultIdentityHtml(sub, set) {
           </div>
           <span ${r.unregistered ? `onclick="showEnrollAlertPopup('${r.studentBackendId}','${encodeURIComponent(r.subjectName)}')"` : ''} style="background:${r.unregistered ? '#dc2626' : '#2563eb'};color:white;font-weight:700;padding:3px 10px;border-radius:8px;font-size:13px;flex-shrink:0;${r.unregistered ? 'cursor:pointer' : ''}">${gradeDisplay}${r.unregistered ? ' 🔔' : ''}</span>
         </div>
-        <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · P ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KPAC ${r.totalKPAC}</b></p>
+        <p style="font-size:11px;color:#64748b;margin:8px 0 0">K ${r.kScore} · S ${r.pScore} · A ${r.aScore} · C ${r.cScore} → <b style="color:#2563eb">รวม KSAC ${r.totalKPAC}</b></p>
         <p style="font-size:11px;color:#64748b;margin:2px 0 0">M ${r.mScore} · F ${r.fScore} → <b style="color:#2563eb">รวม MF ${(r.mScore+r.fScore)}</b></p>
         <p style="font-size:12px;margin:4px 0 0"><b style="color:#16a34a">รวมทั้งสิ้น ${r.totalAll}</b></p>
       </div>`;
@@ -37700,7 +37996,7 @@ function _examResultIdentityHtml(sub, set) {
           <select id="m-noenroll-subject" style="width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;margin-bottom:6px"><option value="">-- เลือกวิชา --</option>${subjects.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px">
             <input type="number" id="m-noenroll-k" placeholder="K%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
-            <input type="number" id="m-noenroll-p" placeholder="P%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
+            <input type="number" id="m-noenroll-p" placeholder="S%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
             <input type="number" id="m-noenroll-a" placeholder="A%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
             <input type="number" id="m-noenroll-c" placeholder="C%" min="0" step="0.1" style="padding:7px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:11px">
           </div>
@@ -37938,7 +38234,7 @@ function _examResultIdentityHtml(sub, set) {
         '<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:6px;padding:6px;margin-bottom:4px">' +
         '<p style="font-size:10px;color:#b91c1c;margin:0;line-height:1.5">❌ <b>ยังไม่ได้สมัคร</b> — กรุณาสมัครใช้งานระบบก่อนจึงมีสิทธิ์ลงทะเบียน</p></div>' +
         '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px">' +
-        '<p style="font-size:10px;color:#92400e;margin:0;line-height:1.5">⚠️ <b>ยังไม่ได้ลงทะเบียน</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KPAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p></div></div>';
+        '<p style="font-size:10px;color:#92400e;margin:0;line-height:1.5">⚠️ <b>ยังไม่ได้ลงทะเบียน</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KSAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p></div></div>';
       return;
     }
     var regs = (allData||[]).filter(d=>d.type==='student_registration');
@@ -37954,11 +38250,11 @@ function _examResultIdentityHtml(sub, set) {
       // กล่องที่ 2: สถานะการลงทะเบียน
       var enrollBox = isFull
         ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px;margin-top:4px">' +
-          '<p style="font-size:10px;color:#15803d;margin:0;line-height:1.5">✅ <b>ลงทะเบียนแล้ว</b> — ท่านลงทะเบียนเรียนโดยท่านกำหนด KPAC แล้ว ระบบจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนเรียบร้อย</p></div>'
+          '<p style="font-size:10px;color:#15803d;margin:0;line-height:1.5">✅ <b>ลงทะเบียนแล้ว</b> — ท่านลงทะเบียนเรียนโดยท่านกำหนด KSAC แล้ว ระบบจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนเรียบร้อย</p></div>'
         : '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px;margin-top:4px">' +
           '<p style="font-size:10px;color:#92400e;margin:0;line-height:1.5">⚠️ <b>' +
           (myRegs.length > 0 ? ('ยังลงทะเบียนไม่ครบ (ขาด ' + missing.length + ' วิชา)') : 'ยังไม่ได้ลงทะเบียน') +
-          '</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KPAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p></div>';
+          '</b> — ท่านยังไม่ได้ลงทะเบียนเรียนโดยท่านต้องกำหนด KSAC ก่อน ระบบจึงสามารถจัดพื้นที่ใส่คะแนนเพื่อออกผลการเรียนให้ท่านได้</p></div>';
 
       var missingList = (missing.length > 0 && missing.length <= 6)
         ? '<p style="font-size:9px;color:#dc2626;margin:3px 0 0">ขาด: ' + missing.map(x=>escHtml(x)).join(', ') + '</p>' : '';
