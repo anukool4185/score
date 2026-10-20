@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.257';
+    const APP_VERSION = 'SUPABASE-2026.10.20.258';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -12819,7 +12819,7 @@ const supabaseDataSdk = {
       setVal('esa-class', s.class_name); updateEsaRoomOptions();
       setVal('esa-room', s.room_number); updateEsaSubjectOptions();
       setVal('esa-subject', s.subject_name);
-      setVal('esa-scoretype', ['k', 's', 'c'].includes(s.score_type) ? s.score_type : 'k'); _updateEsaScoreTypeLabel();
+      setVal('esa-scoretype', _examScoreType(s.score_type)); _updateEsaScoreTypeLabel();
       setVal('esa-kround', String(parseInt(s.k_round) || 1));
       renderEsaChapterFilter();
       const chs = String(s.selected_chapters || '').split(',').filter(Boolean);
@@ -12923,7 +12923,7 @@ const supabaseDataSdk = {
         await _applyExamFullScoreDelta(s.class_name, s.room_number, s.subject_name, parseInt(s.k_round) || 1, -delta, s.score_type);
       }
       // คืนคะแนนนักเรียนที่โอนเข้าช่องคะแนนไปแล้ว (หักเฉพาะส่วนที่ชุดนี้สมทบ คะแนนส่วนอื่นในช่องคงอยู่) — เหมือนปรนัย
-      const _sType = ['k', 's', 'c'].includes(s.score_type) ? s.score_type : 'k';
+      const _sType = _examScoreType(s.score_type);
       const _round = parseInt(s.k_round) || 1;
       for (const sub of subs) {
         const contributed = parseFloat(sub.k_score_contributed) || 0;
@@ -18438,6 +18438,45 @@ const supabaseDataSdk = {
       return SCORE_LETTER[k] || k.toUpperCase();
     }
 
+    /** 🛡️ ตาข่ายชั้นที่ 3 — แปลงค่า score_type ของชุดสอบให้เป็นช่องคะแนนที่ใช้งานได้จริง
+     *
+     *  ⚠️ ทำไมต้องมี: ค่า score_type ถูกนำไปต่อกับ '_scores' เพื่อสร้างชื่อคอลัมน์
+     *     เช่น 's' + '_scores' = s_scores  ดังนั้นค่านี้ผิด = คะแนนลงผิดช่อง
+     *
+     *  ชุดสอบอัตนัยที่ครูสร้างไว้ "ก่อน" เปลี่ยนหลักสูตร อาจยังเก็บค่าเป็น 'p'
+     *  ถ้าปล่อยให้ตกไปใช้ค่าสำรอง 'k' คะแนนจะไหลเข้าช่อง K ทั้งที่หน้าจอขึ้นว่า S
+     *  (= "เห็นว่าถูก แต่ลงผิดที่" ซึ่งเป็นอาการที่หาเจอยากที่สุด)
+     *  จึงแปลง p → s ให้ตรงนี้ทีเดียว แม้ยังไม่ได้รันคำสั่งแปลงค่าในฐานข้อมูล
+     *
+     *  🗑️ ลบบรรทัด p → s ทิ้งได้เมื่อ: SELECT COUNT(*) FROM essay_exam_sets WHERE score_type='p'
+     *     ได้ 0 และผ่านไปแล้วอย่างน้อย 1 ภาคเรียน
+     *  ❗ ห้ามเปลี่ยนค่าสำรองท้ายสุดจาก 'k' เป็นอย่างอื่น ชุดสอบที่ไม่ระบุประเภทถือเป็น K */
+    const EXAM_SCORE_TYPES = ['k', 's', 'c'];
+    function _examScoreType(raw) {
+      const t = String(raw == null ? '' : raw).trim().toLowerCase();
+      if (t === 'p') return 's';                               // ชุดสอบเก่าก่อนเปลี่ยนหลักสูตร
+      return EXAM_SCORE_TYPES.includes(t) ? t : 'k';
+    }
+
+    /** 🛡️ ตาข่ายชั้นที่ 3 (หมวดคะแนนในสมุดคะแนน) — ใช้คู่กับ _examScoreType แต่ครบทั้ง 7 หมวด
+     *
+     *  ⚠️ ต่างกับ _examScoreType: ตัวนั้นใช้กับ "ชุดสอบ" ซึ่งมีแค่ K/S/C
+     *     ตัวนี้ใช้กับ "หมวดคะแนนในสมุดคะแนน" ซึ่งมี Pre/K/S/A/C/M/F
+     *     ห้ามใช้สลับกัน ไม่งั้น A/M/F จะถูกมองเป็น K
+     *
+     *  ค่านี้ถูกนำไปใช้ 2 ทาง จึงผิดไม่ได้เลย
+     *    1) ประกอบชื่อคอลัมน์   's' + '_full_scores' = s_full_scores
+     *    2) ประกอบ id ช่องกรอกบนหน้าจอ   's-12-1'
+     *  ถ้าส่ง 'p' มา ทั้งสองทางจะชี้ผิด = ครูกรอกแล้วคะแนนหาย / แก้คะแนนเต็มแล้วตัวหารไม่เปลี่ยน
+     *
+     *  🗑️ ลบบรรทัด p → s ทิ้งได้พร้อมกับตัวข้างบน */
+    const SCORE_CATS = ['pretest', 'k', 's', 'a', 'c', 'm', 'f'];
+    function _catKey(raw) {
+      const t = String(raw == null ? '' : raw).trim().toLowerCase();
+      if (t === 'p') return 's';
+      return SCORE_CATS.includes(t) ? t : t;   // หมวดที่ไม่รู้จักส่งคืนตามเดิม ให้ผู้เรียกจัดการ (ไม่เดาเป็น k)
+    }
+
     function _qReady(q) { return !(q.is_draft === true || q.is_draft === 'true'); }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -19181,7 +19220,9 @@ const supabaseDataSdk = {
       const allScoreConfigs = allData.filter(d => d.type === 'class_subject_scores');
       if (allScoreConfigs.length === 0) { if (!silent) showToast('ไม่มีข้อมูลคะแนนเต็มในระบบให้ซ่อม'); return; }
       if (!silent) showToast(`🔧 กำลังซ่อม ${allScoreConfigs.length} วิชา กรุณารอสักครู่...`);
-      const categoryKeys = ['k', 'p', 'a', 'c', 'm', 'f'];
+      // 🚨 เดิมเป็น 'p' → ซ่อมแล้วไปเขียนลงคอลัมน์เก่า p_full_score ส่วน s_full_score (ตัวหารของสูตรเกรด) ไม่ถูกซ่อม
+      //    ครูกดซ่อม เห็นข้อความว่าสำเร็จ แต่เกรดยังผิดเหมือนเดิม
+      const categoryKeys = ['k', 's', 'a', 'c', 'm', 'f'];
       let anyChanged = false;
       await Promise.all(allScoreConfigs.map(async cfg => {
         const updates = {};
@@ -19526,7 +19567,7 @@ const supabaseDataSdk = {
     async function _applyExamFullScoreDelta(className, roomNumber, subjectName, kRound, delta, scoreType) {
       if (!delta) return;
       // 📊 รองรับ K / P / C (อัตนัยเลือกเก็บที่ P ได้ — เดิมรองรับแค่ K/C ทำให้ P ไปบวกคะแนนเต็มผิดช่องเป็น K)
-      const sType = ['k', 's', 'c'].includes(scoreType) ? scoreType : 'k';
+      const sType = _examScoreType(scoreType);
       const fullScoreField = sType + '_full_scores';
       const fullScoreSingular = sType + '_full_score';
       // 🎯 บั๊กที่แท้จริงที่สุดที่พบ: หน้า "จัดสอบ" ใช้ค่าจากตาราง class_subject
@@ -19592,7 +19633,7 @@ const supabaseDataSdk = {
 
     /** 📊 ดูว่าครั้งที่นี้มีคะแนนเต็มอยู่แล้วหรือยัง (จากชุดสอบเดิม หรือครูกรอกมือไว้) */
     function _getExistingRoundFullScore(className, roomNumber, subjectName, round, scoreType, excludeSetId) {
-      const sType = ['k', 's', 'c'].includes(scoreType) ? scoreType : 'k';
+      const sType = _examScoreType(scoreType);
       const norm = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const sc = allData.find(d => d.type === 'class_subject_scores'
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName))
@@ -19602,7 +19643,7 @@ const supabaseDataSdk = {
       // รวมทั้งชุดสอบปรนัยและอัตนัยในครั้งเดียวกัน (ใช้ช่องคะแนนเดียวกัน)
       const sets = allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(excludeSetId || '')
         && norm(d.class_name) === norm(className) && norm(d.room_number) === norm(roomNumber) && norm(d.subject_name) === norm(subjectName)
-        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((['k', 's', 'c'].includes(d.score_type) ? d.score_type : 'k') === sType));
+        && String(parseInt(d.k_round) || 1) === String(parseInt(round) || 1) && ((_examScoreType(d.score_type)) === sType));
       return { full, sets };
     }
 
@@ -19630,7 +19671,7 @@ const supabaseDataSdk = {
     function _roundScoreByReg(cls, room, subj, round, sType) {
       const N = v => String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase();
       const r = parseInt(round) || 1;
-      const field = (['k', 's', 'c'].includes(sType) ? sType : 'k') + '_scores';
+      const field = (_examScoreType(sType)) + '_scores';
       const map = new Map();
       allData.filter(d => d.type === 'grade' && N(d.class_name) === N(cls) && N(d.room_number) === N(room) && N(d.subject_name) === N(subj))
         .forEach(g => {
@@ -19738,7 +19779,7 @@ const supabaseDataSdk = {
     /** ❓ ถามแอดมินว่าจะเพิ่มคะแนนเต็ม หรือใช้ช่องเดิม — คืนค่า 'add' | 'same' | null (ยกเลิก) */
     function _askFullScoreMode(info, newTotal, round, scoreType) {
       return new Promise(resolve => {
-        const T = _scoreLetter(['k', 's', 'c'].includes(scoreType) ? scoreType : 'k');
+        const T = _scoreLetter(_examScoreType(scoreType));
         document.getElementById('fullscore-mode-popup')?.remove();
         const wrap = document.createElement('div');
         wrap.id = 'fullscore-mode-popup';
@@ -20004,7 +20045,7 @@ const supabaseDataSdk = {
         const set = allData.find(d => d.type === 'exam_set' && String(d.__backendId) === String(examSetId));
         const contributed = parseFloat(sub.k_score_contributed) || 0;
         if (set && (sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
-          const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
+          const sType = _examScoreType(set.score_type);
           const round = parseInt(set.k_round) || 1;
           const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id,
             class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
@@ -20551,7 +20592,7 @@ const supabaseDataSdk = {
       const amount = (!isNaN(_c) && sub.k_score_contributed !== '' && sub.k_score_contributed !== null)
         ? _c : (_imported && !isNaN(_score) ? _score : 0);
       if (!(amount > 0)) return false;
-      const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
+      const sType = _examScoreType(set.score_type);
       const round = parseInt(set.k_round) || 1;
       const field = sType + '_scores';
       const g = (typeof _findGradeRow === 'function')
@@ -20660,7 +20701,7 @@ const supabaseDataSdk = {
     // ✍️ ระบบสอบอัตนัย: นักเรียนเขียนตอบ → ครูตรวจ → โอนคะแนน (ใช้ฟังก์ชันลงคะแนนตัวเดียวกับปรนัย)
     // ════════════════════════════════════════════════════════════
     function _essayRoundText(set) {
-      return `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ${parseInt(set.k_round) || 1}`;
+      return `${_scoreLetter(_examScoreType(set.score_type))} ${parseInt(set.k_round) || 1}`;
     }
     /** 🕐 แปลงค่าเวลาจากฐานข้อมูลให้เป็นวันที่ที่ใช้ได้จริงทุกเครื่อง
      *  ⚠️ บั๊กที่กันไว้: บางเครื่อง (โดยเฉพาะ iPhone/Safari) อ่านรูปแบบของ Postgres
@@ -20718,7 +20759,7 @@ const supabaseDataSdk = {
       return subs.map(sub => {
         const set = allData.find(d => d.type === 'essay_exam_set' && String(d.__backendId) === String(sub.essay_exam_set_id));
         if (!set) return '';
-        if (onlyType && (['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k') !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
+        if (onlyType && (_examScoreType(set.score_type)) !== onlyType) return '';   // 📍 วางในบล็อกของตัวเอง
         const rt = _essayRoundText(set) + ' อัตนัย';
         // 🕐 ใช้ตัวกลางตัวเดียว: เวลาเฉพาะบุคคล → เวลาใบอนุมัติสอบแก้ → เวลาชุดสอบ
         const open = _isSubmissionOpen(sub, set, true);
@@ -21348,7 +21389,7 @@ const supabaseDataSdk = {
       // 1) หักคะแนนที่กระดาษนี้เคยโอนเข้าไป (คะแนนส่วนอื่นในช่องคงอยู่)
       const contributed = parseFloat(sub.k_score_contributed) || 0;
       if ((sub.imported_to_grade === true || sub.imported_to_grade === 'true') && contributed > 0) {
-        const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k', round = parseInt(set.k_round) || 1;
+        const sType = _examScoreType(set.score_type), round = parseInt(set.k_round) || 1;
         const g = _findGradeRow({ __backendId: sub.registration_id, student_id: sub.student_id, class_name: sub.class_name, room_number: sub.room_number, subject_name: sub.subject_name });
         if (g) {
           const arr = String(g[sType + '_scores'] || '').split(',').map(x => x.trim()); while (arr.length < round) arr.push('');
@@ -21705,7 +21746,9 @@ const supabaseDataSdk = {
     /** 📍 แถวปุ่มสอบของบล็อกคะแนน (ปรนัย + อัตนัย ประเภทเดียวกัน) — ไม่มีปุ่มก็ไม่แสดงแถว */
     function _examBtnRow(reg, type) {
       if (!reg || reg.__virtual) return '';
-      const html = (type === 'p' ? '' : generateExamButtonsForRegistration(reg, type)) + generateEssayButtonsForRegistration(reg, type);
+      type = _examScoreType(type);   // 🚨 รับ 'p' เก่าได้ด้วย ไม่งั้นปุ่มสอบอัตนัยของ S จะไม่ขึ้นเลย
+      // ปรนัยมีเฉพาะ K และ C (ไม่มี S) จึงข้ามปุ่มปรนัยในบล็อก S
+      const html = (type === 's' ? '' : generateExamButtonsForRegistration(reg, type)) + generateEssayButtonsForRegistration(reg, type);
       return html.replace(/<[^>]+>/g, '').trim() ? `<div class="mt-2 flex flex-wrap gap-2">${html}</div>` : '';
     }
 
@@ -21826,7 +21869,7 @@ function _examResultIdentityHtml(sub, set) {
       const full = stu ? `${stu.prefix || ''}${stu.first_name || ''} ${stu.last_name || ''}`.trim() : (sub?.student_name || '');
       const no = stu?.student_number ? `เลขที่ ${stu.student_number}` : '';
       const room = `${stu?.class_name || sub?.class_name || ''}${(stu?.room_number || sub?.room_number) ? '/' + (stu?.room_number || sub?.room_number) : ''}`;
-      const round = set ? `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
+      const round = set ? `${_scoreLetter(_examScoreType(set.score_type))} ครั้งที่ ${parseInt(set.k_round) || 1}` : '';
       const kind = (set && set.type === 'essay_exam_set') ? 'อัตนัย' : 'ปรนัย';
       const used = parseInt(sub?.retry_count) || 0;
       const line = (a, b) => `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0"><span style="color:#64748b">${a}</span><b style="color:#1e293b;text-align:right">${b}</b></div>`;
@@ -22289,7 +22332,7 @@ function _examResultIdentityHtml(sub, set) {
           }
           if (grade) {
             // 📊 ลบคะแนนออกจากช่องที่ถูกต้องตามประเภทของชุดสอบ (K หรือ C)
-            const retryField = ((examSet.score_type === 'c') ? 'c' : 'k') + '_scores';
+            const retryField = _examScoreType(examSet.score_type) + '_scores';
             let scoresArr = (grade[retryField] || '').split(',').map(x => x.trim());
             while (scoresArr.length < round) scoresArr.push('');
             const currentValue = parseFloat(scoresArr[round - 1]) || 0;
@@ -24033,7 +24076,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       const round = parseInt(examSet.k_round) || 1;
       // 📊 รองรับ K / P / C ตามที่เลือกไว้ตอนจัดสอบ (ค่าเริ่มต้นเป็น K เหมือนเดิม ไม่กระทบชุดสอบเก่า)
-      const sType = ['k', 's', 'c'].includes(examSet.score_type) ? examSet.score_type : 'k';
+      const sType = _examScoreType(examSet.score_type);
       const scoreField = sType + '_scores';           // k_scores หรือ c_scores
       const fullScoreField = sType + '_full_scores';  // k_full_scores หรือ c_full_scores
       const fullScoreSingular = sType + '_full_score';
@@ -24057,7 +24100,7 @@ function _examResultIdentityHtml(sub, set) {
         const _sameRoundSetIds = new Set(allData.filter(d => (d.type === 'exam_set' || d.type === 'essay_exam_set') && String(d.__backendId) !== String(examSet.__backendId)
             && _n(d.class_name) === _n(examSet.class_name) && _n(d.room_number) === _n(examSet.room_number)
             && _n(d.subject_name) === _n(examSet.subject_name) && String(parseInt(d.k_round) || 1) === String(round)
-            && (['k', 's', 'c'].includes(d.score_type) ? d.score_type : 'k') === sType).map(d => String(d.__backendId)));
+            && (_examScoreType(d.score_type)) === sType).map(d => String(d.__backendId)));
         _replacedOthers = allData.filter(d => (d.type === 'exam_submission' || d.type === 'essay_submission')
           && _sameRoundSetIds.has(String(d.type === 'essay_submission' ? d.essay_exam_set_id : d.exam_set_id))
           && String(d.student_id) === String(submission.student_id) && String(d.__backendId) !== String(submission.__backendId)
@@ -32092,11 +32135,12 @@ function _examResultIdentityHtml(sub, set) {
       });
       updateAPassFailStatus(reg.__backendId);
     }
-    const CATEGORY_TIMES = { k: 10, p: 3, a: 3, c: 3, m: 2, f: 2 };
-    const CATEGORY_LABELS = { k: '📝 K', p: '🎯 P', a: '⭐ A', c: '💪 C', m: '📋 M', f: '🏆 F' };
+    const CATEGORY_TIMES = { k: 10, s: 3, a: 3, c: 3, m: 2, f: 2 };
+    const CATEGORY_LABELS = { k: '📝 K', s: '🎯 S', a: '⭐ A', c: '💪 C', m: '📋 M', f: '🏆 F' };
     // ปลดล็อคชั่วคราว: เอา disabled ออกจากช่องกรอกของหมวดนั้นเฉพาะที่หน้าจอนี้เท่านั้น
     // (เป็นการแก้ไขฝั่งหน้าจอชั่วคราว ไม่ได้บันทึกสถานะปลดล็อคไว้ที่ไหน พอเปลี่ยนคนหรือรีเฟรชจะกลับมาล็อคตามปกติทันที)
     function unlockCategoryTemporarily(regId, type) {
+      type = _catKey(type);                 // 🛡️ รับ 'p' เก่าได้ ไม่งั้นปุ่มปลดล็อคของ S ไม่ทำงาน
       const times = CATEGORY_TIMES[type];
       for (let i = 1; i <= times; i++) {
         const input = document.getElementById(`${type}-${regId}-${i}`);
@@ -32110,6 +32154,7 @@ function _examResultIdentityHtml(sub, set) {
       refreshCurrentView();
     }
     function editCategoryFullScorePopup(classSubjectId, type) {
+      type = _catKey(type);                 // 🛡️ ถ้าเป็น 'p' จะไปแก้คอลัมน์เก่า ตัวหารของสูตรเกรดจะไม่เปลี่ยน
       const times = CATEGORY_TIMES[type];
       const scoresData = allData.find(d => d.type === 'class_subject_scores' && d.class_subject_id === classSubjectId);
       const arr = parseFullScoresArray(scoresData?.[`${type}_full_scores`], times);
@@ -32131,6 +32176,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(editDiv);
     }
     async function confirmEditCategoryFullScore(classSubjectId, type) {
+      type = _catKey(type);                 // 🛡️ ต้องแปลให้ตรงกับ editCategoryFullScorePopup ไม่งั้นหา id ช่องกรอกไม่เจอ
       const times = CATEGORY_TIMES[type];
       const arr = [];
       for (let i = 1; i <= times; i++) {
@@ -32162,7 +32208,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!set || !reg) { showToast('ไม่พบข้อมูลชุดสอบหรือนักเรียน', 'error'); return; }
       const stu = allData.find(s => s.type === 'student' && String(s.student_id) === String(reg.student_id));
       const name = stu ? `${stu.prefix||''}${stu.first_name||''} ${stu.last_name||''}`.trim() : (reg.student_name || reg.student_id);
-      const round = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}`;
+      const round = `${_scoreLetter(_examScoreType(set.score_type))} ครั้งที่ ${parseInt(set.k_round) || 1}`;
       if (!confirm(`ให้ ${name} ได้สอบ ${round} ${isEssay ? 'อัตนัย' : 'ปรนัย'} วิชา ${set.subject_name} ด้วยหรือไม่?`)) return;
       const base = {
         registration_id: reg.__backendId, student_id: String(reg.student_id), student_name: name,
@@ -32217,7 +32263,7 @@ function _examResultIdentityHtml(sub, set) {
       wrap.id = 'indiv-exam-popup';
       wrap.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4';
       wrap.style.zIndex = '60';
-      const tag = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
+      const tag = `${_scoreLetter(_examScoreType(set.score_type))} ครั้งที่ ${parseInt(set.k_round) || 1}${isEssay ? ' อัตนัย' : ''}`;
       // 📊 คะแนนเต็มของครั้งนี้ที่มีอยู่แล้ว (ไว้ให้ครูเห็นก่อนตัดสินใจ) + ชุดสอบนี้เป็นโหมดแทนการสอบนอกระบบอยู่แล้วหรือยัง
       const _setSame = set.full_score_mode === 'same';
       const _fsInfo = (typeof _getExistingRoundFullScore === 'function')
@@ -32234,7 +32280,7 @@ function _examResultIdentityHtml(sub, set) {
           <label class="flex items-start gap-2 text-xs cursor-pointer bg-amber-50 border border-amber-200 rounded p-2 mt-2">
             <input type="checkbox" id="ie-offline-replace" class="w-4 h-4 mt-0.5" ${_setSame ? 'checked disabled' : ''}>
             <span class="text-amber-900"><b>🔁 จัดสอบแทนการสอบนอกระบบ</b> — ไม่เพิ่มคะแนนเต็ม ใช้คะแนนเต็มเดิมที่กรอกมือไว้
-              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
+              <span class="block text-[11px] text-amber-700 mt-0.5">คะแนนเต็ม ${_scoreLetter(_examScoreType(set.score_type))} ครั้งที่ ${parseInt(set.k_round) || 1} ตอนนี้: <b>${_fsInfo.full}</b> คะแนน${_setSame ? ' · ชุดสอบนี้ตั้งเป็นโหมดแทนการสอบนอกระบบไว้แล้ว' : ''}<br>คะแนนที่สอบได้จะบวกเข้าช่องคะแนนเดิมของครั้งนี้ (คะแนนที่กรอกมือไว้ยังอยู่ครบ)</span></span>
           </label>
           <div class="flex gap-2 mt-2">
             <button onclick="confirmIndividualExam('${setId}','${regId}','${kind}')" id="ie-ok" class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold btn-3d">${sub ? '🕐 กำหนดเวลาให้' : '➕ จัดสอบให้'}</button>
@@ -32275,7 +32321,7 @@ function _examResultIdentityHtml(sub, set) {
           // 💯 คืนคะแนนที่กระดาษใบนี้เคยโอนเข้าช่องคะแนนไปแล้ว (คะแนนส่วนอื่นในช่องคงอยู่)
           const contributed = parseFloat(existing.k_score_contributed) || 0;
           if ((existing.imported_to_grade === true || existing.imported_to_grade === 'true') && contributed > 0) {
-            const sType = ['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k';
+            const sType = _examScoreType(set.score_type);
             const round = parseInt(set.k_round) || 1;
             const g = _findGradeRow({ __backendId: existing.registration_id, student_id: existing.student_id,
               class_name: existing.class_name || set.class_name, room_number: existing.room_number || set.room_number,
@@ -32546,7 +32592,7 @@ function _examResultIdentityHtml(sub, set) {
         const sub = allData.find(d => d.type === (isEssay ? 'essay_submission' : 'exam_submission')
           && String(isEssay ? d.essay_exam_set_id : d.exam_set_id) === String(set.__backendId)
           && N(d.student_id) === N(reg.student_id));
-        const tag = `${_scoreLetter(['k', 's', 'c'].includes(set.score_type) ? set.score_type : 'k')}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
+        const tag = `${_scoreLetter(_examScoreType(set.score_type))}${parseInt(set.k_round) || 1}${isEssay ? '✍️' : ''}`;
         const st = _examChipState(set, sub, isEssay);
         const kind = isEssay ? 'essay' : 'mc';
         const assign = `openIndividualExamPopup('${set.__backendId}','${reg.__backendId}','${kind}')`;
@@ -32692,9 +32738,9 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-xs font-semibold text-red-600 hidden" id="k-warning-${reg.__backendId}">❌ เกินคะแนนดิบ!</p>
               </div>
               <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
-                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 'p')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
-                <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 'p')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
-                <div class="flex flex-wrap gap-1" id="p-${reg.__backendId}">
+                <p class="text-sm font-semibold text-gray-700 mb-1">🎯 S (3 ครั้ง) <button onclick="unlockCategoryTemporarily('${reg.__backendId}', 's')" title="ปลดล็อคชั่วคราวเพื่อกรอกคะแนน" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">🔓</button></p>
+                <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFullScore} <button onclick="editCategoryFullScorePopup('${reg.class_subject_id}', 's')" title="แก้ไขคะแนนเต็ม" class="text-[10px] px-1 py-0.5 bg-gray-200 hover:bg-gray-300 rounded">✏️</button></p>
+                <div class="flex flex-wrap gap-1" id="s-${reg.__backendId}">
                   ${generateScoreInputs('s', reg.__backendId, scores.s_scores, 3, pFullScoresArr)}
                 </div>
                 <p class="text-xs font-semibold mt-2" id="p-total-${reg.__backendId}">รวม: 0/${pFullScore}</p>
@@ -32753,6 +32799,7 @@ function _examResultIdentityHtml(sub, set) {
         `;
     }
     function generateScoreInputs(type, regId, existingScores, times, fullScoresArr) {
+      type = _catKey(type);                 // 🛡️ id ของช่องกรอกต้องเป็น s-… ให้ตรงกับฝั่งอ่าน/บันทึก
       const scores = existingScores ? existingScores.split(',') : [];
       let html = '';
       for (let i = 1; i <= times; i++) {
@@ -32829,6 +32876,7 @@ function _examResultIdentityHtml(sub, set) {
     // ══════════════════════════════════════════════════════════════
     /** รวมคะแนนของหมวดหนึ่งจากช่องกรอกบนหน้าจอ — ถ้ายังไม่มีช่องกรอก ใช้ค่าที่บันทึกไว้แทน */
     function _liveCategorySum(regId, reg, type, times) {
+      type = _catKey(type);                 // 🛡️ กันไม่ให้ไปหาช่องกรอก p-… ที่ไม่มีอยู่แล้ว
       let found = false, sum = 0;
       for (let i = 1; i <= times; i++) {
         const el = document.getElementById(`${type}-${regId}-${i}`);
@@ -32852,12 +32900,14 @@ function _examResultIdentityHtml(sub, set) {
       const sc = _findScoresConfig(reg);
       const wt = (sum, full, weight) => (!full || full <= 0) ? 0 : (sum / full) * (weight || 0);
       const k = roundGradeValue(wt(_liveCategorySum(regId, reg, 'k', 10), sc?.k_full_score, reg.k_percent));
-      const p = roundGradeValue(wt(_liveCategorySum(regId, reg, 'p', 3), sc?.s_full_score, reg.s_percent));
+      // 🛠️ แก้บั๊ก: เดิมส่ง 'p' ทำให้หาช่องกรอก s-… บนหน้าจอไม่เจอ ผลการเรียนสดจึงไม่ขยับตามที่ครูพิมพ์
+      //    (ไปอ่านค่าที่บันทึกไว้แทน) และจะกลายเป็น 0 ทันทีที่ลบคอลัมน์สำรอง p_scores
+      const s = roundGradeValue(wt(_liveCategorySum(regId, reg, 's', 3), sc?.s_full_score, reg.s_percent));
       const a = roundGradeValue(wt(_liveCategorySum(regId, reg, 'a', 3), sc?.a_full_score, reg.a_percent));
       const c = roundGradeValue(wt(_liveCategorySum(regId, reg, 'c', 3), sc?.c_full_score, reg.c_percent));
       const m = roundGradeValue(wt(_liveCategorySum(regId, reg, 'm', 2), sc?.m_full_score, cs?.mid_percent));
       const f = roundGradeValue(wt(_liveCategorySum(regId, reg, 'f', 2), sc?.f_full_score, cs?.final_percent));
-      const totalAll = Math.round((k + p + a + c + m + f) * 100) / 100;
+      const totalAll = Math.round((k + s + a + c + m + f) * 100) / 100;
       const gradeValue = scoreToGrade(totalAll);
       const target = savedGradeTarget();
       const minScore = target === null ? null : _minScoreForGrade(target);
@@ -32928,6 +32978,7 @@ function _examResultIdentityHtml(sub, set) {
       if (!reg) { showToast('ไม่พบข้อมูลนักเรียน กรุณาโหลดหน้าใหม่', 'error'); return; }
       const studentForName = allData.find(s => s.type === 'student' && s.student_id === reg.student_id); // 📇 หาชื่อนักเรียนไว้ใช้ตอนบันทึก ให้อ่านง่ายขึ้นในชีท
       const getScores = (type, times) => {
+        type = _catKey(type);               // 🛡️ ถ้าหา id ผิด คะแนนที่ครูกรอกจะถูกบันทึกเป็นค่าว่าง = คะแนนหาย
         const scores = [];
         for (let i = 1; i <= times; i++) {
           const value = document.getElementById(`${type}-${regId}-${i}`)?.value || '';
@@ -32939,7 +32990,7 @@ function _examResultIdentityHtml(sub, set) {
       };
       const pretest_scores = getScores('pretest', 10);
       const k_scores = getScores('k', 10);
-      const s_scores = getScores('p', 3);
+      const s_scores = getScores('s', 3);   // 🚨 เดิมเป็น 'p' → หาช่องกรอก s-… ไม่เจอ คะแนน S ที่ครูกรอกหายตอนบันทึก
       const a_scores = getScores('a', 3);
       const c_scores = getScores('c', 3);
       const m_scores = getScores('m', 2);
@@ -34038,6 +34089,7 @@ function _examResultIdentityHtml(sub, set) {
       `;
     }
     function generateReadOnlyScoreInputs(type, regId, existingScores, times, fullScoresArr) {
+      type = _catKey(type);                 // 🛡️ ให้ id ตรงกับฝั่งแก้ไขได้ ไม่งั้นสองหน้าจออ้างคนละช่อง
       const scores = existingScores ? existingScores.split(',') : [];
       let html = '';
       for (let i = 1; i <= times; i++) {
@@ -34337,7 +34389,7 @@ function _examResultIdentityHtml(sub, set) {
                 <p class="text-xs text-green-700 font-semibold mb-2">คะแนนดิบ: ${pFull}</p>
                 <div class="flex flex-wrap gap-1">${generateReadOnlyScoreInputs('s', reg.__backendId, grade?.s_scores, 3, pFullScoresArr)}</div>
                 <p class="text-xs font-semibold mt-2">รวม: ${pSum.toFixed(1)}/${pFull}</p>
-                ${_examBtnRow(reg, 'p')}
+                ${_examBtnRow(reg, 's')}
               </div>
               <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
                 <p class="text-sm font-semibold text-gray-700 mb-1">⭐ A (3 ครั้ง)</p>
