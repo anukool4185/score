@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.249';
+    const APP_VERSION = 'SUPABASE-2026.10.20.250';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -17087,6 +17087,11 @@ const supabaseDataSdk = {
         color: String((it && it.color) || '#1f2937'),
         bg: String((it && it.bg) || '#1b3a6b'),
         font: String((it && it.font) || CERT_FONTS[0].v),
+        italic: !!(it && it.italic),
+        underline: !!(it && it.underline),
+        lh: Math.max(0.8, Math.min(3, num(it && it.lh, 1.25))),          // ระยะห่างบรรทัด
+        opacity: Math.max(5, Math.min(100, num(it && it.opacity, 100))), // ความโปร่งใส (ใช้ทำลายน้ำ)
+        radius: Math.max(0, Math.min(400, num(it && it.radius, 0))),     // มุมโค้งของกล่อง/รูป
         locked: !!(it && it.locked)
       }));
     }
@@ -17111,20 +17116,21 @@ const supabaseDataSdk = {
       const inner = items.map((it, idx) => {
         const sel = (o.selectedId && String(o.selectedId) === String(it.id));
         const base = `position:absolute;left:${it.x}px;top:${it.y}px;`
+          + (it.opacity < 100 ? `opacity:${it.opacity / 100};` : '')
           + (o.design ? `outline:${sel ? '2px solid #2563eb' : '1px dashed rgba(37,99,235,.35)'};cursor:move;` : '');
         const tag = o.design ? ` data-cid="${escHtml(it.id)}" onmousedown="_certDragStart(event,'${escHtml(it.id)}')" ontouchstart="_certDragStart(event,'${escHtml(it.id)}')"` : '';
         if (it.type === 'line') {
           return `<div${tag} style="${base}width:${it.w}px;height:${Math.max(1, it.h || 2)}px;background:${escHtml(it.color)}"></div>`;
         }
         if (it.type === 'box') {
-          return `<div${tag} style="${base}width:${it.w}px;height:${Math.max(2, it.h || 40)}px;background:${escHtml(it.bg)}"></div>`;
+          return `<div${tag} style="${base}width:${it.w}px;height:${Math.max(2, it.h || 40)}px;background:${escHtml(it.bg)};border-radius:${it.radius}px"></div>`;
         }
         if (it.type === 'image') {
           const src = ctx ? String(ctx[it.src] || '') : '';
           if (!src) {
             return `<div${tag} style="${base}width:${it.w}px;height:${Math.max(20, it.h || it.w)}px;border:1px dashed #94a3b8;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#64748b;text-align:center">[${escHtml((CERT_IMG_SRC.find(s => s.k === it.src) || {}).t || it.src)}]</div>`;
           }
-          return `<img${tag} src="${escHtml(src)}" alt="" style="${base}width:${it.w}px;${it.h > 0 ? 'height:' + it.h + 'px;' : ''}object-fit:contain">`;
+          return `<img${tag} src="${escHtml(src)}" alt="" style="${base}width:${it.w}px;${it.h > 0 ? 'height:' + it.h + 'px;' : ''}border-radius:${it.radius}px;object-fit:contain">`;
         }
         const txt = _certText(it, ctx);
         const shown = txt !== '' ? escHtml(txt)
@@ -17132,7 +17138,9 @@ const supabaseDataSdk = {
               ? ((CERT_FIELDS.find(f => f.k === it.field) || {}).t || it.field)
               : '(ข้อความว่าง)') + '</span>' : '');
         return `<div${tag} style="${base}width:${it.w}px;font-family:${it.font};font-size:${it.size}px;`
-          + `font-weight:${it.weight};color:${escHtml(it.color)};text-align:${it.align};line-height:1.25;white-space:pre-wrap;word-break:break-word">${shown}</div>`;
+          + `font-weight:${it.weight};color:${escHtml(it.color)};text-align:${it.align};line-height:${it.lh};`
+          + (it.italic ? 'font-style:italic;' : '') + (it.underline ? 'text-decoration:underline;' : '')
+          + `white-space:pre-wrap;word-break:break-word">${shown}</div>`;
       }).join('');
       return `<div id="${o.pageId || 'cert-page'}" style="position:relative;width:${pp.w}px;height:${pp.h}px;`
         + `background:${escHtml(bg)}${bgImg ? ` url('${escHtml(bgImg)}') center/cover no-repeat` : ''};`
@@ -17154,16 +17162,43 @@ const supabaseDataSdk = {
             body > *:not(#cert-print-overlay) { display: none !important; }
             #cert-print-overlay { position: static !important; padding: 0 !important; background: #fff !important; overflow: visible !important; }
             #cert-print-bar { display: none !important; }
-            #cert-print-wrap { box-shadow: none !important; margin: 0 !important; }
+            /* 🖨️ ตอนพิมพ์ต้องกลับเป็นขนาดจริงเสมอ ไม่เอาอัตราย่อที่ใช้ดูบนจอ */
+            #cert-print-fit { width: auto !important; height: auto !important; }
+            #cert-print-wrap { box-shadow: none !important; margin: 0 !important; transform: none !important; }
           }
         </style>
         <div id="cert-print-bar" style="max-width:${pp.w}px;margin:0 auto 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
           <button onclick="window.print()" style="padding:10px 16px;background:#2563eb;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer">🖨️ สั่งพิมพ์ / บันทึกเป็น PDF</button>
           <button onclick="document.getElementById('cert-print-overlay')?.remove()" style="padding:10px 14px;background:#e2e8f0;color:#334155;border:none;border-radius:9px;font-size:13px;cursor:pointer">ปิด</button>
-          <span style="color:#e2e8f0;font-size:12px">กระดาษ ${escHtml(pp.label)} · ในหน้าต่างพิมพ์ให้ตั้งขอบกระดาษเป็น "ไม่มี" และอัตราขยายเป็น 100%</span>
+          <span style="color:#e2e8f0;font-size:12px">กระดาษ ${escHtml(pp.label)} ${pp.w}×${pp.h} จุด · ในหน้าต่างพิมพ์ให้ตั้งขอบกระดาษเป็น "ไม่มี" และอัตราขยายเป็น 100%</span>
+          <span id="cert-print-zoom" style="color:#cbd5e1;font-size:12px"></span>
         </div>
-        <div id="cert-print-wrap" style="margin:0 auto;width:${pp.w}px">${_certPageHtml(tpl, ctx, { pageId: 'cert-print-page' })}</div>`;
+        <div id="cert-print-fit" style="margin:0 auto">
+          <div id="cert-print-wrap" style="width:${pp.w}px;height:${pp.h}px;transform-origin:top left">${_certPageHtml(tpl, ctx, { pageId: 'cert-print-page' })}</div>
+        </div>`;
       document.body.appendChild(d);
+      _certFitPreview(pp);
+      // จอถูกย่อ/หมุน ก็ยังเห็นเต็มใบ
+      const onResize = () => {
+        if (!document.getElementById('cert-print-overlay')) { window.removeEventListener('resize', onResize); return; }
+        _certFitPreview(pp);
+      };
+      window.addEventListener('resize', onResize);
+    }
+    /** 🔍 ย่อใบตัวอย่างให้พอดีจอ (ของจริงตอนพิมพ์ยังเป็นขนาดเต็ม)
+     *  เดิมวางใบขนาดจริง 1123 จุดลงไปตรง ๆ จอที่แคบกว่านั้นจึงเห็นไม่ครบใบ */
+    function _certFitPreview(pp) {
+      const fit = document.getElementById('cert-print-fit');
+      const wrap = document.getElementById('cert-print-wrap');
+      const note = document.getElementById('cert-print-zoom');
+      if (!fit || !wrap) return;
+      const availW = Math.max(260, window.innerWidth - 40);
+      const availH = Math.max(220, window.innerHeight - 110);
+      const s = Math.min(1, availW / pp.w, availH / pp.h);
+      wrap.style.transform = 'scale(' + s + ')';
+      fit.style.width = Math.round(pp.w * s) + 'px';
+      fit.style.height = Math.round(pp.h * s) + 'px';
+      if (note) note.textContent = s < 1 ? '· บนจอย่อไว้ ' + Math.round(s * 100) + '% เพื่อให้เห็นทั้งใบ ตอนพิมพ์ได้ขนาดเต็ม' : '';
     }
 
     /* ═════════════ 🏅 ฝั่งแอดมิน: หน้าจัดการเกียรติบัตร ═════════════ */
@@ -17419,8 +17454,13 @@ const supabaseDataSdk = {
       const ctx = _certSample();
       const items = _certItems(t.items_json);
       const sel = items.find(it => String(it.id) === String(_certSelId)) || null;
-      // ย่อกระดาษให้พอดีจอ แต่พิกัดยังเป็นขนาดจริง (ลากแล้วคิดกลับด้วยอัตราย่อ)
-      const scale = Math.min(1, 980 / pp.w);
+      // 📐 ย่อกระดาษให้พอดีกับความกว้างที่มีจริงบนจอ แต่พิกัดยังเป็นขนาดจริง
+      //    (ลากแล้วคิดกลับด้วยอัตราย่อ) เดิมตรึงไว้ที่ 980 จุด จอแคบกว่านั้นจึงล้นออกข้าง
+      const avail = Math.max(260, (box.clientWidth || box.offsetWidth
+        || Math.min(980, (typeof window !== 'undefined' ? window.innerWidth : 980) - 90)) - 36);
+      const fit = Math.min(1, avail / pp.w);
+      const scale = (_certZoom === 'fit') ? fit : Math.max(0.2, Math.min(3, parseFloat(_certZoom) || fit));
+      const zoomBtn = (v, label) => `<button onclick="certZoom('${v}')" class="px-2 py-1 rounded text-xs font-semibold ${String(_certZoom) === String(v) ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 border border-slate-300'}">${label}</button>`;
 
       const propBar = !sel ? `<p class="text-xs text-gray-500">แตะชิ้นใดก็ได้บนกระดาษเพื่อแก้ไข หรือกดปุ่มเพิ่มองค์ประกอบด้านล่าง</p>` : `
         <div class="flex gap-2 flex-wrap items-end">
@@ -17468,13 +17508,27 @@ const supabaseDataSdk = {
                 <option value="right" ${sel.align === 'right' ? 'selected' : ''}>ขวา</option>
               </select></div>
             <label class="flex items-center gap-1 text-xs text-gray-700 cursor-pointer pb-2">
-              <input type="checkbox" id="cert-p-bold" ${sel.weight === 700 ? 'checked' : ''} onchange="certProp('weight')"> ตัวหนา</label>` : ''}
+              <input type="checkbox" id="cert-p-bold" ${sel.weight === 700 ? 'checked' : ''} onchange="certProp('weight')"> ตัวหนา</label>
+            <label class="flex items-center gap-1 text-xs text-gray-700 cursor-pointer pb-2">
+              <input type="checkbox" id="cert-p-italic" ${sel.italic ? 'checked' : ''} onchange="certProp('italic')"> ตัวเอียง</label>
+            <label class="flex items-center gap-1 text-xs text-gray-700 cursor-pointer pb-2">
+              <input type="checkbox" id="cert-p-underline" ${sel.underline ? 'checked' : ''} onchange="certProp('underline')"> ขีดเส้นใต้</label>
+            <div style="width:96px"><label class="block text-xs text-gray-600 mb-1">ระยะห่างบรรทัด</label>
+              <input id="cert-p-lh" type="number" min="0.8" max="3" step="0.05" value="${sel.lh}" oninput="certProp('lh')" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-sm"></div>` : ''}
+          ${(sel.type === 'box' || sel.type === 'image') ? `<div style="width:84px">
+            <label class="block text-xs text-gray-600 mb-1">มุมโค้ง</label>
+            <input id="cert-p-radius" type="number" min="0" max="400" value="${Math.round(sel.radius)}" oninput="certProp('radius')" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-sm"></div>` : ''}
+          <div style="width:104px"><label class="block text-xs text-gray-600 mb-1">ความเข้ม %</label>
+            <input id="cert-p-opacity" type="number" min="5" max="100" step="5" value="${Math.round(sel.opacity)}" oninput="certProp('opacity')" class="w-full px-2 py-1.5 border-2 border-gray-200 rounded text-sm" title="ลดลงเพื่อทำเป็นลายน้ำจาง ๆ"></div>
           <div style="width:62px"><label class="block text-xs text-gray-600 mb-1">สี</label>
             <input id="cert-p-color" type="color" value="${escHtml(sel.type === 'box' ? sel.bg : sel.color)}" oninput="certProp('color')" class="w-full h-8 border-2 border-gray-200 rounded"></div>
-          <div class="flex gap-1 pb-1">
-            <button onclick="certCenterX()" class="px-2 py-1.5 bg-slate-100 text-slate-700 rounded text-xs" title="จัดกลางหน้าตามแนวนอน">↔ กลางหน้า</button>
-            <button onclick="certDupItem()" class="px-2 py-1.5 bg-violet-50 text-violet-700 rounded text-xs">📋 ทำซ้ำ</button>
-            ${sel.locked ? '' : `<button onclick="certDelItem()" class="px-2 py-1.5 bg-red-50 text-red-600 rounded text-xs">🗑️ ลบชิ้นนี้</button>`}
+          <div class="flex gap-1 pb-1 flex-wrap" style="flex:1 1 100%">
+            <button onclick="certCenterX()" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs" title="จัดกลางหน้าตามแนวนอน">↔ กลางหน้า</button>
+            <button onclick="certCenterY()" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs" title="จัดกลางหน้าตามแนวตั้ง">↕ กลางแนวตั้ง</button>
+            <button onclick="certLayer(1)" class="px-2 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs" title="ให้ชิ้นนี้อยู่หน้าชิ้นอื่น">⬆️ นำมาไว้หน้า</button>
+            <button onclick="certLayer(-1)" class="px-2 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs" title="ให้ชิ้นนี้อยู่หลังชิ้นอื่น">⬇️ ส่งไปไว้หลัง</button>
+            <button onclick="certDupItem()" class="px-2 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded text-xs">📋 ทำซ้ำ</button>
+            ${sel.locked ? '' : `<button onclick="certDelItem()" class="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded text-xs">🗑️ ลบชิ้นนี้</button>`}
           </div>
         </div>`;
 
@@ -17492,17 +17546,41 @@ const supabaseDataSdk = {
           <button onclick="certAddItem('box')" class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-xs font-semibold">➕ กล่องสี</button>
         </div>` : ''}
         <div class="bg-slate-50 border-2 border-slate-200 rounded-xl p-3 mb-3">${propBar}</div>
+        <div class="flex items-center gap-1 flex-wrap mb-2">
+          <span class="text-xs text-gray-600 mr-1">🔍 ย่อ-ขยาย</span>
+          ${zoomBtn('fit', 'พอดีจอ')}${zoomBtn('0.5', '50%')}${zoomBtn('0.75', '75%')}${zoomBtn('1', '100%')}${zoomBtn('1.5', '150%')}
+          <span class="text-xs text-gray-400">· กำลังแสดง ${Math.round(scale * 100)}% ${scale < 1 ? '(ย่อให้เห็นทั้งใบ ขนาดจริงตอนพิมพ์ไม่เปลี่ยน)' : ''}</span>
+        </div>
         <div style="overflow:auto;background:#475569;padding:14px;border-radius:12px">
-          <div id="cert-stage" style="width:${pp.w}px;height:${pp.h}px;transform:scale(${scale});transform-origin:top left;margin:0 auto">
-            ${_certPageHtml(t, ctx, { design: canEdit, selectedId: _certSelId, pageId: 'cert-page' })}
+          <div style="width:${Math.round(pp.w * scale)}px;height:${Math.round(pp.h * scale)}px;margin:0 auto">
+            <div id="cert-stage" style="width:${pp.w}px;height:${pp.h}px;transform:scale(${scale});transform-origin:top left">
+              ${_certPageHtml(t, ctx, { design: canEdit, selectedId: _certSelId, pageId: 'cert-page' })}
+            </div>
           </div>
-          <div style="height:${Math.round(pp.h * scale) - pp.h + 6}px"></div>
         </div>
         <p class="text-xs text-gray-500 mt-2">ลากชิ้นบนกระดาษเพื่อย้าย (ดูดเข้าเส้นตารางทีละ ${CERT_SNAP} จุด) หรือพิมพ์เลขตำแหน่งในแถบด้านบน · ข้อมูลที่เห็นเป็นตัวอย่าง ของจริงระบบเติมจากฐานข้อมูล</p>
         <p class="text-xs text-amber-700 mt-1">แนะนำให้ออกแบบบนคอมพิวเตอร์ ส่วนมือถือใช้ดูตัวอย่างและสั่งพิมพ์</p>`;
       _certStageScale = scale;
+      _certWatchResize();
     }
     let _certStageScale = 1;
+    let _certZoom = 'fit';        // 'fit' = พอดีจอ หรือเลขอัตราย่อ เช่น '0.75'
+    let _certResizeHooked = false;
+    /** ย่อ-ขยายกระดาษในหน้าออกแบบ */
+    function certZoom(v) { _certZoom = String(v); renderCertDesigner(); }
+    /** ย่อหน้าต่างเบราว์เซอร์แล้วกระดาษปรับตามเอง (เฉพาะโหมดพอดีจอ) */
+    function _certWatchResize() {
+      if (_certResizeHooked) return;
+      _certResizeHooked = true;
+      let tm = null;
+      window.addEventListener('resize', () => {
+        if (_certZoom !== 'fit') return;
+        const box = document.getElementById('cert-design');
+        if (!box || !box.offsetParent) return;      // หน้านี้ไม่ได้เปิดอยู่ ไม่ต้องวาดใหม่
+        clearTimeout(tm);
+        tm = setTimeout(() => { try { renderCertDesigner(); } catch (e) {} }, 180);
+      });
+    }
 
     /** ลาก/แตะย้ายชิ้น */
     function _certDragStart(ev, id) {
@@ -17583,6 +17661,11 @@ const supabaseDataSdk = {
         if (key === 'font') n.font = String(gv('cert-p-font')?.value || n.font);
         if (key === 'align') n.align = String(gv('cert-p-align')?.value || 'left');
         if (key === 'weight') n.weight = (gv('cert-p-bold') || {}).checked ? 700 : 400;
+        if (key === 'italic') n.italic = !!(gv('cert-p-italic') || {}).checked;
+        if (key === 'underline') n.underline = !!(gv('cert-p-underline') || {}).checked;
+        if (key === 'lh') n.lh = Math.max(0.8, Math.min(3, parseFloat(gv('cert-p-lh')?.value) || 1.25));
+        if (key === 'radius') n.radius = Math.max(0, Math.min(400, parseFloat(gv('cert-p-radius')?.value) || 0));
+        if (key === 'opacity') n.opacity = Math.max(5, Math.min(100, parseFloat(gv('cert-p-opacity')?.value) || 100));
         if (key === 'color') {
           const c = String(gv('cert-p-color')?.value || '#000000');
           if (n.type === 'box') n.bg = c; else n.color = c;
@@ -17658,6 +17741,38 @@ const supabaseDataSdk = {
       const r = await _coUpd({ ...t, items_json: _certStringify(items) });
       if (r && r.isOk) renderCertDesigner();
     }
+    /** จัดกึ่งกลางหน้าตามแนวตั้ง */
+    async function certCenterY() {
+      if (!_courseCanEdit()) return;
+      const t = _certTplById(_certTplId);
+      if (!t || !_certSelId) return;
+      const pp = _certPaper(t.paper);
+      const items = _certItems(t.items_json).map(it => {
+        if (String(it.id) !== String(_certSelId)) return it;
+        const h = it.type === 'text' || it.type === 'field' ? it.size * it.lh : Math.max(2, it.h || 40);
+        return { ...it, y: Math.max(0, Math.round((pp.h - h) / 2)) };
+      });
+      const r = await _coUpd({ ...t, items_json: _certStringify(items) });
+      if (r && r.isOk) renderCertDesigner();
+    }
+    /** ⬆️⬇️ ลำดับชั้น — ชิ้นที่อยู่ท้ายรายการจะถูกวาดทับชิ้นก่อนหน้า
+     *  ใช้ตอนกล่องสีหรือรูปบังตัวหนังสืออยู่ */
+    async function certLayer(dir) {
+      if (!_courseCanEdit()) return;
+      const t = _certTplById(_certTplId);
+      if (!t || !_certSelId) return;
+      const items = _certItems(t.items_json);
+      const i = items.findIndex(x => String(x.id) === String(_certSelId));
+      if (i < 0) return;
+      const j = dir > 0 ? items.length - 1 : 0;          // นำมาหน้าสุด / ส่งไปหลังสุด
+      if (i === j) { showToast(dir > 0 ? 'ชิ้นนี้อยู่หน้าสุดแล้ว' : 'ชิ้นนี้อยู่หลังสุดแล้ว'); return; }
+      const [it] = items.splice(i, 1);
+      if (dir > 0) items.push(it); else items.unshift(it);
+      const r = await _coUpd({ ...t, items_json: _certStringify(items) });
+      if (r && r.isOk) { showToast(dir > 0 ? '⬆️ นำมาไว้หน้าสุดแล้ว' : '⬇️ ส่งไปไว้หลังสุดแล้ว'); renderCertDesigner(); }
+      else showToast('บันทึกไม่สำเร็จ — ' + ((r && r.error && r.error.message) || ''), 'error');
+    }
+
     function certPreviewPrint() {
       const t = _certTplById(_certTplId);
       if (!t) { showToast('เลือกแบบเกียรติบัตรก่อน', 'error'); return; }
