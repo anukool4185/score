@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.263';
+    const APP_VERSION = 'SUPABASE-2026.10.21.264';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4911,6 +4911,26 @@ const supabaseDataSdk = {
       // 🚫 ชนกฎห้ามซ้ำของตาราง — แปลเป็นภาษาคนให้เข้าใจว่าต้องทำอะไร
       if (txt.includes('uniq_essay_exam_set')) {
         throw new Error('ตารางอัตนัยยังห้ามตั้งชุดสอบซ้ำในครั้งเดียวกัน — กรุณารันไฟล์ add_essay_score_mode.sql ใน Supabase ก่อน');
+      }
+      // 🕵️ ตัวบันทึกการลบพัง แล้วลากให้ลบอะไรไม่ได้ทั้งระบบ
+      //    🚨 อาการจริงที่เจอ: ฐานข้อมูลมีตาราง deleted_rows อยู่แล้วแต่คอลัมน์ไม่ครบ
+      //       สคริปต์รุ่นก่อนใช้ CREATE TABLE IF NOT EXISTS จึงข้ามไปไม่ซ่อม
+      //       ตัวบันทึกเขียนลงไม่ได้ → การลบถูกยกเลิกทั้งรายการ
+      if (/deleted_rows/.test(txt)) {
+        // ⚠️ ข้อความมาเป็นสตริง JSON ดิบ เครื่องหมายคำพูดจึงมี \ นำหน้า — ต้องรับทั้งสองแบบ
+        const col = (txt.match(/column\s+\\?"([^"\\]+)\\?"\s+of relation\s+\\?"deleted_rows\\?"/) || [])[1];
+        throw new Error('🕵️ ตารางบันทึกการลบ (deleted_rows) ในฐานข้อมูลไม่ครบ'
+          + (col ? ` — ขาดคอลัมน์ "${col}"` : '')
+          + ' ทำให้ลบข้อมูลไม่ได้ทั้งระบบ '
+          + 'แก้โดยรันไฟล์ add_delete_audit.sql รุ่นใหม่ใน Supabase หนึ่งครั้ง '
+          + '(รุ่นใหม่จะเติมคอลัมน์ที่ขาดให้ และทำให้ตัวบันทึกไม่ขัดขวางการลบอีก)');
+      }
+      // 🗄️ คอลัมน์ที่ต้องมีแต่ยังไม่มี (รหัส 42703) — บอกชื่อตาราง/คอลัมน์ให้ตามหาได้
+      if (txt.includes('42703')) {
+        const m2 = txt.match(/column\s+\\?"([^"\\]+)\\?"(?:\s+of relation\s+\\?"([^"\\]+)\\?")?/);
+        throw new Error('🗄️ ฐานข้อมูลยังไม่มีคอลัมน์ที่ระบบต้องใช้'
+          + (m2 ? ` — คอลัมน์ "${m2[1]}"${m2[2] ? ` ของตาราง ${m2[2]}` : ''}` : '')
+          + ' กรุณารันไฟล์ .sql ที่เกี่ยวข้องใน Supabase แล้วลองอีกครั้ง');
       }
       throw new Error(`Supabase ${res.status}: ${txt.substring(0, 200)}`);
     }
@@ -5774,7 +5794,7 @@ const supabaseDataSdk = {
         const result = await window.dataSdk.init(dataHandler);
         if (!result.isOk) {
           console.error('❌ ไม่สามารถเชื่อมต่อฐานข้อมูล', result.error);
-          showToast('ไม่สามารถเชื่อมต่อฐานข้อมูลได้', 'error');
+          showToast('ไม่สามารถเชื่อมต่อฐานข้อมูลได้' + (result.error?.message ? ': ' + result.error.message : ''), 'error');   // 🔑 บอกสาเหตุจริง
         } else {
           console.log('✅ เชื่อมต่อฐานข้อมูลสำเร็จ');
           // เพิ่มข้อมูลตัวอย่างถ้าไม่มี (เพื่อให้นักเรียนหลังloginสามารถดูวิชา)
@@ -7075,7 +7095,7 @@ const supabaseDataSdk = {
         showToast(`มี ${termLabel(year, sem)} อยู่แล้ว`, 'info'); return;
       }
       const res = await window.dataSdk.create({ type: 'academic_term', academic_year: year, semester: sem, created_at: new Date().toISOString() });
-      if (!res.isOk) { showToast('ไม่สามารถสร้างได้', 'error'); return; }
+      if (!res.isOk) { _sbFailToast(res, 'สร้าง'); return; }   // 🔑 บอกสาเหตุจริง
       showToast(`✅ สร้าง ${termLabel(year, sem)} แล้ว — เข้าไปทำงานในเทอมนี้ให้เลย`);
       const y = document.getElementById('newterm-year'); const sm = document.getElementById('newterm-sem');
       if (y) y.value = year; if (sm) sm.value = sem;
@@ -7113,7 +7133,7 @@ const supabaseDataSdk = {
       const result = existing
         ? await window.dataSdk.update({ ...existing, active_year: year, active_semester: sem })
         : await window.dataSdk.create({ type: 'settings', active_year: year, active_semester: sem });
-      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      if (!result.isOk) { _sbFailToast(result, 'บันทึก'); return; }   // 🔑 บอกสาเหตุจริง
       showToast(`⭐ เปิดใช้งาน ${termLabel(year, sem)} แล้ว — ข้อมูลใหม่ทั้งหมดจะถูกบันทึกเข้าเทอมนี้`);
       renderAcademicTerms();
       renderTermViewSelect();
@@ -7555,7 +7575,7 @@ const supabaseDataSdk = {
       const result = existing
         ? await window.dataSdk.update({ ...existing, active_year: year, active_semester: semester })
         : await window.dataSdk.create({ type: 'settings', active_year: year, active_semester: semester });
-      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      if (!result.isOk) { _sbFailToast(result, 'บันทึก'); return; }   // 🔑 บอกสาเหตุจริง
       showToast(`✅ เปิดใช้งาน ${termLabel(year, semester)} แล้ว`);
       renderTermBar();
       setTimeout(() => {
@@ -7929,7 +7949,7 @@ const supabaseDataSdk = {
         k_percent: k, s_percent: sVal, a_percent: a, c_percent: c,
         status: 'pending', created_at: new Date().toISOString()
       });
-      if (!result.isOk) { showToast('ไม่สามารถส่งคำขอได้', 'error'); return; }
+      if (!result.isOk) { _sbFailToast(result, 'ส่งคำขอ'); return; }   // 🔑 บอกสาเหตุจริง
 
       // แสดง popup รายชื่อผู้ช่วยแอดมินในห้องนั้น
       _closeAllPopups();
@@ -8101,7 +8121,7 @@ const supabaseDataSdk = {
         showToast('✅ อนุญาตแล้ว (มีผลเฉพาะวันนี้) ผู้ช่วยแอดมินสามารถลงทะเบียนให้นักเรียนคนนี้ได้แล้ว');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถอนุมัติได้', 'error');
+        _sbFailToast(result, 'อนุมัติ');   // 🔑 บอกสาเหตุจริง
       }
     }
     // เช็คว่าคำขอนี้ "อนุมัติแล้ว" และยังอยู่ในวันเดียวกับที่อนุมัติหรือไม่ (อนุญาตวันต่อวันเท่านั้น)
@@ -9468,7 +9488,7 @@ const supabaseDataSdk = {
         refreshCurrentView();
         delayedRefresh(1500);
       } else {
-        showToast('ไม่สามารถลงทะเบียนได้', 'error');
+        _sbFailToast(result, 'ลงทะเบียน');   // 🔑 บอกสาเหตุจริง
       }
     }
     function addHomeworkScopedPopup() {
@@ -9521,7 +9541,7 @@ const supabaseDataSdk = {
         refreshCurrentView();
         loadSubAdminHomeworkSection();
       } else {
-        showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
+        _sbFailToast(result, 'เพิ่มการบ้าน');   // 🔑 บอกสาเหตุจริง
       }
     }
     function renderSubAdminTaskMessages() {
@@ -9562,7 +9582,7 @@ const supabaseDataSdk = {
         showToast('✅ ยืนยันดำเนินการแล้ว');
         renderSubAdminTaskMessages();
       } else {
-        showToast('ไม่สามารถอัปเดตได้', 'error');
+        _sbFailToast(result, 'อัปเดต');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ============================================================
@@ -9777,7 +9797,7 @@ const supabaseDataSdk = {
       const result = existing
         ? await window.dataSdk.update({ ...existing, ...fields })
         : await window.dataSdk.create({ type: 'settings', ...fields });
-      if (!result.isOk) showToast('ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+      if (!result.isOk) _sbFailToast(result, 'บันทึกการตั้งค่า');   // 🔑 บอกสาเหตุจริง
     }
     function applyGenericMarqueeKeyframes(keyframeName, scrollSec, pauseSec) {
       if (!(scrollSec > 0)) return 0;   // ระดับ 0 = ไม่ขยับ
@@ -10280,7 +10300,7 @@ const supabaseDataSdk = {
         }
         updateAnnouncementList(target);
       } else {
-        showToast('ไม่สามารถเพิ่มประกาศได้', 'error');
+        _sbFailToast(result, 'เพิ่มประกาศ');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteAnnouncement(id) {
@@ -10329,7 +10349,7 @@ const supabaseDataSdk = {
         showToast('✅ แก้ไขประกาศสำเร็จ');
         updateAnnouncementList(ann.target);
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ⏰ ระบบออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน 1 ชั่วโมง (เพื่อความปลอดภัย กันคนอื่นมาใช้เครื่องต่อ)
@@ -10724,7 +10744,7 @@ const supabaseDataSdk = {
         showToast('✅ เปลี่ยนวิธีปัดทศนิยมสำเร็จ');
         updateGradeReportTable();
       } else {
-        showToast('ไม่สามารถบันทึกได้', 'error');
+        _sbFailToast(result, 'บันทึก');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ============================================================
@@ -11075,7 +11095,7 @@ const supabaseDataSdk = {
         showToast('✅ เพิ่มการบ้านสำเร็จ');
         if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
       } else {
-        showToast('ไม่สามารถเพิ่มการบ้านได้', 'error');
+        _sbFailToast(result, 'เพิ่มการบ้าน');   // 🔑 บอกสาเหตุจริง
       }
     }
     function editHomeworkPopup(hwId) {
@@ -11125,7 +11145,7 @@ const supabaseDataSdk = {
         showToast('✅ แก้ไขการบ้านสำเร็จ');
         if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     function deleteHomeworkSingle(hwId) {
@@ -11241,7 +11261,7 @@ const supabaseDataSdk = {
         showToast('✅ ส่งข้อความสำเร็จ');
         updateTaskMessageList();
       } else {
-        showToast('ไม่สามารถส่งข้อความได้', 'error');
+        _sbFailToast(result, 'ส่งข้อความ');   // 🔑 บอกสาเหตุจริง
       }
     }
     function updateTaskMessageList() {
@@ -19312,7 +19332,7 @@ const supabaseDataSdk = {
       if (result && result.isOk) {
         showToast('✅ บันทึกรูปแบบกระดาษคำตอบสำเร็จ');
       } else {
-        showToast('บันทึกไม่สำเร็จ (ลองแล้ว 3 ครั้ง) กรุณาลองใหม่อีกครั้ง', 'error');
+        _sbFailToast(result, 'บันทึกไม่สำเร็จ (ลองแล้ว 3 ครั้ง) กรุณาลองใหม่อีกครั้ง');   // 🔑 บอกสาเหตุจริง
       }
     }
 
@@ -26184,7 +26204,7 @@ function _examResultIdentityHtml(sub, set) {
       const result = existing
         ? await window.dataSdk.update({ ...existing, grade_target_value: value })
         : await window.dataSdk.create({ type: 'settings', grade_target_value: value });
-      if (!result.isOk) { showToast('ไม่สามารถบันทึกได้', 'error'); return; }
+      if (!result.isOk) { _sbFailToast(result, 'บันทึก'); return; }   // 🔑 บอกสาเหตุจริง
       showToast(value === null
         ? '✅ ยกเลิกเกณฑ์ของระบบแล้ว — ฝั่งนักเรียนจะไม่เห็นคำเตือนคะแนน'
         : `✅ บันทึกเกณฑ์ ${value.toFixed(1)} เป็นค่าของทั้งระบบแล้ว`);
@@ -26449,7 +26469,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ เพิ่มหัวข้อสำเร็จ');
         updateEvalTopicsList();
       } else {
-        showToast('ไม่สามารถเพิ่มหัวข้อได้', 'error');
+        _sbFailToast(result, 'เพิ่มหัวข้อ');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteEvalTopic(topicId) {
@@ -26496,7 +26516,7 @@ function _examResultIdentityHtml(sub, set) {
         updateEvalTopicsList();
         updateEvalResultsSummary();
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     function updateEvalTopicsList() {
@@ -26547,7 +26567,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ เพิ่มระดับสำเร็จ');
         updateEvalLevelsList();
       } else {
-        showToast('ไม่สามารถเพิ่มระดับได้', 'error');
+        _sbFailToast(result, 'เพิ่มระดับ');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteEvalLevel(levelId) {
@@ -26599,7 +26619,7 @@ function _examResultIdentityHtml(sub, set) {
         updateEvalLevelsList();
         updateEvalResultsSummary();
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     function updateEvalLevelsList() {
@@ -26639,7 +26659,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ เพิ่มชื่อผู้ประเมินสำเร็จ');
         updateEvaluatorOptionsList();
       } else {
-        showToast('ไม่สามารถเพิ่มชื่อได้', 'error');
+        _sbFailToast(result, 'เพิ่มชื่อ');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteEvaluatorOption(optionId) {
@@ -26688,7 +26708,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ แก้ไขสำเร็จ');
         updateEvaluatorOptionsList();
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     function updateEvaluatorOptionsList() {
@@ -27375,7 +27395,7 @@ function _examResultIdentityHtml(sub, set) {
         // Refresh ช่องค้นหาในแท็บผู้ช่วยแอดมินถ้าเปิดอยู่
         searchStudentForAppoint();
       } else {
-        showToast('ไม่สามารถบันทึกได้', 'error');
+        _sbFailToast(existing, 'บันทึก');   // 🔑 บอกสาเหตุจริง
       }
     }
 
@@ -27583,7 +27603,7 @@ function _examResultIdentityHtml(sub, set) {
         refreshCurrentView();
         updateAdminList();
       } else {
-        showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
+        _sbFailToast(result, 'แก้ไขข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     function updateAdminList() {
@@ -27644,7 +27664,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast(isChecked ? '✅ ให้สิทธิ์จัดการแล้ว' : '👁️ เปลี่ยนเป็นดูอย่างเดียวแล้ว');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถบันทึกสิทธิ์ได้', 'error');
+        _sbFailToast(result, 'บันทึกสิทธิ์');   // 🔑 บอกสาเหตุจริง
       }
     }
     let registeredStudentsFilter = { className: '', roomNumber: '' };
@@ -29417,7 +29437,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ แก้ไขการลงทะเบียนสำเร็จ');
         updateRegistrationsTable();
       } else {
-        showToast('ไม่สามารถแก้ไขได้', 'error');
+        _sbFailToast(result, 'แก้ไข');   // 🔑 บอกสาเหตุจริง
       }
     }
     function deleteRegistrationRow(regId) {
@@ -29712,7 +29732,7 @@ function _examResultIdentityHtml(sub, set) {
         refreshCurrentView();
         updateStudentsList();
       } else {
-        showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
+        _sbFailToast(result, 'แก้ไขข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     function addStudentPopup() {
@@ -29834,7 +29854,7 @@ function _examResultIdentityHtml(sub, set) {
         refreshCurrentView();
         updateStudentsList();
       } else {
-        showToast('ไม่สามารถเพิ่มนักเรียนได้', 'error');
+        _sbFailToast(result, 'เพิ่มนักเรียน');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ----- แอดมินลงทะเบียนวิชาให้นักเรียนแทน (ไม่ติดเงื่อนไขวันที่เปิด-ปิดลงทะเบียน) -----
@@ -29960,7 +29980,7 @@ function _examResultIdentityHtml(sub, set) {
         if (!existingReg) await applyPendingScoresOnRegistration(student.student_id, subjectName);
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถลงทะเบียนได้', 'error');
+        _sbFailToast(req, 'ลงทะเบียน');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteAdmin(adminId) {
@@ -31009,7 +31029,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
+        _sbFailToast(result, 'แก้ไขข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteHours(hoursId) {
@@ -31306,7 +31326,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('แก้ไขข้อมูลสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถแก้ไขข้อมูล', 'error');
+        _sbFailToast(result, 'แก้ไขข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteScores(scoresId) {
@@ -32423,7 +32443,7 @@ function _examResultIdentityHtml(sub, set) {
         // รีเฟรชการ์ดของนักเรียนที่เลือกอยู่ ให้คะแนนเต็มใหม่มีผลทันที
         updateGradingStudents();
       } else {
-        showToast('ไม่สามารถบันทึกได้', 'error');
+        _sbFailToast(result, 'บันทึก');   // 🔑 บอกสาเหตุจริง
       }
     }
     /** 📊 แถบความก้าวหน้าการสอบของนักเรียนคนนี้ (ให้แอดมินเห็นในหน้าให้คะแนน)
@@ -33278,7 +33298,7 @@ function _examResultIdentityHtml(sub, set) {
         document.body.appendChild(successMsg);
         setTimeout(() => successMsg.remove(), 2000);
       } else {
-        showToast('ไม่สามารถบันทึกคะแนน', 'error');
+        _sbFailToast(result, 'บันทึกคะแนน');   // 🔑 บอกสาเหตุจริง
       }
     }
     function clearAllScores(regId) {
@@ -33889,7 +33909,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ บันทึกส่วนที่ 1 สำเร็จ');
         updateTimekeepingStudents();
       } else {
-        showToast('ไม่สามารถบันทึกข้อมูล', 'error');
+        _sbFailToast(result, 'บันทึกข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ======= ส่วนที่ 2: ลงเวลาเรียนจริง (เวลาอิสระ) =======
@@ -33939,7 +33959,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ บันทึกส่วนที่ 2 สำเร็จ');
         updateTimekeepingStudents();
       } else {
-        showToast('ไม่สามารถบันทึกข้อมูล', 'error');
+        _sbFailToast(result, 'บันทึกข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ======= REGISTRATION SCHEDULE FUNCTIONS =======
@@ -34026,7 +34046,7 @@ function _examResultIdentityHtml(sub, set) {
         setTimeout(() => successMsg.remove(), 2000);
         updateScheduleDisplay();
       } else {
-        showToast('ไม่สามารถบันทึกช่วงเวลา', 'error');
+        _sbFailToast(result, 'บันทึกช่วงเวลา');   // 🔑 บอกสาเหตุจริง
       }
     }
     /** 🕐 เติมตัวเลือกเวลาแบบ 24 ชั่วโมง และซิงก์ค่าเข้าช่องซ่อน */
@@ -35285,7 +35305,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('✅ บันทึกการประเมินสำเร็จ');
         if (afterSuccessFn) afterSuccessFn();
       } else {
-        showToast('ไม่สามารถบันทึกได้', 'error');
+        _sbFailToast(result, 'บันทึก');   // 🔑 บอกสาเหตุจริง
       }
     }
     // ----- มุมมองกรรมการนิเทศ (ประเมินการสอน) -----
@@ -36007,7 +36027,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('อัปเดตข้อมูลสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถอัปเดตข้อมูล', 'error');
+        _sbFailToast(result, 'อัปเดตข้อมูล');   // 🔑 บอกสาเหตุจริง
       }
     }
     function isRegistrationOpen() {
@@ -36340,7 +36360,7 @@ function _examResultIdentityHtml(sub, set) {
           updateStudentRegForm(studentClassName, studentRoomNumber, isRegistrationOpen);
         }, 300);
       } else {
-        showToast('ไม่สามารถลงทะเบียน', 'error');
+        _sbFailToast(result, 'ลงทะเบียน');   // 🔑 บอกสาเหตุจริง
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
       }
@@ -36529,7 +36549,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('อัปเดตรายการสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถอัปเดตรายการ', 'error');
+        _sbFailToast(result, 'อัปเดตรายการ');   // 🔑 บอกสาเหตุจริง
       }
     }
     function studentDeleteRegistration(regId) {
@@ -36661,7 +36681,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('อัปเดตรายการสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถอัปเดตรายการ', 'error');
+        _sbFailToast(result, 'อัปเดตรายการ');   // 🔑 บอกสาเหตุจริง
       }
     }
     async function deleteRegistration(regId) {
@@ -36728,7 +36748,7 @@ function _examResultIdentityHtml(sub, set) {
         document.getElementById('reg-subject-select').value = '';
         document.getElementById('reg-form-container').innerHTML = '<p class="text-gray-400 text-center py-4">เลือกวิชาเพื่อลงทะเบียนหรือแก้ไข</p>';
       } else {
-        showToast('ไม่สามารถบันทึกการแก้ไข', 'error');
+        _sbFailToast(result, 'บันทึกการแก้ไข');   // 🔑 บอกสาเหตุจริง
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
       }
