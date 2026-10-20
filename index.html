@@ -4367,7 +4367,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.21.266';
+    const APP_VERSION = 'SUPABASE-2026.10.21.267';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -10391,7 +10391,16 @@ const supabaseDataSdk = {
           ทั้ง 3 แท็บกรองตาม target จึงไม่มีแท็บไหนแสดงมันเลย → เห็นแต่ลบไม่ได้
        ✅ รวบมาไว้ที่นี่ พร้อมปุ่มลบและปุ่มย้ายเข้าแท็บ ให้จัดการได้จริง
        ══════════════════════════════════════════════════════════════════════════ */
-    const ANN_TARGETS = ['notification', 'website', 'student'];
+    /** ปลายทางทั้งหมดที่ประกาศไปแสดงได้ — ต้องตรงกับแท็บบนหน้าจัดการประกาศทุกแท็บ
+     *  🚨 ถ้าตกไปแท็บใด ประกาศของแท็บนั้นจะถูกเหมาว่าเป็น "ของค้าง" ทั้งที่ใช้งานปกติ
+     *     (ผมเคยพลาดตกแท็บผู้นิเทศไปจริง ๆ จึงเขียนกำกับไว้)
+     *  📋 เพิ่มแท็บใหม่เมื่อไหร่ ต้องเพิ่มชื่อที่นี่ด้วย — มีเทสคุมว่าตรงกับปุ่มบนหน้าจอ */
+    const ANN_TARGETS = ['notification', 'website', 'student', 'director'];
+    /** ชื่อแท็บที่ครูเห็นบนหน้าจอ — ใช้ในปุ่มย้าย ให้ตรงกับที่เขียนบนแท็บจริง */
+    const ANN_TARGET_LABEL = {
+      notification: '🔔 ประกาศหน้าเพจ', website: '🌐 หน้าแรกของเว็บ',
+      student: '👨‍🎓 หน้าหลักนักเรียน', director: '👨‍💼 หน้าหลักผู้นิเทศ',
+    };
     /** ประกาศที่ไม่มีแท็บไหนแสดง + แถวที่มีข้อความแต่ไม่มีป้ายชนิด */
     function _orphanAnnouncements() {
       return allData.filter(d => {
@@ -10426,7 +10435,7 @@ const supabaseDataSdk = {
                   ${a.type === 'settings' ? ' · <span class="text-rose-600">ไม่มีป้ายบอกว่าเป็นประกาศ</span>' : ''}</p>
                 <div class="flex gap-2 flex-wrap">
                   ${ANN_TARGETS.map(t => `<button onclick="fixOrphanAnnouncement('${escHtml(String(a.__backendId))}','${t}')"
-                     class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">ย้ายไปแท็บ ${t === 'notification' ? 'ป้ายวิ่ง' : t === 'website' ? 'หน้าเว็บ' : 'นักเรียน'}</button>`).join('')}
+                     class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">ย้ายไป ${escHtml(ANN_TARGET_LABEL[t] || t)}</button>`).join('')}
                   <button onclick="deleteOrphanAnnouncement('${escHtml(String(a.__backendId))}')"
                     class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️ ลบทิ้ง</button>
                 </div>
