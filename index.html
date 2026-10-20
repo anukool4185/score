@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.260';
+    const APP_VERSION = 'SUPABASE-2026.10.20.261';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4767,6 +4767,43 @@ SB_TYPE_TO_TABLE['academic_term']       = 'settings';   // 📅 ปีการ�
 SB_TYPE_TO_TABLE['exam_retry_permission'] = 'exam_retry_requests';
 SB_TYPE_TO_TABLE['exam_camera_consent'] = 'exam_camera_snapshots';
 SB_TYPE_TO_TABLE['task_message']        = 'notifications';
+
+/* ══════════════════════════════════════════════════════════════════════════
+   🔑 ข้อความเมื่อฐานข้อมูลไม่ยอมให้ลบ/แก้ไข (ขาดสิทธิ์ RLS)
+   ──────────────────────────────────────────────────────────────────────────
+   ⚠️ อาการนี้หายากมากถ้าไม่บอกสาเหตุ เพราะฐานข้อมูลตอบว่า "สำเร็จ" แต่ไม่ได้ทำอะไร
+      ระบบจึงตรวจซ้ำเองว่าแถวยังอยู่ไหม แล้วรายงานตรงนี้
+
+   💡 กับดักที่ทำให้หาไม่เจอ: ข้อมูลหลายอย่างไม่ได้อยู่ในตารางชื่อเดียวกับเมนู
+      เช่น "ประกาศ" เก็บในตาราง settings · "คำขอสอบแก้" เก็บในตาราง exam_retry_requests
+      จึงต้องบอกชื่อตารางจริงออกไปด้วย ไม่ใช่บอกแค่ว่า "ลบไม่ได้"
+   ══════════════════════════════════════════════════════════════════════════ */
+const SB_TABLE_THAI = {
+  settings: 'ตั้งค่า/ประกาศ/ปีการศึกษา/เมนู', students: 'นักเรียน', admins: 'ผู้ดูแล',
+  class_subjects: 'รายวิชาที่เปิดสอน', subject_full_scores: 'คะแนนเต็ม',
+  registrations: 'การลงทะเบียนเรียน', registration_requests: 'คำขอลงทะเบียน',
+  grades: 'คะแนน', homework: 'การบ้าน', attendance: 'เวลาเรียน',
+  notifications: 'การแจ้งเตือน', pending_scores: 'คะแนนรอโอน', evaluations: 'การประเมิน',
+  exam_questions: 'คลังข้อสอบปรนัย', essay_questions: 'คลังข้อสอบอัตนัย',
+  exam_sets: 'ชุดสอบปรนัย', essay_exam_sets: 'ชุดสอบอัตนัย',
+  exam_submissions: 'กระดาษคำตอบปรนัย', essay_submissions: 'กระดาษคำตอบอัตนัย',
+  courses: 'หลักสูตร', course_lessons: 'บทเรียน', certificate_templates: 'แบบเกียรติบัตร',
+};
+function _sbPolicyMsg(what, table) {
+  const thai = SB_TABLE_THAI[table] ? `${SB_TABLE_THAI[table]} — ตาราง ${table}` : `ตาราง ${table}`;
+  return `🔑 ฐานข้อมูลไม่ยอม${what}แถวนี้ (${thai})\n\n`
+    + `สาเหตุที่พบบ่อยที่สุด: ตารางนี้ยังไม่ได้เปิดสิทธิ์${what} (RLS) ในฐานข้อมูล\n`
+    + `วิธีแก้: เปิด Supabase → SQL Editor → วางไฟล์ fix_delete_policy.sql ทั้งไฟล์ → กด RUN\n`
+    + `แล้วกลับมากด Ctrl+Shift+R หนึ่งครั้ง และลองอีกครั้ง`;
+}
+/** แจ้งเหตุผลจริงของการลบ/แก้ไขที่ไม่สำเร็จ — ใช้แทนข้อความกลาง ๆ ว่า "ไม่สามารถลบได้"
+ *  🧠 เดิมมี 42 จุดที่กลืนเหตุผลทิ้ง ครูจึงไม่รู้ว่าต้องไปทำอะไรต่อ */
+function _sbFailToast(result, what) {
+  const m = result && result.error && result.error.message;
+  if (typeof showToast === 'function') showToast(m || `ไม่สามารถ${what}ได้`, 'error');
+  if (m) console.error('[DB] ' + what + ' ไม่สำเร็จ: ' + m);
+  return false;
+}
 
 // 🔢 รายชื่อฟิลด์ที่ต้องเก็บเป็น "ตัวเลข" เพราะระบบนำไปคำนวณโดยตรง
 // ⚠️ สำคัญมาก: ถ้าฟิลด์เหล่านี้เป็นข้อความ ระบบจะพังทันทีเมื่อเรียกคำนวณ
@@ -5300,7 +5337,7 @@ const supabaseDataSdk = {
       if (Array.isArray(_upd) && _upd.length === 0) {
         const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
         if (Array.isArray(still) && still.length > 0) {
-          return { isOk: false, error: { message: `ฐานข้อมูลไม่ยอมแก้แถวนี้ (ตาราง ${table}) — มักเกิดจากยังไม่ได้เปิดสิทธิ์แก้ไข (RLS) กรุณารันไฟล์ fix_delete_policy.sql ใน Supabase แล้วลองอีกครั้ง` } };
+          return { isOk: false, error: { message: _sbPolicyMsg('แก้ไข', table) } };
         }
       }
       // ⚡ อัปเดตในเครื่องทันที
@@ -5337,7 +5374,7 @@ const supabaseDataSdk = {
       if (Array.isArray(_del) && _del.length === 0) {
         const still = await this._api('GET', `${table}?id=eq.${record.__backendId}&select=id`).catch(() => []);
         if (Array.isArray(still) && still.length > 0) {
-          return { isOk: false, error: { message: `ฐานข้อมูลไม่ยอมลบแถวนี้ (ตาราง ${table}) — มักเกิดจากยังไม่ได้เปิดสิทธิ์ลบ (RLS) กรุณารันไฟล์ fix_delete_policy.sql ใน Supabase แล้วลองอีกครั้ง` } };
+          return { isOk: false, error: { message: _sbPolicyMsg('ลบ', table) } };
         }
       }
       // ⚠️ ต้องเช็คประเภทด้วย ไม่งั้นอาจลบข้อมูลผิดตัวออกจากหน้าจอ (รหัสซ้ำกันได้ระหว่างตาราง)
@@ -10139,7 +10176,7 @@ const supabaseDataSdk = {
         showToast('🗑️ ลบประกาศสำเร็จ');
         updateAnnouncementList(ann.target);
       } else {
-        showToast('ไม่สามารถลบประกาศได้', 'error');
+        _sbFailToast(result, 'ลบประกาศ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function editAnnouncementPopup(id) {
@@ -11001,7 +11038,7 @@ const supabaseDataSdk = {
         showToast('🗑️ ลบการบ้านสำเร็จ');
         if (currentUser?.user_type === 'subadmin') { loadSubAdminHomeworkSection(); } else { updateHomeworkTable(); }
       } else {
-        showToast('ไม่สามารถลบได้', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function bulkDeleteHomework() {
@@ -12981,7 +13018,7 @@ const supabaseDataSdk = {
         showToast(`🗑️ ลบชุดสอบอัตนัยสำเร็จ (ลบกระดาษ ${subs.length} ใบ และคืนคะแนนเต็ม/คะแนนที่โอนไว้แล้ว)`);
         renderEssayExamSetList();
       } else {
-        showToast('ลบไม่สำเร็จ', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
 
@@ -13395,7 +13432,7 @@ const supabaseDataSdk = {
         showToast('🗑️ ลบข้อสอบสำเร็จ');
         renderEssayQuestionList();
       } else {
-        showToast('ลบไม่สำเร็จ', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
 
@@ -18962,7 +18999,7 @@ const supabaseDataSdk = {
         showToast('🗑️ ลบข้อสอบสำเร็จ');
         renderExamQuestionList();
       } else {
-        showToast('ลบไม่สำเร็จ', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
 
@@ -20686,7 +20723,7 @@ const supabaseDataSdk = {
         showToast('🗑️ ลบชุดสอบสำเร็จ (ปรับคะแนนเต็มและคะแนนที่ได้ของนักเรียนที่สอบไปแล้วให้ถูกต้องแล้ว)');
         renderExamSetList();
       } else {
-        showToast('ลบไม่สำเร็จ', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
 
@@ -26204,7 +26241,7 @@ function _examResultIdentityHtml(sub, set) {
         updateEvalTopicsList();
         updateEvalResultsSummary();
       } else {
-        showToast('ไม่สามารถลบหัวข้อได้', 'error');
+        _sbFailToast(result, 'ลบหัวข้อ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function editEvalTopicPopup(topicId) {
@@ -26303,7 +26340,7 @@ function _examResultIdentityHtml(sub, set) {
         updateEvalLevelsList();
         updateEvalResultsSummary();
       } else {
-        showToast('ไม่สามารถลบระดับได้', 'error');
+        _sbFailToast(result, 'ลบระดับ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function editEvalLevelPopup(levelId) {
@@ -26397,7 +26434,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('🗑️ ลบชื่อผู้ประเมินสำเร็จ');
         updateEvaluatorOptionsList();
       } else {
-        showToast('ไม่สามารถลบได้', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function editEvaluatorOptionPopup(optionId) {
@@ -27134,7 +27171,7 @@ function _examResultIdentityHtml(sub, set) {
         updateAdminList();
         searchStudentForAppoint();
       } else {
-        showToast('ไม่สามารถยกเลิกได้', 'error');
+        _sbFailToast(result, 'ยกเลิก');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
 
@@ -29179,7 +29216,7 @@ function _examResultIdentityHtml(sub, set) {
         refreshCurrentView();
         delayedRefresh(1500);
       } else {
-        showToast('ไม่สามารถลบได้', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function exportRegistrationsExcel() {
@@ -29290,7 +29327,7 @@ function _examResultIdentityHtml(sub, set) {
         refreshCurrentView();
         updateStudentsList();
       } else {
-        showToast('ไม่สามารถลบนักเรียน', 'error');
+        _sbFailToast(result, 'ลบนักเรียน');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล)
       }
     }
     function goToLoginAfterRegister() {
@@ -29719,7 +29756,7 @@ function _examResultIdentityHtml(sub, set) {
         updateStudentsList();
         searchStudentForAppoint();
       } else {
-        showToast('ไม่สามารถลบแอดมิน', 'error');
+        _sbFailToast(result, 'ลบแอดมิน');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     // 🔑 หน้าต่างเปลี่ยนรหัสผ่าน — เดิมไม่มีหน้าจอนี้อยู่เลยในระบบทั้งที่มีฟังก์ชัน changeAdminPassword() รออยู่แล้ว (เรียกไม่ได้เพราะไม่มีปุ่ม/ฟอร์มเชื่อมถึง)
@@ -30130,7 +30167,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ลบรายวิชาสำเร็จ ✅');
         updateImportedData();
       } else {
-        showToast('ไม่สามารถลบรายวิชา', 'error');
+        _sbFailToast(result, 'ลบรายวิชา');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function loadMFFilters() {
@@ -34795,7 +34832,7 @@ function _examResultIdentityHtml(sub, set) {
         updateAdminEvaluatorsList();
         updateEvalResultsSummary();
       } else {
-        showToast('ไม่สามารถลบได้', 'error');
+        _sbFailToast(result, 'ลบ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function updateAdminEvaluatorsList() {
@@ -36302,7 +36339,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ลบรายการสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถลบรายการ', 'error');
+        _sbFailToast(result, 'ลบรายการ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     function editRegistration(regId) {
@@ -36420,7 +36457,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('ลบรายการสำเร็จ ✅');
         refreshCurrentView();
       } else {
-        showToast('ไม่สามารถลบรายการ', 'error');
+        _sbFailToast(result, 'ลบรายการ');   // 🔑 บอกสาเหตุจริง (เช่น ขาดสิทธิ์ลบในฐานข้อมูล) ไม่ใช่ข้อความกลาง ๆ
       }
     }
     async function handleEditStudentRegister(event, regId, studentClassName, studentRoomNumber, subjectName, kpacLimit) {
