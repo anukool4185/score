@@ -3071,87 +3071,119 @@
         <!-- 🔁 โอนรายชื่อข้ามปี/ภาค -->
         <div id="students-subtab-transfer" class="hidden">
          <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
-          <h4 class="text-lg font-bold text-gray-800">🔁 โอนรายชื่อนักเรียนข้ามภาคเรียน/ปีการศึกษา</h4>
-          <p class="text-xs text-gray-500 mt-0.5 mb-4">คัดลอกรายชื่อเดิมไปเป็นปี/ภาคใหม่ ไม่ต้องเพิ่มใหม่ทั้งหมด · <b>ไม่โอนการลงทะเบียนและคะแนน</b> (ต้องลงทะเบียนวิชาในปี/ภาคใหม่อีกครั้ง) · รายวิชาใช้ชื่อเดิมได้เลย ไม่ต้องโอน</p>
-          <!-- 0️⃣ ใส่ปี/ภาคให้ข้อมูลเดิมที่ยังไม่ระบุ — ต้องทำก่อนจึงจะโอนได้ -->
-          <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-5">
-           <p class="text-sm font-bold text-amber-900 mb-1">0️⃣ ใส่ปี/ภาค ให้ข้อมูลเดิมที่ยังไม่ระบุ</p>
-           <p class="text-xs text-amber-800 mb-3">ข้อมูลก่อนปรับระบบยังไม่มีปี/ภาค จึงยังโอนไม่ได้ — ใส่ให้ทีเดียวทั้งห้องได้ที่นี่ (รายคนแก้ได้ที่ปุ่ม ✏️ ในตารางนักเรียน/การลงทะเบียน)</p>
-           <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-            <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
-             <input type="text" id="backfill-year" placeholder="เช่น 2569" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียน</label>
-             <input type="text" id="backfill-sem" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
-            <div><label class="block text-xs text-gray-600 mb-1">เฉพาะชั้น</label>
-             <select id="backfill-class" onchange="renderBackfillBox()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select></div>
-            <div><label class="block text-xs text-gray-600 mb-1">เฉพาะห้อง</label>
-             <select id="backfill-room" onchange="renderBackfillBox()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
-           </div>
-           <label class="flex items-center gap-2 text-xs text-gray-700 mb-1 cursor-pointer">
-            <input type="checkbox" id="backfill-include-regs" checked onchange="renderBackfillBox()" class="w-4 h-4"> ใส่ให้การลงทะเบียนและแถวคะแนนของคนเหล่านี้ด้วย
-           </label>
-           <label class="flex items-center gap-2 text-xs text-gray-700 mb-3 cursor-pointer">
-            <input type="checkbox" id="backfill-include-config" onchange="renderBackfillBox()" class="w-4 h-4"> ใส่ให้ <b>รายวิชา · คะแนนเต็ม · หน่วยกิต</b> ที่ยังไม่ระบุปี/ภาค ด้วย
-            <span class="text-gray-400">(ทำแล้วเทอมอื่นจะไม่เห็นวิชาชุดนี้อีก)</span>
-           </label>
-           <button onclick="runBackfillTerm()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold btn-3d">📅 ใส่ปี/ภาคให้ข้อมูลที่ยังไม่ระบุ</button>
-           <p id="backfill-info" class="text-xs mt-2"></p>
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-           <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
-            <p class="text-sm font-semibold text-gray-700 mb-2">1️⃣ ต้นทาง</p>
-            <label class="block text-xs text-gray-600 mb-1">ปี/ภาค ต้นทาง</label>
-            <select id="transfer-src" onchange="renderTransferPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2"></select>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-             <div><label class="block text-xs text-gray-600 mb-1">เฉพาะชั้น</label>
-              <select id="transfer-f-class" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select></div>
-             <div><label class="block text-xs text-gray-600 mb-1">เฉพาะห้อง</label>
-              <select id="transfer-f-room" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
+          <h4 class="text-lg font-bold text-gray-800">🔁 ยกรายชื่อนักเรียนมาใช้ในภาคเรียนใหม่</h4>
+          <p class="text-sm text-gray-600 mt-1 mb-4">
+           รายชื่อนักเรียนในระบบนี้แยกตามภาคเรียน คนที่สมัครไว้ภาคก่อนจึงยังไม่อยู่ในภาคนี้<br>
+           หน้านี้คือการ <b>ยกชื่อเดิมมาเป็นผู้สมัครของภาคนี้</b> เพื่อให้ลงทะเบียนเรียนในภาคนี้ได้
+           <span class="text-gray-500">(ของเดิมในภาคก่อนไม่ถูกแตะ คะแนนเดิมยังอยู่ครบ)</span>
+          </p>
+
+          <!-- ⚡ ทางด่วน: งานที่ทำบ่อยที่สุด จบในปุ่มเดียว -->
+          <div id="transfer-quick" class="mb-5"></div>
+
+          <!-- 🎯 ขั้นถัดไปหลังมีรายชื่อแล้ว -->
+          <div id="transfer-next" class="mb-5"></div>
+
+          <!-- 🔧 เลือกเองทีละคน (ซ่อนไว้ ไม่รบกวนคนที่ใช้ทางด่วน) -->
+          <details id="transfer-manual" class="border-2 border-gray-200 rounded-xl">
+           <summary class="px-4 py-3 cursor-pointer text-sm font-semibold text-gray-700 hover:bg-gray-50 rounded-xl">
+            🔧 เลือกเองทีละคน · หรือย้ายขึ้นปีการศึกษาใหม่
+            <span class="font-normal text-gray-500">— กดเมื่อไม่อยากยกมาทั้งหมด</span>
+           </summary>
+           <div class="p-4 border-t-2 border-gray-100">
+
+            <!-- ข้อมูลเก่าที่ไม่รู้ว่าอยู่ภาคไหน -->
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-5">
+             <p class="text-sm font-bold text-amber-900 mb-1">🏷️ ข้อมูลเก่าที่ยังไม่รู้ว่าเป็นของภาคไหน</p>
+             <p class="text-xs text-amber-800 mb-3">
+              ข้อมูลที่กรอกไว้ก่อนระบบจะแยกภาคเรียน ยังไม่มีป้ายบอกว่าเป็นของภาคไหน จึงยกมาไม่ได้<br>
+              ตรงนี้คือการ <b>ติดป้ายบอกระบบว่าของพวกนั้นเป็นของภาคใด</b> — ทำครั้งเดียว ไม่ได้ย้ายหรือลบข้อมูล
+             </p>
+             <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              <div><label class="block text-xs text-gray-600 mb-1">ติดป้ายว่าเป็นปีการศึกษา</label>
+               <input type="text" id="backfill-year" placeholder="เช่น 2569" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">และภาคเรียนที่</label>
+               <input type="text" id="backfill-sem" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+              <div><label class="block text-xs text-gray-600 mb-1">ทำเฉพาะชั้น</label>
+               <select id="backfill-class" onchange="renderBackfillBox()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select></div>
+              <div><label class="block text-xs text-gray-600 mb-1">ทำเฉพาะห้อง</label>
+               <select id="backfill-room" onchange="renderBackfillBox()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
+             </div>
+             <label class="flex items-start gap-2 text-xs text-gray-700 mb-2 cursor-pointer bg-white border border-amber-200 rounded-lg px-2 py-2">
+              <input type="checkbox" id="backfill-include-regs" checked onchange="renderBackfillBox()" class="w-4 h-4 mt-0.5">
+              <span><b>ติดป้ายให้คะแนนและการลงทะเบียนของเขาด้วย</b><br>
+               <span class="text-gray-500">แนะนำให้ติ๊กไว้ ไม่งั้นชื่อนักเรียนจะอยู่ภาคหนึ่ง แต่คะแนนลอยอยู่อีกที่</span></span>
+             </label>
+             <label class="flex items-start gap-2 text-xs text-gray-700 mb-3 cursor-pointer bg-white border border-amber-200 rounded-lg px-2 py-2">
+              <input type="checkbox" id="backfill-include-config" onchange="renderBackfillBox()" class="w-4 h-4 mt-0.5">
+              <span><b>ติดป้ายให้รายวิชาที่เปิดสอน · คะแนนเต็ม · หน่วยกิต ด้วย</b><br>
+               <span class="text-amber-700">⚠️ ติ๊กแล้ววิชาชุดนี้จะกลายเป็นของภาคที่ระบุเท่านั้น ภาคอื่นจะไม่เห็นอีก —
+                ถ้าใช้วิชาชุดเดียวร่วมกันหลายภาค อย่าติ๊ก</span></span>
+             </label>
+             <button onclick="runBackfillTerm()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold btn-3d">🏷️ ติดป้ายให้ข้อมูลเก่า</button>
+             <p id="backfill-info" class="text-xs mt-2"></p>
             </div>
-            <p class="text-[11px] text-gray-500 mb-2">ไม่ต้องโอนทั้งหมดก็ได้ — เลือกเฉพาะห้องที่สอนต่อ แล้วโอนทีละรอบ (ห้องใหม่ที่ไม่เคยมี ใช้เพิ่มรายชื่อตามปกติ)</p>
-            <div class="flex gap-2 flex-wrap">
-             <button onclick="toggleTransferAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ เลือกทั้งหมด</button>
-             <button onclick="toggleTransferAll(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ ยกเลิกทั้งหมด</button>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+             <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+              <p class="text-sm font-bold text-gray-800 mb-1">① เอารายชื่อมาจากภาคไหน</p>
+              <p class="text-[11px] text-gray-500 mb-2">เลือกภาคที่มีรายชื่อนักเรียนอยู่แล้ว</p>
+              <select id="transfer-src" onchange="renderTransferPicker()" class="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm mb-3"></select>
+              <p class="text-[11px] text-gray-500 mb-1">อยากยกมาแค่บางห้อง ให้เลือกตรงนี้ (ไม่เลือก = ทุกห้อง)</p>
+              <div class="grid grid-cols-2 gap-2 mb-2">
+               <div><label class="block text-xs text-gray-600 mb-1">เฉพาะชั้น</label>
+                <select id="transfer-f-class" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกชั้น</option></select></div>
+               <div><label class="block text-xs text-gray-600 mb-1">เฉพาะห้อง</label>
+                <select id="transfer-f-room" onchange="renderTransferPicker()" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"><option value="">ทุกห้อง</option></select></div>
+              </div>
+              <div class="flex gap-2 flex-wrap">
+               <button onclick="toggleTransferAll(true)" class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">✅ ติ๊กทุกคนในรายการ</button>
+               <button onclick="toggleTransferAll(false)" class="px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded text-xs">✕ เอาติ๊กออกทุกคน</button>
+              </div>
+             </div>
+             <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+              <p class="text-sm font-bold text-purple-900 mb-1">② ให้ไปเป็นรายชื่อของภาคไหน</p>
+              <p class="text-[11px] text-purple-700 mb-2">ปกติคือภาคที่กำลังทำงานอยู่ ระบบเติมให้แล้ว</p>
+              <div class="grid grid-cols-2 gap-2 mb-3">
+               <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
+                <input type="text" id="transfer-dst-year" oninput="renderTransferPicker()" placeholder="เช่น 2569" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+               <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียนที่</label>
+                <input type="text" id="transfer-dst-sem" oninput="renderTransferPicker()" placeholder="เช่น 2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+              </div>
+              <label class="flex items-start gap-2 text-xs cursor-pointer mb-2 bg-white border-2 border-purple-200 rounded-lg px-2 py-2">
+               <input type="checkbox" id="transfer-promote" onchange="renderTransferPicker()" class="w-4 h-4 mt-0.5">
+               <span><b>⬆️ เลื่อนชั้นให้ด้วย</b> — คนที่อยู่ ม.1 จะกลายเป็น ม.2 (ห้องเดิม)<br>
+                <span class="text-gray-500">ใช้ตอนขึ้นปีการศึกษาใหม่ · ถ้าเป็นภาค 2 ของปีเดิม ไม่ต้องติ๊ก ระบบปิดให้เอง</span></span>
+              </label>
+              <p id="transfer-rule-note" class="text-[11px] mb-2"></p>
+              <label class="block text-xs text-gray-600 mb-1">อยากย้ายทุกคนไปชั้นเดียวกันหมด <span class="text-gray-400">(ปล่อยว่าง = ตามปกติ)</span></label>
+              <input type="text" id="transfer-dst-class" oninput="renderTransferPicker()" placeholder="เช่น ม.2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
+              <label class="block text-xs text-gray-600 mb-1">อยากย้ายทุกคนไปห้องเดียวกันหมด <span class="text-gray-400">(ปล่อยว่าง = ห้องเดิมของแต่ละคน)</span></label>
+              <input type="text" id="transfer-dst-room" oninput="renderTransferPicker()" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
+              <p class="text-[11px] text-gray-500 mt-2">ชื่อ-นามสกุล · รหัสนักเรียน · ชื่อผู้ใช้/รหัสผ่าน · เบอร์โทร ติดไปกับเขาทั้งหมด ไม่ต้องกรอกใหม่</p>
+             </div>
             </div>
-           </div>
-           <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
-            <p class="text-sm font-semibold text-purple-800 mb-2">2️⃣ ปลายทาง</p>
-            <div class="grid grid-cols-2 gap-2 mb-2">
-             <div><label class="block text-xs text-gray-600 mb-1">ปีการศึกษา</label>
-              <input type="text" id="transfer-dst-year" oninput="renderTransferPicker()" placeholder="เช่น 2570" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
-             <div><label class="block text-xs text-gray-600 mb-1">ภาคเรียน</label>
-              <input type="text" id="transfer-dst-sem" oninput="renderTransferPicker()" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm"></div>
+            <p class="text-xs text-gray-600 mb-2">③ ตรวจรายชื่อก่อนกดยก — คนที่มีชื่ออยู่ในภาคที่จะยกไปแล้ว ระบบจะไม่ให้ติ๊กซ้ำ</p>
+            <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-3">
+             <table class="w-full text-xs">
+              <thead class="bg-gray-100">
+               <tr>
+                <th class="px-1 py-2 text-center"><input type="checkbox" onchange="toggleTransferAll(this.checked)" class="w-4 h-4"></th>
+                <th class="px-1 py-2 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
+                <th class="px-1 py-2 text-left whitespace-nowrap">รหัส</th>
+                <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง เดิม</th>
+                <th class="px-1 py-2 text-center whitespace-nowrap">→ จะไปอยู่</th>
+                <th class="px-1 py-2 text-center whitespace-nowrap">เลขที่</th>
+                <th class="px-1 py-2 text-left whitespace-nowrap">สถานะ</th>
+               </tr>
+              </thead>
+              <tbody id="transfer-tbody"></tbody>
+             </table>
             </div>
-            <label class="flex items-center gap-2 text-xs cursor-pointer mb-2 bg-white border-2 border-purple-200 rounded-lg px-2 py-2">
-             <input type="checkbox" id="transfer-promote" onchange="renderTransferPicker()" class="w-4 h-4">
-             <span>⬆️ เลื่อนชั้นให้อัตโนมัติ (ม.1 → ม.2) <b>ห้องคงเดิม</b></span>
-            </label>
-            <p id="transfer-rule-note" class="text-[11px] mb-2"></p>
-            <label class="block text-xs text-gray-600 mb-1">กำหนดชั้นเองทุกคน <span class="text-gray-400">(เว้นว่าง = ตามกติกาด้านบน)</span></label>
-            <input type="text" id="transfer-dst-class" oninput="renderTransferPicker()" placeholder="เช่น ม.2" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm mb-2">
-            <label class="block text-xs text-gray-600 mb-1">กำหนดห้องเองทุกคน <span class="text-gray-400">(เว้นว่าง = ใช้ห้องเดิม)</span></label>
-            <input type="text" id="transfer-dst-room" oninput="renderTransferPicker()" placeholder="เช่น 1" class="w-full px-2 py-2 border-2 border-gray-200 rounded-lg text-sm">
-            <p class="text-[11px] text-gray-500 mt-2">ชื่อ-นามสกุล · รหัสนักเรียน · username/password · เบอร์โทร คงเดิมทุกอย่าง</p>
+            <button onclick="runTransferStudents()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold btn-3d">🔁 ยกรายชื่อที่ติ๊กไว้ (<span id="transfer-count">0</span> คน)</button>
+            <p id="transfer-result" class="text-xs mt-2"></p>
            </div>
-          </div>
-          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-3">
-           <table class="w-full text-xs">
-            <thead class="bg-gray-100">
-             <tr>
-              <th class="px-1 py-2 text-center"><input type="checkbox" onchange="toggleTransferAll(this.checked)" class="w-4 h-4"></th>
-              <th class="px-1 py-2 text-left whitespace-nowrap">ชื่อ-นามสกุล</th>
-              <th class="px-1 py-2 text-left whitespace-nowrap">รหัส</th>
-              <th class="px-1 py-2 text-center whitespace-nowrap">ชั้น/ห้อง เดิม</th>
-              <th class="px-1 py-2 text-center whitespace-nowrap">→ ปลายทาง</th>
-              <th class="px-1 py-2 text-center whitespace-nowrap">เลขที่</th>
-              <th class="px-1 py-2 text-left whitespace-nowrap">สถานะ</th>
-             </tr>
-            </thead>
-            <tbody id="transfer-tbody"></tbody>
-           </table>
-          </div>
-          <button onclick="runTransferStudents()" class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold btn-3d">🔁 โอนรายชื่อที่เลือก (<span id="transfer-count">0</span> คน)</button>
-          <p id="transfer-result" class="text-xs mt-2"></p>
+          </details>
          </div>
         </div>
         <div id="students-subtab-applicants" class="hidden">
@@ -4335,7 +4367,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.21.264';
+    const APP_VERSION = 'SUPABASE-2026.10.21.265';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -7472,11 +7504,11 @@ const supabaseDataSdk = {
         <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 text-left">
           <p class="font-semibold text-amber-900 mb-1">📅 ${escHtml(workingTermLabel())} ยังไม่มีรายชื่อนักเรียน</p>
           <p class="text-sm text-amber-800 mb-1">แต่มีรายชื่ออยู่ในปี/ภาคอื่นรวม <b>${info.total} คน</b> — ${escHtml(parts.join(' · '))}</p>
-          <p class="text-xs text-amber-700 mb-3">รายชื่อนักเรียนผูกกับปี/ภาค คนที่สมัครไว้เทอมก่อนจึงยังไม่อยู่ในเทอมนี้
-            ต้องโอนรายชื่อมาก่อน แล้วจะลงทะเบียนแทนทีละหลายคนได้ทันที</p>
+          <p class="text-xs text-amber-700 mb-3">รายชื่อนักเรียนแยกตามภาคเรียน คนที่สมัครไว้ภาคก่อนจึงยังไม่อยู่ในภาคนี้<br>
+            ยกชื่อเขามาก่อน แล้วจะลงทะเบียนแทนทีละหลายคนได้ทันที — ที่แท็บนั้นมีปุ่มเดียวจบ</p>
           <button onclick="showStudentsSubTab('transfer')"
             class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">
-            🔄 ไปที่แท็บโอนรายชื่อ
+            ⚡ ไปยกรายชื่อมาที่ภาคนี้
           </button>
         </div>`;
     }
@@ -28202,6 +28234,172 @@ function _examResultIdentityHtml(sub, set) {
       loadTransferTab();
     }
 
+    /* ══════════════════════════════════════════════════════════════════════════
+       ⚡ ทางด่วน: ยกรายชื่อจากภาคก่อนมาที่ภาคนี้ ด้วยปุ่มเดียว
+       ──────────────────────────────────────────────────────────────────────────
+       🪤 ปัญหาของหน้าเดิม: ใช้คำว่า "ต้นทาง / ปลายทาง" และให้กรอก 6 ช่อง
+          ครูอ่านแล้วไม่รู้ว่ากำลังทำอะไร และไม่รู้ว่ากดแล้วจะเกิดอะไร
+       ✅ ความจริงคืองานที่ทำบ่อยที่สุดมีแบบเดียว:
+          "ยกรายชื่อจากภาคก่อน มาเป็นผู้สมัครของภาคนี้ ชั้น/ห้องเดิม"
+          จึงทำให้จบในปุ่มเดียว พร้อมบอกชัดว่าจะเกิดอะไรขึ้นก่อนกด
+       ══════════════════════════════════════════════════════════════════════════ */
+    /** ภาคก่อนหน้าของภาคที่กำลังทำงานอยู่ — ภาค 2 → ภาค 1 ของปีเดียวกัน
+     *  ถ้าตอนนี้เป็นภาค 1 ให้ย้อนไปภาค 2 ของปีก่อน */
+    function _prevTermKey() {
+      const t = activeTerm();
+      const y = parseInt(t.year, 10), sm = parseInt(t.semester, 10);
+      if (!isFinite(y) || !isFinite(sm)) return '';
+      return sm > 1 ? (y + '|' + (sm - 1)) : ((y - 1) + '|2');
+    }
+    /** ภาคที่มีรายชื่ออยู่มากที่สุด ไม่นับภาคที่กำลังทำงาน — ใช้เป็นตัวเลือกสำรอง */
+    function _bestSourceTermKey() {
+      const here = workingTermKey();
+      let best = '', bestN = 0;
+      allTermKeys().forEach(k => {
+        if (k === here) return;
+        const n = _termCounts(k).students;
+        if (n > bestN) { best = k; bestN = n; }
+      });
+      return best;
+    }
+    function renderTransferQuickBox() {
+      const box = document.getElementById('transfer-quick');
+      if (!box) return;
+      const here = workingTermKey();
+      const [hy, hs] = here.split('|');
+      if (!hy && !hs) {
+        box.innerHTML = `<div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+          ⚠️ ยังไม่ได้เลือกปี/ภาคที่จะทำงาน — เลือกที่แถบด้านบนของหน้าเว็บก่อน แล้วกลับมาที่นี่</div>`;
+        return;
+      }
+      const mine = _termCounts(here).students;
+      // ภาคก่อนหน้าก่อน ถ้าไม่มีคนให้ใช้ภาคที่มีคนมากที่สุด
+      let src = _prevTermKey();
+      if (!src || _termCounts(src).students === 0) src = _bestSourceTermKey();
+      const srcN = src ? _termCounts(src).students : 0;
+      const [sy, ss] = String(src).split('|');
+
+      if (!srcN) {
+        box.innerHTML = `<div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+          <p class="text-sm font-semibold text-gray-700 mb-1">ยังไม่มีภาคไหนที่มีรายชื่อให้ยกมา</p>
+          <p class="text-xs text-gray-600">${mine ? `${escHtml(workingTermLabel())} มีรายชื่ออยู่แล้ว ${mine} คน — ไม่ต้องยกจากที่ไหน`
+            : 'เริ่มจากนำเข้ารายชื่อนักเรียนก่อน ที่แท็บ "📥 นำเข้ารายชื่อ"'}</p>
+        </div>`;
+        return;
+      }
+      const already = allData.filter(d => d.type === 'student' && _termKey(d) === here)
+        .map(d => _rN(d.student_id));
+      const pool = allData.filter(d => d.type === 'student' && _termKey(d) === src);
+      const todo = pool.filter(d => already.indexOf(_rN(d.student_id)) < 0);
+      const srcLabel = termLabel(sy, ss);
+
+      box.innerHTML = `
+        <div class="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-4">
+          <p class="text-base font-bold text-emerald-900 mb-2">⚡ ทำให้เสร็จในปุ่มเดียว</p>
+          <div class="bg-white rounded-lg p-3 mb-3 text-sm text-gray-700 leading-relaxed">
+            <p>ตอนนี้คุณทำงานอยู่ใน <b>${escHtml(workingTermLabel())}</b>
+              ${mine ? `ซึ่งมีรายชื่อแล้ว <b>${mine} คน</b>` : 'ซึ่ง<b>ยังไม่มีรายชื่อนักเรียน</b>'}</p>
+            <p class="mt-1">ใน <b>${escHtml(srcLabel)}</b> มีรายชื่ออยู่ <b>${srcN} คน</b>
+              ${todo.length < srcN ? `<span class="text-gray-500">(ยกมาแล้ว ${srcN - todo.length} คน)</span>` : ''}</p>
+            <p class="mt-2 text-emerald-800">กดปุ่มข้างล่าง = ยก <b>${todo.length} คน</b> ที่ยังไม่มีในภาคนี้
+              มาเป็นผู้สมัครของ <b>${escHtml(workingTermLabel())}</b> โดยใช้<b>ชั้น/ห้องเดิม</b></p>
+            <p class="mt-1 text-xs text-gray-500">รายชื่อและคะแนนของ ${escHtml(srcLabel)} ไม่ถูกแตะ ยังอยู่ครบเหมือนเดิม
+              · ชื่อผู้ใช้/รหัสผ่านของนักเรียนติดไปด้วย ไม่ต้องแจกใหม่</p>
+          </div>
+          ${todo.length === 0
+            ? `<p class="text-sm font-semibold text-emerald-800">✅ ยกมาครบแล้วทุกคน ไม่มีใครค้าง</p>`
+            : `<button onclick="runQuickTransfer()" class="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold btn-3d w-full md:w-auto">
+                 ⚡ ยกรายชื่อ ${todo.length} คน จาก ${escHtml(srcLabel)} มาที่ ${escHtml(workingTermLabel())}
+               </button>`}
+          <p id="transfer-quick-result" class="text-xs mt-2"></p>
+        </div>`;
+      box.dataset.src = src;
+    }
+    /** ⚡ ยกรายชื่อจากภาคก่อนมาที่ภาคนี้ทั้งหมด ชั้น/ห้องเดิม */
+    async function runQuickTransfer() {
+      const box = document.getElementById('transfer-quick');
+      const src = box && box.dataset.src;
+      const here = workingTermKey();
+      const [dstYear, dstSem] = here.split('|');
+      if (!src || !dstYear || !dstSem) { showToast('ยังไม่รู้ว่าจะยกจากภาคไหน', 'error'); return; }
+      const already = allData.filter(d => d.type === 'student' && _termKey(d) === here).map(d => _rN(d.student_id));
+      const todo = allData.filter(d => d.type === 'student' && _termKey(d) === src
+        && already.indexOf(_rN(d.student_id)) < 0);
+      if (!todo.length) { showToast('ยกมาครบแล้วทุกคน', 'info'); return; }
+      const [sy, ss] = String(src).split('|');
+      if (!confirm(`ยกรายชื่อ ${todo.length} คน จาก ${termLabel(sy, ss)} มาเป็นผู้สมัครของ ${termLabel(dstYear, dstSem)}\n\n`
+        + `ชั้น/ห้องของแต่ละคนคงเดิม · รายชื่อและคะแนนของ ${termLabel(sy, ss)} ไม่ถูกแตะ\n\nยืนยันหรือไม่?`)) return;
+
+      const resultEl = document.getElementById('transfer-quick-result');
+      let done = 0, failed = 0;
+      for (const st of todo) {
+        const copy = { ...st };
+        delete copy.__backendId; delete copy.id;
+        copy.academic_year = dstYear;
+        copy.semester = dstSem;
+        copy.created_at = new Date().toISOString();
+        const res = await window.dataSdk.create(copy);
+        if (res.isOk) done++; else { failed++; if (failed === 1) _sbFailToast(res, 'ยกรายชื่อ'); }
+      }
+      if (resultEl) {
+        resultEl.innerHTML = `<span style="color:#047857">✅ ยกมาแล้ว ${done} คน</span>`
+          + (failed ? ` · <span style="color:#dc2626">ไม่สำเร็จ ${failed} คน</span>` : '');
+      }
+      if (done) showToast(`✅ ยกรายชื่อ ${done} คน มาที่ ${termLabel(dstYear, dstSem)} แล้ว — ขั้นต่อไปคือลงทะเบียนรายวิชาให้เขา`);
+      renderTermBar();
+      loadTransferTab();
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       🎯 ขั้นถัดไปหลังมีรายชื่อแล้ว — ต่อให้ถึงการลงทะเบียนรายวิชา
+       ──────────────────────────────────────────────────────────────────────────
+       ผู้ใช้บอกชัดว่า "หลังจากมีชื่อแล้วจะประสานกับรายวิชาที่เปิดไว้
+       ให้นักเรียนสามารถลงทะเบียนได้" — ยกชื่อมาแล้วแต่ภาคนี้ยังไม่มีรายวิชาเปิด
+       ก็ยังลงทะเบียนไม่ได้ จึงต้องบอกให้ครบทั้งสองฝั่ง
+       ══════════════════════════════════════════════════════════════════════════ */
+    function renderTransferNextBox() {
+      const box = document.getElementById('transfer-next');
+      if (!box) return;
+      const here = workingTermKey();
+      const [hy, hs] = here.split('|');
+      if (!hy && !hs) { box.innerHTML = ''; return; }
+      const c = _termCounts(here);
+      if (!c.students) { box.innerHTML = ''; return; }    // ยังไม่มีคน → ทางด่วนอธิบายอยู่แล้ว
+
+      // คนที่มีชื่อแล้วแต่ยังไม่ได้ลงทะเบียนวิชาไหนเลยในภาคนี้
+      const regIds = new Set(allData.filter(d => d.type === 'student_registration' && _termKey(d) === here)
+        .map(d => _rN(d.student_id)));
+      const noReg = allData.filter(d => d.type === 'student' && _termKey(d) === here)
+        .filter(d => !regIds.has(_rN(d.student_id))).length;
+
+      const row = (ok, text) => `<p class="text-sm ${ok ? 'text-gray-700' : 'text-amber-800 font-semibold'}">${ok ? '✅' : '⬜'} ${text}</p>`;
+      box.innerHTML = `
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-xl p-4">
+          <p class="text-base font-bold text-blue-900 mb-2">🎯 ขั้นต่อไปของ ${escHtml(workingTermLabel())}</p>
+          <div class="bg-white rounded-lg p-3 mb-3 space-y-1">
+            ${row(true, `มีรายชื่อนักเรียนแล้ว <b>${c.students} คน</b>`)}
+            ${row(c.subjects > 0, c.subjects > 0
+              ? `มีรายวิชาเปิดสอนแล้ว <b>${c.subjects} รายวิชา</b>`
+              : `<b>ยังไม่มีรายวิชาเปิดสอนในภาคนี้</b> — มีชื่อแล้วแต่ยังลงทะเบียนไม่ได้ ต้องเปิดรายวิชาก่อน`)}
+            ${row(noReg === 0, noReg === 0
+              ? 'ทุกคนลงทะเบียนเรียนแล้ว'
+              : `ยังมี <b>${noReg} คน</b> ที่ไม่ได้ลงทะเบียนวิชาไหนเลย`)}
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            ${c.subjects === 0
+              ? `<button onclick="showAdminTab('import')" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold btn-3d">
+                   📥 ไปเปิดรายวิชาของภาคนี้ก่อน</button>`
+              : (noReg > 0
+                ? `<button onclick="showStudentsSubTab('noenroll')" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold btn-3d">
+                     📚 ไปลงทะเบียนแทน ${noReg} คนนี้</button>`
+                : `<button onclick="showStudentsSubTab('registrations')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold btn-3d">
+                     📋 ดูรายการลงทะเบียนทั้งหมด</button>`)}
+          </div>
+          ${c.subjects === 0 ? `<p class="text-xs text-amber-700 mt-2">
+            💡 รายวิชาก็แยกตามภาคเรียนเหมือนรายชื่อ — วิชาของภาคก่อนจะไม่โผล่ในภาคนี้เอง ต้องเปิดใหม่หรือนำเข้าใหม่</p>` : ''}
+        </div>`;
+    }
+
     function loadTransferTab() {
       const srcSel = document.getElementById('transfer-src');
       if (srcSel) {
@@ -28224,6 +28422,8 @@ function _examResultIdentityHtml(sub, set) {
       if (sEl && !sEl.value) sEl.value = t.semester;
       renderBackfillBox();
       renderTransferPicker();
+      renderTransferQuickBox();   // ⚡ ทางด่วน
+      renderTransferNextBox();    // 🎯 ขั้นต่อไป
     }
 
     /** ⬆️ ชั้นถัดไปของชั้นนี้ — เพิ่มเลขท้ายขึ้น 1 (ม.1 → ม.2 · ป.3 → ป.4)
@@ -28273,9 +28473,9 @@ function _examResultIdentityHtml(sub, set) {
       }
       if (note) {
         note.innerHTML = sameYear
-          ? '<span style="color:#15803d">ปีการศึกษาเดียวกัน คนละภาคเรียน → <b>ชั้น/ห้องคงเดิม</b> (ม.1/1 ยังเป็น ม.1/1)</span>'
-          : (dstYear ? '<span style="color:#b45309">ข้ามปีการศึกษา → เลื่อนชั้นขึ้น 1 ระดับ ห้องคงเดิม (แก้เองได้ด้านล่าง)</span>'
-                     : '<span style="color:#94a3b8">กรอกปี/ภาคปลายทางก่อน ระบบจะบอกกติกาชั้นเรียนให้</span>');
+          ? '<span style="color:#15803d">✅ ปีการศึกษาเดียวกัน แค่เปลี่ยนภาคเรียน → <b>ทุกคนอยู่ชั้น/ห้องเดิม</b> (ม.1/1 ยังเป็น ม.1/1) ไม่ต้องตั้งอะไรเพิ่ม</span>'
+          : (dstYear ? '<span style="color:#b45309">⬆️ ขึ้นปีการศึกษาใหม่ → ถ้าติ๊กช่องข้างบน ทุกคนจะเลื่อนชั้นขึ้น 1 ระดับ ห้องเดิม (ม.6 ไม่เลื่อนต่อ) · อยากกำหนดเองก็พิมพ์ในช่องล่างได้</span>'
+                     : '<span style="color:#94a3b8">กรอกปีการศึกษาและภาคเรียนในช่อง ② ก่อน แล้วระบบจะบอกว่าชั้นเรียนจะเป็นอย่างไร</span>');
       }
     }
 
@@ -28332,7 +28532,7 @@ function _examResultIdentityHtml(sub, set) {
          <td class="px-1 py-1 text-center whitespace-nowrap text-gray-500">${escHtml(String(st.class_name || '-'))}/${escHtml(String(st.room_number || '-'))}</td>
          <td class="px-1 py-1 text-center whitespace-nowrap ${moved ? 'text-purple-700 font-bold' : 'text-gray-700'}">${escHtml(dest.cls || '-')}/${escHtml(dest.room || '-')}${dest.promotedBlocked ? ' <span class="text-[10px] text-amber-600">(ชั้นสุดท้าย ไม่เลื่อน)</span>' : ''}</td>
          <td class="px-1 py-1 text-center">${escHtml(String(st.student_number || '-'))}</td>
-         <td class="px-1 py-1 ${already ? 'text-gray-400' : 'text-green-700'}">${already ? 'มีอยู่แล้วในปลายทาง' : 'พร้อมโอน'}</td>
+         <td class="px-1 py-1 ${already ? 'text-gray-400' : 'text-green-700'}">${already ? 'มีชื่อในภาคนั้นแล้ว' : 'พร้อมโอน'}</td>
         </tr>`;
       }).join('');
       updateTransferCount();
@@ -28349,10 +28549,10 @@ function _examResultIdentityHtml(sub, set) {
     async function runTransferStudents() {
       const dstYear = String(document.getElementById('transfer-dst-year')?.value || '').trim();
       const dstSem = String(document.getElementById('transfer-dst-sem')?.value || '').trim();
-      if (!dstYear || !dstSem) { showToast('กรุณากรอกปีการศึกษาและภาคเรียนปลายทาง', 'error'); return; }
+      if (!dstYear || !dstSem) { showToast('กรอกปีการศึกษาและภาคเรียนที่จะยกไปก่อน (ช่อง ②)', 'error'); return; }
       const srcVal = document.getElementById('transfer-src')?.value || '';
       if ((srcVal !== '__blank') && srcVal === dstYear + '|' + dstSem) {
-        showToast('ปลายทางซ้ำกับต้นทาง — กรุณาเปลี่ยนปี/ภาคปลายทาง', 'error'); return;
+        showToast('ภาคที่จะยกไป เป็นภาคเดียวกับที่ยกมา — เปลี่ยนช่อง ② ก่อน', 'error'); return;
       }
       const ids = Array.from(document.querySelectorAll('.transfer-cb:checked')).map(cb => cb.value);
       if (ids.length === 0) { showToast('กรุณาเลือกนักเรียนที่ต้องการโอนอย่างน้อย 1 คน', 'error'); return; }
@@ -28380,7 +28580,7 @@ function _examResultIdentityHtml(sub, set) {
       }
       if (resultEl) {
         resultEl.innerHTML = `<span style="color:#15803d">✅ โอนแล้ว ${done} คน</span>`
-          + (skipped ? ` · <span style="color:#b45309">ข้าม ${skipped} คน (มีอยู่แล้วในปลายทาง)</span>` : '')
+          + (skipped ? ` · <span style="color:#b45309">ข้าม ${skipped} คน (มีชื่อในภาคนั้นแล้ว)</span>` : '')
           + (failed ? ` · <span style="color:#dc2626">ไม่สำเร็จ ${failed} คน</span>` : '');
       }
       showToast(done ? `✅ โอนรายชื่อ ${done} คน ไปเป็น ${termLabel(dstYear, dstSem)} แล้ว` : 'ไม่มีรายชื่อที่โอนได้', done ? 'success' : 'error');
