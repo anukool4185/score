@@ -4367,7 +4367,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.21.265';
+    const APP_VERSION = 'SUPABASE-2026.10.21.266';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -4896,6 +4896,49 @@ const SB_LIGHT_SELECT = {
   'essay_monitor_events': 'essay_monitor_events?select=id,submission_id,essay_exam_set_id,student_id,event_type,captured_at,has_image&limit=5000',
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   🛑 คอลัมน์ที่ "ตัดทิ้งไม่ได้"
+   ──────────────────────────────────────────────────────────────────────────
+   ระบบมีกลไกกันบันทึกล้ม: ถ้าฐานข้อมูลไม่มีคอลัมน์ไหน ให้ตัดคอลัมน์นั้นออกแล้วส่งใหม่
+   กลไกนี้ดีสำหรับคอลัมน์เสริม แต่กับคอลัมน์ที่เป็น "เนื้อหาหลัก" หรือ "ป้ายบอกชนิด"
+   การตัดทิ้งทำให้ได้แถวขยะที่มองไม่เห็นและลบไม่ได้ — แย่กว่าบันทึกไม่สำเร็จ
+
+   🚨 อาการจริงที่ทำให้รู้: ประกาศถูกบันทึกโดยไม่มี text และไม่มี setting_type
+      → ค้างอยู่บนหน้าเว็บ แต่หาในรายการจัดการไม่เจอ ลบไม่ได้ แก้ไขก็ไม่เห็นข้อความเดิม
+   ══════════════════════════════════════════════════════════════════════════ */
+const SB_REQUIRED_COLUMNS = [
+  'setting_type',    // ป้ายบอกว่าแถวในตาราง settings คืออะไร — ขาดแล้วมองไม่เห็นทั้งหมด
+  'text',            // ข้อความประกาศ / ข้อความเตือน — เนื้อหาหลัก
+  'target',          // ประกาศนี้แสดงที่ไหน — ขาดแล้วไม่โผล่ที่ใดเลย
+  'student_id',      // ตัวเชื่อมข้อมูลกับนักเรียน
+  'class_subject_id',// ตัวเชื่อมการลงทะเบียนกับรายวิชา
+  'question',        // ตัวข้อสอบ
+  'row_data',        // บันทึกการลบ
+];
+/** ไฟล์ที่ต้องรันเพื่อเติมคอลัมน์นั้น — บอกให้ครูไปทำได้เลย ไม่ต้องเดา */
+const SB_COLUMN_FIX_FILE = {
+  setting_type: 'fix_settings_columns.sql', text: 'fix_settings_columns.sql',
+  target: 'fix_settings_columns.sql', image_url: 'fix_settings_columns.sql',
+  is_hidden: 'fix_settings_columns.sql', items_json: 'fix_settings_columns.sql',
+  row_data: 'add_delete_audit.sql',
+  academic_year: 'add_academic_term.sql', semester: 'add_academic_term.sql',
+  active_year: 'add_academic_term.sql', active_semester: 'add_academic_term.sql',
+};
+/** ⚠️ เตือนเมื่อระบบตัดคอลัมน์ทิ้ง — เตือนคอลัมน์ละครั้ง ไม่รบกวนซ้ำ
+ *  เดิมแจ้งแค่ใน console ครูจึงไม่มีทางรู้ว่าข้อมูลบางส่วนไม่ได้ถูกบันทึก */
+function _sbWarnTrimmedColumn(col, table) {
+  if (!window.__trimWarned) window.__trimWarned = new Set();
+  if (window.__trimWarned.has(col)) return;
+  window.__trimWarned.add(col);
+  try {
+    if (typeof showToast !== 'function') return;
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    if (['admin', 'subadmin'].indexOf(currentUser.user_type) < 0) return;
+    showToast(`⚠️ ฐานข้อมูลไม่มีคอลัมน์ "${col}" ในตาราง ${table} — ข้อมูลช่องนี้จะไม่ถูกบันทึก`
+      + (SB_COLUMN_FIX_FILE[col] ? ` แก้โดยรันไฟล์ ${SB_COLUMN_FIX_FILE[col]} ใน Supabase` : ''), 'error');
+  } catch (e) {}
+}
+
 const supabaseDataSdk = {
   _handler: null,
   _cache: [],
@@ -4926,11 +4969,26 @@ const supabaseDataSdk = {
       const _tries = typeof _isRetry === 'number' ? _isRetry : (_isRetry ? 1 : 0);
       if (colMatch && body && _tries < 15) {
         const badCol = colMatch[1];
+        const tbl = String(path).split('?')[0];
+        // 🛑 คอลัมน์ที่ "ตัดทิ้งไม่ได้" — ตัดแล้วแถวนั้นกลายเป็นขยะที่มองไม่เห็นและลบไม่ได้
+        //    🚨 อาการจริงที่เจอ: ประกาศถูกบันทึกโดยไม่มี text และไม่มี setting_type
+        //       → หารายการไม่เจอ ลบไม่ได้ กดแก้ไขก็ไม่เห็นข้อความเดิม แต่ค้างอยู่บนหน้าเว็บ
+        //    กรณีนี้ต้องหยุดและบอกครูให้ไปเติมคอลัมน์ ไม่ใช่บันทึกแถวเปล่าให้
+        if (SB_REQUIRED_COLUMNS.indexOf(badCol) >= 0) {
+          if (!window._missingDbColumns) window._missingDbColumns = new Set();
+          window._missingDbColumns.add(badCol);
+          throw new Error(`🗄️ ฐานข้อมูลยังไม่มีคอลัมน์ "${badCol}" ในตาราง ${tbl} `
+            + `ซึ่งเป็นคอลัมน์ที่ต้องมี — ถ้าบันทึกต่อไปข้อมูลจะหายและกลายเป็นแถวที่มองไม่เห็น `
+            + `(หาในรายการไม่เจอ ลบไม่ได้ แก้ไขก็ไม่เห็นข้อความเดิม) `
+            + `${SB_COLUMN_FIX_FILE[badCol] ? `กรุณารันไฟล์ ${SB_COLUMN_FIX_FILE[badCol]} ใน Supabase หนึ่งครั้ง` : 'กรุณาเติมคอลัมน์นี้ในฐานข้อมูลก่อน'} `
+            + `แล้วกด Ctrl+Shift+R และลองอีกครั้ง`);
+        }
         console.warn(`[SDK] ฐานข้อมูลไม่มีคอลัมน์ "${badCol}" — ตัดออกแล้วลองใหม่อัตโนมัติ (ครั้งที่ ${_tries + 1})`);
         const clean = (obj) => { const o = { ...obj }; delete o[badCol]; return o; };
         const newBody = Array.isArray(body) ? body.map(clean) : clean(body);
         if (!window._missingDbColumns) window._missingDbColumns = new Set();
         window._missingDbColumns.add(badCol);
+        _sbWarnTrimmedColumn(badCol, tbl);
         return this._api(method, path, newBody, _tries + 1);
       }
       // 📏 ค่ายาวเกินที่คอลัมน์รับได้ — พบบ่อยกับข้อสอบที่มีสมการ (LaTeX ยาว) หรือมีรูปฝังในตัวข้อ
@@ -6167,7 +6225,8 @@ const supabaseDataSdk = {
         // ⚡ ปรับตามที่ขอ: ยังไม่เคยผูกเบอร์โทร → ผูกเบอร์ที่กรอกมาให้เลย ไม่ต้องยืนยันชื่อ-นามสกุล
         // (เดิมให้ยืนยันชื่อด้วย แต่พิมพ์ผิดง่ายมาก เช่น เว้นวรรคเกิน สระผิด ทำให้เข้าระบบไม่ได้)
         if (!/^0\d{9}$/.test(phone)) { showErr('⚠️ เบอร์โทรต้องเป็น 10 หลัก ขึ้นต้นด้วย 0'); return; }
-        window.dataSdk.update({ ...student, phone_number: phone })
+        // 👤 ผูกเบอร์ให้ครบทุกภาค — เบอร์โทรใช้เป็นรหัสผ่านสำรองได้ ต้องตรงกันทุกที่
+        _saveStudentIdentity(student, { phone_number: phone })
           .catch(e => console.log('[ForgotCred] ผูกเบอร์โทรไม่สำเร็จ:', e.message));
         renderCredentialsEditForm({ ...student, phone_number: phone }, phone);
         return;
@@ -6220,9 +6279,9 @@ const supabaseDataSdk = {
         showErr('❌ ชื่อ-นามสกุลไม่ตรงกับข้อมูลในระบบ กรุณาตรวจสอบอีกครั้ง');
         return;
       }
-      const result = await window.dataSdk.update({ ...student, phone_number: phone });
+      const result = await _saveStudentIdentity(student, { phone_number: phone });   // 👤 ครบทุกภาค
       if (result.isOk) {
-        showToast('✅ ผูกเบอร์โทรสำเร็จ');
+        showToast('✅ ผูกเบอร์โทรสำเร็จ' + (result.synced ? ` · ใช้ได้ทุกภาคเรียน` : ''));
         renderCredentialsEditForm(result.data, phone);
       } else {
         showErr('บันทึกไม่สำเร็จ กรุณาลองใหม่');
@@ -6276,17 +6335,21 @@ const supabaseDataSdk = {
       if (!student) { showErr('ไม่พบข้อมูลนักเรียน'); return; }
       // เช็คว่า username ใหม่ซ้ำกับคนอื่นหรือไม่ (ยกเว้นตัวเอง)
       if (newUsername) {
-        const dup = allData.find(d => d.type === 'student' && d.__backendId !== studentBackendId && d.username === newUsername);
+        // 👤 ไม่นับแถวของ "คนเดียวกัน" ในภาคอื่น ไม่งั้นจะฟ้องว่าซ้ำกับตัวเอง
+        const dup = allData.find(d => d.type === 'student' && d.username === newUsername
+          && _rN(d.student_id) !== _rN(student.student_id));
         if (dup) { showErr('⚠️ Username นี้มีคนใช้แล้ว กรุณาใช้ชื่ออื่น'); return; }
       }
-      const updated = { ...student };
-      if (newUsername) updated.username = newUsername;
-      if (newPassword) updated.password = newPassword;
-      if (newPhone) updated.phone_number = newPhone;
-      const result = await window.dataSdk.update(updated);
+      // 👤 ข้อมูลตัวตนต้องเหมือนกันทุกภาค — ไม่งั้นรหัสเก่ายังใช้เข้าได้ผ่านแถวของอีกภาค
+      const changes = {};
+      if (newUsername) changes.username = newUsername;
+      if (newPassword) changes.password = newPassword;
+      if (newPhone) changes.phone_number = newPhone;
+      const result = await _saveStudentIdentity(student, changes);
       if (result.isOk) {
         const changed = [newUsername && 'Username', newPassword && 'Password', newPhone && 'เบอร์โทร'].filter(Boolean).join(', ');
-        showToast(`✅ บันทึก${changed}ใหม่สำเร็จแล้ว`);
+        showToast(`✅ บันทึก${changed}ใหม่สำเร็จแล้ว`
+          + (result.synced ? ` · ใช้ได้ทุกภาคเรียน (อัปเดตให้อีก ${result.synced} ภาค)` : ''));
         renderForgotCredFinalConfirmation(result.data);
       } else {
         showErr('บันทึกไม่สำเร็จ กรุณาลองใหม่');
@@ -6446,7 +6509,7 @@ const supabaseDataSdk = {
       if (!/^0\d{9}$/.test(phone)) { showErr('⚠️ กรุณากรอกเบอร์โทร 10 หลัก ขึ้นต้นด้วย 0'); return; }
       const student = allData.find(d => d.__backendId === studentBackendId && d.type === 'student');
       if (!student) { showErr('ไม่พบข้อมูลนักเรียน กรุณาลองล็อกอินใหม่'); return; }
-      const result = await window.dataSdk.update({ ...student, phone_number: phone });
+      const result = await _saveStudentIdentity(student, { phone_number: phone });   // 👤 ครบทุกภาค
       if (result.isOk) {
         document.getElementById('login-phone-gate-modal')?.remove();
         showToast('✅ บันทึกเบอร์โทรสำเร็จ กำลังเข้าสู่ระบบ...');
@@ -6755,6 +6818,7 @@ const supabaseDataSdk = {
       // ตรวจสอบ Student
       console.log('🔍 Checking students:', allData.filter(d => d.type === 'student').length);
       let student = null;
+      const _matchedRows = [];   // 👤 ทุกแถวที่ตรง (คนเดียวกันอาจมีหลายภาค)
       // 🔍 ระบบวินิจฉัย: เก็บข้อมูลไว้ช่วยหาสาเหตุถ้าล็อกอินไม่สำเร็จ
       // ⚡ ปรับให้เร็วขึ้น: เดิมมีระบบวินิจฉัยที่กรองข้อมูลนักเรียนทั้งหมดหลายรอบก่อนเริ่มล็อกอิน ทำให้ช้ามาก
       // ตอนนี้ย้ายไปทำงานเฉพาะตอนล็อกอินไม่สำเร็จเท่านั้น (ดูส่วนท้ายฟังก์ชัน) การล็อกอินปกติจึงเร็วขึ้นมาก
@@ -6777,9 +6841,18 @@ const supabaseDataSdk = {
         // แต่ระบบต้องรองรับการล็อกอินด้วย "รหัสนักเรียน" ได้ด้วย (ตามที่ออกแบบไว้แต่แรก)
         const _userMatch = _cleanUser(d.username) === _cleanUser(username) || _cleanUser(d.student_id) === _cleanUser(username);
         if (d.type === 'student' && _userMatch && (_pwdMatch || _phoneMatch)) {
-          student = d;
+          _matchedRows.push(d);
+        }
+      }
+      // 👤 คนเดียวกันอาจมีหลายแถว (ภาคละแถว) — ต้องเลือกแถวของ "ภาคที่กำลังทำงานอยู่"
+      //    🚨 เดิมใช้ break เอาแถวแรกที่เจอ ซึ่งเรียงตามลำดับที่ดึงข้อมูลมา เดาไม่ได้
+      //       นักเรียนอาจเข้าด้วยแถวของภาคเก่า แล้วเห็นคะแนน/การลงทะเบียนผิดภาค
+      if (_matchedRows.length) {
+        student = _pickStudentRowForLogin(_matchedRows);
+        if (_matchedRows.length > 1) {
+          console.log(`✅ Found student: ${username} (มี ${_matchedRows.length} ภาค → เข้าด้วยแถวของ ${termLabel(student.academic_year, student.semester)})`);
+        } else {
           console.log('✅ Found student:', username);
-          break;
         }
       }
       
@@ -6819,6 +6892,69 @@ const supabaseDataSdk = {
       errorDiv.classList.remove('hidden'); showLoginError(errorDiv.textContent);
       document.getElementById('login-password').value = '';
     }
+    /* ══════════════════════════════════════════════════════════════════════════
+       👤 คนเดียวกันมีหลายแถว (ภาคละแถว) — ตัวตนต้องตรงกันทุกภาค
+       ──────────────────────────────────────────────────────────────────────────
+       🚨 ปัญหาที่ผู้ใช้ถามถูกจุด: ยกรายชื่อมาภาค 2 แล้วนักเรียนคนเดียวมี 2 แถว
+          ① ตอนล็อกอิน ระบบเดิมหยิบ "แถวแรกที่เจอใน allData" ซึ่งเรียงตามลำดับที่ดึงมา
+             → เดาไม่ได้ว่าจะเข้าด้วยแถวของภาคไหน และอาจเข้าด้วยแถวของภาคเก่า
+             → เห็นคะแนน/การลงทะเบียนของภาคที่ไม่ได้ใช้งาน
+          ② เปลี่ยนรหัสผ่าน ระบบเดิมแก้แถวเดียว
+             → รหัสเก่ายังใช้เข้าได้อยู่ผ่านแถวของอีกภาค (ช่องโหว่ความปลอดภัย)
+             → และนักเรียนสับสนว่ารหัสไหนใช้ได้
+
+       ✅ กติกาที่ใช้แก้
+          • ข้อมูล "ตัวตน" (ชื่อผู้ใช้ · รหัสผ่าน · เบอร์โทร · ชื่อ-นามสกุล · คำนำหน้า)
+            ต้องเหมือนกันทุกแถวของคนเดียวกัน → แก้ที่ไหนก็อัปเดตให้ครบทุกภาค
+          • ข้อมูล "ของเทอมนั้น" (ชั้น · ห้อง · เลขที่) แยกกันได้ตามจริง
+            เพราะขึ้นปีการศึกษาแล้วชั้นเปลี่ยน แต่ยังเป็นคนเดิม
+          • ตอนล็อกอิน เลือกแถวของ "ภาคที่กำลังทำงานอยู่" ก่อนเสมอ
+       ══════════════════════════════════════════════════════════════════════════ */
+    /** ฟิลด์ที่ถือว่าเป็น "ตัวตน" — ต้องเหมือนกันทุกภาค */
+    const STUDENT_IDENTITY_FIELDS = ['username', 'password', 'phone_number', 'prefix', 'first_name', 'last_name'];
+
+    /** ทุกแถวของนักเรียนคนนี้ (ทุกปี/ภาค) */
+    function _studentRowsOf(studentId) {
+      return allData.filter(d => d.type === 'student' && _rN(d.student_id) === _rN(studentId));
+    }
+    /** แถวที่ควรใช้ล็อกอิน — เอาของภาคที่กำลังทำงานอยู่ก่อน ถ้าไม่มีเอาแถวใหม่สุด
+     *  🎯 เหตุผล: นักเรียนต้องเห็นคะแนน/การลงทะเบียนของภาคที่โรงเรียนกำลังใช้ */
+    function _pickStudentRowForLogin(rows) {
+      if (!rows || !rows.length) return null;
+      const here = (typeof workingTermKey === 'function') ? workingTermKey() : '|';
+      const inTerm = rows.filter(r => _termKey(r) === here);
+      if (inTerm.length) return inTerm[0];
+      // ไม่มีแถวของภาคนี้ → เรียงจากปี/ภาคใหม่สุด แล้วเอาตัวแรก
+      const sorted = rows.slice().sort((a, b) =>
+        String(_termKey(b)).localeCompare(String(_termKey(a)))
+        || (parseInt(b.__backendId) || 0) - (parseInt(a.__backendId) || 0));
+      return sorted[0];
+    }
+    /** บันทึกข้อมูลตัวตนให้ครบทุกแถวของคนเดียวกัน
+     *  ↩️ คืนค่า { isOk, data, synced } — data คือแถวที่ส่งเข้ามา (ของเดิมที่ผู้เรียกใช้ต่อ) */
+    async function _saveStudentIdentity(student, changes) {
+      if (!student) return { isOk: false, error: { message: 'ไม่พบข้อมูลนักเรียน' } };
+      const rows = _studentRowsOf(student.student_id);
+      // แยกเฉพาะฟิลด์ตัวตนออกมา เพื่อไม่ไปทับชั้น/ห้องของภาคอื่น
+      const idChanges = {};
+      Object.keys(changes || {}).forEach(k => {
+        if (STUDENT_IDENTITY_FIELDS.indexOf(k) >= 0) idChanges[k] = changes[k];
+      });
+      let main = null, synced = 0, failed = 0;
+      for (const r of rows) {
+        const isSelf = String(r.__backendId) === String(student.__backendId);
+        // แถวที่ผู้ใช้กำลังแก้ → ใส่ทุกอย่างที่ส่งมา · แถวอื่น → ใส่เฉพาะตัวตน
+        const payload = isSelf ? { ...r, ...changes } : { ...r, ...idChanges };
+        if (!isSelf && Object.keys(idChanges).length === 0) continue;
+        const res = await window.dataSdk.update(payload);
+        if (isSelf) main = res;
+        if (res.isOk) { if (!isSelf) synced++; } else failed++;
+      }
+      if (!main) main = { isOk: failed === 0, data: { ...student, ...changes } };
+      if (synced) console.log(`[ตัวตนนักเรียน] ซิงก์ให้อีก ${synced} ภาคแล้ว (${student.student_id})`);
+      return { ...main, synced, failed };
+    }
+
     let pendingRegisterFormData = null;
     let pendingRegisterExistingStudent = null;
     let pendingRegisterSubmitBtn = null;
@@ -10240,8 +10376,82 @@ const supabaseDataSdk = {
           <button onclick="addAnnouncement('${target}')" class="px-4 py-2 btn-primary text-white rounded-lg text-sm font-medium">➕ เพิ่มประกาศ</button>
         </div>
         <div id="announcement-list-${target}" class="space-y-3"></div>
+        <div id="announcement-orphans" class="mt-5"></div>
       `;
       updateAnnouncementList(target);
+      renderOrphanAnnouncements();
+    }
+
+    /* ══════════════════════════════════════════════════════════════════════════
+       🔍 ประกาศที่ค้างอยู่แต่หาไม่เจอในแท็บไหนเลย
+       ──────────────────────────────────────────────────────────────────────────
+       🚨 อาการจริงที่ผู้ใช้เจอ: "ประกาศเก่าลบไม่ได้ หาไม่เจอ แต่ค้างอยู่หน้าเว็บ"
+          เกิดจากแถวนั้นมีข้อความ แต่ช่อง "แสดงที่ไหน" (target) ว่างหรือเป็นค่าที่ไม่มีแท็บรองรับ
+          (ส่วนใหญ่เพราะฐานข้อมูลไม่มีคอลัมน์ ระบบจึงตัดทิ้งตอนบันทึก)
+          ทั้ง 3 แท็บกรองตาม target จึงไม่มีแท็บไหนแสดงมันเลย → เห็นแต่ลบไม่ได้
+       ✅ รวบมาไว้ที่นี่ พร้อมปุ่มลบและปุ่มย้ายเข้าแท็บ ให้จัดการได้จริง
+       ══════════════════════════════════════════════════════════════════════════ */
+    const ANN_TARGETS = ['notification', 'website', 'student'];
+    /** ประกาศที่ไม่มีแท็บไหนแสดง + แถวที่มีข้อความแต่ไม่มีป้ายชนิด */
+    function _orphanAnnouncements() {
+      return allData.filter(d => {
+        const isAnn = d.type === 'announcement';
+        const isUnlabeled = d.type === 'settings' && !d.setting_type
+          && String(d.text || '').trim() !== ''
+          && !d.active_year && !d.class_name && !d.room_number && !d.subject_name && !d.items_json;
+        if (!isAnn && !isUnlabeled) return false;
+        if (isUnlabeled) return true;
+        return ANN_TARGETS.indexOf(String(d.target || '')) < 0;
+      });
+    }
+    function renderOrphanAnnouncements() {
+      const box = document.getElementById('announcement-orphans');
+      if (!box) return;
+      const list = _orphanAnnouncements();
+      if (!list.length) { box.innerHTML = ''; return; }
+      box.innerHTML = `
+        <div class="bg-rose-50 border-2 border-rose-300 rounded-xl p-4">
+          <p class="text-sm font-bold text-rose-900 mb-1">🔍 ประกาศที่ค้างอยู่แต่ไม่โผล่ในแท็บไหนเลย (${list.length} รายการ)</p>
+          <p class="text-xs text-rose-800 mb-3">
+            พวกนี้ไม่มีช่อง "แสดงที่ไหน" หรือมีค่าที่ระบบไม่รู้จัก จึงไม่ขึ้นในแท็บด้านบน แต่ยังค้างอยู่ในฐานข้อมูล<br>
+            มักเกิดจากฐานข้อมูลยังไม่มีคอลัมน์ที่ต้องใช้ ตอนบันทึกจึงถูกตัดทิ้ง —
+            <b>แนะนำให้รันไฟล์ fix_settings_columns.sql ใน Supabase</b> แล้วค่อยจัดการตรงนี้
+          </p>
+          <div class="space-y-2">
+            ${list.map(a => `
+              <div class="bg-white border border-rose-200 rounded-lg p-3">
+                <p class="text-sm text-gray-800 mb-1">${escHtml(String(a.text || '(ไม่มีข้อความ)')).slice(0, 200)}</p>
+                <p class="text-[11px] text-gray-500 mb-2">รหัสแถว ${escHtml(String(a.__backendId))}
+                  · แสดงที่: ${a.target ? escHtml(String(a.target)) : '<span class="text-rose-600">ไม่ได้ระบุ</span>'}
+                  ${a.type === 'settings' ? ' · <span class="text-rose-600">ไม่มีป้ายบอกว่าเป็นประกาศ</span>' : ''}</p>
+                <div class="flex gap-2 flex-wrap">
+                  ${ANN_TARGETS.map(t => `<button onclick="fixOrphanAnnouncement('${escHtml(String(a.__backendId))}','${t}')"
+                     class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs">ย้ายไปแท็บ ${t === 'notification' ? 'ป้ายวิ่ง' : t === 'website' ? 'หน้าเว็บ' : 'นักเรียน'}</button>`).join('')}
+                  <button onclick="deleteOrphanAnnouncement('${escHtml(String(a.__backendId))}')"
+                    class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs">🗑️ ลบทิ้ง</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
+    /** ย้ายประกาศที่หลงเหลือเข้าแท็บ เพื่อให้จัดการได้ตามปกติ */
+    async function fixOrphanAnnouncement(id, target) {
+      const rec = allData.find(d => String(d.__backendId) === String(id));
+      if (!rec) { showToast('หาแถวนี้ไม่เจอ อาจถูกลบไปแล้ว', 'error'); renderOrphanAnnouncements(); return; }
+      const r = await window.dataSdk.update({ ...rec, type: 'announcement', target: target });
+      if (!r.isOk) { _sbFailToast(r, 'ย้ายประกาศ'); return; }
+      showToast('✅ ย้ายเข้าแท็บแล้ว — จัดการได้ตามปกติ');
+      renderOrphanAnnouncements();
+      updateAnnouncementList(target);
+    }
+    async function deleteOrphanAnnouncement(id) {
+      const rec = allData.find(d => String(d.__backendId) === String(id));
+      if (!rec) { showToast('หาแถวนี้ไม่เจอ อาจถูกลบไปแล้ว', 'error'); renderOrphanAnnouncements(); return; }
+      if (!confirm('ลบประกาศที่ค้างอยู่รายการนี้ทิ้ง?\n\n' + String(rec.text || '(ไม่มีข้อความ)').slice(0, 120))) return;
+      const r = await window.dataSdk.delete(rec);
+      if (!r.isOk) { _sbFailToast(r, 'ลบประกาศที่ค้างอยู่'); return; }
+      showToast('🗑️ ลบแล้ว');
+      renderOrphanAnnouncements();
     }
     function updateAnnouncementList(target) {
       const container = document.getElementById(`announcement-list-${target}`);
