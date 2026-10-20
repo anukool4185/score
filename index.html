@@ -4367,7 +4367,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.21.267';
+    const APP_VERSION = 'SUPABASE-2026.10.21.268';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -5498,6 +5498,58 @@ const supabaseDataSdk = {
       const table = SB_TYPE_TO_TABLE[record.type];
       if (!table || !record.__backendId) {
         return { isOk: false, error: { message: 'ข้อมูลไม่ครบสำหรับการลบ' } };
+      }
+      /* 🛡️ ด่านกันลบผิดตัวในตารางที่ใช้ร่วมกัน
+         ──────────────────────────────────────────────────────────────────────
+         ตาราง settings เก็บของหลายอย่างรวมกัน — ประกาศ · เมนู · ปี/ภาค · ชั้น ·
+         ห้อง · วิชา · ข้อความเตือน · ข้อมูลติดต่อแอดมิน
+         การลบใช้คำสั่ง "ลบแถวที่รหัสนี้" จึงลบได้ครั้งละแถวเดียวอยู่แล้ว
+         แต่ถ้า "ชนิดที่ผู้เรียกคิด" ไม่ตรงกับ "ชนิดที่อยู่ในแถวจริง"
+         แปลว่ากำลังจะลบของผิดชนิด — ต้องหยุด ไม่ใช่ลบให้
+         🚨 เหตุที่ต้องมี: หน้าจัดการประกาศเคยเหมาว่าแถวที่มีข้อความคือประกาศ
+            ซึ่งอาจเป็นข้อความเตือน KSAC ที่ระบบยังใช้งานอยู่  */
+      /* 🛡️🛡️ ขยายด่านให้ครอบ "ทุกตาราง" ไม่ใช่แค่ settings
+         ───────────────────────────────────────────────
+         🚨 บทเรียนราคาแพง: รหัสแถว (id) นับแยกกันในแต่ละตาราง
+            ประกาศรหัส 7 กับการลงทะเบียนรหัส 7 เป็นของคนละเรื่อง แต่เลขเดียวกัน
+            ถ้าโค้ดหาแถวด้วย "รหัสแถว" เพียว ๆ โดยไม่เทียบชนิด
+            จะได้แถวของตารางอื่นมา แล้วสั่งลบไปที่ตารางนั้นจริง ๆ
+            = กดลบประกาศ แต่ไปลบการลงทะเบียนของนักเรียน
+
+         ✅ ด่านนี้เทียบ "ชนิดที่ผู้เรียกคิด" กับ "ชนิดที่อยู่ในตารางเดียวกันจริง"
+            ถ้าไม่ตรง = หยุด ไม่ลบให้ แล้วบอกว่ากำลังจะลบอะไรผิด
+            ดูเฉพาะแถวที่อยู่ "ตารางเดียวกัน" เพราะรหัสซ้ำข้ามตารางเป็นเรื่องปกติ */
+      {
+        // 📚 ดูจากชุดข้อมูลที่มีจริง — ถ้าคลังในตัว SDK ว่าง (เพิ่งเปิดหน้า / ซิงก์ยังไม่เสร็จ)
+        //    ให้ถอยไปดูจาก allData ที่หน้าจอใช้อยู่ ไม่งั้นด่านจะเงียบในจังหวะที่อันตรายที่สุด
+        const _pool = (this._cache && this._cache.length) ? this._cache
+          : ((typeof allData !== 'undefined' && Array.isArray(allData)) ? allData : []);
+        const sameTable = _pool.filter(d =>
+          String(d.__backendId) === String(record.__backendId) && SB_TYPE_TO_TABLE[d.type] === table);
+        const liveType = sameTable.length && !sameTable.some(d => d.type === record.type)
+          ? sameTable[0].type : null;
+        if (liveType) {
+          return { isOk: false, error: { message:
+            `🛡️ ไม่ลบให้ เพราะกำลังจะลบผิดชนิด\n\n`
+            + `แถวรหัส ${record.__backendId} ในตาราง ${table} เป็นชนิด "${liveType}" `
+            + `แต่สั่งลบในฐานะ "${record.type}"\n\n`
+            + `ระบบหยุดไว้เพื่อไม่ให้ลบข้อมูลผิดตัว กรุณาแจ้งผู้พัฒนา` } };
+        }
+      }
+      if (table === 'settings') {
+        const _pool2 = (this._cache && this._cache.length) ? this._cache
+          : ((typeof allData !== 'undefined' && Array.isArray(allData)) ? allData : []);
+        const live = _pool2.find(d => String(d.__backendId) === String(record.__backendId)
+          && SB_TYPE_TO_TABLE[d.type] === 'settings');
+        const liveType = live && live.type;
+        if (liveType && liveType !== record.type) {
+          return { isOk: false, error: { message:
+            `🛡️ ไม่ลบให้ เพราะกำลังจะลบผิดชนิด\n\n`
+            + `แถวรหัส ${record.__backendId} ในตาราง settings เป็นชนิด "${liveType}" `
+            + `แต่สั่งลบในฐานะ "${record.type}"\n\n`
+            + `ตาราง settings เก็บประกาศ · เมนู · ปี/ภาค · ชั้น/ห้อง/วิชา · ข้อความเตือน รวมกัน `
+            + `ถ้าลบต่อไปจะเป็นการลบการตั้งค่าที่ระบบยังใช้งานอยู่` } };
+        }
       }
       const _del = await this._api('DELETE', `${table}?id=eq.${record.__backendId}`);
       // 🔍 ตรวจว่าฐานข้อมูล "ลบจริง" ไหม
@@ -7963,7 +8015,7 @@ const supabaseDataSdk = {
 
     function kpacRequestPopupWithForm(studentBackendId) {
       // แสดงฟอร์มกรอกข้อมูลที่ขาด (ชั้น ห้อง ชื่อ นามสกุล) พร้อมกับ KSAC ในหน้าเดียว
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const classes = [...new Set(allData.filter(d => d.type === 'class_subject').map(d => d.class_name).filter(Boolean))].sort();
       const popup = document.createElement('div');
@@ -8006,7 +8058,7 @@ const supabaseDataSdk = {
     }
 
     async function saveKpacFixAndProceed(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const firstName = document.getElementById('kpac-fix-first')?.value.trim();
       const lastName = document.getElementById('kpac-fix-last')?.value.trim();
@@ -8027,7 +8079,7 @@ const supabaseDataSdk = {
     }
 
     function kpacRequestPopup(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       // Cascade: ชั้น → ห้อง → วิชา จาก class_subject ที่ตรงกับนักเรียนคนนี้
       const studentClass = student.class_name;
@@ -8095,7 +8147,7 @@ const supabaseDataSdk = {
     }
 
     async function confirmSendKpacRequest(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const subjectName = document.getElementById('kpac-req-subject')?.value;
       const k = parseFloat(document.getElementById('kpac-req-k')?.value) || 0;
@@ -8132,7 +8184,7 @@ const supabaseDataSdk = {
       const listHtml = subAdmins.length === 0
         ? '<p class="text-gray-400 text-center py-4">ยังไม่มีผู้ช่วยแอดมินสำหรับห้องนี้</p>'
         : subAdmins.map(a => {
-            const studentRec = a.linked_student_id ? allData.find(s => s.__backendId === a.linked_student_id) : null;
+            const studentRec = a.linked_student_id ? allData.find(s => s.__backendId === a.linked_student_id && s.type === 'student') : null;
             const name = studentRec ? `${studentRec.prefix}${studentRec.first_name} ${studentRec.last_name}` : a.username;
             const phone = a.phone_number || studentRec?.phone_number || '-';
             return `<div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 mb-2">
@@ -8779,7 +8831,7 @@ const supabaseDataSdk = {
       } else if (isAdmin) {
         document.getElementById('user-display').textContent = `Admin: ${currentUser.username}`;
       } else if (isSubAdmin) {
-        const linkedStudent = currentUser.linked_student_id ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
+        const linkedStudent = currentUser.linked_student_id ? allData.find(s => s.__backendId === currentUser.linked_student_id && s.type === 'student') : null;
         if (linkedStudent) {
           document.getElementById('user-display').textContent = `ผู้ช่วยแอดมิน: ${linkedStudent.prefix||''}${linkedStudent.first_name||''} ${linkedStudent.last_name||''}`;
         } else {
@@ -9066,7 +9118,7 @@ const supabaseDataSdk = {
     function goToSubAdminPageFromStudent() {
       _scrollPageTop(); // ⬆️ กดเมนูแล้วให้เห็นหน้าบนสุดเสมอ
       if (!currentUser || !currentUser.linked_admin_id) return;
-      const adminRecord = allData.find(d => d.__backendId === currentUser.linked_admin_id);
+      const adminRecord = allData.find(d => d.__backendId === currentUser.linked_admin_id && d.type === 'admin');
       if (!adminRecord) { showToast('ไม่พบข้อมูลผู้ช่วยแอดมิน', 'error'); return; }
       currentUser.__subadminOverride = adminRecord;
       currentUser._subadminMode = true;
@@ -9104,7 +9156,7 @@ const supabaseDataSdk = {
         return;
       }
       if (!currentUser.linked_student_id) { showToast('บัญชีนี้ไม่ได้เชื่อมโยงกับนักเรียนคนใด', 'error'); return; }
-      const student = allData.find(s => s.__backendId === currentUser.linked_student_id);
+      const student = allData.find(s => s.__backendId === currentUser.linked_student_id && s.type === 'student');
       if (!student) { showToast('ไม่พบข้อมูลนักเรียนที่เชื่อมโยง', 'error'); return; }
       _deskSubAdminOriginalUser = currentUser;
       currentUser = { ...student, user_type: 'student', __fromSubAdminDesktop: true };
@@ -9336,9 +9388,9 @@ const supabaseDataSdk = {
       window.selectSubAdminTkStudent = function(regId) {
         window.subAdminSelectedTkRegId = regId;
         renderList();
-        document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === regId));
+        document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === regId && d.type === 'student_registration'));
       };
-      document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === window.subAdminSelectedTkRegId));
+      document.getElementById('subadmin-timekeeping-detail').innerHTML = buildTimekeepingCardHtml(allData.find(d => d.__backendId === window.subAdminSelectedTkRegId && d.type === 'student_registration'));
     }
     // ----- 🎓 ให้คะแนน (สำหรับผู้ช่วยแอดมิน) -----
     function renderSubAdminGrading() {
@@ -9499,7 +9551,7 @@ const supabaseDataSdk = {
     }
     // ----- ผู้ช่วยแอดมินขอให้แอดมินลงทะเบียนให้นักเรียน (ไม่ได้ลงทะเบียนเอง แค่ส่งคำขอ) -----
     function subAdminRequestRegistrationPopup(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const scope = getSubAdminScope();
       const alreadyPending = allData.find(d => d.type === 'registration_request' && d.status === 'pending' && d.student_backend_id === studentBackendId && d.subject_name === scope.subjectName);
@@ -9567,7 +9619,7 @@ const supabaseDataSdk = {
     }
     // ----- ผู้ช่วยแอดมินลงทะเบียนเองหลังได้รับอนุมัติจากแอดมินแล้ว -----
     function subAdminPerformApprovedRegistration(studentBackendId, requestId, kpacRequestId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const scope = getSubAdminScope();
       const classSubjectRecord = allData.find(d => d.type === 'class_subject' && d.class_name === scope.className && d.room_number === scope.roomNumber && d.subject_name === scope.subjectName);
@@ -9575,7 +9627,7 @@ const supabaseDataSdk = {
       const finalPercent = classSubjectRecord?.final_percent || 0;
       const kpacPercent = 100 - midPercent - finalPercent;
       // ดึง KSAC ที่นักเรียนขอมา (ถ้ามี)
-      const kpacReq = kpacRequestId ? allData.find(d => d.__backendId === kpacRequestId) : null;
+      const kpacReq = kpacRequestId ? allData.find(d => d.__backendId === kpacRequestId && d.type === 'kpac_request') : null;
       const kVal = kpacReq?.k_percent ?? '';
       const pVal = kpacReq?.s_percent ?? '';
       const aVal = kpacReq?.a_percent ?? '';
@@ -9620,7 +9672,7 @@ const supabaseDataSdk = {
       document.getElementById('subadmin-reg-warning').classList.toggle('hidden', total <= kpacLimit);
     }
     async function confirmSubAdminPerformRegistration(studentBackendId, requestId, kpacLimit, kpacRequestId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const scope = getSubAdminScope();
       const errorEl = document.getElementById('subadmin-reg-error');
@@ -9641,11 +9693,11 @@ const supabaseDataSdk = {
         k_percent: k, s_percent: sVal, a_percent: a, c_percent: c, created_at: new Date().toISOString()
       });
       if (result.isOk) {
-        const req = allData.find(d => d.__backendId === requestId);
+        const req = allData.find(d => d.__backendId === requestId && d.type === 'registration_request');
         if (req) await window.dataSdk.update({ ...req, status: 'done' });
         // ปิด kpac_request ที่เกี่ยวข้อง (ถ้ามี)
         if (kpacRequestId) {
-          const kpacReq = allData.find(d => d.__backendId === kpacRequestId);
+          const kpacReq = allData.find(d => d.__backendId === kpacRequestId && d.type === 'kpac_request');
           if (kpacReq) await window.dataSdk.update({ ...kpacReq, status: 'done' });
         }
         // ดึงคะแนน pending ที่เก็บสำรองไว้มาใส่อัตโนมัติ (ถ้ามี)
@@ -9743,7 +9795,7 @@ const supabaseDataSdk = {
       `;
     }
     async function confirmTaskMessageDone(msgId) {
-      const msg = allData.find(d => d.__backendId === msgId);
+      const msg = allData.find(d => d.__backendId === msgId && d.type === 'task_message');
       if (!msg) return;
       const result = await window.dataSdk.update({ ...msg, status: 'done' });
       if (result.isOk) {
@@ -10401,17 +10453,22 @@ const supabaseDataSdk = {
       notification: '🔔 ประกาศหน้าเพจ', website: '🌐 หน้าแรกของเว็บ',
       student: '👨‍🎓 หน้าหลักนักเรียน', director: '👨‍💼 หน้าหลักผู้นิเทศ',
     };
-    /** ประกาศที่ไม่มีแท็บไหนแสดง + แถวที่มีข้อความแต่ไม่มีป้ายชนิด */
+    /** ประกาศที่ "แน่ชัดว่าเป็นประกาศ" แต่ไม่มีแท็บไหนแสดง
+     *
+     *  🛑 บทเรียนราคาแพง: รุ่นแรกของฟังก์ชันนี้เดาด้วยว่า
+     *     "แถวในตาราง settings ที่มีข้อความแต่ไม่มีป้ายชนิด = ประกาศที่ป้ายหาย"
+     *     ซึ่งผิด เพราะของอื่นในตารางเดียวกันก็มีช่องข้อความ โดยเฉพาะ
+     *     kpac_warning (ข้อความเตือนนักเรียนที่ยังไม่กรอก KSAC)
+     *     → ขึ้นมาในรายการของค้าง แล้วถ้ากดลบ จะไปลบ "การตั้งค่า" ที่ยังใช้งานอยู่
+     *
+     *  ✅ จึงรับเฉพาะแถวที่ระบบยืนยันแล้วว่าเป็นประกาศ (type === 'announcement')
+     *     ส่วนแถวที่ป้ายหายไปจริง ให้ไปซ่อมด้วยไฟล์ fix_settings_columns.sql
+     *     ซึ่งตรวจเงื่อนไขละเอียดกว่าและไม่ลบอะไรทิ้ง — ปลอดภัยกว่าเดาในหน้าเว็บ
+     *
+     *  ❗ ห้ามขยายเงื่อนไขให้เดาจาก "มีข้อความ" อีก ไม่ว่าจะดูปลอดภัยแค่ไหน */
     function _orphanAnnouncements() {
-      return allData.filter(d => {
-        const isAnn = d.type === 'announcement';
-        const isUnlabeled = d.type === 'settings' && !d.setting_type
-          && String(d.text || '').trim() !== ''
-          && !d.active_year && !d.class_name && !d.room_number && !d.subject_name && !d.items_json;
-        if (!isAnn && !isUnlabeled) return false;
-        if (isUnlabeled) return true;
-        return ANN_TARGETS.indexOf(String(d.target || '')) < 0;
-      });
+      return allData.filter(d => d.type === 'announcement'
+        && ANN_TARGETS.indexOf(String(d.target || '')) < 0);
     }
     function renderOrphanAnnouncements() {
       const box = document.getElementById('announcement-orphans');
@@ -10445,8 +10502,13 @@ const supabaseDataSdk = {
     }
     /** ย้ายประกาศที่หลงเหลือเข้าแท็บ เพื่อให้จัดการได้ตามปกติ */
     async function fixOrphanAnnouncement(id, target) {
-      const rec = allData.find(d => String(d.__backendId) === String(id));
-      if (!rec) { showToast('หาแถวนี้ไม่เจอ อาจถูกลบไปแล้ว', 'error'); renderOrphanAnnouncements(); return; }
+      // 🛡️ หาแถวจาก "รายการที่แสดงอยู่บนหน้าจอ" เท่านั้น — ปุ่มกับการทำงานจึงตรงกันแน่นอน
+      //    🚨 ห้ามหาจาก allData ด้วยรหัสแถวเพียว ๆ เพราะรหัสซ้ำกันข้ามตารางได้
+      const rec = _orphanAnnouncements().find(d => String(d.__backendId) === String(id));
+      if (!rec) {
+        showToast('หาแถวนี้ไม่เจอในรายการ อาจถูกจัดการไปแล้ว — กำลังรีเฟรชรายการ', 'error');
+        renderOrphanAnnouncements(); return;
+      }
       const r = await window.dataSdk.update({ ...rec, type: 'announcement', target: target });
       if (!r.isOk) { _sbFailToast(r, 'ย้ายประกาศ'); return; }
       showToast('✅ ย้ายเข้าแท็บแล้ว — จัดการได้ตามปกติ');
@@ -10454,12 +10516,28 @@ const supabaseDataSdk = {
       updateAnnouncementList(target);
     }
     async function deleteOrphanAnnouncement(id) {
-      const rec = allData.find(d => String(d.__backendId) === String(id));
-      if (!rec) { showToast('หาแถวนี้ไม่เจอ อาจถูกลบไปแล้ว', 'error'); renderOrphanAnnouncements(); return; }
-      if (!confirm('ลบประกาศที่ค้างอยู่รายการนี้ทิ้ง?\n\n' + String(rec.text || '(ไม่มีข้อความ)').slice(0, 120))) return;
+      // 🛡️ หาแถวจาก "รายการที่แสดงอยู่บนหน้าจอ" เท่านั้น — กดปุ่มไหนก็ได้แถวนั้นแน่นอน
+      //    🚨 บทเรียน: เดิมหาจาก allData ด้วยรหัสแถวเพียว ๆ รหัสซ้ำข้ามตารางได้
+      //       จึงอาจได้การลงทะเบียนของนักเรียนมา แล้วสั่งลบไปที่ตารางนั้นจริง ๆ
+      const rec = _orphanAnnouncements().find(d => String(d.__backendId) === String(id));
+      if (!rec) {
+        showToast('หาแถวนี้ไม่เจอในรายการ อาจถูกลบไปแล้ว — กำลังรีเฟรชรายการ', 'error');
+        renderOrphanAnnouncements(); return;
+      }
+      // 🛡️ ด่านซ้ำอีกชั้น — ต้องเป็นประกาศเท่านั้น ห้ามลบการตั้งค่าอื่นในตารางเดียวกัน
+      if (rec.type !== 'announcement') {
+        showToast('🛡️ ไม่ลบให้ — แถวนี้ไม่ใช่ประกาศ แต่เป็นการตั้งค่าชนิด "'
+          + (rec.setting_type || rec.type || 'ไม่ทราบ') + '" ที่ระบบยังใช้งานอยู่', 'error');
+        renderOrphanAnnouncements();
+        return;
+      }
+      if (!confirm('ลบประกาศรายการนี้ทิ้ง?\n\n'
+        + '"' + String(rec.text || '(ไม่มีข้อความ)').slice(0, 120) + '"\n\n'
+        + 'ลบแถวเดียวในตาราง settings (รหัสแถว ' + rec.__backendId + ') เท่านั้น\n'
+        + 'การตั้งค่าอื่น · รายชื่อนักเรียน · การลงทะเบียน · คะแนน ไม่ถูกแตะ')) return;
       const r = await window.dataSdk.delete(rec);
       if (!r.isOk) { _sbFailToast(r, 'ลบประกาศที่ค้างอยู่'); return; }
-      showToast('🗑️ ลบแล้ว');
+      showToast('🗑️ ลบประกาศแล้ว (แถวเดียว)');
       renderOrphanAnnouncements();
     }
     function updateAnnouncementList(target) {
@@ -10492,7 +10570,7 @@ const supabaseDataSdk = {
     }
     // ✅/⬜ ติ๊ก/ยกเลิกติ๊ก เพื่อแสดง/ซ่อนประกาศนี้ชั่วคราว (ไม่ลบ) — มีผลทันทีทุกหน้าที่แสดงประกาศ (login, หน้าแรกนักเรียน/ผู้นิเทศ, ประกาศพร้อมรูปหน้าเว็บ)
     async function toggleAnnouncementVisibility(id, hidden) {
-      const ann = allData.find(d => d.__backendId === id && d.type === 'announcement');
+      const ann = allData.find(d => String(d.__backendId) === String(id) && d.type === 'announcement');
       if (!ann) return;
       await window.dataSdk.update({ ...ann, is_hidden: hidden });
       updateAnnouncementList(ann.target);
@@ -10555,8 +10633,16 @@ const supabaseDataSdk = {
       }
     }
     async function deleteAnnouncement(id) {
-      const ann = allData.find(d => d.__backendId === id);
-      if (!ann) return;
+      // 🛡️ ต้องเช็คชนิดด้วย — รหัสแถวซ้ำกันข้ามตารางได้
+      //    🚨 เดิมหาด้วยรหัสแถวเพียว ๆ ถ้ามีนักเรียน/การลงทะเบียน/คะแนน รหัสเดียวกัน
+      //       และอยู่ก่อนใน allData จะได้แถวนั้นมา แล้วสั่งลบไปที่ตารางของมัน
+      //       = กดลบประกาศ แต่ไปลบของอื่นจริง ๆ
+      const ann = allData.find(d => String(d.__backendId) === String(id) && d.type === 'announcement');
+      if (!ann) {
+        showToast('หาประกาศรายการนี้ไม่เจอ (อาจถูกลบไปแล้ว) — กด Ctrl+Shift+R แล้วลองใหม่', 'error');
+        if (typeof renderOrphanAnnouncements === 'function') renderOrphanAnnouncements();
+        return;
+      }
       const result = await window.dataSdk.delete(ann);
       if (result.isOk) {
         // 🔔 ลบแจ้งเตือนที่ผูกกับประกาศนี้ทิ้งด้วย (ลบประกาศแล้ว ไม่ต้องแจ้งเตือนอีก)
@@ -10568,8 +10654,8 @@ const supabaseDataSdk = {
       }
     }
     function editAnnouncementPopup(id) {
-      const ann = allData.find(d => d.__backendId === id);
-      if (!ann) return;
+      const ann = allData.find(d => String(d.__backendId) === String(id) && d.type === 'announcement');
+      if (!ann) { showToast('หาประกาศรายการนี้ไม่เจอ — กด Ctrl+Shift+R แล้วลองใหม่', 'error'); return; }
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
       editDiv.innerHTML = `
@@ -10586,7 +10672,7 @@ const supabaseDataSdk = {
       document.body.appendChild(editDiv);
     }
     async function confirmEditAnnouncement(id) {
-      const ann = allData.find(d => d.__backendId === id);
+      const ann = allData.find(d => String(d.__backendId) === String(id) && d.type === 'announcement');
       if (!ann) return;
       const newText = document.getElementById('edit-announcement-text').value.trim();
       const newImage = document.getElementById('edit-announcement-image').value.trim();
@@ -11350,7 +11436,7 @@ const supabaseDataSdk = {
       }
     }
     function editHomeworkPopup(hwId) {
-      const hw = allData.find(d => d.__backendId === hwId);
+      const hw = allData.find(d => d.__backendId === hwId && d.type === 'homework');
       if (!hw) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
@@ -11371,7 +11457,7 @@ const supabaseDataSdk = {
       renderHwExistingImages();
     }
     async function confirmEditHomework(hwId) {
-      const hw = allData.find(d => d.__backendId === hwId);
+      const hw = allData.find(d => d.__backendId === hwId && d.type === 'homework');
       if (!hw) return;
       const workNumber = document.getElementById('hw-form-worknum').value.trim();
       const numQuestions = document.getElementById('hw-form-numq').value.trim();
@@ -11414,7 +11500,7 @@ const supabaseDataSdk = {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteHomeworkSingle(hwId) {
-      const hw = allData.find(d => d.__backendId === hwId);
+      const hw = allData.find(d => d.__backendId === hwId && d.type === 'homework');
       if (!hw) return;
       showBusyOverlay('🗑️ กำลังลบรูปภาพและการบ้าน กรุณารอสักครู่...');
       const fileIds = (hw.image_file_ids || '').split(',').filter(Boolean);
@@ -11449,7 +11535,7 @@ const supabaseDataSdk = {
       const ids = idsStr.split('|');
       showBusyOverlay('🗑️ กำลังลบรูปภาพและการบ้าน กรุณารอสักครู่...');
       for (const id of ids) {
-        const hw = allData.find(d => d.__backendId === id);
+        const hw = allData.find(d => d.__backendId === id && d.type === 'homework');
         if (hw) {
           const fileIds = (hw.image_file_ids || '').split(',').filter(Boolean);
           await deleteHomeworkImagesByFileIds(fileIds);
@@ -12382,7 +12468,7 @@ const supabaseDataSdk = {
       const selected = Array.from(document.querySelectorAll('.us-pending-cb:checked')).map(cb => cb.dataset.id);
       if (selected.length === 0) { showToast('กรุณาเลือกรายการที่ต้องการลบ', 'error'); return; }
       for (const id of selected) {
-        const rec = allData.find(d => d.__backendId === id);
+        const rec = allData.find(d => d.__backendId === id && d.type === 'pending_score');
         if (rec) await window.dataSdk.delete(rec);
       }
       showToast(`🗑️ ลบ ${selected.length} รายการสำเร็จ`);
@@ -19483,7 +19569,7 @@ const supabaseDataSdk = {
     async function deleteExamQuestion(id) {
       // หมายเหตุ: ลบข้อสอบจากคลังไม่กระทบชุดสอบที่มอบหมายไปแล้วเลย เพราะชุดสอบเก็บสำเนาข้อมูลข้อสอบไว้เองแยกต่างหาก (snapshot) ตอนมอบหมาย
       if (!confirm('ยืนยันลบข้อสอบข้อนี้ออกจากคลัง?')) return;
-      const q = allData.find(d => d.__backendId === id);
+      const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
       if (!q) return;
       const result = await window.dataSdk.delete(q);
       if (result.isOk) {
@@ -20421,7 +20507,7 @@ const supabaseDataSdk = {
         questionIds = [...document.querySelectorAll('.ea-question-check:checked')].map(c => c.value);
         if (questionIds.length === 0) { showToast('กรุณาเลือกข้อสอบอย่างน้อย 1 ข้อ', 'error'); return; }
         totalScore = questionIds.reduce((sum, id) => {
-          const q = allData.find(d => d.__backendId === id);
+          const q = allData.find(d => d.__backendId === id && d.type === 'exam_question');
           return sum + (parseFloat(q?.score_per_question) || 0);
         }, 0);
         // 📸 คัดลอกข้อมูลข้อสอบทั้งหมดมาเก็บไว้ในชุดสอบเอง (snapshot) — แยกออกจากคลังข้อสอบอย่างสิ้นเชิง
@@ -27536,7 +27622,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     function appointSubAdminPopup(studentBackendId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       // ⚠️ เทียบแบบข้อความเสมอ กันชนิดข้อมูลไม่ตรงกันจนหาไม่เจอ
       const existingAdmin = allData.find(a => a.type === 'admin'
@@ -27612,7 +27698,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     async function confirmAppointSubAdmin(studentBackendId, existingAdminId) {
-      const student = allData.find(s => s.__backendId === studentBackendId);
+      const student = allData.find(s => s.__backendId === studentBackendId && s.type === 'student');
       if (!student) return;
       const username = document.getElementById('appoint-username')?.value.trim();
       const password = document.getElementById('appoint-password')?.value.trim();
@@ -27630,7 +27716,7 @@ function _examResultIdentityHtml(sub, set) {
         perm_course: document.getElementById('appoint-perm-course')?.value || 'view' };
       let result, adminId;
       if (existingAdminId) {
-        const existing = allData.find(d => d.__backendId === existingAdminId);
+        const existing = allData.find(d => d.__backendId === existingAdminId && d.type === 'admin');
         result = await window.dataSdk.update({ ...existing, ...record });
         adminId = existingAdminId;
       } else {
@@ -27652,7 +27738,7 @@ function _examResultIdentityHtml(sub, set) {
 
     async function revokeSubAdmin(adminBackendId, studentBackendId) {
       if (!confirm('ยืนยันยกเลิกสถานะผู้ช่วยแอดมินของนักเรียนคนนี้?')) return;
-      const adminRec = allData.find(d => d.__backendId === adminBackendId);
+      const adminRec = allData.find(d => d.__backendId === adminBackendId && d.type === 'admin');
       if (!adminRec) return;
       const result = await window.dataSdk.delete(adminRec);
       if (result.isOk) {
@@ -27866,7 +27952,7 @@ function _examResultIdentityHtml(sub, set) {
       ];
       adminList.innerHTML = allAdminsList.map(admin => {
         const linkedStudent = admin.linked_student_id
-          ? allData.find(s => s.__backendId === admin.linked_student_id)
+          ? allData.find(s => s.__backendId === admin.linked_student_id && s.type === 'student')
           : null;
         const nameDisplay = linkedStudent
           ? `<span class="text-xs text-gray-700 ml-1">(${linkedStudent.prefix}${linkedStudent.first_name} ${linkedStudent.last_name})</span>`
@@ -28312,7 +28398,7 @@ function _examResultIdentityHtml(sub, set) {
       let successCount = 0;
       let failCount = 0;
       for (const id of ids) {
-        const student = allData.find(s => s.__backendId === id);
+        const student = allData.find(s => s.__backendId === id && s.type === 'student');
         if (!student) continue;
         const result = await deleteStudentWithRelatedData(student);
         if (result.isOk) {
@@ -29794,7 +29880,7 @@ function _examResultIdentityHtml(sub, set) {
       }).join('');
     }
     function editRegistrationPopup(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
       const editDiv = document.createElement('div');
@@ -29839,7 +29925,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(editDiv);
     }
     async function confirmEditRegistrationAdmin(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const kPercent = parseFloat(document.getElementById('edit-reg-k').value) || 0;
       const sPercent = parseFloat(document.getElementById('edit-reg-s').value) || 0;
@@ -29860,7 +29946,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     function deleteRegistrationRow(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const student = allData.find(s => s.type === 'student' && s.student_id === reg.student_id);
       const confirmDiv = document.createElement('div');
@@ -29960,7 +30046,7 @@ function _examResultIdentityHtml(sub, set) {
       });
     }
     async function deleteStudent(studentId) {
-      const student = allData.find(a => a.__backendId === studentId);
+      const student = allData.find(a => a.__backendId === studentId && a.type === 'student');
       if (!student) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -29976,7 +30062,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     function confirmDeleteStudent(studentId) {
-      const student = allData.find(d => d.__backendId === studentId);
+      const student = allData.find(d => d.__backendId === studentId && d.type === 'student');
       if (!student) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -29992,7 +30078,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteStudentConfirm(studentId) {
-      const student = allData.find(a => a.__backendId === studentId);
+      const student = allData.find(a => a.__backendId === studentId && a.type === 'student');
       if (!student) return;
       const result = await deleteStudentWithRelatedData(student);
       if (result.isOk) {
@@ -30025,7 +30111,7 @@ function _examResultIdentityHtml(sub, set) {
       document.getElementById('page-login').classList.remove('hidden');
     }
     async function editStudent(studentId) {
-      const student = allData.find(s => s.__backendId === studentId);
+      const student = allData.find(s => s.__backendId === studentId && s.type === 'student');
       if (!student) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
@@ -30110,7 +30196,7 @@ function _examResultIdentityHtml(sub, set) {
     }
 
     async function confirmEditStudent(studentId) {
-      const student = allData.find(s => s.__backendId === studentId);
+      const student = allData.find(s => s.__backendId === studentId && s.type === 'student');
       if (!student) return;
       const newStudentId = document.getElementById('edit-student-id')?.value.trim() || student.student_id;
       const prefix = document.getElementById('edit-prefix').value;
@@ -30545,7 +30631,7 @@ function _examResultIdentityHtml(sub, set) {
       ];
       adminList.innerHTML = allAdminsList.map(admin => {
         const linkedStudent = admin.linked_student_id
-          ? allData.find(s => s.__backendId === admin.linked_student_id)
+          ? allData.find(s => s.__backendId === admin.linked_student_id && s.type === 'student')
           : null;
         const nameDisplay = linkedStudent
           ? ` <span class="text-xs text-gray-700">(${linkedStudent.prefix}${linkedStudent.first_name} ${linkedStudent.last_name})</span>`
@@ -31340,7 +31426,7 @@ function _examResultIdentityHtml(sub, set) {
       existingItems.forEach(el => el.remove());
     }
     function editHoursPopup(hoursId) {
-      const hours = allData.find(d => d.__backendId === hoursId);
+      const hours = allData.find(d => d.__backendId === hoursId && d.type === 'class_subject_hours');
       if (!hours) return;
       const editDiv = document.createElement('div');
       editDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto';
@@ -31421,7 +31507,7 @@ function _examResultIdentityHtml(sub, set) {
       if (actualAbsentInput) actualAbsentInput.value = actualAbsent.toFixed(2);
     }
     async function confirmEditHoursPopup(hoursId) {
-      const hours = allData.find(d => d.__backendId === hoursId);
+      const hours = allData.find(d => d.__backendId === hoursId && d.type === 'class_subject_hours');
       if (!hours) return;
       const credits = parseFloat(document.getElementById('popup-credits')?.value) || 0;
       const hoursPerWeek = parseFloat(document.getElementById('popup-hours-week')?.value) || 0;
@@ -31452,7 +31538,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     async function deleteHours(hoursId) {
-      const hours = allData.find(d => d.__backendId === hoursId);
+      const hours = allData.find(d => d.__backendId === hoursId && d.type === 'class_subject_hours');
       if (!hours) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -31468,7 +31554,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteHours(hoursId) {
-      const hours = allData.find(d => d.__backendId === hoursId);
+      const hours = allData.find(d => d.__backendId === hoursId && d.type === 'class_subject_hours');
       if (!hours) return;
       const result = await window.dataSdk.delete(hours);
       if (result.isOk) {
@@ -31682,7 +31768,7 @@ function _examResultIdentityHtml(sub, set) {
       existingItems.forEach(el => el.remove());
     }
     function editScoresPopup(scoresId) {
-      const scores = allData.find(d => d.__backendId === scoresId);
+      const scores = allData.find(d => d.__backendId === scoresId && d.type === 'class_subject_scores');
       if (!scores) return;
       const categories = [
         { type: 'k', label: '📝 K (เก็บคะแนน)', times: 10 },
@@ -31720,7 +31806,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(editDiv);
     }
     async function confirmEditScoresPopup(scoresId) {
-      const scores = allData.find(d => d.__backendId === scoresId);
+      const scores = allData.find(d => d.__backendId === scoresId && d.type === 'class_subject_scores');
       if (!scores) return;
       const categories = [
         { type: 'k', times: 10 }, { type: 's', times: 3 }, { type: 'a', times: 3 },
@@ -31749,7 +31835,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     async function deleteScores(scoresId) {
-      const scores = allData.find(d => d.__backendId === scoresId);
+      const scores = allData.find(d => d.__backendId === scoresId && d.type === 'class_subject_scores');
       if (!scores) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -31765,7 +31851,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteScores(scoresId) {
-      const scores = allData.find(d => d.__backendId === scoresId);
+      const scores = allData.find(d => d.__backendId === scoresId && d.type === 'class_subject_scores');
       if (!scores) return;
       const result = await window.dataSdk.delete(scores);
       if (result.isOk) {
@@ -35236,7 +35322,7 @@ function _examResultIdentityHtml(sub, set) {
       }).join('');
     }
     function viewHomeworkImagesPopup(hwId) {
-      const hw = allData.find(d => d.__backendId === hwId);
+      const hw = allData.find(d => d.__backendId === hwId && d.type === 'homework');
       if (!hw) return;
       const images = (hw.image_urls || '').split(',').filter(u => u.trim());
       const editDiv = document.createElement('div');
@@ -35257,7 +35343,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(editDiv);
     }
     function printHomeworkDetail(hwId) {
-      const hw = allData.find(d => d.__backendId === hwId);
+      const hw = allData.find(d => d.__backendId === hwId && d.type === 'homework');
       if (!hw) return;
       const images = (hw.image_urls || '').split(',').filter(u => u.trim());
       const imagesHtml = images.length > 0 ? images.map(url => `<img src="${url}" style="max-width:100%;margin:8px 0;border:1px solid #ccc;border-radius:4px">`).join('') : '<p>ไม่มีรูปภาพแนบ</p>';
@@ -35480,7 +35566,7 @@ function _examResultIdentityHtml(sub, set) {
       `;
     }
     async function deleteEvaluationSubmission(submissionId) {
-      const submission = allData.find(d => d.__backendId === submissionId);
+      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'evaluation');
       if (!submission) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -35497,7 +35583,7 @@ function _examResultIdentityHtml(sub, set) {
       document.body.appendChild(confirmDiv);
     }
     async function confirmDeleteEvaluationSubmission(submissionId) {
-      const submission = allData.find(d => d.__backendId === submissionId);
+      const submission = allData.find(d => d.__backendId === submissionId && d.type === 'evaluation');
       if (!submission) return;
       const result = await window.dataSdk.delete(submission);
       _closeAllPopups();
@@ -36365,7 +36451,7 @@ function _examResultIdentityHtml(sub, set) {
         showToast('กรุณาเลือกชื่อผู้ประเมิน', 'error');
         return;
       }
-      const evaluatorOption = allData.find(d => d.__backendId === evaluatorOptionId);
+      const evaluatorOption = allData.find(d => d.__backendId === evaluatorOptionId && d.type === 'evaluation_option');
       if (!evaluatorOption) {
         showToast('ไม่พบชื่อผู้ประเมินที่เลือก', 'error');
         return;
@@ -37017,7 +37103,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     function editRegistration(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const mfData = allData.find(d => d.type === 'class_subject' && d.class_subject_id === reg.class_subject_id);
       
@@ -37076,7 +37162,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     async function confirmEditRegistration(regId, kpacLimit) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const k = parseFloat(document.getElementById('edit-k').value) || 0;
       const sVal = parseFloat(document.getElementById('edit-s').value) || 0;
@@ -37104,7 +37190,7 @@ function _examResultIdentityHtml(sub, set) {
       }
     }
     async function deleteRegistration(regId) {
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const confirmDiv = document.createElement('div');
       confirmDiv.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4';
@@ -37136,7 +37222,7 @@ function _examResultIdentityHtml(sub, set) {
     }
     async function handleEditStudentRegister(event, regId, studentClassName, studentRoomNumber, subjectName, kpacLimit) {
       event.preventDefault();
-      const reg = allData.find(d => d.__backendId === regId);
+      const reg = allData.find(d => d.__backendId === regId && d.type === 'student_registration');
       if (!reg) return;
       const k = parseFloat(document.getElementById('k-score').value) || 0;
       const sVal = parseFloat(document.getElementById('s-score').value) || 0;
@@ -37361,7 +37447,7 @@ function _examResultIdentityHtml(sub, set) {
     var typeLabel = currentUser.user_type === 'admin' ? '🔑 แอดมิน' : currentUser.user_type === 'subadmin' ? '👤 ผู้ช่วยแอดมิน' : currentUser.user_type === 'director' ? '🎓 ผู้นิเทศการสอน' : '🎓 นักเรียน';
     document.getElementById('m-header-title').textContent = 'KSAC Score — ' + typeLabel;
     console.log('[Header Debug] user_type:', currentUser.user_type, '| linked_student_id:', currentUser.linked_student_id, '| allData length:', (allData||[]).length);
-    var linkedStudentForHeader = (currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
+    var linkedStudentForHeader = (currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id && s.type === 'student') : null;
     console.log('[Header Debug] linkedStudentForHeader found:', linkedStudentForHeader);
     document.getElementById('m-header-user').textContent = linkedStudentForHeader
       ? ((linkedStudentForHeader.prefix||'') + (linkedStudentForHeader.first_name||'') + ' ' + (linkedStudentForHeader.last_name||''))
@@ -37484,7 +37570,7 @@ function _examResultIdentityHtml(sub, set) {
     var header = document.createElement('div');
     header.id = 'm-desktop-back-header';
     header.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:linear-gradient(135deg,#1e3a5f,#2d5a87);color:white;padding:12px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 10px rgba(0,0,0,0.2)';
-    var linkedStudentForBackHeader = (currentUser && currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id) : null;
+    var linkedStudentForBackHeader = (currentUser && currentUser.user_type === 'subadmin' && currentUser.linked_student_id) ? allData.find(s => s.__backendId === currentUser.linked_student_id && s.type === 'student') : null;
     var userLabel = linkedStudentForBackHeader
       ? ((linkedStudentForBackHeader.prefix||'') + (linkedStudentForBackHeader.first_name||'') + ' ' + (linkedStudentForBackHeader.last_name||''))
       : (currentUser ? ((currentUser.prefix||'') + (currentUser.first_name||currentUser.username||'')) : '');
