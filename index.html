@@ -4335,7 +4335,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.20.261';
+    const APP_VERSION = 'SUPABASE-2026.10.20.262';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -7361,6 +7361,55 @@ const supabaseDataSdk = {
     function sameWorkingTerm(row) { return _termKey(row) === workingTermKey(); }
     function workingTermLabel() { const [y, sm] = workingTermKey().split('|'); return termLabel(y, sm); }
 
+    /* ══════════════════════════════════════════════════════════════════════════
+       🪤 กับดักที่ทำให้ "ภาค 2 ไม่เห็นรายชื่อ ทั้งที่มีคนสมัครแล้ว"
+       ──────────────────────────────────────────────────────────────────────────
+       รายชื่อนักเรียนในระบบนี้ผูกกับ "ปี/ภาค" ของตัวเอง (แถวละเทอม)
+       คนที่สมัครไว้ตอน ภาค 1 จึงเป็นของ ภาค 1 — พอเปลี่ยนมาทำงานใน ภาค 2
+       หน้าที่กรองตามเทอมจะไม่เห็นเขา ทั้งที่กระดิ่งแจ้งเตือนยังนับให้อยู่
+       (กระดิ่งเดิมไม่กรองเทอม จึงบอกว่ามีคนสมัคร แต่กดเข้าไปแล้วว่างเปล่า)
+
+       ✅ ทางที่ระบบออกแบบไว้: แท็บ "โอนรายชื่อ" คัดลอกรายชื่อข้ามเทอมให้
+          แต่เดิมไม่มีอะไรบอกครูว่าต้องไปทำตรงนั้น จึงเหมือนระบบพัง
+       🛠️ จึงเพิ่มคำอธิบายพร้อมปุ่มพาไป ตรงจุดที่ครูมองหารายชื่อ
+       ══════════════════════════════════════════════════════════════════════════ */
+    /** จำนวนนักเรียนที่อยู่ "ปี/ภาคอื่น" (เทียบกับเทอมที่กำลังทำงาน) */
+    function _studentsInOtherTerms() {
+      const here = workingTermKey();
+      const pool = (window.__allRaw || allData).filter(d => d.type === 'student');
+      const seen = new Map();
+      pool.forEach(s => {
+        const k = _termKey(s);
+        if (k === here) return;
+        if (!seen.has(k)) seen.set(k, 0);
+        seen.set(k, seen.get(k) + 1);
+      });
+      let total = 0; seen.forEach(v => { total += v; });
+      return { total, byTerm: seen };
+    }
+    /** คำอธิบาย + ปุ่มพาไปโอนรายชื่อ — ใช้ตอนรายชื่อว่างเปล่าเพราะเรื่องเทอม
+     *  คืนค่าว่างถ้าไม่ใช่สาเหตุนี้ (เพื่อไม่ไปบังข้อความเดิมที่ถูกต้องอยู่แล้ว) */
+    function _otherTermStudentsNote() {
+      const info = _studentsInOtherTerms();
+      if (!info.total) return '';
+      const parts = [];
+      info.byTerm.forEach((n, k) => {
+        const [y, sm] = String(k).split('|');
+        parts.push(`${(y || sm) ? termLabel(y, sm) : 'ยังไม่ระบุปี/ภาค'} ${n} คน`);
+      });
+      return `
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 text-left">
+          <p class="font-semibold text-amber-900 mb-1">📅 ${escHtml(workingTermLabel())} ยังไม่มีรายชื่อนักเรียน</p>
+          <p class="text-sm text-amber-800 mb-1">แต่มีรายชื่ออยู่ในปี/ภาคอื่นรวม <b>${info.total} คน</b> — ${escHtml(parts.join(' · '))}</p>
+          <p class="text-xs text-amber-700 mb-3">รายชื่อนักเรียนผูกกับปี/ภาค คนที่สมัครไว้เทอมก่อนจึงยังไม่อยู่ในเทอมนี้
+            ต้องโอนรายชื่อมาก่อน แล้วจะลงทะเบียนแทนทีละหลายคนได้ทันที</p>
+          <button onclick="showStudentsSubTab('transfer')"
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium">
+            🔄 ไปที่แท็บโอนรายชื่อ
+          </button>
+        </div>`;
+    }
+
     /** คู่ปี/ภาคทั้งหมดที่เลือกดูได้
      *  รวม "ปี/ภาคที่เพิ่งเปิดใช้งาน" ที่ยังไม่มีข้อมูลสักแถวด้วย
      *  ไม่งั้นพอตั้งภาค 2 ใหม่ จะยังไม่มีให้เลือกในดรอปดาวน์จนกว่าจะมีคนลงทะเบียน */
@@ -7534,7 +7583,11 @@ const supabaseDataSdk = {
       // 📌 ปรับตามที่ผู้ใช้ต้องการ: ไม่มีปุ่มรับทราบแล้ว
       // ชื่อจะหายไปเองเมื่อนักเรียนลงทะเบียนเรียนจริงเท่านั้น (ตรงกับข้อความเลื่อนหน้าแรก)
       const newOnes = students.filter(s =>
-        !_hasRegistration(s.student_id)   // 📚 ตัวตรวจกลาง (ไม่สนช่องว่าง)
+        // 📅 ต้องกรองตามปี/ภาคให้ตรงกับแท็บ "นักเรียนที่สมัคร"
+        //    🪤 เดิมกระดิ่งไม่กรอง จึงขึ้นว่ามีคนสมัคร แต่กดเข้าแท็บแล้วว่างเปล่า
+        //       (คนเหล่านั้นเป็นของเทอมก่อน ต้องโอนรายชื่อมาก่อน)
+        (typeof inTermView === 'function' ? inTermView(s) : true)
+        && !_hasRegistration(s.student_id)   // 📚 ตัวตรวจกลาง (ไม่สนช่องว่าง)
       );
       // เรียงตามชั้น -> ห้อง -> เลขที่
       return newOnes.sort((a, b) => {
@@ -15848,6 +15901,62 @@ const supabaseDataSdk = {
       return take(ready, nAll);
     }
 
+    /* ══════════════════════════════════════════════════════════════════════════
+       🎓 "ผ่านเกณฑ์หลักสูตรแล้วหรือยัง" — ตัวตัดสินกลางตัวเดียว
+       ──────────────────────────────────────────────────────────────────────────
+       🚨 บั๊กที่พบ: หน้าตรวจสอบเกียรติบัตรเรียกหา _ceCoursePassed() มาตลอด
+          แต่ฟังก์ชันนี้ "ไม่เคยมีอยู่จริง" — มีแต่ตัวกันพลาด typeof === 'function'
+          ผลคือ pass เป็น null เสมอ ด่านที่ควรบอกว่า "ยังไม่ผ่านเกณฑ์" จึงไม่เคยทำงาน
+          ใครก็ตามที่กรอกเลขที่กับรหัสถูก จะได้ผลว่า "✅ เป็นเกียรติบัตรที่ออกจากระบบจริง"
+          ทั้งที่ยังไม่ได้เรียนอะไรเลย
+
+       📏 เกณฑ์ที่ใช้ตัดสิน (ต้องผ่านทุกข้อ)
+          ① ต้องเป็นผู้เรียนที่สถานะ active ในหลักสูตรนี้
+          ② เนื้อหาที่พร้อมใช้งานทุกอันต้องเรียนจบ
+          ③ เนื้อหาที่มีข้อสอบ ต้องมีครั้งที่ส่งแล้วและได้ถึงเกณฑ์ของเนื้อหานั้น
+          ④ ถ้าหลักสูตรตั้งเกณฑ์รวม (total_pass_percent) ค่าเฉลี่ยต้องถึงด้วย
+
+       ↩️ คืนค่า: true = ผ่าน · false = ยังไม่ผ่าน · null = ตัดสินไม่ได้
+          (หลักสูตรยังไม่มีเนื้อหาที่พร้อมใช้ จึงยังไม่มีอะไรให้วัด)
+       ══════════════════════════════════════════════════════════════════════════ */
+    function _ceCoursePassed(courseId, studentId) {
+      const c = _courseById(courseId);
+      if (!c) return false;
+      if (!_isEnrolled(courseId, studentId)) return false;
+      const ready = _lessonsReadyOf(courseId);
+      if (!ready.length) return null;                 // ยังไม่มีอะไรให้วัด
+
+      const pcts = [];
+      for (const l of ready) {
+        if (!_progDone(l.__backendId, studentId)) return false;      // ② ยังเรียนไม่จบ
+        const hasExam = allData.some(d => d.type === 'course_exam_question'
+          && String(d.lesson_id) === String(l.__backendId) && _qReady(d));
+        if (!hasExam) continue;
+        const atts = allData.filter(d => d.type === 'course_exam_attempt'
+          && String(d.lesson_id) === String(l.__backendId)
+          && String(d.student_id) === String(studentId)
+          && String(d.status || '') === 'submitted');
+        if (!atts.length) return false;                              // ③ มีข้อสอบแต่ยังไม่ได้สอบ
+        const best = Math.max(...atts.map(a => parseFloat(a.percent) || 0));
+        if (best < _cePassPercent(c, l)) return false;                //    สอบแล้วแต่ยังไม่ถึงเกณฑ์
+        pcts.push(best);
+      }
+      // ④ เกณฑ์รวมของหลักสูตร (ถ้าตั้งไว้)
+      const tp = parseFloat(c.total_pass_percent);
+      if (!isNaN(tp) && tp > 0 && pcts.length) {
+        const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+        if (avg < tp) return false;
+      }
+      return true;
+    }
+    /** รายชื่อผู้ที่ผ่านเกณฑ์หลักสูตรนี้แล้ว — ใช้ตอนออกเกียรติบัตรจริง */
+    function _ceCoursePassers(courseId) {
+      return allData.filter(d => d.type === 'course_enrollment'
+          && String(d.course_id) === String(courseId)
+          && String(d.status || 'active') === 'active')
+        .filter(e => _ceCoursePassed(courseId, e.student_id) === true);
+    }
+
     /** เกณฑ์ร้อยละของเนื้อหานี้ — ของเนื้อหาทับของหลักสูตรได้ */
     function _cePassPercent(course, lesson) {
       const l = parseFloat(lesson && lesson.pass_percent);
@@ -17061,6 +17170,11 @@ const supabaseDataSdk = {
       return out;
     }
     /** เลขที่เกียรติบัตร — อ่านได้ และบอกได้ว่าเป็นของใครหลักสูตรใด */
+    /** ข้อความที่ใช้แทนเลขที่และรหัสของ "ใบตัวอย่าง"
+     *  🛑 ต้องไม่ตรงรูปแบบของเลขที่จริง เพื่อให้หน้าตรวจสอบปฏิเสธทันที */
+    const CERT_SAMPLE_NO   = 'ตัวอย่าง — ไม่ใช่เลขที่จริง';
+    const CERT_SAMPLE_CODE = 'ตัวอย่าง';
+
     function _certNo(ctx) {
       // 🏷️ ใบที่ออกใหม่ใช้ KSAC- ตามชื่อระบบใหม่
       return 'KSAC-' + (ctx.academic_year || '-') + '-' + (ctx.semester || '-')
@@ -17117,13 +17231,21 @@ const supabaseDataSdk = {
       ctx.verify_code = _certCode(ctx);
       return ctx;
     }
-    /** ข้อมูลตัวอย่างสำหรับดูหน้าตาแบบ ตอนที่ยังไม่มีนักเรียนผ่านเกณฑ์ */
+    /** ข้อมูลตัวอย่างสำหรับดูหน้าตาแบบ ตอนที่ยังไม่มีนักเรียนผ่านเกณฑ์
+     *
+     *  🛑 ต้องดูออกทันทีว่าเป็นตัวอย่าง ไม่ใช่ใบจริง
+     *     ⚠️ ของเดิมใส่ชื่อคนเหมือนจริง (นางสาว…) เลขประจำตัวเหมือนจริง ชั้น/ห้องเหมือนจริง
+     *        แล้วยังคิด "เลขที่เกียรติบัตร" กับ "รหัสตรวจสอบ" ออกมาด้วยสูตรเดียวกับใบจริง
+     *        → ครูเข้าใจว่ามีคนจบหลักสูตรแล้ว ทั้งที่ยังไม่มีใครจบ
+     *        → และถ้าพิมพ์ตัวอย่างแจกออกไป ใบนั้นอาจผ่านหน้าตรวจสอบได้
+     *     ✅ เปลี่ยนเป็นช่องว่างในวงเล็บเหลี่ยมทั้งหมด ให้เหมือนช่องอื่นที่ทำไว้ถูกแล้ว
+     *        แล้วบังคับเลขที่/รหัสตรวจสอบเป็นคำว่า "ตัวอย่าง" ซึ่งหน้าตรวจสอบจะปฏิเสธ */
     function _certSample() {
       const ctx = {
-        student_id: '24532', course_id: '1',
-        student_name: 'นางสาวพรธิภา สุขเกษม', student_class: 'ม.6/4',
-        course_name: 'ตัวอย่างชื่อหลักสูตร', subject_name: 'ค33103 คณิตศาสตร์พื้นฐาน',
-        semester: '1', academic_year: '2569',
+        student_id: '[เลขประจำตัว]', course_id: '[รหัสหลักสูตร]',
+        student_name: '[ชื่อ-นามสกุลนักเรียน]', student_class: '[ชั้น/ห้อง]',
+        course_name: '[ชื่อหลักสูตร]', subject_name: '[รหัสและชื่อรายวิชา]',
+        semester: '[ภาค]', academic_year: '[ปีการศึกษา]',
         date_raw: new Date().toISOString(), date_key: new Date().toISOString().slice(0, 10),
         date_pass: _certThaiDate(new Date()),
         school_name: _certSet('cert_school_name') || '[ชื่อโรงเรียน]',
@@ -17134,8 +17256,11 @@ const supabaseDataSdk = {
         sign2_title: _certSet('cert_sign2_title') || 'ผู้อำนวยการโรงเรียน',
         logo: _certSet('cert_logo'), sign1_image: _certSet('cert_sign1_image'), sign2_image: _certSet('cert_sign2_image')
       };
-      ctx.cert_no = _certNo(ctx);
-      ctx.verify_code = _certCode(ctx);
+      // 🛑 ห้ามคิดเลขที่/รหัสตรวจสอบจริงให้ตัวอย่าง — ไม่งั้นใบตัวอย่างจะกลายเป็นใบที่ตรวจผ่านได้
+      //    (ไม่เรียก _certNo / _certCode ที่นี่ โดยเจตนา)
+      ctx.cert_no = CERT_SAMPLE_NO;
+      ctx.verify_code = CERT_SAMPLE_CODE;
+      ctx.__sample = true;
       return ctx;
     }
 
@@ -17238,6 +17363,20 @@ const supabaseDataSdk = {
 
     /** 🖨️ สั่งพิมพ์ — เปิดหน้าซ้อนที่มีแต่ใบเกียรติบัตร แล้วเรียกหน้าต่างพิมพ์ของเบราว์เซอร์
      *  ผู้ใช้เลือก "บันทึกเป็น PDF" ได้จากหน้าต่างเดียวกัน ตัวอักษรไทยจึงคมและไม่เพี้ยน */
+    /** 💧 ลายน้ำ "ตัวอย่าง" พาดทับใบ — ขึ้นเฉพาะใบตัวอย่าง และติดไปกับงานพิมพ์ด้วย
+     *  🛑 เหตุผล: ใบตัวอย่างหน้าตาเหมือนใบจริงทุกอย่าง ถ้าพิมพ์แจกไปจะแยกไม่ออก
+     *     ลายน้ำนี้ทำให้ใบตัวอย่างไม่สามารถถูกใช้แทนใบจริงได้ */
+    function _certSampleWatermark(ctx, pp) {
+      if (!ctx || !ctx.__sample) return '';
+      const size = Math.round(Math.min(pp.w, pp.h) / 5);
+      return `<div aria-hidden="true" style="position:absolute;inset:0;pointer-events:none;
+          display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <span style="font-family:'TH Sarabun New',sans-serif;font-weight:700;font-size:${size}px;
+            color:rgba(220,38,38,0.18);transform:rotate(-24deg);white-space:nowrap;letter-spacing:${Math.round(size / 8)}px;
+            -webkit-print-color-adjust:exact;print-color-adjust:exact">ตัวอย่าง</span>
+        </div>`;
+    }
+
     function _certPrint(tpl, ctx) {
       const pp = _certPaper(tpl && tpl.paper);
       document.getElementById('cert-print-overlay')?.remove();
@@ -17263,7 +17402,7 @@ const supabaseDataSdk = {
           <span id="cert-print-zoom" style="color:#cbd5e1;font-size:12px"></span>
         </div>
         <div id="cert-print-fit" style="margin:0 auto">
-          <div id="cert-print-wrap" style="width:${pp.w}px;height:${pp.h}px;transform-origin:top left">${_certPageHtml(tpl, ctx, { pageId: 'cert-print-page' })}</div>
+          <div id="cert-print-wrap" style="width:${pp.w}px;height:${pp.h}px;transform-origin:top left;position:relative">${_certPageHtml(tpl, ctx, { pageId: 'cert-print-page' })}${_certSampleWatermark(ctx, pp)}</div>
         </div>`;
       document.body.appendChild(d);
       _certFitPreview(pp);
@@ -17881,18 +18020,35 @@ const supabaseDataSdk = {
       };
       const p = _certParseNo(no);
       if (!p) { show(false, '❌ รูปแบบเลขที่ไม่ถูกต้อง', 'เลขที่ต้องขึ้นต้นด้วย KSAC- หรือ KSAC- (ใบเก่า) เช่น KSAC-2569-1-24532-1'); return; }
+      // 🔐 ต้องกรอกรหัสตรวจสอบมาก่อนทุกอย่าง
+      //    🚨 ของเดิมถ้าเว้นรหัสว่างไว้ จะข้ามการตรวจ แล้ว "พิมพ์รหัสที่ถูกต้องให้ดู" ด้านล่าง
+      //       ใครก็เดาเลขที่จากรหัสนักเรียนแล้วให้ระบบบอกรหัสเองได้ = รหัสไม่มีความหมาย
+      //    🔒 และต้องถามก่อน "ค้นหาข้อมูล" ด้วย ไม่งั้นคนที่ไม่มีรหัสจะไล่เดาเลขที่
+      //       แล้วอ่านจากข้อความต่างกัน ("ไม่พบนักเรียน" / "ไม่พบหลักสูตร") ว่าใครมีอยู่ในระบบ
+      if (!code) {
+        show(false, '🔐 กรุณากรอกรหัสตรวจสอบที่อยู่บนใบด้วย',
+          'เลขที่เพียงอย่างเดียวยืนยันไม่ได้ เพราะเลขที่ประกอบจากปี/ภาค/เลขประจำตัว/หลักสูตร ซึ่งเดาได้');
+        return;
+      }
       const ctx = _certContext(p.course_id, p.student_id);
-      if (!ctx.student_name) { show(false, '❌ ไม่พบนักเรียนตามเลขที่นี้'); return; }
-      if (!_courseById(p.course_id)) { show(false, '❌ ไม่พบหลักสูตรตามเลขที่นี้'); return; }
-      if (code && code !== String(ctx.verify_code).toUpperCase()) {
+      // 🔒 ไม่แยกข้อความว่า "ไม่พบนักเรียน" หรือ "ไม่พบหลักสูตร" — ตอบรวมเป็นไม่พบใบนี้
+      if (!ctx.student_name || !_courseById(p.course_id)) {
+        show(false, '❌ ไม่พบเกียรติบัตรตามเลขที่และรหัสนี้');
+        return;
+      }
+      if (code !== String(ctx.verify_code).toUpperCase()) {
         show(false, '❌ รหัสตรวจสอบไม่ตรงกับเลขที่นี้', 'ใบนี้อาจถูกแก้ไข หรือพิมพ์รหัสผิด');
         return;
       }
       const pass = (typeof _ceCoursePassed === 'function') ? _ceCoursePassed(p.course_id, p.student_id) : null;
       const detail = `<p style="margin:0">👤 ${escHtml(ctx.student_name)} · ${escHtml(ctx.student_class)}</p>
         <p style="margin:2px 0 0">🎒 ${escHtml(ctx.course_name)} · ${escHtml(ctx.subject_name)} · ภาคเรียนที่ ${escHtml(ctx.semester)}</p>
-        <p style="margin:2px 0 0">🗓️ ผ่านเกณฑ์วันที่ ${escHtml(ctx.date_pass)}</p>
-        <p style="margin:2px 0 0">🔐 รหัสตรวจสอบที่ถูกต้องคือ ${escHtml(ctx.verify_code)}</p>`;
+        <p style="margin:2px 0 0">🗓️ ผ่านเกณฑ์วันที่ ${escHtml(ctx.date_pass)}</p>`;
+      // 🛑 ไม่พิมพ์รหัสที่ถูกต้องออกมาอีกแล้ว (ช่องรั่วเดิม)
+      if (pass === null) {
+        show(false, '⚠️ ยังตรวจไม่ได้ — หลักสูตรนี้ยังไม่มีเนื้อหาที่พร้อมใช้งาน', detail);
+        return;
+      }
       if (pass === false) { show(false, '⚠️ เลขที่และรหัสตรงกัน แต่ขณะนี้ยังไม่ผ่านเกณฑ์ของหลักสูตร', detail); return; }
       show(true, '✅ เป็นเกียรติบัตรที่ออกจากระบบจริง', detail);
     }
@@ -27723,7 +27879,13 @@ function _examResultIdentityHtml(sub, set) {
         countLabel.textContent = `แสดง ${students.length} จาก ${allStudents.length} คน`;
       }
       if (students.length === 0) {
-        container.innerHTML = `<tr><td colspan="9" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนในระบบ' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
+        // 🪤 ถ้าว่างเพราะรายชื่ออยู่ในปี/ภาคอื่น ต้องบอกให้ชัดและพาไปโอนรายชื่อ
+        //    ไม่ใช่ขึ้นแค่ "ยังไม่มีนักเรียนในระบบ" ซึ่งทำให้เข้าใจว่าข้อมูลหาย
+        const note = (allStudents.length === 0 && typeof _otherTermStudentsNote === 'function')
+          ? _otherTermStudentsNote() : '';
+        container.innerHTML = note
+          ? `<tr><td colspan="9" class="py-4">${note}</td></tr>`
+          : `<tr><td colspan="9" class="text-center text-gray-400 py-4">${allStudents.length === 0 ? 'ยังไม่มีนักเรียนในระบบ' : 'ไม่พบนักเรียนตามที่กรอง'}</td></tr>`;
         return;
       }
       container.innerHTML = students.map(s => {
@@ -28354,7 +28516,16 @@ function _examResultIdentityHtml(sub, set) {
         (a.room_number||'').localeCompare(b.room_number||'') ||
         (parseInt(a.student_number)||0) - (parseInt(b.student_number)||0));
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ ไม่มีนักเรียนที่ยังไม่ได้ลงทะเบียนวิชาเลย</td></tr>';
+        // 🪤 แยกให้ชัดระหว่าง 2 กรณีที่หน้าตาเหมือนกันแต่คนละเรื่อง
+        //    ก) ทุกคนลงทะเบียนครบแล้วจริง ๆ  ← ข้อความเดิมถูกต้อง
+        //    ข) เทอมนี้ยังไม่มีรายชื่อเลย เพราะยังไม่ได้โอนมาจากเทอมก่อน
+        //       ← เดิมขึ้นเครื่องหมายถูกเขียว ทำให้เข้าใจผิดว่าเรียบร้อยแล้ว
+        //         ทั้งที่ยังลงทะเบียนแทนใครไม่ได้เลย
+        const anyHere = allData.some(s => s.type === 'student' && sameWorkingTerm(s));
+        const note = (!anyHere && typeof _otherTermStudentsNote === 'function') ? _otherTermStudentsNote() : '';
+        tbody.innerHTML = note
+          ? `<tr><td colspan="5" class="py-4">${note}</td></tr>`
+          : '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ ไม่มีนักเรียนที่ยังไม่ได้ลงทะเบียนวิชาเลย</td></tr>';
         renderBadKpacTable();   // ยังต้องวาดตารางด้านล่าง เพราะคนที่ KSAC ไม่ครบคนละกลุ่มกัน
         return;
       }
