@@ -3037,6 +3037,9 @@
          </div>
         </div>
         <!-- ⚠️ ลงทะเบียนแล้ว แต่ KSAC ไม่ครบ — คนกลุ่มนี้เดิมไม่โผล่ที่ไหนเลย เพราะมีแถวลงทะเบียนอยู่แล้ว -->
+        <!-- 🚑 คะแนนที่ไม่มีการลงทะเบียนคู่กัน — อาการ "ต้องลงทะเบียนใหม่ แต่บันทึกคะแนนได้" -->
+        <div id="orphan-grades-box" class="mt-4"></div>
+
         <div class="bg-white rounded-2xl card-shadow p-6 mt-4">
          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
@@ -4367,7 +4370,7 @@
     // ============================================================
     // 🏷️ เลขเวอร์ชันของไฟล์นี้ — อัปเดตทุกครั้งที่มีการแก้ไข เพื่อให้ตรวจสอบได้ว่ากำลังใช้ไฟล์ล่าสุดหรือไม่
     // (แก้ปัญหาอัปโหลดไฟล์ใหม่แล้วแต่เบราว์เซอร์ยังใช้ไฟล์เก่าที่ค้างอยู่ใน cache)
-    const APP_VERSION = 'SUPABASE-2026.10.21.268';
+    const APP_VERSION = 'SUPABASE-2026.10.21.269';
     const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwzCqGjUQd8-clS36T8LUXMR6P2aSDh0Ns__Da6kIpna3PN1LMyOxxGqlCoGk9kEkX3qg/exec';
     // 🔐 "คำผ่าน" (API Key) — ต้องตรงกับค่า API_KEY ในไฟล์ google_apps_script_backend.gs เป๊ะ ไม่งั้นเว็บจะเรียกข้อมูลไม่ได้เลย (ปิด "ประตูหลังที่ไม่มีกุญแจ")
     const API_KEY = 'fa21ecd51d726d835010adf8ce3cf8079dcbe87360f316a9';
@@ -29022,6 +29025,132 @@ function _examResultIdentityHtml(sub, set) {
         || (parseInt(x.student?.student_number) || 0) - (parseInt(y.student?.student_number) || 0)
         || String(x.reg.subject_name || '').localeCompare(String(y.reg.subject_name || '')));
     }
+    /* ══════════════════════════════════════════════════════════════════════════
+       🚑 คะแนนที่ไม่มีการลงทะเบียนคู่กัน
+       ──────────────────────────────────────────────────────────────────────────
+       🚨 อาการที่ผู้ใช้เจอกับรหัส 24226 และ 25853:
+          "ระบบบอกต้องลงทะเบียนใหม่ แต่บันทึกคะแนนได้ และหาในตารางไม่เจอ"
+
+       🔑 แปลได้อย่างเดียว: แถวคะแนนยังอยู่ แต่แถวการลงทะเบียนหายไป
+          ระบบใช้ "การลงทะเบียน" เป็นตัวบอกว่าใครเรียนวิชาอะไร
+          หน้ารายชื่อทุกหน้าจึงไม่เห็นเขา → ขึ้นว่าต้องลงทะเบียนใหม่
+          แต่ "แถวคะแนน" เป็นอีกตารางและยังอยู่ จึงกรอกคะแนนได้ต่อ
+
+       ⚠️ ถ้าให้ลงทะเบียนใหม่เลย จะได้แถวคะแนนใบที่สองซ้อนเข้ามา
+          คะแนนเดิมจะค้างอยู่เฉย ๆ และครูต้องกรอกใหม่ทั้งหมด
+       ✅ จึงซ่อมโดย "สร้างการลงทะเบียนคืนจากแถวคะแนนที่มีอยู่" แล้วผูกกลับให้
+          คะแนนที่กรอกไว้ไม่หาย ไม่ต้องกรอกใหม่
+       ══════════════════════════════════════════════════════════════════════════ */
+    /** แถวคะแนนที่ไม่มีการลงทะเบียนคู่กัน (เทียบด้วย รหัสนักเรียน + ชั้น + ห้อง + วิชา) */
+    function _orphanGradeRows() {
+      const regKey = new Set(allData.filter(d => d.type === 'student_registration')
+        .map(r => [_rN(r.student_id), _rN(r.class_name), _rRoom(r.room_number), _rN(r.subject_name)].join('|')));
+      return allData.filter(d => d.type === 'grade')
+        .filter(g => !regKey.has([_rN(g.student_id), _rN(g.class_name), _rRoom(g.room_number), _rN(g.subject_name)].join('|')));
+    }
+    /** คะแนนในแถวนี้มีค่าอยู่จริงไหม — ใช้บอกครูว่าจะเสียอะไรถ้าลงทะเบียนใหม่ */
+    function _gradeRowHasScores(g) {
+      return ['k_scores', 's_scores', 'p_scores', 'a_scores', 'c_scores', 'm_scores', 'f_scores', 'pretest_scores']
+        .some(f => String(g[f] || '').split(',').some(x => (parseFloat(x) || 0) > 0));
+    }
+    function renderOrphanGradesBox() {
+      const box = document.getElementById('orphan-grades-box');
+      if (!box) return;
+      const list = _orphanGradeRows();
+      if (!list.length) { box.innerHTML = ''; return; }
+      const ids = [...new Set(list.map(g => String(g.student_id || '')))];
+      const withScores = list.filter(_gradeRowHasScores).length;
+      box.innerHTML = `
+        <div class="bg-white rounded-2xl card-shadow p-6 border-4 border-rose-400">
+          <h4 class="text-lg font-bold text-rose-900 mb-1">🚑 มีคะแนนอยู่ แต่ไม่มีการลงทะเบียน (${list.length} รายการ · ${ids.length} คน)</h4>
+          <div class="bg-rose-50 border border-rose-200 rounded-lg p-3 mb-3 text-xs text-rose-900 leading-relaxed">
+            <p><b>อาการที่เจอ:</b> ระบบขึ้นว่าต้องลงทะเบียนใหม่ · หารายชื่อในหน้าต่าง ๆ ไม่เจอ · แต่กรอกคะแนนได้ปกติ</p>
+            <p class="mt-1"><b>สาเหตุ:</b> แถวคะแนนยังอยู่ แต่แถวการลงทะเบียนหายไป
+              ระบบใช้การลงทะเบียนเป็นตัวบอกว่าใครเรียนวิชาอะไร จึงไม่เห็นเขาในรายการ</p>
+            <p class="mt-1 text-rose-700"><b>⚠️ อย่าให้เขาลงทะเบียนใหม่เอง</b> จะได้แถวคะแนนใบที่สองซ้อนเข้ามา
+              ${withScores ? `และคะแนนที่กรอกไว้แล้ว <b>${withScores} รายการ</b> จะค้างอยู่เฉย ๆ ต้องกรอกใหม่ทั้งหมด` : ''}</p>
+            <p class="mt-1 text-emerald-800"><b>✅ กดปุ่มข้างล่างแทน</b> ระบบจะสร้างการลงทะเบียนคืนจากข้อมูลในแถวคะแนนนั้นเอง
+              แล้วผูกกลับให้ — คะแนนที่กรอกไว้ไม่หาย ไม่ต้องกรอกใหม่</p>
+          </div>
+          <div class="overflow-x-auto border-2 border-gray-200 rounded-lg mb-3">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-100"><tr>
+                <th class="px-2 py-2 text-left">รหัสนักเรียน</th>
+                <th class="px-2 py-2 text-left">ชื่อ</th>
+                <th class="px-2 py-2 text-center">ชั้น/ห้อง</th>
+                <th class="px-2 py-2 text-left">วิชา</th>
+                <th class="px-2 py-2 text-center">ปี/ภาค</th>
+                <th class="px-2 py-2 text-center">มีคะแนนแล้ว</th>
+              </tr></thead>
+              <tbody>${list.map(g => `<tr class="border-t border-gray-100">
+                <td class="px-2 py-1 font-mono">${escHtml(String(g.student_id || '-'))}</td>
+                <td class="px-2 py-1">${escHtml(String(g.student_name || _studentNameOf(g.student_id) || '-'))}</td>
+                <td class="px-2 py-1 text-center">${escHtml(String(g.class_name || '-'))}/${escHtml(String(g.room_number || '-'))}</td>
+                <td class="px-2 py-1">${escHtml(String(g.subject_name || '-'))}</td>
+                <td class="px-2 py-1 text-center">${escHtml(String(g.academic_year || '-'))}/${escHtml(String(g.semester || '-'))}</td>
+                <td class="px-2 py-1 text-center">${_gradeRowHasScores(g) ? '<span class="text-green-700 font-bold">มี</span>' : '<span class="text-gray-400">ยังว่าง</span>'}</td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>
+          <button onclick="repairOrphanGrades()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold btn-3d">
+            🚑 สร้างการลงทะเบียนคืนให้ ${list.length} รายการ (คะแนนเดิมไม่หาย)
+          </button>
+          <p id="orphan-grades-result" class="text-xs mt-2"></p>
+        </div>`;
+    }
+    function _studentNameOf(sid) {
+      const st = allData.find(d => d.type === 'student' && _rN(d.student_id) === _rN(sid));
+      return st ? String((st.prefix || '') + (st.first_name || '') + ' ' + (st.last_name || '')).trim() : '';
+    }
+    /** 🚑 สร้างการลงทะเบียนคืนจากแถวคะแนน แล้วผูกแถวคะแนนกลับ */
+    async function repairOrphanGrades() {
+      const list = _orphanGradeRows();
+      if (!list.length) { showToast('ไม่มีรายการที่ต้องซ่อม', 'info'); renderOrphanGradesBox(); return; }
+      if (!confirm(`สร้างการลงทะเบียนคืนให้ ${list.length} รายการ?\n\n`
+        + `ระบบจะลอก ชั้น · ห้อง · วิชา · ปี/ภาค จากแถวคะแนนนั้นเอง\n`
+        + `น้ำหนัก KSAC จะลอกจากเพื่อนในห้องเดียวกันวิชาเดียวกัน ถ้าไม่มีจะเว้นว่างไว้ให้กรอก\n\n`
+        + `ไม่แตะคะแนนเดิมแม้แต่ช่องเดียว`)) return;
+      let done = 0, failed = 0;
+      for (const g of list) {
+        // น้ำหนัก KSAC จากเพื่อนในห้อง/วิชาเดียวกัน
+        const buddy = allData.find(d => d.type === 'student_registration'
+          && _rN(d.class_name) === _rN(g.class_name) && _rRoom(d.room_number) === _rRoom(g.room_number)
+          && _rN(d.subject_name) === _rN(g.subject_name) && (parseFloat(d.k_percent) || 0) > 0);
+        const rec = {
+          type: 'student_registration',
+          student_id: String(g.student_id || ''),
+          student_name: String(g.student_name || _studentNameOf(g.student_id) || ''),
+          class_name: String(g.class_name || ''),
+          room_number: String(g.room_number || ''),
+          subject_name: String(g.subject_name || ''),
+          class_subject_id: `${g.class_name}_${g.room_number}_${g.subject_name}`,
+          academic_year: String(g.academic_year || ''),
+          semester: String(g.semester || ''),
+          created_at: new Date().toISOString(),
+        };
+        if (buddy) {
+          rec.k_percent = buddy.k_percent; rec.s_percent = buddy.s_percent;
+          rec.a_percent = buddy.a_percent; rec.c_percent = buddy.c_percent;
+        }
+        const res = await window.dataSdk.create(rec);
+        if (!res.isOk) { failed++; if (failed === 1) _sbFailToast(res, 'สร้างการลงทะเบียนคืน'); continue; }
+        done++;
+        // ผูกแถวคะแนนกลับ ถ้ายังไม่ได้ผูก
+        const newId = res.data && res.data.__backendId;
+        if (newId && !g.registration_id) {
+          await window.dataSdk.update({ ...g, registration_id: String(newId) }).catch(() => {});
+        }
+      }
+      const el = document.getElementById('orphan-grades-result');
+      if (el) el.innerHTML = `<span style="color:#047857">✅ สร้างคืนแล้ว ${done} รายการ</span>`
+        + (failed ? ` · <span style="color:#dc2626">ไม่สำเร็จ ${failed} รายการ</span>` : '');
+      if (done) showToast(`✅ สร้างการลงทะเบียนคืน ${done} รายการแล้ว — คะแนนเดิมยังอยู่ครบ`
+        + ' ถ้าช่อง KSAC ว่าง ให้กรอกที่ตาราง "ลงทะเบียนแล้ว แต่ KSAC ไม่ครบ" ด้านล่าง');
+      renderOrphanGradesBox();
+      renderBadKpacTable();
+      if (typeof renderNoEnrollTable === 'function') renderNoEnrollTable();
+    }
+
     function renderBadKpacTable() {
       const tbody = document.getElementById('badkpac-tbody');
       if (!tbody) return;
@@ -29116,9 +29245,11 @@ function _examResultIdentityHtml(sub, set) {
           ? `<tr><td colspan="5" class="py-4">${note}</td></tr>`
           : '<tr><td colspan="5" class="text-center text-gray-400 py-6">✅ ไม่มีนักเรียนที่ยังไม่ได้ลงทะเบียนวิชาเลย</td></tr>';
         renderBadKpacTable();   // ยังต้องวาดตารางด้านล่าง เพราะคนที่ KSAC ไม่ครบคนละกลุ่มกัน
+        renderOrphanGradesBox();   // 🚑 และตัวตรวจคะแนนที่ไม่มีการลงทะเบียน
         return;
       }
       renderBadKpacTable();
+      renderOrphanGradesBox();   // 🚑 ตัวตรวจคะแนนที่ไม่มีการลงทะเบียน
       tbody.innerHTML = list.map(s => `
         <tr class="border-t border-gray-100 hover:bg-gray-50">
          <td class="px-2 py-2 text-center"><input type="checkbox" class="noenroll-cb w-4 h-4" data-sid="${s.student_id}" data-class="${s.class_name||''}" data-room="${s.room_number||''}" onchange="updateNoEnrollCount()"></td>
