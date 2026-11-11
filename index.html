@@ -6605,6 +6605,144 @@ const supabaseDataSdk = {
       } catch (e) { return false; }
     }
 
+    /* 🩺 ตรวจสภาพการติดตั้งแอป — ให้ระบบบอกเองว่าติดขัดตรงไหน
+       ครูเจอ "ติดตั้งไม่ได้" แล้วไม่มีใครรู้ว่าพังตรงไหน เดาไปมาเสียเวลาหลายรอบ
+       ตัวนี้ไล่ตรวจทีละข้อแล้วรายงานเป็นภาษาไทย ครูอ่านให้ฟังได้ทันที */
+    async function pwaCheckup() {
+      const ผล = [];
+      const เพิ่ม = (ok, ชื่อ, รายละเอียด) => ผล.push({ ok, ชื่อ, รายละเอียด: String(รายละเอียด ?? '') });
+
+      เพิ่ม(true, 'ที่อยู่หน้านี้', location.href);
+      const https = location.protocol === 'https:' ||
+                    /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+      เพิ่ม(https, 'ต้องเปิดผ่าน https', location.protocol +
+        (https ? '' : ' ← ต้องเป็น https:// เท่านั้น ติดตั้งจากไฟล์ในเครื่องไม่ได้'));
+
+      // ที่อยู่ที่ระบบใช้หาไฟล์ — จุดนี้พลาดบ่อยถ้าที่อยู่ไม่ลงท้ายด้วย /
+      let mfUrl = '(คำนวณไม่ได้)';
+      try { mfUrl = new URL('manifest.json', location.href).href; } catch (e) {}
+      เพิ่ม(true, 'ระบบมองหาใบประจำตัวแอปที่', mfUrl);
+
+      // โหลดใบประจำตัวแอปจริง
+      let j = null;
+      try {
+        const res = await fetch(mfUrl, { cache: 'no-store' });
+        if (!res.ok) {
+          เพิ่ม(false, 'โหลดใบประจำตัวแอป', 'ไม่สำเร็จ รหัส ' + res.status +
+            (res.status === 404 ? ' ← ไม่พบไฟล์ manifest.json ตรงที่อยู่นี้' : ''));
+        } else {
+          j = await res.json().catch(() => null);
+          เพิ่ม(!!j, 'โหลดใบประจำตัวแอป', j ? 'สำเร็จ' : 'ไฟล์เสียหาย อ่านเนื้อหาไม่ได้');
+        }
+      } catch (e) { เพิ่ม(false, 'โหลดใบประจำตัวแอป', 'ล้มเหลว: ' + e.message); }
+
+      if (j) {
+        เพิ่ม(j.display === 'standalone', 'โหมดเปิดแบบแอป', j.display || '(ไม่ได้ตั้ง)');
+        let su = '(ไม่ได้ตั้ง)';
+        try { su = new URL(j.start_url || './', mfUrl).href; } catch (e) {}
+        เพิ่ม(true, 'ไอคอนจะเปิดหน้า', su);
+        try {
+          const r2 = await fetch(su, { cache: 'no-store' });
+          เพิ่ม(r2.ok, 'หน้าที่ไอคอนจะเปิด', r2.ok ? 'เปิดได้ รหัส ' + r2.status
+            : 'เปิดไม่ได้ รหัส ' + r2.status + ' ← นี่คือสาเหตุที่กดไอคอนแล้วขึ้นว่าเปิดไม่ได้');
+        } catch (e) { เพิ่ม(false, 'หน้าที่ไอคอนจะเปิด', 'เปิดไม่ได้: ' + e.message); }
+
+        const ics = j.icons || [];
+        เพิ่ม(ics.length > 0, 'จำนวนไอคอนที่ประกาศไว้', ics.length + ' รูป');
+        for (const ic of ics) {
+          let u = ic.src;
+          try { u = new URL(ic.src, mfUrl).href; } catch (e) {}
+          const ชื่อไฟล์ = u.split('/').pop();
+          try {
+            const rr = await fetch(u, { cache: 'no-store' });
+            const dim = rr.ok ? await new Promise(res => {
+              const im = new Image();
+              im.onload = () => res(im.width + '×' + im.height);
+              im.onerror = () => res('เปิดเป็นรูปไม่ได้');
+              setTimeout(() => res('หมดเวลา'), 4000);
+              im.src = u;
+            }) : '—';
+            เพิ่ม(rr.ok && /^\d+×\d+$/.test(dim), 'ไอคอน ' + ชื่อไฟล์,
+              rr.ok ? ('โหลดได้ ขนาดจริง ' + dim + ' (ประกาศไว้ ' + ic.sizes + ')')
+                    : ('โหลดไม่ได้ รหัส ' + rr.status));
+          } catch (e) { เพิ่ม(false, 'ไอคอน ' + ชื่อไฟล์, 'โหลดไม่ได้: ' + e.message); }
+        }
+        เพิ่ม(ics.some(i => String(i.purpose || '').includes('maskable')),
+          'ไอคอนแบบที่แอนดรอยด์ครอบมุมได้', ics.some(i => String(i.purpose || '').includes('maskable')) ? 'มี' : 'ไม่มี');
+      }
+
+      // แท็กในหน้าเว็บ
+      const lk = document.querySelector('link[rel="manifest"]');
+      เพิ่ม(!!lk && /^https?:/.test(lk.href), 'แท็กใบประจำตัวในหน้าเว็บ',
+        lk ? (/^https?:/.test(lk.href) ? 'ชี้ไฟล์จริง: ' + lk.href
+             : 'ยังเป็นแบบฝังในหน้า (data:) ← แอนดรอยด์ติดตั้งไม่ได้') : 'ไม่มีแท็กเลย');
+      const ap = document.querySelector('link[rel="apple-touch-icon"]');
+      เพิ่ม(!!ap && /^https?:/.test(ap.href), 'ไอคอนสำหรับไอโฟน',
+        ap ? (/^https?:/.test(ap.href) ? ap.href.split('/').pop() : 'ยังเป็นแบบฝังในหน้า') : 'ไม่มี');
+
+      // สภาพเครื่องและเบราว์เซอร์
+      const dv = _pwaDevice();
+      เพิ่ม(true, 'เครื่องที่ใช้', dv.ios ? (dv.iosOther ? 'ไอโฟน/ไอแพด แต่ไม่ใช่ซาฟารี ← ต้องใช้ซาฟารีเท่านั้น' : 'ไอโฟน/ไอแพด (ซาฟารี)')
+        : dv.android ? 'แอนดรอยด์' : 'คอมพิวเตอร์');
+      เพิ่ม(true, 'ติดตั้งไปแล้วหรือยัง', pwaInstalled() ? 'ติดตั้งแล้ว (กำลังเปิดจากไอคอน)' : 'ยังไม่ได้ติดตั้ง');
+      if (!dv.ios) {
+        เพิ่ม(!!window.__pwaPrompt, 'เบราว์เซอร์เสนอให้ติดตั้ง',
+          window.__pwaPrompt ? 'พร้อม — กดปุ่มเขียวติดตั้งได้เลย'
+            : 'ยังไม่เสนอ ← มักเป็นเพราะใบประจำตัวหรือไอคอนมีปัญหาข้างบน หรือเคยติดตั้งไว้แล้ว');
+      } else {
+        เพิ่ม(true, 'การติดตั้งบนไอโฟน', 'แอปเปิลไม่เปิดให้เว็บสั่งติดตั้งเอง ต้องกดปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม');
+      }
+
+      const เสีย = ผล.filter(r => !r.ok);
+      const แถว = ผล.map(r => `
+        <tr>
+          <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;white-space:nowrap;font-weight:600;color:#334155">
+            ${r.ok ? '✅' : '❌'} ${escHtml(r['ชื่อ'])}</td>
+          <td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:${r.ok ? '#475569' : '#b91c1c'};word-break:break-all">
+            ${escHtml(r['รายละเอียด'])}</td>
+        </tr>`).join('');
+
+      document.getElementById('pwa-checkup')?.remove();
+      const d = document.createElement('div');
+      d.id = 'pwa-checkup';
+      d.style.cssText = 'position:fixed;inset:0;z-index:100003;background:#0009;display:flex;' +
+                        'align-items:center;justify-content:center;padding:12px';
+      d.innerHTML = `
+        <div style="background:#fff;border-radius:16px;padding:16px;max-width:620px;width:100%;
+             max-height:92vh;overflow-y:auto;box-shadow:0 10px 40px #0004">
+          <h3 style="margin:0 0 4px;font-size:17px;font-weight:800;color:#1e293b">🩺 ตรวจสภาพการติดตั้งแอป</h3>
+          <p style="margin:0 0 10px;font-size:13px;color:${เสีย.length ? '#b91c1c' : '#15803d'};font-weight:700">
+            ${เสีย.length ? 'พบจุดติดขัด ' + เสีย.length + ' ข้อ (แถวที่ขึ้น ❌)' : 'ผ่านครบทุกข้อ'}</p>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">${แถว}</table>
+          <button class="w-full pwa-ok" id="pwa-copy-report"
+            style="width:100%;padding:10px;border:0;border-radius:10px;background:#64748b;color:#fff;
+                   font-weight:700;font-size:14px;cursor:pointer;margin-top:12px">📋 คัดลอกผลตรวจ (ส่งให้ผู้ดูแลระบบ)</button>
+          <button class="w-full pwa-ok" onclick="document.getElementById('pwa-checkup')?.remove()"
+            style="width:100%;padding:10px;border:0;border-radius:10px;background:#4da6e8;color:#fff;
+                   font-weight:700;font-size:14px;cursor:pointer;margin-top:8px">ปิด</button>
+        </div>`;
+      d.addEventListener('click', (e) => { if (e.target === d) d.remove(); });
+      document.body.appendChild(d);
+      d.querySelectorAll('button.pwa-ok').forEach(b => b.style.setProperty('width', '100%', 'important'));
+      const cp = d.querySelector('#pwa-copy-report');
+      if (cp) cp.onclick = async () => {
+        const txt = 'ผลตรวจสภาพการติดตั้งแอป KSAC ' + APP_VERSION + '\n'
+          + ผล.map(r => (r.ok ? '[ผ่าน] ' : '[ติดขัด] ') + r['ชื่อ'] + ': ' + r['รายละเอียด']).join('\n')
+          + '\nเบราว์เซอร์: ' + navigator.userAgent;
+        try { await navigator.clipboard.writeText(txt); showToast('คัดลอกแล้ว — วางส่งให้ผู้ดูแลระบบได้เลย'); }
+        catch (e) {
+          // คัดลอกไม่ได้ (บางเบราว์เซอร์ห้าม) → แสดงเป็นข้อความให้เลือกเอง
+          const ta = document.createElement('textarea');
+          ta.value = txt;
+          ta.style.cssText = 'width:100%;height:180px;margin-top:8px;font-size:11px;padding:6px';
+          cp.parentNode.insertBefore(ta, cp);
+          ta.select();
+          showToast('คัดลอกอัตโนมัติไม่ได้ — เลือกข้อความในกรอบแล้วคัดลอกเอง', 'info');
+        }
+      };
+      return ผล;
+    }
+
     async function applyPwaManifest() {
       try {
         // เปิดจากไฟล์ในเครื่องตรง ๆ (file://) ไม่ใช่จากลิงก์เว็บ → ทำไม่ได้ ข้ามไปเงียบ ๆ
@@ -6772,6 +6910,10 @@ const supabaseDataSdk = {
             ℹ️ ยังเป็นเว็บเดิม ข้อมูลและคะแนนอยู่ที่เดิมทุกอย่าง และได้ของใหม่ทุกครั้งที่ครูอัปเดต</p>
           <!-- 📌 ระบบมีกฎบังคับปุ่มบนมือถือให้กว้างเท่าข้อความ หลายกฎและมี !important
                บางกฎก็ไม่ยกเว้น .w-full ด้วย จึงต้องสั่งความกว้างจากสคริปต์อีกชั้น (ดูใต้ appendChild) -->
+          <button class="w-full pwa-ok" onclick="pwaCheckup()"
+            style="width:100%;padding:10px;border:0;border-radius:10px;background:#f1f5f9;color:#334155;
+                   font-weight:700;font-size:13px;cursor:pointer;margin-bottom:8px;border:2px solid #cbd5e1">
+            🩺 ติดตั้งไม่ได้? กดตรวจสภาพ แล้วส่งผลให้ผู้ดูแลระบบ</button>
           <button class="w-full pwa-ok" onclick="document.getElementById('pwa-howto')?.remove()"
             style="width:100%;padding:10px;border:0;border-radius:10px;background:#4da6e8;color:#fff;
                    font-weight:700;font-size:14px;cursor:pointer">เข้าใจแล้ว</button>
