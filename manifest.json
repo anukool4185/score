@@ -4,7 +4,7 @@
   "description": "ระบบเก็บคะแนนเชิงวิชาการ K S A C",
   "lang": "th",
   "dir": "ltr",
-  "id": "./",
+  "id": "./?app=ksac2",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
