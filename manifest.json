@@ -4,11 +4,14 @@
   "description": "ระบบเก็บคะแนนเชิงวิชาการ K S A C",
   "lang": "th",
   "dir": "ltr",
-  "id": "./?v=2",
+  "id": "/score/?v=3",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#4da6e8",
